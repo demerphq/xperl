@@ -2568,6 +2568,7 @@ my %feature_keywords = (
    signatures => 'signatures',
    any      => 'any',
    all      => 'all',
+   implements => 'class',
    generator_create => 'generator',
    generator_yield    => 'generator',
    generator_exhausted => 'generator',
@@ -3459,6 +3460,7 @@ sub pp_sequ { binop(@_, "equ", 14) }
 sub pp_sneu { binop(@_, "neu", 14) }
 
 sub pp_isa { binop(@_, "isa", 15) }
+sub pp_does { binop(@_, "implements", 15) }
 
 sub pp_sassign { binop(@_, "=", 7, SWAP_CHILDREN) }
 sub pp_aassign { binop(@_, "=", 7, SWAP_CHILDREN | LIST_CONTEXT) }

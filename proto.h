@@ -7295,6 +7295,15 @@ Perl_sv_does_pvn(pTHX_ SV *sv, const char * const name, const STRLEN len, U32 fl
     STMT_START { Perl_assert_aTHX; assert(sv); assert(name); } STMT_END
 
 PERL_CALLCONV bool
+Perl_sv_does_role_sv(pTHX_ SV *sv, SV *namesv)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2)
+        __attribute__warn_unused_result__;
+#define PERL_ARGS_ASSERT_SV_DOES_ROLE_SV        \
+    STMT_START { Perl_assert_aTHX; assert(sv); assert(namesv); } STMT_END
+
+PERL_CALLCONV bool
 Perl_sv_does_sv(pTHX_ SV *sv, SV *namesv, U32 flags)
         Perl_attribute_nonnull_aTHX
         Perl_attribute_nonnull(pTHX_1)
@@ -9910,6 +9919,15 @@ Perl_ck_delete(pTHX_ OP *o)
      STMT_START { Perl_assert_aTHX; assert(o); } STMT_END
 
 PERL_CALLCONV OP *
+Perl_ck_does(pTHX_ OP *o)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        __attribute__warn_unused_result__
+        __attribute__visibility__("hidden");
+# define PERL_ARGS_ASSERT_CK_DOES               \
+     STMT_START { Perl_assert_aTHX; assert(o); } STMT_END
+
+PERL_CALLCONV OP *
 Perl_ck_each(pTHX_ OP *o)
         Perl_attribute_nonnull_aTHX
         Perl_attribute_nonnull(pTHX_1)
@@ -10400,6 +10418,24 @@ Perl_croak_kw_unless_class(pTHX_ const char *kw)
         Perl_attribute_nonnull(pTHX_1);
 # define PERL_ARGS_ASSERT_CROAK_KW_UNLESS_CLASS \
      STMT_START { Perl_assert_aTHX; assert(kw); } STMT_END
+
+PERL_CALLCONV void
+Perl_role_seal_stash(pTHX_ HV *stash)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+# define PERL_ARGS_ASSERT_ROLE_SEAL_STASH       \
+     STMT_START { Perl_assert_aTHX; assert(stash);    \
+                  assert(SvTYPE(stash) == SVt_PVHV);  \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_role_setup_stash(pTHX_ HV *stash)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+# define PERL_ARGS_ASSERT_ROLE_SETUP_STASH      \
+     STMT_START { Perl_assert_aTHX; assert(stash);    \
+                  assert(SvTYPE(stash) == SVt_PVHV);  \
+    } STMT_END
 
 #endif /* defined(PERL_IN_CLASS_C) || defined(PERL_IN_OP_C)    ||
           defined(PERL_IN_PAD_C)   || defined(PERL_IN_PERLY_C) ||
