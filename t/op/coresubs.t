@@ -18,11 +18,11 @@ use B;
 
 my %unsupported = map +($_=>1), qw (
  __DATA__ __END__ ADJUST AUTOLOAD BEGIN UNITCHECK CORE DESTROY END INIT CHECK
-  all and any catch class cmp default defer do dump else elsif eq equ eval
+  all and any catch class cmp default defer do implements dump else elsif eq equ eval
   field finally for foreach format ge given goto grep gt if isa last le local
   lt m map method my ne neu next no or our package print printf q qq qr qw qx
   redo require return s say sort state sub tr try unless until use
-  when while x xor y generator_create generator_exhausted generator_yield
+  when while x xor y role generator_create generator_exhausted generator_yield
 );
 my %args_for = (
   dbmopen  => '%1,$2,$3',
