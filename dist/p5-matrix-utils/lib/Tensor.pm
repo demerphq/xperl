@@ -75,25 +75,32 @@ class Tensor {
     # Internal ND Array
     # --------------------------------------------------------------------------
 
-    field $data  :param :reader;
-    field $shape :param :reader;
-
-    field @strides :reader;
+    field $data  :param;
+    field $shape :param;
+    field $native :reader;
 
     ADJUST {
         $data    = $data->get if $data isa Scalar;
         $shape   = [ map { $_ isa Scalar ? $_->get : $_ } @$shape ];
-        @strides = calculate_strides($shape);
         $data    = allocate_data_array($shape, $data); # unless ref $data eq 'ARRAY';
-        Carp::confess "Bad data size, expected ".$self->size." got (".(scalar @$data).")"
-            if scalar @$data != $self->size;
+        my $expected_size = calculate_size($shape);
+        Carp::confess "Bad data size, expected ${expected_size} got (".(scalar @$data).")"
+            if scalar @$data != $expected_size;
+
+        require Tensor::XS;
+        $native = Tensor::XS->new($shape, $data, 'F64');
+        $data = undef;
     }
+
+    method data { $native->data }
+    method shape { $native->shape }
+    method strides { $native->strides }
 
     method DUMP {
         return +{
-            data    => $data,
-            shape   => $shape,
-            strides => \@strides,
+            data    => $self->data,
+            shape   => $self->shape,
+            strides => $self->strides,
         }
     }
 
@@ -101,52 +108,52 @@ class Tensor {
     # Access to the internal data array
     # --------------------------------------------------------------------------
 
-    method to_list { return @$data }
+    method to_list { return @{ $self->data } }
 
     method index_data_array ($index) {
         ($index >= 0 && $index < $self->size)
             || Carp::confess "Index out of bounds (${index})";
-        return $data->[ $index ];
+        return $self->data->[ $index ];
     }
 
     method slice_data_array (@indices) {
         ($_ >= 0 && $_ < $self->size)
             || Carp::confess "Index out of bounds (${_})"
                 foreach @indices;
-        return $data->@[ @indices ]
+        return $self->data->@[ @indices ]
     }
 
     method map_data_array ($f) {
-        [ map { $f->($_) } @$data ]
+        [ map { $f->($_) } @{ $self->data } ]
     }
 
     method zip_data_arrays ($f, $other) {
         $other = $other->get if $other isa Scalar;
 
         return [
-            map { $f->( $data->[$_], $other ) } 0 .. ($self->size - 1)
+            map { $f->( $self->data->[$_], $other ) } 0 .. ($self->size - 1)
         ] if !blessed $other;
 
         return [
-            map { $f->( $data->[$_], $other->data->[$_] ) } 0 .. ($self->size - 1)
+            map { $f->( $self->data->[$_], $other->data->[$_] ) } 0 .. ($self->size - 1)
         ]
     }
 
     method reduce_data_array ($f, $initial=undef) {
-        return scalar List::Util::reduce { $f->($a, $b) } ($initial // ()), @$data
+        return scalar List::Util::reduce { $f->($a, $b) } ($initial // ()), @{ $self->data }
     }
 
     # --------------------------------------------------------------------------
     # Rank, Total size and index <-> coords conversions
     # --------------------------------------------------------------------------
 
-    method rank { scalar @$shape }
-    method size { calculate_size($shape) }
+    method rank { $native->rank }
+    method size { $native->size }
 
     method index  (@indicies) {
         Carp::confess "The number of indicies must match the rank got(".(scalar @indicies).") expected(".$self->rank.")"
             if $self->rank != scalar @indicies;
-        return indicies_to_flat(\@indicies, \@strides)
+        return $native->index(@indicies)
     }
 
     method dim_index (@indicies) {
@@ -154,8 +161,15 @@ class Tensor {
             if $self->rank < scalar @indicies;
 
         my $dim   = $#indicies;
-        my $start = indicies_to_flat(\@indicies, \@strides);
-        my $end   = $start + $strides[ $dim ] - 1;
+        my $shape = $self->shape;
+        my $strides = $self->strides;
+        my $start = 0;
+        for my $i (0 .. $dim) {
+            Carp::confess "Index out of bounds ($indicies[$i])"
+                if $indicies[$i] < 0 || $indicies[$i] >= $shape->[$i];
+            $start += $indicies[$i] * $strides->[$i];
+        }
+        my $end   = $start + $strides->[$dim] - 1;
 
         return ($start .. $end)
     }
@@ -251,11 +265,11 @@ class Tensor {
     # --------------------------------------------------------------------------
 
     method unary_op ($f) {
-        __CLASS__->initialize($shape, $self->map_data_array($f))
+        __CLASS__->initialize($self->shape, $self->map_data_array($f))
     }
 
     method binary_op ($f, $other) {
-        __CLASS__->initialize($shape, $self->zip_data_arrays($f, $other))
+        __CLASS__->initialize($self->shape, $self->zip_data_arrays($f, $other))
     }
 
     # --------------------------------------------------------------------------
@@ -264,7 +278,7 @@ class Tensor {
 
     method add_inplace ($other) {
         # $self += $other (modifies $self in place)
-        my $self_data = $data;
+        my $self_data = $self->data;
         my $other_data = ref($other) ? $other->data : $other;
 
         if (ref($other)) {
@@ -277,12 +291,13 @@ class Tensor {
                 $self_data->[$i] += $other;
             }
         }
+        $native->set_data($self_data);
         return $self;
     }
 
     method sub_inplace ($other) {
         # $self -= $other (modifies $self in place)
-        my $self_data = $data;
+        my $self_data = $self->data;
         my $other_data = ref($other) ? $other->data : $other;
 
         if (ref($other)) {
@@ -295,12 +310,13 @@ class Tensor {
                 $self_data->[$i] -= $other;
             }
         }
+        $native->set_data($self_data);
         return $self;
     }
 
     method mul_inplace ($other) {
         # $self *= $other (modifies $self in place)
-        my $self_data = $data;
+        my $self_data = $self->data;
         my $other_data = ref($other) ? $other->data : $other;
 
         if (ref($other)) {
@@ -313,12 +329,13 @@ class Tensor {
                 $self_data->[$i] *= $other;
             }
         }
+        $native->set_data($self_data);
         return $self;
     }
 
     method div_inplace ($other) {
         # $self /= $other (modifies $self in place)
-        my $self_data = $data;
+        my $self_data = $self->data;
         my $other_data = ref($other) ? $other->data : $other;
 
         if (ref($other)) {
@@ -331,6 +348,7 @@ class Tensor {
                 $self_data->[$i] /= $other;
             }
         }
+        $native->set_data($self_data);
         return $self;
     }
 
@@ -426,6 +444,8 @@ class Tensor {
     ## -------------------------------------------------------------------------
 
     method to_string {
+        my $data = $self->data;
+        my @strides = $self->strides;
         my @to_draw = @strides;
         my $stride  = pop @to_draw;
         my $step    = pop @to_draw;
@@ -433,7 +453,7 @@ class Tensor {
         unshift @to_draw => scalar @$data;
 
         say "rank    : ", $self->rank;
-        say "shape   : ", join ', ' => @$shape;
+        say "shape   : ", join ', ' => @{ $self->shape };
         say "strides : ", join ', ' => @strides;
         say "to_draw : ", join ', ' => @to_draw;
         say "stride  : ${stride}";
@@ -526,8 +546,3 @@ package Tensor::Ops {
     sub clamp ($min, $max, $n) { max($min, min($n, $max)) }
 
 }
-
-
-
-
-

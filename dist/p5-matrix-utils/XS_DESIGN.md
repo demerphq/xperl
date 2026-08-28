@@ -16,6 +16,12 @@ mutate a temporary array returned by an accessor and mistake that copy for
 native storage; this is why the public-class conversion follows the storage
 prototype rather than being folded into it prematurely.
 
+The public `Tensor` wrapper now owns a native tensor and exposes its legacy
+array-shaped data interface through a tied array. Existing `Vector` and
+`Matrix` methods therefore continue to use the established API while element
+fetches and stores are forwarded to XS storage. Higher-level operations will
+be moved to direct native bulk operations incrementally.
+
 This document describes the intended native representation of `Tensor` and
 records the incremental XS implementation as it lands.
 

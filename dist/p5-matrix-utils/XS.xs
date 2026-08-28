@@ -602,6 +602,33 @@ index(object, ...)
   OUTPUT:
     RETVAL
 
+NV
+at_index(object, index)
+    SV *object
+    UV index
+  PREINIT:
+    tensor_header *tensor;
+  CODE:
+    tensor = tensor_from_object(aTHX_ object);
+    if (index >= tensor->size)
+        croak("tensor index out of bounds");
+    RETVAL = tensor_load(tensor, index);
+  OUTPUT:
+    RETVAL
+
+void
+set_index(object, index, value)
+    SV *object
+    UV index
+    SV *value
+  PREINIT:
+    tensor_header *tensor;
+  CODE:
+    tensor = tensor_from_object(aTHX_ object);
+    if (index >= tensor->size)
+        croak("tensor index out of bounds");
+    tensor_store(tensor, index, value);
+
 void
 set_at(object, ...)
     SV *object
