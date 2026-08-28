@@ -1,0 +1,6 @@
+Revision history for p5-matrix-utils
+
+This is an experimental in-core distribution containing the initial
+pure-Perl Tensor, Vector, Matrix, Scalar, and MNIST classes.  The native
+implementation and XS migration plan are recorded in XS_DESIGN.md.
+
