@@ -362,6 +362,15 @@ S_class_object_fields_to_hash(pTHX_ HV *hash, HV *stash, SV *instance)
     }
 }
 
+/*
+=for apidoc_section $SV
+=for apidoc class_object_to_hash
+
+Returns a shallow hash representation of a class object.  Field values are
+shared with the object.
+
+=cut
+*/
 SV *
 Perl_class_object_to_hash(pTHX_ SV *object)
 {
@@ -440,6 +449,14 @@ S_class_object_fields_from_hash(pTHX_ HV *hash, HV *stash, SV *instance)
     }
 }
 
+/*
+=for apidoc class_object_from_hash
+
+Creates a class object from the shallow hash representation, sharing its field
+values and bypassing the constructor.
+
+=cut
+*/
 SV *
 Perl_class_object_from_hash(pTHX_ SV *hashref, SV *classname)
 {

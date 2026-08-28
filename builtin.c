@@ -515,6 +515,16 @@ XS(XS_builtin_load_module)
 XS(XS_builtin_package_implements);
 XS(XS_builtin_class_object_to_hash);
 XS(XS_builtin_class_object_from_hash);
+
+/*
+=for apidoc_section $SV
+=for apidoc builtin_package_implements
+
+Returns TRUE if a package or object implements the specified role without
+dispatching an overridable method.
+
+=cut
+*/
 bool
 Perl_builtin_package_implements(pTHX_ SV *package_or_object, SV *role)
 {
