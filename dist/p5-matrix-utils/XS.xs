@@ -29,13 +29,36 @@ tensor_data_offset(UV rank)
                                + rank * sizeof(UV) * 2);
 }
 
-static Size_t
-tensor_blob_size(UV rank, UV size)
+static bool
+tensor_blob_size(UV rank, UV size, Size_t *result)
 {
-    const Size_t data_offset = tensor_data_offset(rank);
-    const Size_t tail_offset = tensor_align_offset(data_offset
-                                                   + size * sizeof(NV));
-    return tail_offset + sizeof(UV);
+    Size_t metadata;
+    Size_t data_offset;
+    Size_t data_bytes;
+    Size_t tail_offset;
+
+    if (rank > (UV)Size_t_MAX
+        || (Size_t)rank > (Size_t_MAX - sizeof(tensor_header))
+                            / (sizeof(UV) * 2)
+        || size > (UV)(Size_t_MAX / sizeof(NV)))
+        return FALSE;
+
+    metadata = sizeof(tensor_header) + (Size_t)rank * sizeof(UV) * 2;
+    if (metadata > Size_t_MAX - MEM_ALIGNBYTES + 1)
+        return FALSE;
+    data_offset = tensor_align_offset(metadata);
+    data_bytes = (Size_t)size * sizeof(NV);
+    if (data_offset > Size_t_MAX - data_bytes)
+        return FALSE;
+    metadata = data_offset + data_bytes;
+    if (metadata > Size_t_MAX - MEM_ALIGNBYTES + 1)
+        return FALSE;
+    tail_offset = tensor_align_offset(metadata);
+    if (tail_offset > Size_t_MAX - sizeof(UV))
+        return FALSE;
+
+    *result = tail_offset + sizeof(UV);
+    return TRUE;
 }
 
 static tensor_header *
@@ -52,8 +75,10 @@ tensor_from_object(pTHX_ SV *object)
 
     {
         tensor_header *tensor = (tensor_header *)SvPV_nolen(payload);
+        Size_t expected;
         if (tensor->magic != TENSOR_MAGIC || tensor->version != TENSOR_VERSION
-            || SvCUR(payload) < tensor_blob_size(tensor->rank, tensor->size))
+            || !tensor_blob_size(tensor->rank, tensor->size, &expected)
+            || SvCUR(payload) < expected)
             croak("invalid Tensor::XS object");
         return tensor;
     }
@@ -174,7 +199,8 @@ new(class, shape, data)
         size *= dimension;
     }
 
-    bytes = tensor_blob_size(rank, size);
+    if (!tensor_blob_size(rank, size, &bytes))
+        croak("tensor blob size overflow");
     Newxz(storage, bytes, char);
     tensor = (tensor_header *)storage;
     tensor->magic = TENSOR_MAGIC;
