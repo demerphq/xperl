@@ -42,6 +42,26 @@ tensor_data(tensor_header *tensor)
     return (NV *)(tensor_strides(tensor) + tensor->rank);
 }
 
+static UV
+tensor_coordinate_index(pTHX_ tensor_header *tensor, SV **coordinates,
+                        I32 count)
+{
+    UV index = 0;
+    I32 i;
+
+    if ((UV)count != tensor->rank)
+        croak("coordinate count does not match tensor rank");
+
+    for (i = 0; i < count; i++) {
+        IV coordinate = SvIV(coordinates[i]);
+        if (coordinate < 0 || (UV)coordinate >= tensor_shape(tensor)[i])
+            croak("tensor coordinate out of bounds");
+        index += (UV)coordinate * tensor_strides(tensor)[i];
+    }
+
+    return index;
+}
+
 static void
 tensor_copy_array(pTHX_ AV *source, tensor_header *tensor, UV depth,
                   UV *position, NV *output)
@@ -217,19 +237,23 @@ at(object, ...)
   PREINIT:
     tensor_header *tensor;
     UV index;
-    I32 i;
   CODE:
     tensor = tensor_from_object(aTHX_ object);
-    if ((UV)(items - 1) != tensor->rank)
-        croak("coordinate count does not match tensor rank");
-    index = 0;
-    for (i = 1; i < items; i++) {
-        IV coordinate = SvIV(ST(i));
-        if (coordinate < 0 || (UV)coordinate >= tensor_shape(tensor)[i - 1])
-            croak("tensor coordinate out of bounds");
-        index += (UV)coordinate * tensor_strides(tensor)[i - 1];
-    }
+    index = tensor_coordinate_index(aTHX_ tensor,
+                                    items > 1 ? &ST(1) : NULL, items - 1);
     RETVAL = tensor_data(tensor)[index];
+  OUTPUT:
+    RETVAL
+
+UV
+index(object, ...)
+    SV *object
+  PREINIT:
+    tensor_header *tensor;
+  CODE:
+    tensor = tensor_from_object(aTHX_ object);
+    RETVAL = tensor_coordinate_index(aTHX_ tensor,
+                                     items > 1 ? &ST(1) : NULL, items - 1);
   OUTPUT:
     RETVAL
 
@@ -239,18 +263,10 @@ set_at(object, ...)
   PREINIT:
     tensor_header *tensor;
     UV index;
-    I32 i;
   CODE:
     tensor = tensor_from_object(aTHX_ object);
-    if ((UV)(items - 2) != tensor->rank)
-        croak("coordinate count does not match tensor rank");
-    index = 0;
-    for (i = 1; i < items - 1; i++) {
-        IV coordinate = SvIV(ST(i));
-        if (coordinate < 0 || (UV)coordinate >= tensor_shape(tensor)[i - 1])
-            croak("tensor coordinate out of bounds");
-        index += (UV)coordinate * tensor_strides(tensor)[i - 1];
-    }
+    index = tensor_coordinate_index(aTHX_ tensor,
+                                    items > 2 ? &ST(1) : NULL, items - 2);
     tensor_data(tensor)[index] = SvNV(ST(items - 1));
 
 void

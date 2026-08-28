@@ -17,6 +17,7 @@ is $tensor->size, 6, 'native size is stored';
 is_deeply $tensor->shape, [2, 3], 'native shape metadata is returned';
 is_deeply $tensor->strides, [3, 1],
     'native strides use one conventional stride per dimension';
+is $tensor->index(1, 1), 4, 'native coordinate indexing returns flat index';
 is $tensor->at(1, 1), 5, 'native coordinate access works';
 $tensor->set_at(1, 1, 9);
 is $tensor->at(1, 1), 9, 'native coordinate mutation works';
