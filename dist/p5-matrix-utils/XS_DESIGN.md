@@ -139,17 +139,35 @@ alone.
 
 ## Supported data types
 
-The tensor header contains an explicit dtype. Initial candidates are:
+The tensor header contains an explicit dtype.  The dtype should be represented
+by a stable code that indexes a descriptor rather than by a collection of
+layout-specific conditionals.  The descriptor should provide at least:
 
 ```text
-int16
-float32
-float64
+family       unsigned integer, signed integer, or floating point
+bits         number of bits per element
+encoding     ordinary integer, IEEE, BF16, FP8 variant, and so on
+alignment    required alignment of an element
+load/store   conversion between native storage and the operation type
 ```
 
-The data region is a homogeneous array of the selected type. The XS layer
-should centralize dtype properties such as element size, alignment, numeric
-load/store behavior, and operation dispatch.
+Quantized formats should additionally be able to carry an optional scale and
+zero point.  Those are interpretation metadata, not alternate element sizes,
+and must not be confused with the raw storage dtype.
+
+The initial practical candidates are:
+
+```text
+U8 U16 U32 U64
+I8 I16 I32 I64
+F16 BF16 F32 F64
+```
+
+The data region is a homogeneous byte array interpreted through the selected
+descriptor. The XS layer should centralize dtype properties such as element
+size, alignment, numeric load/store behavior, and operation dispatch.  This
+also permits later additions such as FP8 or packed integer formats without
+changing the allocation header or pointer-calculation scheme.
 
 The default neural-network dtype should be `float32`. A C `short` is normally
 a 16-bit integer, not a 16-bit floating-point type. Half precision (`float16`)
