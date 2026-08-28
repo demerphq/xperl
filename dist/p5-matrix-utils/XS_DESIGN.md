@@ -79,7 +79,8 @@ whole tensor one owned block.
 Rank determines the sizes of the metadata arrays. For example, rank 3 means
 that the allocation contains three shape values and three stride values. The
 dimension values themselves are supplied by the constructor. Their product
-determines the number of data elements.
+determines the number of data elements, which is stored separately in the
+header.
 
 For a contiguous row-major tensor with shape `[2, 3, 4]`:
 
@@ -87,6 +88,12 @@ For a contiguous row-major tensor with shape `[2, 3, 4]`:
 element count = 24
 strides       = [12, 4, 1]
 ```
+
+There is one stored stride per dimension, and the innermost stride is
+explicitly stored as `1`.  This is the conventional layout used by CUDA and
+similar tensor libraries.  The total element count remains in the header
+rather than being added as a stride sentinel, so the native descriptor can be
+passed to backend APIs with minimal translation.
 
 The data offset is calculated after the metadata and rounded up to the
 alignment required by the selected dtype. The XS implementation must not cast

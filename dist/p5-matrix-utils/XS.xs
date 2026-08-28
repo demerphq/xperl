@@ -154,6 +154,22 @@ new(class, shape, data)
     object = newRV_noinc(payload);
     sv_bless(object, gv_stashpv(class, GV_ADD));
     RETVAL = object;
+    OUTPUT:
+    RETVAL
+
+AV *
+strides(object)
+    SV *object
+  PREINIT:
+    tensor_header *tensor;
+    AV *result;
+    UV i;
+  CODE:
+    tensor = tensor_from_object(aTHX_ object);
+    result = newAV();
+    for (i = 0; i < tensor->rank; i++)
+        av_push(result, newSVuv(tensor_strides(tensor)[i]));
+    RETVAL = result;
   OUTPUT:
     RETVAL
 

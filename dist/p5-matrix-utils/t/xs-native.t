@@ -15,6 +15,8 @@ my $tensor = Tensor::XS->new([2, 3], [1, 2, 3, 4, 5, 6]);
 is $tensor->rank, 2, 'native rank is stored';
 is $tensor->size, 6, 'native size is stored';
 is_deeply $tensor->shape, [2, 3], 'native shape metadata is returned';
+is_deeply $tensor->strides, [3, 1],
+    'native strides use one conventional stride per dimension';
 is $tensor->at(1, 1), 5, 'native coordinate access works';
 $tensor->set_at(1, 1, 9);
 is $tensor->at(1, 1), 9, 'native coordinate mutation works';
@@ -32,5 +34,11 @@ is_deeply $nested->data, [4, 3, 2, 1],
 eval { Tensor::XS->new([2, 2], [[1], [2, 3]]) };
 like $@, qr/nested tensor data does not match tensor shape/,
     'ragged nested data is rejected';
+
+my $three_d = Tensor::XS->new([2, 3, 4], [0 .. 23]);
+is_deeply $three_d->strides, [12, 4, 1],
+    'rank-three strides are backend-compatible';
+is $three_d->at(1, 2, 3), 23,
+    'rank-three coordinate access follows conventional strides';
 
 done_testing;
