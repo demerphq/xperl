@@ -57,6 +57,7 @@ arrays and then the aligned data region:
 ```text
 ┌──────────────────────────┐
 │ fixed header             │
+│   magic/version          │
 │   rank                   │
 │   element count          │
 │   dtype                  │
@@ -69,6 +70,8 @@ arrays and then the aligned data region:
 │ alignment padding        │
 ├──────────────────────────┤
 │ data[element count]      │
+├──────────────────────────┤
+│ aligned zero sentinel    │
 └──────────────────────────┘
 ```
 
@@ -76,6 +79,13 @@ There are no pointers to `shape`, `strides`, or `data` stored in the native
 allocation. Their addresses are calculated from the base address and the
 header's rank and dtype. This keeps the allocation relocatable and makes the
 whole tensor one owned block.
+
+The blob begins with a nonzero magic and layout version.  Accessors validate
+both values and the complete calculated blob size before interpreting the
+metadata.  The data region is placed at an alignment boundary suitable for
+the native numeric type, and the allocation ends with an aligned zero
+sentinel outside the data region.  The sentinel is an integrity/layout aid;
+it is not an element and is not included in `size`.
 
 Rank determines the sizes of the metadata arrays. For example, rank 3 means
 that the allocation contains three shape values and three stride values. The
@@ -106,6 +116,8 @@ calculation.
 The fixed header should contain at least:
 
 ```text
+magic         nonzero representation/layout marker
+version       native layout version
 rank          number of dimensions
 size          total number of elements
 dtype         representation of each element

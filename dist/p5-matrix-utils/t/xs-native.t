@@ -43,6 +43,13 @@ like $@, qr/nested tensor data does not match tensor shape/,
 is_deeply $stable->data, [1, 2, 3, 4],
     'rejected bulk mutation leaves native data unchanged';
 
+my $payload = ${$stable};
+substr($payload, 0, 1) = 'X';
+my $corrupt = bless \$payload, 'Tensor::XS';
+eval { $corrupt->size };
+like $@, qr/invalid Tensor::XS object/,
+    'corrupt native blob magic is rejected';
+
 my $three_d = Tensor::XS->new([2, 3, 4], [0 .. 23]);
 is_deeply $three_d->strides, [12, 4, 1],
     'rank-three strides are backend-compatible';

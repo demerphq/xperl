@@ -2,12 +2,41 @@
 #include "perl.h"
 #include "XSUB.h"
 
+#define TENSOR_MAGIC   ((UV)0x54454e53U) /* "TENS" */
+#define TENSOR_VERSION ((UV)1)
+
 typedef struct {
+    UV magic;
+    UV version;
     UV rank;
     UV size;
     /* Followed by rank UV shape values, rank UV stride values, and size
-     * NV data values.  The whole representation is owned by one PV. */
+     * NV data values, then a zero UV sentinel.  The whole representation is
+     * owned by one PV. */
 } tensor_header;
+
+static Size_t
+tensor_align_offset(Size_t offset)
+{
+    const Size_t alignment = MEM_ALIGNBYTES;
+    return (offset + alignment - 1) / alignment * alignment;
+}
+
+static Size_t
+tensor_data_offset(UV rank)
+{
+    return tensor_align_offset(sizeof(tensor_header)
+                               + rank * sizeof(UV) * 2);
+}
+
+static Size_t
+tensor_blob_size(UV rank, UV size)
+{
+    const Size_t data_offset = tensor_data_offset(rank);
+    const Size_t tail_offset = tensor_align_offset(data_offset
+                                                   + size * sizeof(NV));
+    return tail_offset + sizeof(UV);
+}
 
 static tensor_header *
 tensor_from_object(pTHX_ SV *object)
@@ -21,7 +50,13 @@ tensor_from_object(pTHX_ SV *object)
     if (SvCUR(payload) < sizeof(tensor_header))
         croak("invalid Tensor::XS object");
 
-    return (tensor_header *)SvPV_nolen(payload);
+    {
+        tensor_header *tensor = (tensor_header *)SvPV_nolen(payload);
+        if (tensor->magic != TENSOR_MAGIC || tensor->version != TENSOR_VERSION
+            || SvCUR(payload) < tensor_blob_size(tensor->rank, tensor->size))
+            croak("invalid Tensor::XS object");
+        return tensor;
+    }
 }
 
 static UV *
@@ -39,7 +74,7 @@ tensor_strides(tensor_header *tensor)
 static NV *
 tensor_data(tensor_header *tensor)
 {
-    return (NV *)(tensor_strides(tensor) + tensor->rank);
+    return (NV *)((char *)tensor + tensor_data_offset(tensor->rank));
 }
 
 static UV
@@ -139,11 +174,11 @@ new(class, shape, data)
         size *= dimension;
     }
 
-    bytes = sizeof(tensor_header)
-        + rank * sizeof(UV) * 2
-        + size * sizeof(NV);
+    bytes = tensor_blob_size(rank, size);
     Newxz(storage, bytes, char);
     tensor = (tensor_header *)storage;
+    tensor->magic = TENSOR_MAGIC;
+    tensor->version = TENSOR_VERSION;
     tensor->rank = rank;
     tensor->size = size;
 
