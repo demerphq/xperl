@@ -19,6 +19,7 @@ require Exporter;
 
 use constant IS_PRE_516_PERL => "$]" < 5.016;
 use constant SUPPORTS_CORE_BOOLS => defined &builtin::is_bool;
+use constant SUPPORTS_CORE_CLASS_OBJECTS => defined &builtin::class_object_to_hash;
 
 use Carp ();
 
@@ -30,7 +31,7 @@ our ( $Indent, $Trailingcomma, $Purity, $Pad, $Varname, $Useqq, $Terse, $Freezer
 our ( @ISA, @EXPORT, @EXPORT_OK, $VERSION );
 
 BEGIN {
-    $VERSION = '2.192'; # Don't forget to set version and release
+    $VERSION = '2.193_50'; # Don't forget to set version and release
                         # date in POD below!
 
     @ISA = qw(Exporter);
@@ -348,7 +349,7 @@ sub _dump {
     # Class objects have no ordinary Perl reference representation.  Use the
     # builtin shallow field conversion so they can be dumped and restored
     # without invoking constructors or methods.
-    if ($realtype eq 'OBJECT') {
+    if (SUPPORTS_CORE_CLASS_OBJECTS && $realtype eq 'OBJECT') {
       $s->{level}++;
       my $hash = builtin::class_object_to_hash($val);
       $out = 'builtin::class_object_from_hash(' .
