@@ -375,7 +375,7 @@ tensor_coordinate_index(pTHX_ tensor_header *tensor, SV **coordinates,
     for (i = 0; i < count; i++) {
         IV coordinate = SvIV(coordinates[i]);
         if (coordinate < 0 || (UV)coordinate >= tensor_shape(tensor)[i])
-            croak("tensor coordinate out of bounds");
+            croak("Index out of bounds");
         index += (UV)coordinate * tensor_strides(tensor)[i];
     }
 
@@ -455,8 +455,9 @@ new_with_dtype(class, shape, data, dtype)
     for (i = 0; i < rank; i++) {
         SV **value = av_fetch(shape_av, i, 0);
         UV dimension;
-        if (!value || !SvOK(*value) || (dimension = SvUV(*value)) == 0)
-            croak("shape dimensions must be positive integers");
+        if (!value || !SvOK(*value) || SvIV(*value) < 0
+            || (dimension = SvUV(*value)) != SvNV(*value))
+            croak("shape dimensions must be nonnegative integers");
         if (size > UV_MAX / dimension)
             croak("tensor size overflow");
         size *= dimension;

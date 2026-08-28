@@ -94,7 +94,9 @@ class Tensor {
 
     method data { $native->data }
     method shape { $native->shape }
-    method strides { $native->strides }
+    method strides {
+        wantarray ? $native->strides->@* : $native->strides
+    }
 
     method DUMP {
         return +{
