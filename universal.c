@@ -328,6 +328,17 @@ Perl_sv_does_sv(pTHX_ SV *sv, SV *namesv, U32 flags)
         return TRUE;
     }
 
+    /* A class remains a DOES match for its ordinary inheritance
+     * relationships, including UNIVERSAL, even when it supplies the
+     * class-system implements() hook for role composition. */
+    if (sv_derived_from_sv(sv, namesv, 0)) {
+        HV *target_stash = gv_stashsv(namesv, 0);
+        if (!target_stash || !HvSTASH_IS_ROLE(target_stash)) {
+            LEAVE;
+            return TRUE;
+        }
+    }
+
     /* A class-system class or any other package may provide the new nominal
      * implements() hook.  Let it define the relationship, while retaining
      * the historical DOES() fallback for invocants without that hook. */
