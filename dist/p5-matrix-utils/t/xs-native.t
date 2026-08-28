@@ -15,8 +15,11 @@ my $tensor = Tensor::XS->new([2, 3], [1, 2, 3, 4, 5, 6]);
 is $tensor->rank, 2, 'native rank is stored';
 is $tensor->size, 6, 'native size is stored';
 is_deeply $tensor->shape, [2, 3], 'native shape metadata is returned';
-is $tensor->at(4), 5, 'native element access works';
-is_deeply $tensor->data, [1, 2, 3, 4, 5, 6],
+is $tensor->at(1, 1), 5, 'native coordinate access works';
+$tensor->set_at(1, 1, 9);
+is $tensor->at(1, 1), 9, 'native coordinate mutation works';
+$tensor->set_data([6, 5, 4, 3, 2, 1]);
+is_deeply $tensor->data, [6, 5, 4, 3, 2, 1],
     'native data is returned in row-major order';
 
 done_testing;

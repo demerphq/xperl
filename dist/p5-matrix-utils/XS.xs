@@ -152,18 +152,64 @@ shape(object)
     RETVAL
 
 NV
-at(object, index)
+at(object, ...)
     SV *object
-    UV index
+  PREINIT:
+    tensor_header *tensor;
+    UV index;
+    I32 i;
   CODE:
-    {
-        tensor_header *tensor = tensor_from_object(aTHX_ object);
-        if (index >= tensor->size)
-            croak("tensor index out of bounds");
-        RETVAL = tensor_data(tensor)[index];
+    tensor = tensor_from_object(aTHX_ object);
+    if ((UV)(items - 1) != tensor->rank)
+        croak("coordinate count does not match tensor rank");
+    index = 0;
+    for (i = 1; i < items; i++) {
+        IV coordinate = SvIV(ST(i));
+        if (coordinate < 0 || (UV)coordinate >= tensor_shape(tensor)[i - 1])
+            croak("tensor coordinate out of bounds");
+        index += (UV)coordinate * tensor_strides(tensor)[i - 1];
     }
+    RETVAL = tensor_data(tensor)[index];
   OUTPUT:
     RETVAL
+
+void
+set_at(object, ...)
+    SV *object
+  PREINIT:
+    tensor_header *tensor;
+    UV index;
+    I32 i;
+  CODE:
+    tensor = tensor_from_object(aTHX_ object);
+    if ((UV)(items - 2) != tensor->rank)
+        croak("coordinate count does not match tensor rank");
+    index = 0;
+    for (i = 1; i < items - 1; i++) {
+        IV coordinate = SvIV(ST(i));
+        if (coordinate < 0 || (UV)coordinate >= tensor_shape(tensor)[i - 1])
+            croak("tensor coordinate out of bounds");
+        index += (UV)coordinate * tensor_strides(tensor)[i - 1];
+    }
+    tensor_data(tensor)[index] = SvNV(ST(items - 1));
+
+void
+set_data(object, data)
+    SV *object
+    SV *data
+  PREINIT:
+    tensor_header *tensor;
+    AV *data_av;
+    UV i;
+  CODE:
+    if (!SvROK(data) || SvTYPE(SvRV(data)) != SVt_PVAV)
+        croak("data must be an array reference");
+    tensor = tensor_from_object(aTHX_ object);
+    data_av = (AV *)SvRV(data);
+    if (av_count(data_av) != tensor->size)
+        croak("data size does not match tensor shape");
+    for (i = 0; i < tensor->size; i++)
+        tensor_data(tensor)[i] = SvNV(*av_fetch(data_av, i, 0));
 
 AV *
 data(object)
