@@ -822,7 +822,7 @@ DD_dump(pTHX_ SV *val, const char *name, STRLEN namelen, SV *retval, HV *seenhv,
         /* Class objects have no ordinary Perl reference representation.  Use
          * the core shallow field API so Dumper can round-trip them without
          * invoking constructors or methods. */
-#if defined(SVt_PVOBJ) && defined(class_object_to_hash)
+#ifdef class_object_to_hash
         if (realtype == SVt_PVOBJ) {
             SV *hashref = class_object_to_hash(val);
             STRLEN plen = strlen(realpack);
