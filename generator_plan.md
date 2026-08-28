@@ -62,5 +62,5 @@ feature.  This should preserve the primitive callable protocol.
 - [x] Preserve zero, one, and many yielded values, including `yield ()`
 - [x] Preserve explicit list-valued returns on exhaustion
 - [x] Accept generator signatures in `generator_create (...) { ... }`
-- [ ] Add focused regression coverage, diagnostics, and documentation
+- [x] Add focused regression coverage, diagnostics, and documentation
 - [ ] Run the relevant DEBUGGING, threaded, sanitizer, and `make_test` validation

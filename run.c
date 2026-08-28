@@ -423,6 +423,18 @@ typedef struct generator_run {
 } GENERATOR_RUN;
 
 void
+Perl_generator_mark_return(pTHX)
+{
+    GENERATOR_RUN * const run =
+        (GENERATOR_RUN *)PL_runops_boundary_data;
+    PERL_GENERATOR * const generator = run ? run->generator : NULL;
+    if (!generator || generator->magic != PERL_GENERATOR_MAGIC
+        || generator->state != PERL_GENERATOR_RUNNING)
+        return;
+    generator->explicit_return = TRUE;
+}
+
+void
 Perl_generator_yield_values(pTHX_ SV **values, SSize_t count)
 {
     GENERATOR_RUN * const run =
@@ -443,7 +455,8 @@ Perl_generator_yield_values(pTHX_ SV **values, SSize_t count)
     }
     SvREFCNT_dec(generator->value);
     generator->value = count ? newSVsv(values[count - 1]) : NULL;
-    generator->yield_context = GIMME_V;
+    generator->yield_context = (PL_op->op_flags & OPf_SPECIAL)
+        ? G_VOID : GIMME_V;
     generator->yield_pending = TRUE;
 }
 
@@ -477,9 +490,18 @@ S_generator_boundary(pTHX_ OP *nextop, void *data)
     if (!nextop) {
         AV *result = newAV();
         SV **svp;
+        bool have_defined = FALSE;
         for (svp = PL_stack_base + 1;
              svp <= PL_stack_sp; svp++)
-            av_push(result, newSVsv(*svp));
+            if (SvOK(*svp)) {
+                have_defined = TRUE;
+                break;
+            }
+        if (generator->explicit_return || have_defined) {
+            for (svp = PL_stack_base + 1;
+                 svp <= PL_stack_sp; svp++)
+                av_push(result, newSVsv(*svp));
+        }
         SvREFCNT_dec((SV *)generator->result);
         generator->result = result;
     }
@@ -522,7 +544,7 @@ S_generator_push_resume_result(pTHX_ PERL_GENERATOR *generator)
     }
     else if (generator->yield_context == G_LIST) {
         for (i = 0; i < count; i++)
-            rpp_xpush_1(*av_fetch(args, i, 0));
+            rpp_xpush_1(newSVsv(*av_fetch(args, i, 0)));
     }
 }
 
@@ -561,6 +583,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
            : GIMME_V == G_VOID ? OPf_WANT_VOID : OPf_WANT_SCALAR);
     generator->captured = FALSE;
     generator->yield_pending = FALSE;
+    generator->explicit_return = FALSE;
     generator->state = PERL_GENERATOR_RUNNING;
     if (generator->stack_pushed) {
         if (generator->stack_detached)

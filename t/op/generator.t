@@ -8,13 +8,13 @@ BEGIN {
     set_up_inc('../lib');
 }
 
-plan(tests => 46);
+plan(tests => 57);
 
 use feature 'generator';
 
 sub next_values {
-    my ($generator) = @_;
-    my @values = $generator->();
+    my ($generator, @args) = @_;
+    my @values = $generator->(@args);
     return \@values;
 }
 
@@ -86,20 +86,59 @@ ok(!generator_exhausted($failed), 'failed generator is not exhausted');
 ok(!$resumed_failed, 'failed generator cannot be resumed');
 like($resumed_failed_error, qr/cannot resume a failed generator/, 'failed-resume diagnostic');
 
-my $args = generator_create { generator_yield 1 };
-eval { $args->(1) };
-like($@, qr/generator does not accept arguments/, 'arguments are rejected');
+my $args = generator_create {
+    my ($first, $second) = @_;
+    my ($next, @rest) = generator_yield($first + $second);
+    return ($next, @rest);
+};
+is_deeply(next_values($args, 2, 3), [ 5 ], 'initial arguments reach @_');
+is_deeply(next_values($args, 7, 8), [ 7, 8 ],
+    'resume arguments are returned by generator_yield');
+ok(generator_exhausted($args), 'return marks an argument generator exhausted');
+
+my $scalar_resume = generator_create {
+    my $count = generator_yield 1;
+    return $count;
+};
+is($scalar_resume->(), 1, 'initial scalar yield remains available');
+is($scalar_resume->(10, 20), 2,
+    'scalar generator_yield returns the resume argument count');
+
+my $empty_yield = generator_create {
+    generator_yield ();
+    return 9;
+};
+is_deeply(next_values($empty_yield), [], 'empty list is a real yield');
+ok(!generator_exhausted($empty_yield), 'empty yield does not exhaust');
+is_deeply(next_values($empty_yield), [ 9 ], 'return follows an empty yield');
+
+my $return_list = generator_create {
+    generator_yield 1;
+    return (2, 3);
+};
+is_deeply(next_values($return_list), [ 1 ], 'yield precedes list return');
+is_deeply(next_values($return_list), [ 2, 3 ],
+    'list return values are returned on completion');
+
+use feature 'signatures';
+my $signature_args = generator_create ($x, $y) {
+    my $sum = generator_yield($x + $y);
+    return $sum;
+};
+is($signature_args->(4, 5), 9, 'generator signature binds initial arguments');
+is($signature_args->(12), 1,
+    'signature bindings survive while resume args are supplied');
 
 my $scalar = generator_create { generator_yield 42 };
 is(scalar($scalar->()), 42, 'scalar context returns the yielded value');
 
 my $list_context = generator_create {
-    generator_yield wantarray ? 'list' : 'scalar';
+    generator_yield (wantarray ? 'list' : 'scalar');
 };
 is_deeply(next_values($list_context), [ 'list' ],
     'generator body sees list context');
 my $scalar_context = generator_create {
-    generator_yield wantarray ? 'list' : 'scalar';
+    generator_yield (wantarray ? 'list' : 'scalar');
 };
 is($scalar_context->(), 'scalar', 'generator body sees scalar context');
 

@@ -6,7 +6,7 @@ perlasync - cooperative resumable execution in Perl
 
 =head1 DESCRIPTION
 
-This document describes the experimental generator interface.  An generator
+This document describes the experimental generator interface.  A generator
 allows a block of Perl code to suspend at an explicit C<generator_yield> and later
 continue from that point.  Iterators are cooperative: calling the generator
 is what advances it, and no thread, event loop, or implicit scheduling is
@@ -15,7 +15,7 @@ provided.
 The interface is experimental and may change or be removed in a future Perl
 release.
 
-=head1 ITERATORS
+=head1 GENERATORS
 
 Enable the feature before using the C<generator_create> and C<generator_yield> keywords:
 
@@ -33,23 +33,49 @@ runs the body until the next C<generator_yield> or until the body finishes:
     my @second = $counter->(); # (2)
     my @done   = $counter->(); # ()
 
-Each C<generator_yield> produces exactly one list element.  In scalar context the yielded
-value is returned as the scalar result of the call.  C<undef> is a yielded
-value, not an empty result:
+The operand of C<generator_yield> is evaluated in list context, so a yield can
+produce zero, one, or many values.  An empty yield is still a suspension; it is
+not exhaustion.  In scalar context the yielded value is returned as the scalar
+result of the call.  C<undef> is a yielded value, not an empty result:
 
     my $values = generator_create { generator_yield undef };
     my @value = $values->(); # one element, whose value is undef
 
 The body runs in the context of the call that resumes it.  Lexical variables,
 loop state, and localization in the body remain in effect across an
-C<generator_yield> and are restored when the generator finishes.  The generator
-does not accept arguments.
+C<generator_yield> and are restored when the generator finishes.
+
+Arguments passed to the first call are the generator body's normal arguments:
+
+    my $adder = generator_create {
+        my ($x, $y) = @_;
+        my $next = generator_yield($x + $y);
+        return $next;
+    };
+
+    $adder->(2, 3); # yields 5
+
+Arguments passed to later calls are returned by the suspended
+C<generator_yield>.  In list context all arguments are returned; in scalar
+context the result is their count, and in void context they are discarded.
+The initial arguments can also be bound with a signature (with the
+C<signatures> feature enabled):
+
+    my $adder = generator_create ($x, $y) {
+        my $next = generator_yield($x + $y);
+        return $next;
+    };
+
+An explicit C<return> can provide the final list returned by the completing
+call.  Once that call has completed, C<generator_exhausted> reports true and
+further calls fail.
 
 =head1 LIFETIME AND ERRORS
 
 When the body finishes without another C<generator_yield>, the completing call
-returns an empty list and the generator becomes exhausted.  Exhaustion is permanent: a
-later call raises an exception.  An generator is also permanently failed if an
+returns its explicit return list (or an empty list) and the generator becomes
+exhausted.  Exhaustion is permanent: a
+later call raises an exception.  A generator is also permanently failed if an
 uncaught exception leaves its body.  That exception is propagated by the call
 which resumes the generator, and later calls raise an invalid-resume
 exception.  An exception caught by an C<eval> inside the body does not by
@@ -59,12 +85,12 @@ The C<generator_exhausted> keyword tests completion without resuming the generat
 
     generator_exhausted $counter
 
-It returns true only after a resume has run the body to completion and
-returned an empty list.  It returns false while the generator is new or
+It returns true only after a resume has run the body to completion.  It returns
+false while the generator is new or
 suspended, and also for a failed generator.  Testing exhaustion does not
 advance the sequence.
 
-An generator cannot be resumed while it is already running.  This includes an
+ A generator cannot be resumed while it is already running.  This includes a
 generator attempting to call itself before it has reached an
 C<generator_yield>.  A suspended
 generator is a one-shot continuation; it is not copied when it is assigned or

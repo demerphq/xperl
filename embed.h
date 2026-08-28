@@ -242,6 +242,7 @@
 # define generator_capture(a,b)                 Perl_generator_capture(aTHX_ a,b)
 # define generator_free(a)                      Perl_generator_free(aTHX_ a)
 # define generator_is_exhausted(a)              Perl_generator_is_exhausted(aTHX_ a)
+# define generator_mark_return()                Perl_generator_mark_return(aTHX)
 # define generator_new(a)                       Perl_generator_new(aTHX_ a)
 # define generator_resume(a,b)                  Perl_generator_resume(aTHX_ a,b)
 # define generator_wrap(a)                      Perl_generator_wrap(aTHX_ a)

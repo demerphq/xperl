@@ -3092,6 +3092,7 @@ static const char *S_defer_blockname(PERL_CONTEXT *cx)
 PP(pp_return)
 {
     dMARK;
+    generator_mark_return();
     PERL_CONTEXT *cx;
     I32 cxix = dopopto_cursub();
 

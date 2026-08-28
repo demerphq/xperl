@@ -774,9 +774,12 @@ bare_statement_generator_yield
 		      yyerror("generator_yield outside a generator_create");
 		      YYERROR;
 		  }
-		  $$ = newLISTOP(OP_GENERATOR_YIELD, 0,
+		  $$ = newLISTOP(OP_GENERATOR_YIELD,
+                                  OPf_WANT_VOID | OPf_SPECIAL,
                                   newOP(OP_PUSHMARK, 0),
-                                  list(op_force_list($term))); }
+                                  (($term->op_flags & OPf_PARENS)
+                                      ? list(op_force_list($term))
+                                      : scalar($term))); }
 	;
 
 subscript_index
@@ -1629,7 +1632,9 @@ termgenerator_yield
 			  }
 			  $$ = newLISTOP(OP_GENERATOR_YIELD, 0,
                                       newOP(OP_PUSHMARK, 0),
-                                      list(op_force_list($term))); }
+                                      (($term->op_flags & OPf_PARENS)
+                                          ? list(op_force_list($term))
+                                          : scalar($term))); }
 	;
 
 term[product]	:	termbinop

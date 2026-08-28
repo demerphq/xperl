@@ -1761,6 +1761,12 @@ Perl_generator_is_exhausted(pTHX_ SV *generator_sv)
 #define PERL_ARGS_ASSERT_GENERATOR_IS_EXHAUSTED \
     STMT_START { Perl_assert_aTHX; assert(generator_sv); } STMT_END
 
+PERL_CALLCONV void
+Perl_generator_mark_return(pTHX)
+        Perl_attribute_nonnull_aTHX;
+#define PERL_ARGS_ASSERT_GENERATOR_MARK_RETURN  \
+        Perl_assert_aTHX
+
 PERL_CALLCONV PERL_GENERATOR *
 Perl_generator_new(pTHX_ CV *body)
         Perl_attribute_nonnull_aTHX
