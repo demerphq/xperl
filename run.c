@@ -439,6 +439,7 @@ typedef struct generator_run {
 void
 Perl_generator_mark_return(pTHX)
 {
+    PERL_ARGS_ASSERT_GENERATOR_MARK_RETURN;
     GENERATOR_RUN * const run =
         (GENERATOR_RUN *)PL_runops_boundary_data;
     PERL_GENERATOR * const generator = run ? run->generator : NULL;

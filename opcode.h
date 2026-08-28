@@ -2351,7 +2351,7 @@ EXTCONST U32 PL_opargs[] INIT({
 	0x00000b40,	/* lvavref */
 	0x00000144,	/* anonconst */
 	0x00000204,	/* isa */
-	0x00000204,	/* implements */
+	0x00001204,	/* implements */
 	0x00000300,	/* cmpchain_and */
 	0x00000100,	/* cmpchain_dup */
 	0x00000300,	/* entertrycatch */

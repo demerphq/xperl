@@ -197,4 +197,46 @@ S_proto_role_free(pTHX_ proto_role_t *pr)
 }
 #define proto_role_free(pr) S_proto_role_free(aTHX_ pr)
 
+#ifdef USE_ITHREADS
+/* Duplicate the metadata owned by a class or role stash when its stash is
+ * cloned into another interpreter.  The proto-role is not a Perl SV, so it
+ * is not covered by the ordinary HV auxiliary-data duplication. */
+PERL_STATIC_INLINE proto_role_t *
+S_proto_role_dup(pTHX_ const proto_role_t *src, CLONE_PARAMS *param)
+{
+    proto_role_t *dst;
+    Newxz(dst, 1, proto_role_t);
+
+    dst->stash = src->stash ? hv_dup_inc(src->stash, param) : NULL;
+    dst->origin_id = src->origin_id;
+
+    dst->method_count = src->method_count;
+    dst->method_alloc = src->method_alloc;
+    if (src->method_alloc)
+        Newx(dst->method_slots, src->method_alloc, method_slot_t);
+    for (UV i = 0; i < src->method_count; i++) {
+        dst->method_slots[i].name = sv_dup_inc(src->method_slots[i].name, param);
+        dst->method_slots[i].origins = src->method_slots[i].origins;
+        dst->method_slots[i].cv = src->method_slots[i].cv
+            ? cv_dup_inc(src->method_slots[i].cv, param) : NULL;
+        dst->method_slots[i].from_field = src->method_slots[i].from_field
+            ? padname_dup_inc(src->method_slots[i].from_field, param) : NULL;
+    }
+
+    dst->field_count = src->field_count;
+    dst->field_alloc = src->field_alloc;
+    if (src->field_alloc)
+        Newx(dst->field_slots, src->field_alloc, field_slot_t);
+    for (UV i = 0; i < src->field_count; i++) {
+        dst->field_slots[i].padname =
+            padname_dup_inc(src->field_slots[i].padname, param);
+        dst->field_slots[i].origins = src->field_slots[i].origins;
+    }
+
+    dst->adjust_blocks = av_dup_inc(src->adjust_blocks, param);
+    return dst;
+}
+#define proto_role_dup(pr, param) S_proto_role_dup(aTHX_ pr, param)
+#endif
+
 #endif /* PERL_CLASS_H */

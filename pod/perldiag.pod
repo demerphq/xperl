@@ -811,6 +811,31 @@ object at compile time before the class is complete:
   eval "class Foo {"; Foo->new; # error
   class Bar { BEGIN { Bar->new } }; # error
 
+=item class_object_from_hash expects a hash reference
+
+(F) The C<class_object_from_hash> API was called with a value that was not a
+hash reference.
+
+=item class_object_from_hash expects the name of a class
+
+(F) The C<class_object_from_hash> API was called with a name that does not
+identify a class.
+
+=item class_object_to_hash expects a class object
+
+(F) The C<class_object_to_hash> API was called with a value that was not a
+class object.
+
+=item value for field %s must be a reference
+
+(F) A class array or hash field was restored from a value that was not a
+reference.
+
+=item value for field %s has the wrong reference type
+
+(F) A class array or hash field was restored from a reference of the wrong
+type.
+
 =item Cannot find encoding "%s"
 
 (S io) You tried to apply an encoding that did not exist to a filehandle,
@@ -3746,7 +3771,7 @@ line.  See L<perlrun|perlrun/-i[extension]> for more details.
 (F) You attempted to capture or resume a generator when its continuation was
 not available.
 
-=item generator_yield outside a running generator_create
+=item generator_yield outside a generator_create
 
 (F) The generator_yield operation was invoked without a currently running
 generator_create body.

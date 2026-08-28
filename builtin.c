@@ -528,6 +528,7 @@ dispatching an overridable method.
 bool
 Perl_builtin_package_implements(pTHX_ SV *package_or_object, SV *role)
 {
+    PERL_ARGS_ASSERT_BUILTIN_PACKAGE_IMPLEMENTS;
     return sv_implements_role_sv(package_or_object, role);
 }
 

@@ -1,6 +1,6 @@
 package UNIVERSAL;
 
-our $VERSION = '1.18';
+our $VERSION = '1.19';
 
 # UNIVERSAL.pm should not contain any methods/subs, they
 # are all defined in universal.c

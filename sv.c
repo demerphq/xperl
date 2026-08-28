@@ -31,6 +31,7 @@
 #define PERL_IN_SV_C
 #include "perl.h"
 #include "regcomp.h"
+#include "class.h"
 #ifdef __VMS
 # include <rms.h>
 #endif
@@ -15969,6 +15970,8 @@ S_sv_dup_hvaux(pTHX_ const SV *const ssv, SV *dsv, CLONE_PARAMS *const param)
         daux->xhv_class_pending_method_cvs = NULL;
         daux->xhv_class_pending_roles      = NULL;
         daux->xhv_class_roles              = av_dup_inc(saux->xhv_class_roles, param);
+        daux->xhv_class_proto_role         = saux->xhv_class_proto_role
+            ? proto_role_dup(saux->xhv_class_proto_role, param) : NULL;
 
         /* TODO: This does mean that we can't compile more `field` expressions
          * in the cloned thread, but surely we're done with compiletime now..?
