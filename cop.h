@@ -1442,6 +1442,7 @@ typedef struct perl_generator {
     bool                    stack_pushed;
     bool                    stack_detached;
     bool                    eval_active;
+    bool                    explicit_return;
     U8                      yield_context;
 } PERL_GENERATOR;
 
