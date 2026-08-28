@@ -5,7 +5,7 @@
 The prototype distribution now contains a standalone `Tensor::XS` layer with
 one PV-owned native allocation containing the tensor header, shape, strides,
 and numeric data.  It currently exposes construction, rank, size, shape,
-row-major data access, and bounds-checked element access.  The existing
+row-major data access, and bounds-checked coordinate access and mutation.  The existing
 `Tensor`, `Vector`, and `Matrix` classes still use their original Perl-array
 storage while this boundary is validated.
 
@@ -15,9 +15,8 @@ mutate a temporary array returned by an accessor and mistake that copy for
 native storage; this is why the public-class conversion follows the storage
 prototype rather than being folded into it prematurely.
 
-This document describes the intended native representation of `Tensor`. It is
-a design note only; it does not commit the repository to an XS implementation
-yet.
+This document describes the intended native representation of `Tensor` and
+records the incremental XS implementation as it lands.
 
 ## Objective
 
