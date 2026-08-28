@@ -41,7 +41,10 @@ result of the call.  C<undef> is a yielded value, not an empty result:
     my $values = generator_create { generator_yield undef };
     my @value = $values->(); # one element, whose value is undef
 
-The body runs in the context of the call that resumes it.  Lexical variables,
+In scalar context, a generator call returns the first value from the yield;
+in list context, it returns all yielded values.  An empty yield produces no
+values in either context but still suspends the generator.  The body runs in
+the context of the call that resumes it.  Lexical variables,
 loop state, and localization in the body remain in effect across an
 C<generator_yield> and are restored when the generator finishes.
 
@@ -57,7 +60,8 @@ Arguments passed to the first call are the generator body's normal arguments:
 
 Arguments passed to later calls are returned by the suspended
 C<generator_yield>.  In list context all arguments are returned; in scalar
-context the result is their count, and in void context they are discarded.
+context the first argument is returned, and in void context they are
+discarded.
 The initial arguments can also be bound with a signature (with the
 C<signatures> feature enabled):
 

@@ -241,6 +241,12 @@ S_generator_xsub(pTHX_ CV *cv)
     if (!generator_resume(generator, args)) {
         SSize_t i;
         AV * const result = generator->result;
+        if (GIMME_V == G_SCALAR) {
+            if (!result || AvFILLp(result) < 0)
+                XSRETURN_EMPTY;
+            ST(0) = newSVsv(*av_fetch(result, 0, 0));
+            XSRETURN(1);
+        }
         if (!result)
             XSRETURN_EMPTY;
         EXTEND(SP, AvFILLp(result) + 1);
@@ -252,6 +258,14 @@ S_generator_xsub(pTHX_ CV *cv)
         SSize_t i;
         AV * const values = generator->values;
         const SSize_t count = values ? AvFILLp(values) + 1 : 0;
+        if (GIMME_V == G_SCALAR) {
+            if (!count)
+                XSRETURN_EMPTY;
+            ST(0) = newSVsv(*av_fetch(values, 0, 0));
+            XSRETURN(1);
+        }
+        if (GIMME_V == G_VOID)
+            XSRETURN_EMPTY;
         EXTEND(SP, count);
         for (i = 0; i < count; i++)
             ST(i) = newSVsv(*av_fetch(values, i, 0));
@@ -540,7 +554,8 @@ S_generator_push_resume_result(pTHX_ PERL_GENERATOR *generator)
     SSize_t i;
 
     if (generator->yield_context == G_SCALAR) {
-        rpp_xpush_1(newSViv(count));
+        rpp_xpush_1(count ? newSVsv(*av_fetch(args, 0, 0))
+                          : newSVsv(&PL_sv_undef));
     }
     else if (generator->yield_context == G_LIST) {
         for (i = 0; i < count; i++)

@@ -8,9 +8,10 @@ BEGIN {
     set_up_inc('../lib');
 }
 
-plan(tests => 57);
+plan(tests => 59);
 
 use feature 'generator';
+use feature 'signatures';
 
 sub next_values {
     my ($generator, @args) = @_;
@@ -101,8 +102,17 @@ my $scalar_resume = generator_create {
     return $count;
 };
 is($scalar_resume->(), 1, 'initial scalar yield remains available');
-is($scalar_resume->(10, 20), 2,
-    'scalar generator_yield returns the resume argument count');
+is($scalar_resume->(10, 20), 10,
+    'scalar generator_yield returns the first resume argument');
+
+my $parameterized = generator_create ($x, $y, $z) {
+    my $sum = generator_yield($x + $y);
+    return $z * $sum;
+};
+my $parameterized_sum = $parameterized->(1, 2, 3);
+is($parameterized_sum, 3, 'scalar generator call returns its first yield');
+cmp_ok(abs($parameterized->(sqrt($parameterized_sum)) - 5.19615242270663), '<',
+    1e-12, 'scalar generator resume returns its first argument');
 
 my $empty_yield = generator_create {
     generator_yield ();
@@ -120,13 +130,12 @@ is_deeply(next_values($return_list), [ 1 ], 'yield precedes list return');
 is_deeply(next_values($return_list), [ 2, 3 ],
     'list return values are returned on completion');
 
-use feature 'signatures';
 my $signature_args = generator_create ($x, $y) {
     my $sum = generator_yield($x + $y);
     return $sum;
 };
 is($signature_args->(4, 5), 9, 'generator signature binds initial arguments');
-is($signature_args->(12), 1,
+is($signature_args->(12), 12,
     'signature bindings survive while resume args are supplied');
 
 my $scalar = generator_create { generator_yield 42 };
