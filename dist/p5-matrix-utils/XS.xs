@@ -43,7 +43,8 @@ tensor_data(tensor_header *tensor)
 }
 
 static void
-tensor_copy_array(pTHX_ AV *source, tensor_header *tensor, UV depth, UV *position)
+tensor_copy_array(pTHX_ AV *source, tensor_header *tensor, UV depth,
+                  UV *position, NV *output)
 {
     const UV count = av_count(source);
     UV i;
@@ -54,7 +55,7 @@ tensor_copy_array(pTHX_ AV *source, tensor_header *tensor, UV depth, UV *positio
             SV *value = *av_fetch(source, i, 0);
             if (SvROK(value))
                 croak("flat tensor data cannot contain nested arrays");
-            tensor_data(tensor)[(*position)++] = SvNV(value);
+            output[(*position)++] = SvNV(value);
         }
         return;
     }
@@ -67,12 +68,13 @@ tensor_copy_array(pTHX_ AV *source, tensor_header *tensor, UV depth, UV *positio
         if (depth + 1 == tensor->rank) {
             if (SvROK(value))
                 croak("nested tensor data has too many dimensions");
-            tensor_data(tensor)[(*position)++] = SvNV(value);
+            output[(*position)++] = SvNV(value);
         }
         else {
             if (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVAV)
                 croak("nested tensor data has too few dimensions");
-            tensor_copy_array(aTHX_ (AV *)SvRV(value), tensor, depth + 1, position);
+            tensor_copy_array(aTHX_ (AV *)SvRV(value), tensor, depth + 1,
+                              position, output);
         }
     }
 }
@@ -95,6 +97,7 @@ new(class, shape, data)
     Size_t bytes;
     char *storage;
     tensor_header *tensor;
+    NV *values = NULL;
     SV *payload;
     SV *object;
   CODE:
@@ -139,9 +142,12 @@ new(class, shape, data)
 
         if (data_av) {
             UV position = 0;
-            tensor_copy_array(aTHX_ data_av, tensor, 0, &position);
+            Newx(values, size, NV);
+            SAVEFREEPV(values);
+            tensor_copy_array(aTHX_ data_av, tensor, 0, &position, values);
             if (position != size)
                 croak("data size does not match tensor shape");
+            Copy(values, data_out, size, NV);
         }
         else {
             for (i = 0; i < size; i++)
@@ -262,9 +268,13 @@ set_data(object, data)
     data_av = (AV *)SvRV(data);
     {
         UV position = 0;
-        tensor_copy_array(aTHX_ data_av, tensor, 0, &position);
+        NV *values;
+        Newx(values, tensor->size, NV);
+        SAVEFREEPV(values);
+        tensor_copy_array(aTHX_ data_av, tensor, 0, &position, values);
         if (position != tensor->size)
             croak("data size does not match tensor shape");
+        Copy(values, tensor_data(tensor), tensor->size, NV);
     }
 
 AV *

@@ -35,6 +35,13 @@ eval { Tensor::XS->new([2, 2], [[1], [2, 3]]) };
 like $@, qr/nested tensor data does not match tensor shape/,
     'ragged nested data is rejected';
 
+my $stable = Tensor::XS->new([2, 2], [1, 2, 3, 4]);
+eval { $stable->set_data([[9], [8, 7]]) };
+like $@, qr/nested tensor data does not match tensor shape/,
+    'ragged bulk mutation is rejected';
+is_deeply $stable->data, [1, 2, 3, 4],
+    'rejected bulk mutation leaves native data unchanged';
+
 my $three_d = Tensor::XS->new([2, 3, 4], [0 .. 23]);
 is_deeply $three_d->strides, [12, 4, 1],
     'rank-three strides are backend-compatible';
