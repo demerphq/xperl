@@ -5,9 +5,10 @@
 The prototype distribution now contains a standalone `Tensor::XS` layer with
 one PV-owned native allocation containing the tensor header, shape, strides,
 and numeric data.  It currently exposes construction, rank, size, shape,
-row-major data access, and bounds-checked coordinate access and mutation.  The existing
-`Tensor`, `Vector`, and `Matrix` classes still use their original Perl-array
-storage while this boundary is validated.
+strides, flat indexing, row-major data access, and bounds-checked coordinate
+access and mutation.  Flat and nested bulk loads validate completely before
+publishing native data.  The existing `Tensor`, `Vector`, and `Matrix` classes
+still use their original Perl-array storage while this boundary is validated.
 
 The next migration step is to add explicit native mutation and bulk-operation
 entry points, then move `Tensor` onto the native object.  The Perl API must not
