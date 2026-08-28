@@ -1153,7 +1153,7 @@ S_class_seal_method_fieldmap(pTHX_ CV *cv)
     PADNAMELIST *pnl = PadlistNAMES(CvPADLIST(cv));
 
     AV *fieldmap = newAV();
-    UV max_fieldix = 0;
+    PADOFFSET max_fieldix = 0;
 
     /* padix 0 == @_; padix 1 == $self. Start at 2 */
     for(PADOFFSET padix = 2; padix <= PadnamelistMAX(pnl); padix++) {
@@ -1178,7 +1178,7 @@ S_class_seal_method_fieldmap(pTHX_ CV *cv)
         UNOP_AUX_item *ap = aux;
 
         (ap++)->uv = av_count(fieldmap) / 2;
-        (ap++)->uv = max_fieldix;
+        (ap++)->uv = (UV)max_fieldix;
 
         for(Size_t j = 0; j < av_count(fieldmap); j++)
             (ap++)->uv = SvUV(AvARRAY(fieldmap)[j]);
