@@ -7,6 +7,11 @@ our $VERSION = '0.01';
 
 XSLoader::load(__PACKAGE__, $VERSION);
 
+sub new {
+    my ($class, $shape, $data, $dtype) = @_;
+    $class->new_with_dtype($shape, $data, defined $dtype ? $dtype : 'BF16');
+}
+
 1;
 
 =head1 NAME

@@ -160,8 +160,13 @@ The initial practical candidates are:
 ```text
 U8 U16 U32 U64
 I8 I16 I32 I64
-F16 BF16 F32 F64
+F16 BF16 F32 F64 NV
 ```
+
+`NV` is Perl's native floating-point representation and uses `sizeof(NV)`
+directly.  It may therefore coincide with `F64` on one build and have a
+different width on another; it is not an alias that the layout may assume is
+always eight bytes.
 
 The data region is a homogeneous byte array interpreted through the selected
 descriptor. The XS layer should centralize dtype properties such as element

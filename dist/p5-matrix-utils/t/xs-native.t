@@ -14,6 +14,8 @@ eval { require Tensor::XS; 1 }
 my $tensor = Tensor::XS->new([2, 3], [1, 2, 3, 4, 5, 6]);
 is $tensor->rank, 2, 'native rank is stored';
 is $tensor->size, 6, 'native size is stored';
+is $tensor->dtype, 'BF16', 'default native dtype is BF16';
+is $tensor->element_size, 2, 'default native element size is two bytes';
 is_deeply $tensor->shape, [2, 3], 'native shape metadata is returned';
 is_deeply $tensor->strides, [3, 1],
     'native strides use one conventional stride per dimension';
@@ -55,5 +57,15 @@ is_deeply $three_d->strides, [12, 4, 1],
     'rank-three strides are backend-compatible';
 is $three_d->at(1, 2, 3), 23,
     'rank-three coordinate access follows conventional strides';
+
+for my $dtype (qw(U8 U16 U32 U64 I8 I16 I32 I64 F16 BF16 F32 F64 NV)) {
+    my $typed = Tensor::XS->new([2], [1, 2], $dtype);
+    is $typed->dtype, $dtype, "$dtype dtype is retained";
+    is $typed->at(1), 2, "$dtype values round-trip";
+}
+
+my $u64 = Tensor::XS->new([1], [18446744073709551615], 'U64');
+is $u64->at(0), '18446744073709551615',
+    'U64 values round-trip without NV precision loss';
 
 done_testing;

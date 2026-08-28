@@ -10,10 +10,201 @@ typedef struct {
     UV version;
     UV rank;
     UV size;
+    UV dtype;
     /* Followed by rank UV shape values, rank UV stride values, and size
      * NV data values, then a zero UV sentinel.  The whole representation is
      * owned by one PV. */
 } tensor_header;
+
+typedef enum {
+    TENSOR_DTYPE_U8 = 1,
+    TENSOR_DTYPE_U16,
+    TENSOR_DTYPE_U32,
+    TENSOR_DTYPE_U64,
+    TENSOR_DTYPE_I8,
+    TENSOR_DTYPE_I16,
+    TENSOR_DTYPE_I32,
+    TENSOR_DTYPE_I64,
+    TENSOR_DTYPE_F16,
+    TENSOR_DTYPE_BF16,
+    TENSOR_DTYPE_F32,
+    TENSOR_DTYPE_F64,
+    TENSOR_DTYPE_NV
+} tensor_dtype;
+
+static Size_t
+tensor_dtype_size(tensor_dtype dtype)
+{
+    switch (dtype) {
+    case TENSOR_DTYPE_U8:
+    case TENSOR_DTYPE_I8:
+        return 1;
+    case TENSOR_DTYPE_U16:
+    case TENSOR_DTYPE_I16:
+    case TENSOR_DTYPE_F16:
+    case TENSOR_DTYPE_BF16:
+        return 2;
+    case TENSOR_DTYPE_U32:
+    case TENSOR_DTYPE_I32:
+    case TENSOR_DTYPE_F32:
+        return 4;
+    case TENSOR_DTYPE_U64:
+    case TENSOR_DTYPE_I64:
+    case TENSOR_DTYPE_F64:
+        return 8;
+    case TENSOR_DTYPE_NV:
+        return sizeof(NV);
+    }
+    croak("unknown tensor dtype");
+}
+
+static const char *
+tensor_dtype_name(tensor_dtype dtype)
+{
+    switch (dtype) {
+    case TENSOR_DTYPE_U8:   return "U8";
+    case TENSOR_DTYPE_U16:  return "U16";
+    case TENSOR_DTYPE_U32:  return "U32";
+    case TENSOR_DTYPE_U64:  return "U64";
+    case TENSOR_DTYPE_I8:   return "I8";
+    case TENSOR_DTYPE_I16:  return "I16";
+    case TENSOR_DTYPE_I32:  return "I32";
+    case TENSOR_DTYPE_I64:  return "I64";
+    case TENSOR_DTYPE_F16:  return "F16";
+    case TENSOR_DTYPE_BF16: return "BF16";
+    case TENSOR_DTYPE_F32:  return "F32";
+    case TENSOR_DTYPE_F64:  return "F64";
+    case TENSOR_DTYPE_NV:   return "NV";
+    }
+    croak("unknown tensor dtype");
+}
+
+static U16
+tensor_float_to_bf16(NV value)
+{
+    float input = (float)value;
+    U32 bits;
+    memcpy(&bits, &input, sizeof(bits));
+    bits += 0x7fffU + ((bits >> 16) & 1);
+    return (U16)(bits >> 16);
+}
+
+static NV
+tensor_bf16_to_float(U16 value)
+{
+    U32 bits = (U32)value << 16;
+    float result;
+    memcpy(&result, &bits, sizeof(result));
+    return (NV)result;
+}
+
+static U16
+tensor_float_to_f16(NV value)
+{
+    float input = (float)value;
+    U32 bits;
+    U32 sign;
+    U32 exponent;
+    U32 mantissa;
+    IV adjusted_exponent;
+
+    memcpy(&bits, &input, sizeof(bits));
+    sign = (bits >> 16) & 0x8000U;
+    exponent = (bits >> 23) & 0xffU;
+    mantissa = bits & 0x7fffffU;
+
+    if (exponent == 0xffU)
+        return (U16)(sign | 0x7c00U | (mantissa ? 0x0200U : 0));
+
+    adjusted_exponent = (IV)exponent - 127;
+    if (adjusted_exponent > 15)
+        return (U16)(sign | 0x7c00U);
+    if (adjusted_exponent < -24)
+        return (U16)sign;
+
+    if (adjusted_exponent < -14) {
+        U32 shift = (U32)(-adjusted_exponent - 1);
+        U32 significand = mantissa | 0x800000U;
+        U32 half = significand >> (shift + 13);
+        U32 remainder = significand & ((1U << (shift + 13)) - 1);
+        U32 halfway = 1U << (shift + 12);
+        if (remainder > halfway || (remainder == halfway && (half & 1)))
+            half++;
+        return (U16)(sign | half);
+    }
+    else {
+        U32 half_mantissa = mantissa >> 13;
+        U32 remainder = mantissa & 0x1fffU;
+        if (remainder > 0x1000U
+            || (remainder == 0x1000U && (half_mantissa & 1))) {
+            half_mantissa++;
+            if (half_mantissa == 0x400U) {
+                half_mantissa = 0;
+                adjusted_exponent++;
+                if (adjusted_exponent > 15)
+                    return (U16)(sign | 0x7c00U);
+            }
+        }
+        return (U16)(sign | ((U32)(adjusted_exponent + 15) << 10)
+                     | half_mantissa);
+    }
+}
+
+static NV
+tensor_f16_to_float(U16 value)
+{
+    U32 sign = ((U32)value & 0x8000U) << 16;
+    U32 exponent = ((U32)value >> 10) & 0x1fU;
+    U32 mantissa = (U32)value & 0x3ffU;
+    U32 bits;
+    float result;
+
+    if (exponent == 0) {
+        if (mantissa == 0)
+            bits = sign;
+        else {
+            IV exponent_adjustment = -1;
+            while ((mantissa & 0x400U) == 0) {
+                mantissa <<= 1;
+                exponent_adjustment--;
+            }
+            mantissa &= 0x3ffU;
+            bits = sign | ((U32)(exponent_adjustment + 127) << 23)
+                   | (mantissa << 13);
+        }
+    }
+    else if (exponent == 0x1fU)
+        bits = sign | 0x7f800000U | (mantissa << 13);
+    else
+        bits = sign | ((exponent + 112) << 23) | (mantissa << 13);
+
+    memcpy(&result, &bits, sizeof(result));
+    return (NV)result;
+}
+
+static tensor_dtype
+tensor_dtype_from_sv(pTHX_ SV *value)
+{
+    const char *name;
+
+    if (!value || !SvOK(value))
+        return TENSOR_DTYPE_F64;
+    name = SvPV_nolen(value);
+    if (strEQ(name, "U8"))   return TENSOR_DTYPE_U8;
+    if (strEQ(name, "U16"))  return TENSOR_DTYPE_U16;
+    if (strEQ(name, "U32"))  return TENSOR_DTYPE_U32;
+    if (strEQ(name, "U64"))  return TENSOR_DTYPE_U64;
+    if (strEQ(name, "I8"))   return TENSOR_DTYPE_I8;
+    if (strEQ(name, "I16"))  return TENSOR_DTYPE_I16;
+    if (strEQ(name, "I32"))  return TENSOR_DTYPE_I32;
+    if (strEQ(name, "I64"))  return TENSOR_DTYPE_I64;
+    if (strEQ(name, "F16"))  return TENSOR_DTYPE_F16;
+    if (strEQ(name, "BF16")) return TENSOR_DTYPE_BF16;
+    if (strEQ(name, "F32"))  return TENSOR_DTYPE_F32;
+    if (strEQ(name, "F64"))  return TENSOR_DTYPE_F64;
+    if (strEQ(name, "NV"))   return TENSOR_DTYPE_NV;
+    croak("unknown tensor dtype '%s'", name);
+}
 
 static Size_t
 tensor_align_offset(Size_t offset)
@@ -30,7 +221,7 @@ tensor_data_offset(UV rank)
 }
 
 static bool
-tensor_blob_size(UV rank, UV size, Size_t *result)
+tensor_blob_size(UV rank, UV size, Size_t element_size, Size_t *result)
 {
     Size_t metadata;
     Size_t data_offset;
@@ -40,14 +231,14 @@ tensor_blob_size(UV rank, UV size, Size_t *result)
     if (rank > (UV)Size_t_MAX
         || (Size_t)rank > (Size_t_MAX - sizeof(tensor_header))
                             / (sizeof(UV) * 2)
-        || size > (UV)(Size_t_MAX / sizeof(NV)))
+        || size > (UV)(Size_t_MAX / element_size))
         return FALSE;
 
     metadata = sizeof(tensor_header) + (Size_t)rank * sizeof(UV) * 2;
     if (metadata > Size_t_MAX - MEM_ALIGNBYTES + 1)
         return FALSE;
     data_offset = tensor_align_offset(metadata);
-    data_bytes = (Size_t)size * sizeof(NV);
+    data_bytes = (Size_t)size * element_size;
     if (data_offset > Size_t_MAX - data_bytes)
         return FALSE;
     metadata = data_offset + data_bytes;
@@ -77,7 +268,10 @@ tensor_from_object(pTHX_ SV *object)
         tensor_header *tensor = (tensor_header *)SvPV_nolen(payload);
         Size_t expected;
         if (tensor->magic != TENSOR_MAGIC || tensor->version != TENSOR_VERSION
-            || !tensor_blob_size(tensor->rank, tensor->size, &expected)
+            || tensor->dtype == 0
+            || !tensor_blob_size(tensor->rank, tensor->size,
+                                 tensor_dtype_size((tensor_dtype)tensor->dtype),
+                                 &expected)
             || SvCUR(payload) < expected)
             croak("invalid Tensor::XS object");
         return tensor;
@@ -96,10 +290,76 @@ tensor_strides(tensor_header *tensor)
     return tensor_shape(tensor) + tensor->rank;
 }
 
-static NV *
+static char *
 tensor_data(tensor_header *tensor)
 {
-    return (NV *)((char *)tensor + tensor_data_offset(tensor->rank));
+    return (char *)tensor + tensor_data_offset(tensor->rank);
+}
+
+static NV
+tensor_load(tensor_header *tensor, UV index)
+{
+    char *data = tensor_data(tensor) + index * tensor_dtype_size((tensor_dtype)tensor->dtype);
+    switch ((tensor_dtype)tensor->dtype) {
+    case TENSOR_DTYPE_U8:   return *(U8 *)data;
+    case TENSOR_DTYPE_U16:  return *(U16 *)data;
+    case TENSOR_DTYPE_U32:  return *(U32 *)data;
+    case TENSOR_DTYPE_U64:  return *(U64 *)data;
+    case TENSOR_DTYPE_I8:   return *(I8 *)data;
+    case TENSOR_DTYPE_I16:  return *(I16 *)data;
+    case TENSOR_DTYPE_I32:  return *(I32 *)data;
+    case TENSOR_DTYPE_I64:  return *(I64 *)data;
+    case TENSOR_DTYPE_F32:  return *(float *)data;
+    case TENSOR_DTYPE_F64:  return *(double *)data;
+    case TENSOR_DTYPE_NV:   return *(NV *)data;
+    case TENSOR_DTYPE_F16:  return tensor_f16_to_float(*(U16 *)data);
+    case TENSOR_DTYPE_BF16: return tensor_bf16_to_float(*(U16 *)data);
+    }
+    croak("unknown tensor dtype");
+}
+
+static SV *
+tensor_load_sv(pTHX_ tensor_header *tensor, UV index)
+{
+    char *data = tensor_data(tensor) + index * tensor_dtype_size((tensor_dtype)tensor->dtype);
+    switch ((tensor_dtype)tensor->dtype) {
+    case TENSOR_DTYPE_U8:   return newSVuv(*(U8 *)data);
+    case TENSOR_DTYPE_U16:  return newSVuv(*(U16 *)data);
+    case TENSOR_DTYPE_U32:  return newSVuv(*(U32 *)data);
+    case TENSOR_DTYPE_U64:  return newSVuv(*(U64 *)data);
+    case TENSOR_DTYPE_I8:   return newSViv(*(I8 *)data);
+    case TENSOR_DTYPE_I16:  return newSViv(*(I16 *)data);
+    case TENSOR_DTYPE_I32:  return newSViv(*(I32 *)data);
+    case TENSOR_DTYPE_I64:  return newSViv(*(I64 *)data);
+    case TENSOR_DTYPE_F32:  return newSVnv(*(float *)data);
+    case TENSOR_DTYPE_F64:  return newSVnv(*(double *)data);
+    case TENSOR_DTYPE_NV:   return newSVnv(*(NV *)data);
+    case TENSOR_DTYPE_F16:  return newSVnv(tensor_f16_to_float(*(U16 *)data));
+    case TENSOR_DTYPE_BF16: return newSVnv(tensor_bf16_to_float(*(U16 *)data));
+    }
+    croak("unknown tensor dtype");
+}
+
+static void
+tensor_store(tensor_header *tensor, UV index, SV *value_sv)
+{
+    char *data = tensor_data(tensor) + index * tensor_dtype_size((tensor_dtype)tensor->dtype);
+    switch ((tensor_dtype)tensor->dtype) {
+    case TENSOR_DTYPE_U8:   *(U8 *)data = (U8)SvUV(value_sv); return;
+    case TENSOR_DTYPE_U16:  *(U16 *)data = (U16)SvUV(value_sv); return;
+    case TENSOR_DTYPE_U32:  *(U32 *)data = (U32)SvUV(value_sv); return;
+    case TENSOR_DTYPE_U64:  *(U64 *)data = (U64)SvUV(value_sv); return;
+    case TENSOR_DTYPE_I8:   *(I8 *)data = (I8)SvIV(value_sv); return;
+    case TENSOR_DTYPE_I16:  *(I16 *)data = (I16)SvIV(value_sv); return;
+    case TENSOR_DTYPE_I32:  *(I32 *)data = (I32)SvIV(value_sv); return;
+    case TENSOR_DTYPE_I64:  *(I64 *)data = (I64)SvIV(value_sv); return;
+    case TENSOR_DTYPE_F32:  *(float *)data = (float)SvNV(value_sv); return;
+    case TENSOR_DTYPE_F64:  *(double *)data = (double)SvNV(value_sv); return;
+    case TENSOR_DTYPE_NV:   *(NV *)data = SvNV(value_sv); return;
+    case TENSOR_DTYPE_F16:  *(U16 *)data = tensor_float_to_f16(SvNV(value_sv)); return;
+    case TENSOR_DTYPE_BF16: *(U16 *)data = tensor_float_to_bf16(SvNV(value_sv)); return;
+    }
+    croak("unknown tensor dtype");
 }
 
 static UV
@@ -124,7 +384,7 @@ tensor_coordinate_index(pTHX_ tensor_header *tensor, SV **coordinates,
 
 static void
 tensor_copy_array(pTHX_ AV *source, tensor_header *tensor, UV depth,
-                  UV *position, NV *output)
+                  UV *position, SV **output)
 {
     const UV count = av_count(source);
     UV i;
@@ -135,7 +395,7 @@ tensor_copy_array(pTHX_ AV *source, tensor_header *tensor, UV depth,
             SV *value = *av_fetch(source, i, 0);
             if (SvROK(value))
                 croak("flat tensor data cannot contain nested arrays");
-            output[(*position)++] = SvNV(value);
+            output[(*position)++] = value;
         }
         return;
     }
@@ -148,7 +408,7 @@ tensor_copy_array(pTHX_ AV *source, tensor_header *tensor, UV depth,
         if (depth + 1 == tensor->rank) {
             if (SvROK(value))
                 croak("nested tensor data has too many dimensions");
-            output[(*position)++] = SvNV(value);
+            output[(*position)++] = value;
         }
         else {
             if (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVAV)
@@ -164,10 +424,11 @@ MODULE = Tensor::XS  PACKAGE = Tensor::XS
 PROTOTYPES: DISABLE
 
 SV *
-new(class, shape, data)
+new_with_dtype(class, shape, data, dtype)
     const char *class
     SV *shape
     SV *data
+    SV *dtype
   PREINIT:
     AV *shape_av;
     AV *data_av = NULL;
@@ -175,9 +436,10 @@ new(class, shape, data)
     UV size = 1;
     UV i;
     Size_t bytes;
+    tensor_dtype dtype_value;
     char *storage;
     tensor_header *tensor;
-    NV *values = NULL;
+    SV **values = NULL;
     SV *payload;
     SV *object;
   CODE:
@@ -188,6 +450,7 @@ new(class, shape, data)
 
     if (SvROK(data) && SvTYPE(SvRV(data)) == SVt_PVAV)
         data_av = (AV *)SvRV(data);
+    dtype_value = tensor_dtype_from_sv(aTHX_ dtype);
 
     for (i = 0; i < rank; i++) {
         SV **value = av_fetch(shape_av, i, 0);
@@ -199,7 +462,7 @@ new(class, shape, data)
         size *= dimension;
     }
 
-    if (!tensor_blob_size(rank, size, &bytes))
+    if (!tensor_blob_size(rank, size, tensor_dtype_size(dtype_value), &bytes))
         croak("tensor blob size overflow");
     Newxz(storage, bytes, char);
     tensor = (tensor_header *)storage;
@@ -207,11 +470,11 @@ new(class, shape, data)
     tensor->version = TENSOR_VERSION;
     tensor->rank = rank;
     tensor->size = size;
+    tensor->dtype = dtype_value;
 
     {
         UV *shape_out = tensor_shape(tensor);
         UV *strides_out = tensor_strides(tensor);
-        NV *data_out = tensor_data(tensor);
         UV stride = 1;
 
         for (i = rank; i-- > 0;) {
@@ -223,16 +486,17 @@ new(class, shape, data)
 
         if (data_av) {
             UV position = 0;
-            Newx(values, size, NV);
-            SAVEFREEPV(values);
+            Newx(values, size, SV *);
+            SAVEFREEPV((char *)values);
             tensor_copy_array(aTHX_ data_av, tensor, 0, &position, values);
             if (position != size)
                 croak("data size does not match tensor shape");
-            Copy(values, data_out, size, NV);
+            for (i = 0; i < size; i++)
+                tensor_store(tensor, i, values[i]);
         }
         else {
             for (i = 0; i < size; i++)
-                data_out[i] = SvNV(data);
+                tensor_store(tensor, i, data);
         }
     }
 
@@ -289,10 +553,30 @@ shape(object)
     for (i = 0; i < tensor->rank; i++)
         av_push(result, newSVuv(tensor_shape(tensor)[i]));
     RETVAL = result;
+    OUTPUT:
+    RETVAL
+
+SV *
+dtype(object)
+    SV *object
+  PREINIT:
+    tensor_header *tensor;
+  CODE:
+    tensor = tensor_from_object(aTHX_ object);
+    RETVAL = newSVpv(tensor_dtype_name((tensor_dtype)tensor->dtype), 0);
   OUTPUT:
     RETVAL
 
-NV
+UV
+element_size(object)
+    SV *object
+  CODE:
+    RETVAL = tensor_dtype_size((tensor_dtype)
+                               tensor_from_object(aTHX_ object)->dtype);
+  OUTPUT:
+    RETVAL
+
+SV *
 at(object, ...)
     SV *object
   PREINIT:
@@ -302,7 +586,7 @@ at(object, ...)
     tensor = tensor_from_object(aTHX_ object);
     index = tensor_coordinate_index(aTHX_ tensor,
                                     items > 1 ? &ST(1) : NULL, items - 1);
-    RETVAL = tensor_data(tensor)[index];
+    RETVAL = tensor_load_sv(aTHX_ tensor, index);
   OUTPUT:
     RETVAL
 
@@ -328,7 +612,7 @@ set_at(object, ...)
     tensor = tensor_from_object(aTHX_ object);
     index = tensor_coordinate_index(aTHX_ tensor,
                                     items > 2 ? &ST(1) : NULL, items - 2);
-    tensor_data(tensor)[index] = SvNV(ST(items - 1));
+    tensor_store(tensor, index, ST(items - 1));
 
 void
 set_data(object, data)
@@ -345,13 +629,14 @@ set_data(object, data)
     data_av = (AV *)SvRV(data);
     {
         UV position = 0;
-        NV *values;
-        Newx(values, tensor->size, NV);
-        SAVEFREEPV(values);
+        SV **values;
+        Newx(values, tensor->size, SV *);
+        SAVEFREEPV((char *)values);
         tensor_copy_array(aTHX_ data_av, tensor, 0, &position, values);
         if (position != tensor->size)
             croak("data size does not match tensor shape");
-        Copy(values, tensor_data(tensor), tensor->size, NV);
+        for (i = 0; i < tensor->size; i++)
+            tensor_store(tensor, i, values[i]);
     }
 
 AV *
@@ -365,7 +650,7 @@ data(object)
     tensor = tensor_from_object(aTHX_ object);
     result = newAV();
     for (i = 0; i < tensor->size; i++)
-        av_push(result, newSVnv(tensor_data(tensor)[i]));
+        av_push(result, tensor_load_sv(aTHX_ tensor, i));
     RETVAL = result;
   OUTPUT:
     RETVAL
