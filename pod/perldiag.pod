@@ -3776,6 +3776,11 @@ not available.
 (F) The generator_yield operation was invoked without a currently running
 generator_create body.
 
+=item generator_yield outside a running generator_create
+
+(F) The generator_yield operation was invoked when no generator_create body
+was currently running.
+
 =item Junk on end of regexp in regex m/%s/
 
 (P) The regular expression parser is confused.

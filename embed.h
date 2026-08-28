@@ -72,6 +72,7 @@
 #   undef ORIGIN_SET_MAX_BITS
 #   undef proto_role_add_field
 #   undef proto_role_add_method
+#   undef proto_role_dup
 #   undef proto_role_free
 #   undef proto_role_new
 #   undef SHY_NATIVE

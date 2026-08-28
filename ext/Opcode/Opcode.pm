@@ -474,7 +474,8 @@ These ops are related to multi-threading.
 A handy tag name for a I<reasonable> default set of ops.  (The current ops
 allowed are unstable while development continues. It will change.)
 
-    :base_core :base_mem :base_loop :base_orig :base_thread implements
+    :base_core :base_mem :base_loop :base_orig :base_thread
+    implements
 
 This list used to contain :base_io prior to Opcode 1.07.
 

@@ -1068,6 +1068,10 @@ S_class_cleanup_definition(pTHX_ HV *stash)
     proto_role_free(aux->xhv_class_proto_role);
     aux->xhv_class_proto_role = NULL;
 
+    /* The saved initializer ops must be restored in the context of the CV
+     * whose pad entries contain them before the field defaults are freed. */
+    resume_compcv_final(aux->xhv_class_suspended_initfields_compcv);
+
     /* clean up the ops for defaults for fields, if any, since
        padname_free() doesn't.
     */
@@ -1110,7 +1114,6 @@ S_class_cleanup_definition(pTHX_ HV *stash)
     }
 
     /* field clean up */
-    resume_compcv_final(aux->xhv_class_suspended_initfields_compcv);
     SvREFCNT_dec(PL_compcv);
     Safefree(aux->xhv_class_suspended_initfields_compcv);
     aux->xhv_class_suspended_initfields_compcv = NULL;
@@ -2997,25 +3000,6 @@ Perl_class_prepare_method_parse(pTHX_ CV *cv)
     assert(cv == PL_compcv);
     assert(HvSTASH_IS_CLASS_OR_ROLE(PL_curstash));
 
-    /* We expect this to be at the start of sub parsing, so there won't be
-     * anything in the pad yet
-     */
-    assert(PL_comppad_name_fill == 0);
-
-    PADOFFSET padix;
-
-    padix = pad_add_name_pvs("$self", 0, NULL, NULL);
-    assert(padix == PADIX_SELF);
-
-    padix = pad_add_name_pvs("$(params)", 0, NULL, NULL);
-    assert(padix == PADIX_PARAMS);
-
-    padix = pad_add_name_pvs("$(role_offset)", 0, NULL, NULL);
-    assert(padix == PADIX_ROLE_OFFSET);
-    PERL_UNUSED_VAR(padix);
-
-    intro_my();
-
     CvNOWARN_AMBIGUOUS_on(cv);
     CvIsMETHOD_on(cv);
 }
@@ -3033,6 +3017,14 @@ Perl_class_declare_padvars(pTHX_ CV *cv)
     PADOFFSET padix = pad_add_name_pvs("$self", 0, NULL, NULL);
     assert(padix == PADIX_SELF);
     PERL_UNUSED_VAR(padix);
+
+    padix = pad_add_name_pvs("$(params)", 0, NULL, NULL);
+    assert(padix == PADIX_PARAMS);
+
+    padix = pad_add_name_pvs("$(role_offset)", 0, NULL, NULL);
+    assert(padix == PADIX_ROLE_OFFSET);
+    PERL_UNUSED_VAR(padix);
+
     intro_my();
 }
 
