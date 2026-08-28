@@ -1016,6 +1016,9 @@ p	|OP *	|build_infix_plugin					\
 				|NN OP *lhs				\
 				|NN OP *rhs				\
 				|NN void *tokendata
+Adp	|bool	|builtin_package_implements				\
+				|NN SV *package_or_object		\
+				|NN SV *role
 EXp	|const char *|byte_dump_string_ 				\
 				|NULLOK const U8 * const start		\
 				|const STRLEN len			\

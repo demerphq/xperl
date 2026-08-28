@@ -512,6 +512,26 @@ XS(XS_builtin_load_module)
     XSRETURN(1);
 }
 
+XS(XS_builtin_package_implements);
+bool
+Perl_builtin_package_implements(pTHX_ SV *package_or_object, SV *role)
+{
+    return sv_implements_role_sv(package_or_object, role);
+}
+
+XS(XS_builtin_package_implements)
+{
+    dXSARGS;
+
+    if (items != 2)
+        croak_xs_usage(cv, "package-or-object, role");
+
+    if (builtin_package_implements(ST(0), ST(1)))
+        XSRETURN_YES;
+
+    XSRETURN_NO;
+}
+
 /* These pp_ funcs all need to use dXSTARG */
 
 PP(pp_refaddr)
@@ -607,6 +627,7 @@ static const struct BuiltinFuncDescriptor builtins[] = {
     { "created_as_number", NO_BUNDLE, true, &XS_builtin_created_as_number, &ck_builtin_func1, 0 },
 
     { "load_module", NO_BUNDLE, true, &XS_builtin_load_module, &ck_builtin_func1, 0 },
+    { "package_implements", NO_BUNDLE, true, &XS_builtin_package_implements, NULL, 0 },
 
     /* list functions */
     { "indexed",          SHORTVER(5,39), false, &Perl_XS_builtin_indexed,     &ck_builtin_funcN, 0 },

@@ -292,7 +292,7 @@ XS(class_implements)
     if (items != 2)
         croak_xs_usage(cv, "invocant, role");
 
-    if (sv_implements_role_sv(ST(0), ST(1)))
+    if (builtin_package_implements(ST(0), ST(1)))
         XSRETURN_YES;
 
     XSRETURN_NO;

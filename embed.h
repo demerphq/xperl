@@ -165,6 +165,7 @@
 # define block_end(a,b)                         Perl_block_end(aTHX_ a,b)
 # define block_gimme()                          Perl_block_gimme(aTHX)
 # define block_start(a)                         Perl_block_start(aTHX_ a)
+# define builtin_package_implements(a,b)        Perl_builtin_package_implements(aTHX_ a,b)
 # define bytes_cmp_utf8(a,b,c,d)                Perl_bytes_cmp_utf8(aTHX_ a,b,c,d)
 # define bytes_from_utf8(a,b,c)                 Perl_bytes_from_utf8(aTHX_ a,b,c)
 # define bytes_to_utf8(a,b)                     Perl_bytes_to_utf8(aTHX_ a,b)
