@@ -4478,7 +4478,9 @@ dist/p5-matrix-utils/lib/Matrix.pm			Matrix class
 dist/p5-matrix-utils/lib/MNIST.pm			MNIST IDX file format utilities
 dist/p5-matrix-utils/lib/Scalar.pm			Scalar tensor class
 dist/p5-matrix-utils/lib/Tensor.pm			Tensor class
+dist/p5-matrix-utils/lib/Tensor/XS.pm			Native Tensor storage Perl loader
 dist/p5-matrix-utils/lib/Vector.pm			Vector tensor class
+dist/p5-matrix-utils/Makefile.PL			Makefile for the Tensor::XS prototype
 dist/p5-matrix-utils/NOTES.md				Design and development notes for p5-matrix-utils
 dist/p5-matrix-utils/OPTIMIZATION_OPPORTUNITIES.md	Design and development notes for p5-matrix-utils
 dist/p5-matrix-utils/OPTIMIZATION_SUCCESS.md		Design and development notes for p5-matrix-utils
@@ -4512,7 +4514,9 @@ dist/p5-matrix-utils/t/200-matrix/280-reductions.t	Test for p5-matrix-utils
 dist/p5-matrix-utils/t/200-matrix/290-comparisons.t	Test for p5-matrix-utils
 dist/p5-matrix-utils/t/200-matrix/300-logical-math.t	Test for p5-matrix-utils
 dist/p5-matrix-utils/t/matrix-utils.t			Basic matrix utility smoke tests
+dist/p5-matrix-utils/t/xs-native.t			Native Tensor storage XS tests
 dist/p5-matrix-utils/TRAINING_SUCCESS.md		Design and development notes for p5-matrix-utils
+dist/p5-matrix-utils/XS.xs				Native Tensor storage XS implementation
 dist/p5-matrix-utils/XS_DESIGN.md			Design plan for the XS tensor implementation
 dist/PathTools/Changes				Changelog for PathTools dist
 dist/PathTools/Cwd.pm				Various cwd routines (getcwd, fastcwd, chdir)
