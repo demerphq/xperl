@@ -1094,6 +1094,11 @@ Adfpt	|void	|ck_warner	|U32 err				\
 Adfpt	|void	|ck_warner_d	|U32 err				\
 				|NN const char *pat			\
 				|...
+Adp	|SV *	|class_object_from_hash 				\
+				|NN SV *hashref 			\
+				|NN SV *classname
+Adp	|SV *	|class_object_to_hash					\
+				|NN SV *object
 
 : Some static inline functions need predeclaration because they are used
 : inside other static inline functions.

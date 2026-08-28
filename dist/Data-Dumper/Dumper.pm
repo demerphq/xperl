@@ -345,6 +345,19 @@ sub _dump {
         die "Recursion limit of $s->{maxrecurse} exceeded";
     }
 
+    # Class objects have no ordinary Perl reference representation.  Use the
+    # builtin shallow field conversion so they can be dumped and restored
+    # without invoking constructors or methods.
+    if ($realtype eq 'OBJECT') {
+      $s->{level}++;
+      my $hash = builtin::class_object_to_hash($val);
+      $out = 'builtin::class_object_from_hash(' .
+             $s->_dump($hash, "\${$name}") . ', ' .
+             _quote($realpack) . ')';
+      $s->{level}--;
+      return $out;
+    }
+
     # we have a blessed ref
     my ($blesspad);
     if ($realpack and !$no_bless) {
@@ -885,6 +898,12 @@ structures correctly.
 The return value can be C<eval>ed to get back an identical copy of the
 original reference structure.  (Please do consider the security implications
 of eval'ing code from untrusted sources!)
+
+Objects created by the experimental C<class> feature are dumped using the
+experimental C<builtin::class_object_to_hash> and
+C<builtin::class_object_from_hash> functions.  Their fields are represented
+shallowly, so references in fields retain their identity when the dumped form
+is evaluated.
 
 Any references that are the same as one of those passed in will be named
 C<$VAR>I<n> (where I<n> is a numeric suffix), and other duplicate references

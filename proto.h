@@ -714,6 +714,21 @@ Perl_ckwarn_d(pTHX_ U32 w)
         __attribute__pure__;
 #define PERL_ARGS_ASSERT_CKWARN_D
 
+PERL_CALLCONV SV *
+Perl_class_object_from_hash(pTHX_ SV *hashref, SV *classname)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2);
+#define PERL_ARGS_ASSERT_CLASS_OBJECT_FROM_HASH \
+        Perl_assert_aTHX; assert(hashref); assert(classname)
+
+PERL_CALLCONV SV *
+Perl_class_object_to_hash(pTHX_ SV *object)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_CLASS_OBJECT_TO_HASH   \
+        Perl_assert_aTHX; assert(object)
+
 PERL_CALLCONV void
 Perl_clear_defarray(pTHX_ AV *av, bool abandon)
         Perl_attribute_nonnull_aTHX

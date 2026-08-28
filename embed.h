@@ -187,6 +187,8 @@
 # define ck_entersub_args_proto_or_list(a,b,c)  Perl_ck_entersub_args_proto_or_list(aTHX_ a,b,c)
 # define ck_warner(a,...)                       Perl_ck_warner(aTHX_ a,__VA_ARGS__)
 # define ck_warner_d(a,...)                     Perl_ck_warner_d(aTHX_ a,__VA_ARGS__)
+# define class_object_from_hash(a,b)            Perl_class_object_from_hash(aTHX_ a,b)
+# define class_object_to_hash(a)                Perl_class_object_to_hash(aTHX_ a)
 # define clear_defarray(a,b)                    Perl_clear_defarray(aTHX_ a,b)
 # define clear_defarray_simple(a)               Perl_clear_defarray_simple(aTHX_ a)
 # define cop_disable_warning(a,b)               Perl_cop_disable_warning(aTHX_ a,b)
