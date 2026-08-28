@@ -7,6 +7,8 @@
 
 # Other tests for CORE subs are in coresubs.t
 
+no warnings 'experimental::equ';
+
 BEGIN {
   chdir 't' if -d 't';
   require "./test.pl";
