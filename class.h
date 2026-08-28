@@ -10,7 +10,7 @@
 /* Proto-role types and composition helpers for `use feature 'class'`.
  *
  * Included from class.c (composition pipeline) and universal.c
- * (structural DOES check). The proto_role_t pointer in struct xpvhv_aux
+ * (nominal implements/DOES delegation). The proto_role_t pointer in struct xpvhv_aux
  * (hv.h) uses a forward declaration.
  *
  * The proto-role is the intermediate representation through which all

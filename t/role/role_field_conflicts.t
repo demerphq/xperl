@@ -12,7 +12,7 @@ use Test::More;
     role FB1 { field $x :param; }
 
     eval q{
-        class FC1 :does(FA1) :does(FB1) { }
+        class FC1 :implements(FA1) :implements(FB1) { }
     };
     like($@, qr/Field.*\$x.*conflicts/i, "field conflict detected between two roles");
 }
@@ -22,10 +22,10 @@ use Test::More;
 # param deletion, so we test with a non-param field + default.
 {
     role FBase2 { field $x = 42; field $y :reader; method get_x { $x } }
-    role FLeft2 :does(FBase2) { }
-    role FRight2 :does(FBase2) { }
+    role FLeft2 :implements(FBase2) { }
+    role FRight2 :implements(FBase2) { }
 
-    class FC2 :does(FLeft2) :does(FRight2) { }
+    class FC2 :implements(FLeft2) :implements(FRight2) { }
     is(FC2->new->get_x, 42, "diamond field - no conflict, default works");
 }
 
@@ -35,7 +35,7 @@ use Test::More;
     role FB3 { field $x :param; method m { 2 } }
 
     eval q{
-        class FC3 :does(FA3) :does(FB3) { }
+        class FC3 :implements(FA3) :implements(FB3) { }
     };
     like($@, qr/Role composition errors/, "batch error header");
     like($@, qr/Field.*\$x.*conflicts/i, "field conflict in batch");
@@ -48,7 +48,7 @@ use Test::More;
     role FB4 { field $x :param; }
 
     eval q{
-        class FC4 :does(FA4) :does(FB4) {
+        class FC4 :implements(FA4) :implements(FB4) {
             method x { "override" }
         }
     };

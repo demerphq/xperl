@@ -284,10 +284,24 @@ XS(injected_constructor)
     XSRETURN(1);
 }
 
+XS(class_implements);
+XS(class_implements)
+{
+    dXSARGS;
+
+    if (items != 2)
+        croak_xs_usage(cv, "invocant, role");
+
+    if (sv_implements_role_sv(ST(0), ST(1)))
+        XSRETURN_YES;
+
+    XSRETURN_NO;
+}
+
 /* Check if a class/role stash composes a given role (directly or transitively).
  * Also walks the superclass chain. */
 static bool
-S_class_does_role(pTHX_ HV *stash, HV *rolestash)
+S_class_implements_role(pTHX_ HV *stash, HV *rolestash)
 {
     if(!stash || !rolestash)
         return FALSE;
@@ -309,7 +323,7 @@ S_class_does_role(pTHX_ HV *stash, HV *rolestash)
     }
     return FALSE;
 }
-#define class_does_role(stash, rolestash) S_class_does_role(aTHX_ stash, rolestash)
+#define class_implements_role(stash, rolestash) S_class_implements_role(aTHX_ stash, rolestash)
 
 /* OP_METHSTART is an UNOP_AUX whose AUX list contains
  *   [0].uv = count of fieldbinding pairs
@@ -354,7 +368,7 @@ PP(pp_methstart)
     if(CvSTASH(curcv) != SvSTASH(rv) &&
         !sv_derived_from_hv(self, CvSTASH(curcv)) &&
         /* For role methods, check if the instance's class composes the role */
-        !(HvSTASH_IS_ROLE(CvSTASH(curcv)) && class_does_role(SvSTASH(rv), CvSTASH(curcv))))
+        !(HvSTASH_IS_ROLE(CvSTASH(curcv)) && class_implements_role(SvSTASH(rv), CvSTASH(curcv))))
         croak("Cannot invoke a method of %" HvNAMEf_QUOTEDPREFIX " on an instance of %" HvNAMEf_QUOTEDPREFIX,
             HvNAMEfARG(CvSTASH(curcv)), HvNAMEfARG(SvSTASH(rv)));
 
@@ -471,6 +485,18 @@ Perl_class_setup_stash(pTHX_ HV *stash)
 
         CV *newcv = newXS_flags(SvPV_nolen(newname), injected_constructor, __FILE__, NULL, nameflags);
         CvSTASH_set(newcv, stash);
+    }
+
+    /* Expose the nominal role query on class-system classes.  It is
+     * deliberately installed here rather than in UNIVERSAL: ordinary Perl
+     * packages must remain free to use their existing DOES() fallback. */
+    {
+        SV *implname = Perl_newSVpvf(aTHX_ "%s::implements", classname);
+        SAVEFREESV(implname);
+
+        CV *implcv = newXS_flags(SvPV_nolen(implname), class_implements,
+                                 __FILE__, NULL, nameflags);
+        CvSTASH_set(implcv, stash);
     }
 
     /* TODO:
@@ -695,7 +721,7 @@ S_apply_one_role(pTHX_ struct xpvhv_aux *aux, SV *namesv)
     SV *rolename = sv_newmortal(), *rolever = sv_newmortal();
     const char *end = split_package_ver(namesv, rolename, rolever);
     if(*end)
-        croak("Unexpected characters while parsing :does attribute: %s", end);
+        croak("Unexpected characters while parsing :implements attribute: %s", end);
 
     HV *rolestash = gv_stashsv(rolename, 0);
     if (!rolestash) {
@@ -703,7 +729,7 @@ S_apply_one_role(pTHX_ struct xpvhv_aux *aux, SV *namesv)
         rolestash = gv_stashsv(rolename, 0);
     }
     if(!rolestash || !HvSTASH_IS_ROLE(rolestash))
-        croak(":does attribute requires a role but %" HvNAMEf_QUOTEDPREFIX " is not one",
+        croak(":implements attribute requires a role but %" HvNAMEf_QUOTEDPREFIX " is not one",
             rolestash ? HvNAMEfARG(rolestash) : "\"(unknown)\"");
 
     if(rolever && SvOK(rolever))
@@ -716,12 +742,12 @@ S_apply_one_role(pTHX_ struct xpvhv_aux *aux, SV *namesv)
 }
 
 static void
-apply_class_attribute_does(pTHX_ HV *stash, SV *value)
+apply_class_attribute_implements(pTHX_ HV *stash, SV *value)
 {
     assert(HvSTASH_IS_CLASS_OR_ROLE(stash));
     struct xpvhv_aux *aux = HvAUX(stash);
 
-    /* Support comma-separated list: :does(R1, R2, R3) */
+    /* Support comma-separated list: :implements(R1, R2, R3) */
     const char *p   = SvPVX(value);
     const char *end = p + SvCUR(value);
 
@@ -760,9 +786,9 @@ static struct {
       .requires_value = true,
       .apply          = &apply_class_attribute_isa,
     },
-    { .name           = "does",
+    { .name           = "implements",
       .requires_value = true,
-      .apply          = &apply_class_attribute_does,
+      .apply          = &apply_class_attribute_implements,
     },
     { NULL, false, NULL }
 };
@@ -981,7 +1007,7 @@ S_class_seal_method_fieldmap(pTHX_ CV *cv)
 
 /* Collect unique role stashes for composition, deduplicating by stash pointer
  * identity (diamond case). We do NOT recurse into transitive roles because
- * each role's seal already composed its own :does roles into its stash.
+ * each role's seal already composed its own :implements roles into its stash.
  * The transitive methods are already present in the intermediate role. */
 static void
 S_collect_unique_roles(pTHX_ AV *pending, AV *seen, AV *unique)
@@ -1789,7 +1815,7 @@ S_proto_role_compose_and_install(pTHX_ HV *stash)
      * proto-role so that future consumers detect unsatisfied requirements.
      * Only Required slots are propagated; Defined slots are not, because
      * the stored proto must only carry the role's own implementations
-     * (the structural DOES check verifies CvSTASH == rolestash). */
+     * (the role metadata records the composed method origins). */
     if (is_role) {
         proto_role_t *stored = aux->xhv_class_proto_role;
 
@@ -2495,6 +2521,17 @@ Perl_role_setup_stash(pTHX_ HV *stash)
 
     /* Roles do NOT get a constructor injected */
 
+    {
+        char *rolename = HvNAME(stash);
+        U32 nameflags = HvNAMEUTF8(stash) ? SVf_UTF8 : 0;
+        SV *implname = Perl_newSVpvf(aTHX_ "%s::implements", rolename);
+        SAVEFREESV(implname);
+
+        CV *implcv = newXS_flags(SvPV_nolen(implname), class_implements,
+                                 __FILE__, NULL, nameflags);
+        CvSTASH_set(implcv, stash);
+    }
+
     struct xpvhv_aux *aux = HvAUX(stash);
     aux->xhv_class_superclass         = NULL;
     aux->xhv_class_initfields_cv      = NULL;
@@ -2797,6 +2834,22 @@ Perl_class_prepare_method_parse(pTHX_ CV *cv)
 
     CvNOWARN_AMBIGUOUS_on(cv);
     CvIsMETHOD_on(cv);
+}
+
+void
+Perl_class_declare_padvars(pTHX_ CV *cv)
+{
+    PERL_ARGS_ASSERT_CLASS_DECLARE_PADVARS;
+    PERL_UNUSED_ARG(cv);
+
+    assert(cv == PL_compcv);
+    assert(HvSTASH_IS_CLASS_OR_ROLE(PL_curstash));
+    assert(PL_comppad_name_fill == 0);
+
+    PADOFFSET padix = pad_add_name_pvs("$self", 0, NULL, NULL);
+    assert(padix == PADIX_SELF);
+    PERL_UNUSED_VAR(padix);
+    intro_my();
 }
 
 static OP *

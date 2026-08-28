@@ -1329,10 +1329,8 @@ optsubbody
 
 /* Subroutine body (without signature) */
 subbody:	remember
-			{
-			  if (CvIsMETHOD(PL_compcv))
-			      class_declare_padvars(PL_compcv);
-			}
+		{
+		}
 		PERLY_BRACE_OPEN stmtseq PERLY_BRACE_CLOSE
 			{
 			  if (parser->copline > (line_t)$PERLY_BRACE_OPEN)
@@ -1351,10 +1349,8 @@ optsigsubbody
 
 /* Subroutine body with optional signature */
 sigsubbody:	remember
-			{
-			  if (CvIsMETHOD(PL_compcv))
-			      class_declare_padvars(PL_compcv);
-			}
+		{
+		}
 		optsubsignature PERLY_BRACE_OPEN 
 			{ PL_parser->sig_seen = FALSE; }
 		stmtseq PERLY_BRACE_CLOSE

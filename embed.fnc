@@ -3521,8 +3521,6 @@ ARdp	|bool	|sv_does_pvn	|NN SV *sv				\
 				|NN const char * const name		\
 				|const STRLEN len			\
 				|U32 flags
-ARdp	|bool	|sv_does_role_sv|NN SV *sv				\
-				|NN SV *namesv
 ARdp	|bool	|sv_does_sv	|NN SV *sv				\
 				|NN SV *namesv				\
 				|U32 flags
@@ -3552,6 +3550,9 @@ Cdp	|char * |sv_grow	|NN SV * const sv			\
 				|STRLEN newlen
 Cdp	|char * |sv_grow_fresh	|NN SV * const sv			\
 				|STRLEN newlen
+ARdp	|bool	|sv_implements_role_sv					\
+				|NN SV *sv				\
+				|NN SV *namesv
 Adp	|void	|sv_inc 	|NULLOK SV * const sv
 Adp	|void	|sv_inc_nomg	|NULLOK SV * const sv
 Admp	|void	|sv_insert	|NN SV * const bigstr			\

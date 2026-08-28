@@ -794,6 +794,11 @@ be directly assigned to.
 an C<@ISA> array, and the array is not empty.  This is not permitted, as it
 would lead to a class with inconsistent inheritance.
 
+=item Cannot create role %s as it already has a non-empty @ISA
+
+(F) An attempt was made to create a role out of a package that already has a
+non-empty C<@ISA> array.  Roles do not use C<@ISA> for composition.
+
 =item Cannot create an object of incomplete class "%s"
 
 (F) An attempt was made to create an object of a class where the start
@@ -842,6 +847,10 @@ is a fatal error.
 (F) You attempted to use one of the keywords that only makes sense inside
 a C<class> definition, at a location that is not inside such a class.
 
+=item Cannot '%s' outside of a 'class' or 'role'
+
+(F) You attempted to use a keyword that is only valid inside a class or role.
+
 =item Cannot pack %f with '%c'
 
 (F) You tried converting an infinity or not-a-number to an integer,
@@ -856,6 +865,14 @@ which makes no sense.  Maybe you meant '%s', or just stringifying it?
 
 (F) You tried to begin a C<class> definition for a class that already exists.
 A class may only have one definition block.
+
+=item Cannot define role "%s" as it is already a class
+
+(F) A role cannot be defined with the name of an existing class.
+
+=item Cannot reopen existing role "%s"
+
+(F) A role may only have one definition block.
 
 =item cannot resume a failed generator
 
@@ -2767,6 +2784,11 @@ method of another class nested inside the one that actually defined it.
 This is not permitted, as only methods defined by a given class are
 permitted to access fields of that class.
 
+=item Field %s conflicts between "%s" and "%s"
+
+(F) Two composed roles provide the same field.  Field conflicts cannot be
+resolved by the consuming class.
+
 =item Field too wide in 'u' format in pack
 
 (W pack) Each line in an uuencoded string starts with a length indicator
@@ -4139,6 +4161,15 @@ interpreter, especially if the word that is being warned about is
 (F) You can't pack a string by supplying a checksum, because the
 checksumming process loses information, and you can't go the other way.
 See L<perlfunc/unpack>.
+
+=item Method %s conflicts between "%s" and "%s"
+
+(F) Two composed roles provide the same method and the consumer did not
+provide an explicit method to resolve the conflict.
+
+=item Method %s is required by role %s but not provided by "%s"
+
+(F) A consuming class does not provide a method required by a role.
 
 =item Method for operation %s not found in package %s during blessing
 
@@ -5859,6 +5890,11 @@ of "||".
 
 See L</500 Server error>.
 
+=item proto_role_compose_and_install: role "%s" has no proto-role; falling back to legacy composition path
+
+(S debugging) A role lacked its expected proto-role structure while being
+composed.  This diagnostic is emitted only by DEBUGGING builds.
+
 =item printf() on closed filehandle %s
 
 (W closed) The filehandle you're writing to got itself closed sometime
@@ -6179,6 +6215,14 @@ for the character.
 
 (W syntax) You wrote your assignment operator backwards.  The = must
 always come last, to avoid ambiguity with subsequent unary operators.
+
+=item role is experimental
+
+(S experimental::class) The C<role> keyword is experimental.
+
+=item Roles cannot use :isa
+
+(F) A role cannot use the C<:isa> attribute.
 
 =item Scalars leaked: %d
 
@@ -7039,6 +7083,10 @@ of arguments given and the number expected.
 Similar to the previous message but for subroutines that accept a variable
 number of arguments.
 
+=item Too many roles in a single composition (max %d)
+
+(F) A class or role composed more roles than the implementation limit allows.
+
 =item Too many nested open parens in regex; marked by <-- HERE in m/%s/
 
 (F) You have exceeded the number of open C<"("> parentheses that haven't
@@ -7376,6 +7424,14 @@ enough to figure out what you really meant.
 (F) You tried to specify something other than a single class name with an
 optional trailing version number as the value for a C<class> C<:isa>
 attribute.  This confused the parser.
+
+=item Unexpected characters while parsing :implements attribute: %s
+
+(F) A C<:implements> attribute must contain a comma-separated list of role names.
+
+=item :implements attribute requires a role but "%s" is not one
+
+(F) A C<:implements> attribute named something that is not a declared role.
 
 =item Unexpected exit %u
 

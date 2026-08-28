@@ -8782,7 +8782,7 @@ PP_wrapped(pp_isa, 2, 0)
     RETURN;
 }
 
-PP_wrapped(pp_does, 2, 0)
+PP_wrapped(pp_implements, 2, 0)
 {
     dSP;
     SV *left, *right;
@@ -8790,7 +8790,7 @@ PP_wrapped(pp_does, 2, 0)
     right = POPs;
     left  = TOPs;
 
-    SETs(boolSV(sv_does_role_sv(left, right)));
+    SETs(boolSV(sv_implements_role_sv(left, right)));
     RETURN;
 }
 

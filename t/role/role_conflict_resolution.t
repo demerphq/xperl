@@ -11,7 +11,7 @@ use Test::More;
     role RA1 { method render { "RA" } }
     role RB1 { method render { "RB" } }
 
-    class Widget :does(RA1) :does(RB1) {
+    class Widget :implements(RA1) :implements(RB1) {
         method render { "Widget" }
     }
 
@@ -25,7 +25,7 @@ use Test::More;
     role RB2 { method m1 { 3 } method m2 { 4 } }
 
     eval q{
-        class C2 :does(RA2) :does(RB2) {
+        class C2 :implements(RA2) :implements(RB2) {
             method m1 { "resolved" }
         }
     };
@@ -38,7 +38,7 @@ use Test::More;
     role RA3 { method x { 1 } method y { 2 } }
     role RB3 { method x { 3 } method y { 4 } }
 
-    class C3 :does(RA3) :does(RB3) {
+    class C3 :implements(RA3) :implements(RB3) {
         method x { "X" }
         method y { "Y" }
     }
@@ -53,11 +53,11 @@ use Test::More;
     role RA4 { method m { "A" } }
     role RB4 { method m { "B" } }
 
-    role RC4 :does(RA4) :does(RB4) {
+    role RC4 :implements(RA4) :implements(RB4) {
         method m { "C" }
     }
 
-    class D4 :does(RC4) { }
+    class D4 :implements(RC4) { }
     is(D4->new->m, "C", "role resolves sub-role conflict");
 }
 
@@ -65,7 +65,7 @@ use Test::More;
 {
     role R5 { method foo { "role" } }
 
-    class C5 :does(R5) {
+    class C5 :implements(R5) {
         method foo { "class" }
     }
 
@@ -75,10 +75,10 @@ use Test::More;
 # Diamond composition - no conflict
 {
     role Base6 { method m { "base" } }
-    role Left6 :does(Base6) { }
-    role Right6 :does(Base6) { }
+    role Left6 :implements(Base6) { }
+    role Right6 :implements(Base6) { }
 
-    class C6 :does(Left6) :does(Right6) { }
+    class C6 :implements(Left6) :implements(Right6) { }
     is(C6->new->m, "base", "diamond composition - no conflict");
 }
 
@@ -88,7 +88,7 @@ use Test::More;
     role RB7 { method a { 4 } method b { 5 } method c { 6 } }
 
     eval q{
-        class C7 :does(RA7) :does(RB7) {
+        class C7 :implements(RA7) :implements(RB7) {
             method a { "resolved" }
         }
     };
@@ -102,7 +102,7 @@ use Test::More;
 {
     role R8 { method to_string; }
 
-    class C8 :does(R8) {
+    class C8 :implements(R8) {
         method to_string { "C8" }
     }
     is(C8->new->to_string, "C8", "consumer satisfies required method");
@@ -113,7 +113,7 @@ use Test::More;
     role R9 { method required_m; }
 
     eval q{
-        class C9 :does(R9) { }
+        class C9 :implements(R9) { }
     };
     like($@, qr/required.*not provided/i, "unsatisfied required method is an error");
 }
@@ -128,7 +128,7 @@ use Test::More;
         method render { "from base" }
     }
 
-    class FancyRenderer10 :isa(BaseRenderer10) :does(NeedsRender10) { }
+    class FancyRenderer10 :isa(BaseRenderer10) :implements(NeedsRender10) { }
 
     is(FancyRenderer10->new->render, "from base",
         "inherited method satisfies Required slot");
@@ -144,7 +144,7 @@ use Test::More;
     }
 
     eval q{
-        class ChildSpeaker11 :isa(BaseSpeaker11) :does(Talker11a) :does(Talker11b) { }
+        class ChildSpeaker11 :isa(BaseSpeaker11) :implements(Talker11a) :implements(Talker11b) { }
     };
     like($@, qr/conflict/i,
         "inherited method does NOT resolve Conflicted slot");
@@ -156,7 +156,7 @@ use Test::More;
     role Source12b { method value { "B" } }
 
     eval q{
-        class Consumer12 :does(Source12a) :does(Source12b) {
+        class Consumer12 :implements(Source12a) :implements(Source12b) {
             field $value :param :reader;  # generated accessor, not an explicit resolution
         }
     };

@@ -114,8 +114,7 @@ union xhvnameu_ {
 
 /* A struct defined by pad.h and used within class.c */
 struct suspended_compcv;
-
-struct proto_role;  /* forward declaration; full definition in class.h */
+struct proto_role;
 
 struct xpvhv_aux {
     union xhvnameu_ xhv_name_u;	/* name, if a symbol table */
@@ -123,7 +122,7 @@ struct xpvhv_aux {
     HE		*xhv_eiter;	/* current entry of iterator */
     I32		xhv_riter;	/* current root of iterator */
 
-/* Concerning xhv_name_count: When non-zero, xhv_name_u contains a pointer 
+/* Concerning xhv_name_count: When non-zero, xhv_name_u contains a pointer
  * to an array of HEK pointers, this being the length. The first element is
  * the name of the stash, which may be NULL. If xhv_name_count is positive,
  * then *xhv_name is one of the effective names. If xhv_name_count is nega-
@@ -150,17 +149,16 @@ struct xpvhv_aux {
     struct suspended_compcv
                 *xhv_class_suspended_initfields_compcv;
 
-    AV          *xhv_class_pending_roles;      /* role stashes pending composition */
-    AV          *xhv_class_roles;              /* composed role stashes (for DOES) */
-
-    struct proto_role *xhv_class_proto_role;   /* proto-role for composition algebra */
+    AV          *xhv_class_pending_roles;
+    AV          *xhv_class_roles;
+    struct proto_role *xhv_class_proto_role;
 };
 
 #define HvAUXf_SCAN_STASH   0x1   /* stash is being scanned by gv_check */
 #define HvAUXf_NO_DEREF     0x2   /* @{}, %{} etc (and nomethod) not present */
 #define HvAUXf_IS_CLASS     0x4   /* the package is a 'class' */
 #define HvAUXf_IS_ROLE      0x8   /* the package is a 'role' */
-#define HvAUXf_IS_CLASS_SEALED 0x10 /* the class has been sealed */
+#define HvAUXf_IS_CLASS_SEALED 0x10
 
 #define HvSTASH_IS_CLASS(hv) \
     (HvHasAUX(hv) && HvAUX(hv)->xhv_aux_flags & HvAUXf_IS_CLASS)
@@ -172,6 +170,9 @@ struct xpvhv_aux {
 
 #define HvSTASH_IS_CLASS_OR_ROLE(hv) \
     (HvHasAUX(hv) && HvAUX(hv)->xhv_aux_flags & (HvAUXf_IS_CLASS | HvAUXf_IS_ROLE))
+
+#define HvCLASS_IS_SEALED(hv) \
+    HvSTASH_IS_CLASS_SEALED(hv)
 
 /* hash structure: */
 /* This structure must match the beginning of struct xpvmg in sv.h. */
@@ -226,6 +227,10 @@ See C<L</SvSTASH>>, C<L</CvSTASH>>.
 =for apidoc Am|STRLEN|HvNAMELEN|HV *stash
 Returns the length of the stash's name.
 
+=for apidoc Am|HEK *|HvNAME_HEK|HV *stash
+Returns the package name directly as a hash key structure, or C<NULL> if
+C<stash> isn't a stash.
+
 =cut
 
 Disfavored forms of HvNAME and HvNAMELEN; suppress mention of them
@@ -255,6 +260,9 @@ Returns the actual pointer stored in the key slot of the hash entry.  The
 pointer may be either C<char*> or C<SV*>, depending on the value of
 C<HeKLEN()>.  Can be assigned to.  The C<HePV()> or C<HeSVKEY()> macros are
 usually preferable for finding the value of a key.
+
+=for apidoc Am|HEK *|HeKEY_hek|HE *he
+Returns the underlying hash key structure stored in the hash entry.
 
 =for apidoc Am|STRLEN|HeKLEN|HE* he
 If this is negative, and amounts to C<HEf_SVKEY>, it indicates the entry
@@ -308,6 +316,31 @@ C<SV*> if the hash entry contains only a C<char*> key.
 Sets the key to a given C<SV*>, taking care to set the appropriate flags to
 indicate the presence of an C<SV*> key, and returns the same
 C<SV*>.
+
+=for apidoc Am|U32|HEK_HASH|HEK *hek
+Returns the hash value associated with the given hash key structure.
+
+=for apidoc Am|I32|HEK_LEN|HEK *hek
+If non-negative, indicates the length of the string stored by the hash key
+structure. It may also be negative and equal to C<HEf_SVKEY>, indicating that
+the hash key is not in fact a string but a stored SV pointer value.
+
+=for apidoc Am|char *|HEK_KEY|HEK *hek
+If L</HEK_LEN> is non-negative, returns a pointer to the stored string. The
+length of the string is given by C<HEK_LEN>, which does not include a
+terminating NUL (C<\0>) byte which follows.
+
+If L</HEK_LEN> is negative and equal to C<HEf_SVKEY>, then C<HEK_KEY> returns
+a pointer to an SV * - i.e. its value should be treated as C<SV **>.
+
+=for apidoc Am|bool|HEK_UTF8|HEK *hek
+Returns true if the hash key structure's string should be considered as UTF-8.
+
+=for apidoc Am|bool|HEK_WASUTF8|HEK *hek
+Returns true if the hash key structure's string should be considered as plain
+bytes, but they were given as a UTF-8 encoded string to L</share_hek>. This
+happens if the encoded codepoints did not exceed the range 0 to 255, and were
+thus converted down to plain bytes.
 
 =cut
 */
@@ -382,7 +415,7 @@ whether it is valid to call C<HvAUX()>.
   ? *HvAUX(hv)->xhv_name_u.xhvnameu_names	  \
   : HvAUX(hv)->xhv_name_u.xhvnameu_name		  \
  )
-/* This macro may go away without notice.  */
+
 #define HvNAME_HEK(hv) \
         (HvHasAUX(hv) && HvAUX(hv)->xhv_name_u.xhvnameu_name ? HvNAME_HEK_NN(hv) : NULL)
 #define HvHasNAME(hv) \
@@ -455,6 +488,15 @@ whether it is valid to call C<HvAUX()>.
 #define HvLAZYDEL_off(hv)	(SvFLAGS(hv) &= ~SVphv_LAZYDEL)
 
 #ifndef PERL_CORE
+
+/*
+=for apidoc ABmn|HE*|Nullhe
+
+Null HE pointer.
+
+=cut
+*/
+
 #  define Nullhe Null(HE*)
 #endif
 #define HeNEXT(he)		(he)->hent_next
@@ -490,6 +532,15 @@ whether it is valid to call C<HvAUX()>.
 #define HeSVKEY_set(he,sv)	((HeKLEN(he) = HEf_SVKEY), (HeKEY_sv(he) = sv))
 
 #ifndef PERL_CORE
+
+/*
+=for apidoc ABmn|HE*|Nullhek
+
+Null HEK pointer.
+
+=cut
+*/
+
 #  define Nullhek Null(HEK*)
 #endif
 #define HEK_BASESIZE		STRUCT_OFFSET(HEK, hek_key[0])
@@ -717,9 +768,9 @@ struct refcounted_he {
  * Passed in PERL_MAGIC_uvar calls
  */
 #define HV_DISABLE_UVAR_XKEY	0x01
-/* We need to ensure that these don't clash with G_DISCARD, which is 2, as it
+#define HV_FETCH_ISSTORE	0x02
+/* We need to ensure that these don't clash with G_DISCARD, which is 4, as it
    is documented as being passed to hv_delete().  */
-#define HV_FETCH_ISSTORE	0x04
 #define HV_FETCH_ISEXISTS	0x08
 #define HV_FETCH_LVALUE		0x10
 #define HV_FETCH_JUST_SV	0x20

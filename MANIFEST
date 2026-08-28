@@ -6780,9 +6780,9 @@ t/role/examples/004-native-types.t	Example: native-type roles
 t/role/role.t				Basic role machinery tests
 t/role/role_compose.t			Role method and field composition tests
 t/role/role_conflict_resolution.t	Role method conflict detection and resolution
-t/role/role_does.t			:does attribute validation tests
-t/role/role_does_method.t		->does, infix does, ->DOES tests
-t/role/role_does_semantics.t		Nominal and structural role-check semantics
+t/role/role_implements.t			:implements attribute validation tests
+t/role/role_implements_method.t		->implements, infix implements, ->DOES tests
+t/role/role_implements_semantics.t		Nominal role-check semantics
 t/role/role_field_composition.t		Role field inheritance tests
 t/role/role_field_conflicts.t		Role field conflict detection tests
 t/role/role_fields.t			Role field behaviour tests

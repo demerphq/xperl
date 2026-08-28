@@ -13,7 +13,7 @@ use Test::More;
         method display { ">> " . $self->to_string . " <<" }
     }
 
-    class Document :does(Stringable) {
+    class Document :implements(Stringable) {
         field $content :param;
         method to_string { "Doc($content)" }
     }
@@ -34,7 +34,7 @@ use Test::More;
             method to_string;
         }
 
-        class NoToString :does(NeedsToString) {
+        class NoToString :implements(NeedsToString) {
             field $x :param;
         }
         1;
@@ -49,7 +49,7 @@ use Test::More;
         method name;
     }
 
-    role Greeting :does(NeedsName) {
+    role Greeting :implements(NeedsName) {
         method greet { "Hello, " . $self->name }
     }
 
@@ -68,11 +68,11 @@ use Test::More;
             method required_method;
         }
 
-        role Outer2 :does(Inner2) {
+        role Outer2 :implements(Inner2) {
             method other { "other" }
         }
 
-        class BadClass :does(Outer2) {
+        class BadClass :implements(Outer2) {
             field $x :param;
         }
         1;
@@ -87,11 +87,11 @@ use Test::More;
         method id;
     }
 
-    role Trackable :does(NeedsId) {
+    role Trackable :implements(NeedsId) {
         method track { "tracking:" . $self->id }
     }
 
-    class Item :does(Trackable) {
+    class Item :implements(Trackable) {
         field $id :param;
         method id { $id }
     }
@@ -112,11 +112,11 @@ use Test::More;
         method label { $label }
     }
 
-    role NeedsAndUsesLabel :does(NeedsLabel) {
+    role NeedsAndUsesLabel :implements(NeedsLabel) {
         method display_label { "[" . $self->label . "]" }
     }
 
-    class Widget :does(NeedsAndUsesLabel) :does(HasLabel) {
+    class Widget :implements(NeedsAndUsesLabel) :implements(HasLabel) {
         field $x :param;
     }
 
@@ -133,7 +133,7 @@ use Test::More;
     }
 
     # Satisfy both
-    class Data :does(Serializable) {
+    class Data :implements(Serializable) {
         field $value :param;
         method serialize { "s:$value" }
         method deserialize { "d:$value" }
@@ -156,7 +156,7 @@ use Test::More;
             method beta;
         }
 
-        class OnlyAlpha :does(NeedsBoth) {
+        class OnlyAlpha :implements(NeedsBoth) {
             field $x :param;
             method alpha { "a" }
         }
@@ -172,7 +172,7 @@ use Test::More;
         method title;
     }
 
-    class Book :does(NeedsTitle) {
+    class Book :implements(NeedsTitle) {
         field $title :param :reader;
     }
 
@@ -186,15 +186,15 @@ use Test::More;
         method deep;
     }
 
-    role Level2 :does(Level3) {
+    role Level2 :implements(Level3) {
         method mid { "mid:" . $self->deep }
     }
 
-    role Level1 :does(Level2) {
+    role Level1 :implements(Level2) {
         method top { "top:" . $self->mid }
     }
 
-    class DeepClass :does(Level1) {
+    class DeepClass :implements(Level1) {
         field $x :param;
         method deep { "deep($x)" }
     }

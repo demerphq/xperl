@@ -10,11 +10,11 @@ role Item {
     method defined;
 }
 
-role Defined :does(Item) {
+role Defined :implements(Item) {
     method defined { true }
 }
 
-role Value :does(Defined) {
+role Value :implements(Defined) {
     field $value :param :reader;
 
     method do ($block) {
@@ -23,7 +23,7 @@ role Value :does(Defined) {
     }
 }
 
-role String :does(Value) {
+role String :implements(Value) {
     method lc      { CORE::lc      $self->value }
     method lcfirst { CORE::lcfirst $self->value }
     method uc      { CORE::uc      $self->value }
@@ -46,7 +46,7 @@ role String :does(Value) {
     }
 }
 
-role Number :does(Value) {
+role Number :implements(Value) {
     method abs { CORE::abs $self->value }
 
     method to ($end) {
@@ -55,7 +55,7 @@ role Number :does(Value) {
     }
 }
 
-class Scalar :does(String, Number) {
+class Scalar :implements(String, Number) {
     method print { CORE::print $self->value }
     method say   { CORE::say $self->value }
 }

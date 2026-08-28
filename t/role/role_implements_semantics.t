@@ -12,7 +12,7 @@ use Test::More;
         method greet { "hello" }
     }
 
-    class Greeter :does(Greetable) {
+    class Greeter :implements(Greetable) {
         field $name :param;
         method name { $name }
     }
@@ -40,7 +40,7 @@ use Test::More;
         method tag { "tagged" }
     }
 
-    class Tagged :does(Taggable) {
+    class Tagged :implements(Taggable) {
         field $x :param;
     }
 
@@ -55,11 +55,11 @@ use Test::More;
         method inner { "inner" }
     }
 
-    role Outer :does(Inner) {
+    role Outer :implements(Inner) {
         method outer { "outer" }
     }
 
-    class MyClass :does(Outer) {
+    class MyClass :implements(Outer) {
         field $x :param;
     }
 
@@ -81,7 +81,7 @@ use Test::More;
         method describe { $description }
     }
 
-    class Base :does(Describable) {
+    class Base :implements(Describable) {
         field $id :param;
         method id { $id }
     }
@@ -112,7 +112,7 @@ use Test::More;
         method r2 { "r2" }
     }
 
-    class Multi :does(R1) :does(R2) {
+    class Multi :implements(R1) :implements(R2) {
         field $x :param;
     }
 
@@ -137,7 +137,7 @@ use Test::More;
         field $age :param :reader;
     }
 
-    class Person :does(HasName) :does(HasAge) {
+    class Person :implements(HasName) :implements(HasAge) {
         field $email :param :reader;
     }
 
@@ -161,7 +161,7 @@ use Test::More;
         }
     }
 
-    class AdjustConsumer :does(WithAdjust) {
+    class AdjustConsumer :implements(WithAdjust) {
         field $y :param;
     }
 
@@ -181,7 +181,7 @@ use Test::More;
         method composed { "composed" }
     }
 
-    class OnlyComposed :does(Composed) {
+    class OnlyComposed :implements(Composed) {
         field $x :param;
     }
 
@@ -191,21 +191,21 @@ use Test::More;
     ok(!$obj->DOES('Unrelated'), 'does NOT DOES an unrelated role');
 }
 
-# Deep transitive chain: A :does B :does C :does D
+# Deep transitive chain: A :implements B :implements C :implements D
 {
     role D {
         method d { "d" }
     }
 
-    role C :does(D) {
+    role C :implements(D) {
         method c { "c" }
     }
 
-    role B :does(C) {
+    role B :implements(C) {
         method b { "b" }
     }
 
-    class A :does(B) {
+    class A :implements(B) {
         field $x :param;
     }
 
@@ -230,7 +230,7 @@ use Test::More;
         field $id :param :reader;
     }
 
-    class SubObj :isa(BaseObj) :does(Serializable) {
+    class SubObj :isa(BaseObj) :implements(Serializable) {
         field $name :param :reader;
     }
 

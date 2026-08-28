@@ -25,7 +25,7 @@ role Strategy {
 
 ## -----------------------------------------------------------------------------
 
-role Locator::Modulo :does(Locator) {
+role Locator::Modulo :implements(Locator) {
     field $old_shard_count :param;
     field $new_shard_count :param;
 
@@ -33,7 +33,7 @@ role Locator::Modulo :does(Locator) {
     method get_old_shard_for_key ($key) { $key % $old_shard_count }
 }
 
-role Control::ENV :does(Control) {
+role Control::ENV :implements(Control) {
     field $env :param;
 
     method is_migration_enabled { !! $env->{ENABLED} }
@@ -42,7 +42,7 @@ role Control::ENV :does(Control) {
     method disable_migration { $env->{ENABLED} = false }
 }
 
-class ShardMigrator :does(Locator::Modulo, Control::ENV, Strategy) {
+class ShardMigrator :implements(Locator::Modulo, Control::ENV, Strategy) {
     field $shards :param :reader;
 
     method migrate ($key) {

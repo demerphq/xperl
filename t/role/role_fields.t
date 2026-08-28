@@ -13,7 +13,7 @@ use Test::More;
         method name { $name }
     }
 
-    class Person :does(HasName) {
+    class Person :implements(HasName) {
         field $age :param;
         method age { $age }
     }
@@ -35,7 +35,7 @@ use Test::More;
         method y { $y }
     }
 
-    class Point :does(HasX) :does(HasY) {
+    class Point :implements(HasX) :implements(HasY) {
         method to_string { $self->x . "," . $self->y }
     }
 
@@ -53,7 +53,7 @@ use Test::More;
         method increment { $count++ }
     }
 
-    class Counter :does(HasCount) {
+    class Counter :implements(HasCount) {
         field $label :param;
         method label { $label }
     }
@@ -72,7 +72,7 @@ use Test::More;
         method config { $config }
     }
 
-    class App :does(Configurable) {
+    class App :implements(Configurable) {
         field $name :param;
         method name { $name }
     }
@@ -90,7 +90,7 @@ use Test::More;
         field $title :param :reader;
     }
 
-    class Book :does(HasTitle) {
+    class Book :implements(HasTitle) {
         field $pages :param :reader;
     }
 
@@ -111,7 +111,7 @@ use Test::More;
         method id { $id }
     }
 
-    class Child :isa(Base) :does(Describable) {
+    class Child :isa(Base) :implements(Describable) {
         field $name :param;
         method name { $name }
     }
@@ -134,12 +134,12 @@ use Test::More;
         method version { $version }
     }
 
-    class GrandParent :does(Tagged) {
+    class GrandParent :implements(Tagged) {
         field $gp :param;
         method gp { $gp }
     }
 
-    class Parent :isa(GrandParent) :does(Versioned) {
+    class Parent :isa(GrandParent) :implements(Versioned) {
         field $p :param;
         method p { $p }
     }
@@ -166,12 +166,12 @@ use Test::More;
         method doubled { $value * 2 }
     }
 
-    class IntHolder :does(HasValue) {
+    class IntHolder :implements(HasValue) {
         field $label :param;
         method label { $label }
     }
 
-    class FloatHolder :does(HasValue) {
+    class FloatHolder :implements(HasValue) {
         field $precision :param;
         method precision { $precision }
     }
@@ -202,7 +202,7 @@ use Test::More;
         }
     }
 
-    class Record :does(Timestamped) {
+    class Record :implements(Timestamped) {
         field $data :param;
         method data { $data }
     }
@@ -228,7 +228,7 @@ use Test::More;
         method area   { $area }
     }
 
-    class Window :does(Rect) {
+    class Window :implements(Rect) {
         field $title :param;
         method title { $title }
     }
@@ -248,7 +248,7 @@ use Test::More;
         method sum { $a + $b }
     }
 
-    class Minimal :does(FullRole) { }
+    class Minimal :implements(FullRole) { }
 
     my $m = Minimal->new(a => 3, b => 7);
     is($m->sum, 10, 'class with no own fields, only role fields');
@@ -281,7 +281,7 @@ use Test::More;
         method pixels { $pixels }
     }
 
-    class Canvas :does(Color) :does(Size) {
+    class Canvas :implements(Color) :implements(Size) {
         field $name :param;
         method name { $name }
     }

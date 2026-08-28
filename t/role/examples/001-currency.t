@@ -14,7 +14,7 @@ role Eq {
     }
 }
 
-role Comparable :does(Eq) {
+role Comparable :implements(Eq) {
     method compare;
     method equal_to ($other) {
         $self->compare($other) == 0;
@@ -41,7 +41,7 @@ role Printable {
     method to_string;
 }
 
-class Currency::USD :does(Comparable, Printable) {
+class Currency::USD :implements(Comparable, Printable) {
     field $amount :param :reader = 0;
 
     method compare ($other) {

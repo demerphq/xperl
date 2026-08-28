@@ -12,7 +12,7 @@ use Test::More;
         method greet { "hello" }
     }
 
-    class Greeter :does(Greetable) {
+    class Greeter :implements(Greetable) {
         field $name :param;
         method name { $name }
     }
@@ -31,7 +31,7 @@ use Test::More;
         method pos { $self->x . "," . $self->y }
     }
 
-    class Sprite :does(Positioned) {
+    class Sprite :implements(Positioned) {
         field $name :param;
         method name { $name }
     }
@@ -53,7 +53,7 @@ use Test::More;
         method swim { "swimming" }
     }
 
-    class Duck :does(CanFly) :does(CanSwim) {
+    class Duck :implements(CanFly) :implements(CanSwim) {
         field $name :param;
         method name { $name }
     }
@@ -74,7 +74,7 @@ use Test::More;
         role Conflict1 { method clash { "c1" } }
         role Conflict2 { method clash { "c2" } }
 
-        class Conflicted :does(Conflict1) :does(Conflict2) {
+        class Conflicted :implements(Conflict1) :implements(Conflict2) {
             field $x :param;
         }
         1;
@@ -88,15 +88,15 @@ use Test::More;
         method shared { "shared" }
     }
 
-    role LeftPath :does(SharedRole) {
+    role LeftPath :implements(SharedRole) {
         method left { "left" }
     }
 
-    role RightPath :does(SharedRole) {
+    role RightPath :implements(SharedRole) {
         method right { "right" }
     }
 
-    class DiamondClass :does(LeftPath) :does(RightPath) {
+    class DiamondClass :implements(LeftPath) :implements(RightPath) {
         field $x :param;
     }
 
@@ -113,15 +113,15 @@ use Test::More;
         method m { "origin" }
     }
 
-    role Via1 :does(Origin) {
+    role Via1 :implements(Origin) {
         method v1 { "v1" }
     }
 
-    role Via2 :does(Origin) {
+    role Via2 :implements(Origin) {
         method v2 { "v2" }
     }
 
-    class DiamondOK :does(Via1) :does(Via2) {
+    class DiamondOK :implements(Via1) :implements(Via2) {
         field $x :param;
     }
 
@@ -137,11 +137,11 @@ use Test::More;
         method base { "base" }
     }
 
-    role Middle :does(Base1) {
+    role Middle :implements(Base1) {
         method middle { "middle" }
     }
 
-    class Consumer :does(Middle) {
+    class Consumer :implements(Middle) {
         field $x :param;
     }
 
@@ -166,7 +166,7 @@ use Test::More;
         }
     }
 
-    class AdjustConsumer :does(WithAdjust1) :does(WithAdjust2) {
+    class AdjustConsumer :implements(WithAdjust1) :implements(WithAdjust2) {
         ADJUST {
             push @order, "class_adjust";
         }
@@ -185,7 +185,7 @@ use Test::More;
         ADJUST { $initialized = 1 }
     }
 
-    class Widget :does(Initializable) {
+    class Widget :implements(Initializable) {
         field $label :param;
         method label { $label }
     }
@@ -201,11 +201,11 @@ use Test::More;
         method log { "logged" }
     }
 
-    role Auditable :does(Loggable) {
+    role Auditable :implements(Loggable) {
         method audit { "audited: " . $self->log }
     }
 
-    class Service :does(Auditable) {
+    class Service :implements(Auditable) {
         field $name :param;
         method name { $name }
     }

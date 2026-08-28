@@ -18,7 +18,7 @@ role Eq {
     }
 }
 
-role Comparable :does(Eq) {
+role Comparable :implements(Eq) {
     method compare;
     method equal_to ($other) {
         $self->compare($other) == 0;
@@ -48,9 +48,9 @@ role Printable {
 ## -----------------------------------------------------------------------------
 
 # all terms can be printed and compared for equality ...
-role Term :does(Printable, Eq) {}
+role Term :implements(Printable, Eq) {}
 
-class Sym :does(Term) {
+class Sym :implements(Term) {
     field $ident :param :reader;
 
     method equal_to ($other) { $ident eq $other->ident }
@@ -58,39 +58,39 @@ class Sym :does(Term) {
 }
 
 # literal types have a value associated with them
-role Literal :does(Term) {
+role Literal :implements(Term) {
     field $value :param :reader;
 }
 
-class Bool :does(Literal) {
+class Bool :implements(Literal) {
     method equal_to ($other) { $self->value == $other->value }
     method to_string { $self->value ? 'true' : 'false' }
 }
 
 # numbers and strings can also be compared (lt, gt, etc.)
-class Str :does(Literal, Comparable) {
+class Str :implements(Literal, Comparable) {
     method compare ($other) { $self->value cmp $other->value }
     method to_string { $self->value }
 }
 
-class Num :does(Literal, Comparable) {
+class Num :implements(Literal, Comparable) {
     method compare ($other) { $self->value <=> $other->value }
     method to_string { "".$self->value }
 }
 
 # lists can be empty (Nil) or contain things (Cons)
-role List :does(Term) {
+role List :implements(Term) {
     method is_nil;
 }
 
-class Nil :does(List) {
+class Nil :implements(List) {
     method is_nil { true }
 
     method equal_to ($other) { $other isa Nil }
     method to_string { "()" }
 }
 
-class Cons :does(List) {
+class Cons :implements(List) {
     field $head :param :reader;
     field $tail :param :reader //= Nil->new();
 

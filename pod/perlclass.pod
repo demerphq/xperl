@@ -394,8 +394,12 @@ gives an overview of features still to be added or changed:
 
 =item * Roles
 
-Some syntax for declaring a role (likely a C<role> keyword), and for consuming
-a role into a class (likely a C<:does()> attribute).
+Roles can be declared with the experimental C<role> keyword and composed into
+a class or another role with the C<:implements()> attribute.  A class or role
+can be queried with its C<implements()> method, or with the infix
+C<implements> operator.  The C<DOES()> method delegates to this query for
+class-system objects, while retaining its usual overridable behaviour for
+ordinary Perl packages.
 
 =item * Parameters to ADJUST blocks
 

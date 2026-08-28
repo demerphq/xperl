@@ -578,7 +578,7 @@ S_pad_alloc_name(pTHX_ PADNAME *name, U32 flags, HV *typestash,
         PadnameFLAGS(name) |= PADNAMEf_STATE;
     }
     if (flags & padadd_FIELD) {
-        assert(HvSTASH_IS_CLASS(PL_curstash));
+        assert(HvSTASH_IS_CLASS_OR_ROLE(PL_curstash));
         class_add_field(PL_curstash, name);
     }
 

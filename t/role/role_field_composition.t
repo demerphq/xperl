@@ -10,11 +10,11 @@ role BaseWithReaderAndParam {
     field $base :reader :param = -1;
 }
 
-class C::BaseWithReaderAndParam :does(BaseWithReaderAndParam) {}
+class C::BaseWithReaderAndParam :implements(BaseWithReaderAndParam) {}
 
-role ExtendedBaseWithReaderAndParam :does(BaseWithReaderAndParam) {}
+role ExtendedBaseWithReaderAndParam :implements(BaseWithReaderAndParam) {}
 
-class C::E::BaseWithReaderAndParam :does(ExtendedBaseWithReaderAndParam) {}
+class C::E::BaseWithReaderAndParam :implements(ExtendedBaseWithReaderAndParam) {}
 
 ok(BaseWithReaderAndParam->can('base'), '... does BaseWithReaderAndParam::base exist');
 ok(C::BaseWithReaderAndParam->can('base'), '... does C::BaseWithReaderAndParam::base exist');

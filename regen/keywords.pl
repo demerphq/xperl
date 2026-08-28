@@ -58,7 +58,7 @@ my %feature_kw = (
     method    => 'class',
     ADJUST    => 'class',
     __CLASS__ => 'class',
-    does      => 'class',
+    implements => 'class',
     any       => 'keyword_any',
     all       => 'keyword_all',
     generator_exhausted => 'generator',
@@ -174,7 +174,7 @@ __END__
 +delete
 -die
 +do
--does
+-implements
 -dump
 -each
 +else
