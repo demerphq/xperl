@@ -22,4 +22,15 @@ $tensor->set_data([6, 5, 4, 3, 2, 1]);
 is_deeply $tensor->data, [6, 5, 4, 3, 2, 1],
     'native data is returned in row-major order';
 
+my $nested = Tensor::XS->new([2, 2], [[1, 2], [3, 4]]);
+is_deeply $nested->data, [1, 2, 3, 4],
+    'nested constructor data is flattened row-major';
+$nested->set_data([[4, 3], [2, 1]]);
+is_deeply $nested->data, [4, 3, 2, 1],
+    'nested mutation data is flattened row-major';
+
+eval { Tensor::XS->new([2, 2], [[1], [2, 3]]) };
+like $@, qr/nested tensor data does not match tensor shape/,
+    'ragged nested data is rejected';
+
 done_testing;
