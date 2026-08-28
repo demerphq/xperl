@@ -90,11 +90,11 @@ false while the generator is new or
 suspended, and also for a failed generator.  Testing exhaustion does not
 advance the sequence.
 
- A generator cannot be resumed while it is already running.  This includes a
-generator attempting to call itself before it has reached an
-C<generator_yield>.  A suspended
-generator is a one-shot continuation; it is not copied when it is assigned or
-passed around, so all references designate the same continuation.
+A generator cannot be resumed while it is already running.  This includes a
+generator attempting to call itself before it has reached
+C<generator_yield>.  A suspended generator is a one-shot continuation; it is
+not copied when it is assigned or passed around, so all references designate
+the same continuation.
 
 =head1 WHERE C<generator_yield> MAY BE USED
 
