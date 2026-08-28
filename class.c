@@ -1161,7 +1161,7 @@ S_class_seal_method_fieldmap(pTHX_ CV *cv)
         if(!pn || !PadnameIsFIELD(pn))
             continue;
 
-        U32 fieldix = PadnameFIELDINFO(pn)->fieldix;
+        PADOFFSET fieldix = PadnameFIELDINFO(pn)->fieldix;
         assert(fieldix != (PADOFFSET)-1); /* must be resolved */
 
         if(fieldix > max_fieldix)
