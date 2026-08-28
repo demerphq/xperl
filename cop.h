@@ -1430,6 +1430,8 @@ typedef struct perl_generator {
     CV *                    body;
     LOGOP                   invoke;
     PERL_PROCESS_STATE       process;
+    AV *                    initial_args;
+    AV *                    resume_args;
     SV *                    value;
     SV *                    error;
     PERL_GENERATOR_STATE    state;
@@ -1438,6 +1440,7 @@ typedef struct perl_generator {
     bool                    stack_pushed;
     bool                    stack_detached;
     bool                    eval_active;
+    U8                      yield_context;
 } PERL_GENERATOR;
 
 #define PERL_GENERATOR_MAGIC 0x47594C44U

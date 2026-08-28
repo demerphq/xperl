@@ -1771,11 +1771,14 @@ Perl_generator_new(pTHX_ CV *body)
     } STMT_END
 
 PERL_CALLCONV int
-Perl_generator_resume(pTHX_ PERL_GENERATOR *generator)
+Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         Perl_attribute_nonnull_aTHX
-        Perl_attribute_nonnull(pTHX_1);
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2);
 #define PERL_ARGS_ASSERT_GENERATOR_RESUME       \
-    STMT_START { Perl_assert_aTHX; assert(generator); } STMT_END
+    STMT_START { Perl_assert_aTHX; assert(generator); assert(args);  \
+                 assert(SvTYPE(args) == SVt_PVAV);                   \
+    } STMT_END
 
 PERL_CALLCONV CV *
 Perl_generator_wrap(pTHX_ CV *body)

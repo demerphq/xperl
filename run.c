@@ -229,13 +229,16 @@ S_generator_xsub(pTHX_ CV *cv)
     dXSARGS;
     PERL_GENERATOR * const generator =
         (PERL_GENERATOR *)XSANY.any_ptr;
+    AV *args;
+    I32 i;
 
     PERL_UNUSED_ARG(cv);
-    if (items)
-        croak("generator does not accept arguments");
     if (!generator || generator->magic != PERL_GENERATOR_MAGIC)
         croak("invalid generator");
-    if (!generator_resume(generator))
+    args = newAV();
+    for (i = 0; i < items; i++)
+        av_push(args, SvREFCNT_inc_simple(ST(i)));
+    if (!generator_resume(generator, args))
         XSRETURN_EMPTY;
     EXTEND(SP, 1);
     ST(0) = newSVsv(generator->value);
@@ -325,6 +328,8 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
     }
     SvREFCNT_dec(generator->value);
     SvREFCNT_dec(generator->error);
+    SvREFCNT_dec((SV *)generator->initial_args);
+    SvREFCNT_dec((SV *)generator->resume_args);
     SvREFCNT_dec((SV *)generator->body);
     Safefree(generator);
 }
@@ -415,6 +420,7 @@ Perl_generator_yield_value(pTHX_ SV *value)
 
     SvREFCNT_dec(generator->value);
     generator->value = newSVsv(value);
+    generator->yield_context = GIMME_V;
     generator->yield_pending = TRUE;
 }
 
@@ -472,8 +478,24 @@ Perl_generator_capture(pTHX_ PERL_GENERATOR *generator, SV *value)
     generator->state = PERL_GENERATOR_YIELDED;
 }
 
+static void
+S_generator_push_resume_result(pTHX_ PERL_GENERATOR *generator)
+{
+    AV * const args = generator->resume_args;
+    const SSize_t count = args ? AvFILLp(args) + 1 : 0;
+    SSize_t i;
+
+    if (generator->yield_context == G_SCALAR) {
+        rpp_xpush_1(newSViv(count));
+    }
+    else if (generator->yield_context == G_LIST) {
+        for (i = 0; i < count; i++)
+            rpp_xpush_1(*av_fetch(args, i, 0));
+    }
+}
+
 int
-Perl_generator_resume(pTHX_ PERL_GENERATOR *generator)
+Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
 {
     PERL_PROCESS_STATE caller_state;
     runops_boundary_proc_t old_hook = PL_runops_boundary_hook;
@@ -490,6 +512,16 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator)
         croak("cannot resume a failed generator");
     if (generator->state != PERL_GENERATOR_NEW && !generator->captured)
         croak("generator has no suspended continuation");
+
+    if (new_generator) {
+        if (generator->initial_args)
+            croak("generator has already been invoked");
+        generator->initial_args = args;
+    }
+    else {
+        SvREFCNT_dec((SV *)generator->resume_args);
+        generator->resume_args = args;
+    }
 
     process_state_save(&caller_state);
     generator->invoke.op_flags = OPf_STACKED
@@ -531,6 +563,12 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator)
             PUSHMARK(PL_stack_sp);
             create_eval_scope(NULL, PL_stack_sp, G_FAKINGEVAL);
             generator->eval_active = TRUE;
+            {
+                I32 i;
+                for (i = 0; generator->initial_args
+                        && i <= AvFILLp(generator->initial_args); i++)
+                    rpp_xpush_1(*av_fetch(generator->initial_args, i, 0));
+            }
             rpp_xpush_1(MUTABLE_SV(generator->body));
             PL_op = (OP *)&generator->invoke;
             PL_runops(aTHX);
@@ -541,6 +579,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator)
                 if (CxTYPE(&cxstack[i]) == CXt_EVAL)
                     cxstack[i].blk_eval.cur_top_env = &cur_env;
             }
+            S_generator_push_resume_result(aTHX_ generator);
             PL_runops(aTHX);
         }
         break;

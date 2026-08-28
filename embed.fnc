@@ -1511,7 +1511,8 @@ Chp	|bool	|generator_is_exhausted 				\
 Chp	|PERL_GENERATOR *|generator_new 				\
 				|NN CV *body
 Chp	|int	|generator_resume					\
-				|NN PERL_GENERATOR *generator
+				|NN PERL_GENERATOR *generator		\
+				|NN AV *args
 Chp	|CV *	|generator_wrap |NN CV *body
 Chp	|void	|generator_yield_value					\
 				|NN SV *value
