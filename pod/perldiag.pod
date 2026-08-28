@@ -857,6 +857,16 @@ which makes no sense.  Maybe you meant '%s', or just stringifying it?
 (F) You tried to begin a C<class> definition for a class that already exists.
 A class may only have one definition block.
 
+=item cannot resume a failed generator
+
+(F) You attempted to resume a generator after an uncaught exception had
+already caused it to fail.  A failed generator cannot be resumed.
+
+=item cannot resume an exhausted generator
+
+(F) You attempted to resume a generator after it had completed.  An exhausted
+generator cannot be resumed.
+
 =item Cannot set tied @DB::args
 
 (F) C<caller> tried to set C<@DB::args>, but found it tied.  Tying C<@DB::args>
@@ -3549,6 +3559,12 @@ optional third component, which is ignored.  Each component must be a number
 of 1 to 3 digits. No other characters are permitted.  The value that was
 specified does not conform to these rules.
 
+=item generator has no suspended continuation
+
+(F) You attempted to resume a generator that has no suspended continuation.
+This can happen when generator execution is resumed outside its normal calling
+context.
+
 =item Invalid version format (%s)
 
 (F) A version number did not meet the "lax" criteria for versions.
@@ -3693,6 +3709,25 @@ make sense, and can be confusing because it can make perl look like
 it is hanging when it is really just trying to read from STDIN.  You
 should either pass a filename to edit, or remove C<-i> from the command
 line.  See L<perlrun|perlrun/-i[extension]> for more details.
+
+=item invalid generator
+
+(F) You attempted to call a value that is not a valid generator.
+
+=item generator continuation is not available
+
+(F) You attempted to capture or resume a generator when its continuation was
+not available.
+
+=item generator does not accept arguments
+
+(F) You attempted to call a generator with arguments.  Generators do not
+accept arguments.
+
+=item generator_yield outside a running generator_create
+
+(F) The generator_yield operation was invoked without a currently running
+generator_create body.
 
 =item Junk on end of regexp in regex m/%s/
 

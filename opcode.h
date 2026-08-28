@@ -580,6 +580,8 @@ EXTCONST char* const PL_op_name[] INIT({
 	"multiparam",
 	"paramtest",
 	"paramstore",
+	"generator_yield",
+	"generator_exhausted",
         "freed",
 });
 
@@ -1020,6 +1022,8 @@ EXTCONST char* const PL_op_desc[] INIT({
 	"signature processing",
 	"signature argument value test",
 	"signature parameter default expression",
+	"yield a value from a generator",
+	"test whether a generator is exhausted",
     "freed op",
 });
 
@@ -1465,6 +1469,8 @@ INIT({
 	Perl_pp_multiparam,
 	Perl_pp_paramtest,
 	Perl_pp_paramstore,
+	Perl_pp_generator_yield,
+	Perl_pp_generator_exhausted,
 });
 
 EXT Perl_check_t PL_check[] /* or perlvars.h */
@@ -1905,6 +1911,8 @@ INIT({
 	Perl_ck_null,		/* multiparam */
 	Perl_ck_null,		/* paramtest */
 	Perl_ck_null,		/* paramstore */
+	Perl_ck_null,		/* generator_yield */
+	Perl_ck_null,		/* generator_exhausted */
 
 /* The final entries are function pointers not attached to an opcode.
  * These are to be used to compare with function pointers in the earlier
@@ -1921,9 +1929,9 @@ INIT({
 
 /* Indexes into PL_check for the comparison function pointers */
 #ifdef PERL_IN_PEEP_C
-  #define PERL_CK_NULL  436
-  #define PERL_CK_EXISTS  437
-  #define PERL_CK_DELETE  438
+  #define PERL_CK_NULL  438
+  #define PERL_CK_EXISTS  439
+  #define PERL_CK_DELETE  440
 #endif
 
 EXTCONST U32 PL_opargs[] INIT({
@@ -2363,6 +2371,8 @@ EXTCONST U32 PL_opargs[] INIT({
 	0x00000f00,	/* multiparam */
 	0x00000300,	/* paramtest */
 	0x00000100,	/* paramstore */
+	0x00001100,	/* generator_yield */
+	0x00001100,	/* generator_exhausted */
 });
 
 END_EXTERN_C
@@ -3152,6 +3162,8 @@ EXTCONST I16  PL_op_private_bitdef_ix[]  INIT( {
        0, /* multiparam */
      203, /* paramtest */
        0, /* paramstore */
+       0, /* generator_yield */
+       0, /* generator_exhausted */
 
 });
 
@@ -3170,7 +3182,7 @@ EXTCONST I16  PL_op_private_bitdef_ix[]  INIT( {
  */
 
 EXTCONST U16  PL_op_private_bitdefs[] INIT( {
-    0x0003, /* scalar, prototype, refgen, srefgen, readline, regcmaybe, regcreset, regcomp, substcont, chop, schop, defined, study, preinc, i_preinc, predec, i_predec, postinc, i_postinc, postdec, i_postdec, not, ucfirst, lcfirst, uc, lc, quotemeta, aeach, avalues, each, pop, shift, grepstart, anywhile, mapstart, mapwhile, range, dor, andassign, orassign, dorassign, argcheck, entergiven, leavegiven, enterwhen, leavewhen, untie, tied, dbmclose, getsockname, getpeername, lstat, stat, readlink, readdir, telldir, rewinddir, closedir, localtime, alarm, require, dofile, entertry, ghbyname, gnbyname, gpbyname, shostent, snetent, sprotoent, sservent, gpwnam, gpwuid, ggrnam, ggrgid, lock, once, fc, anonconst, cmpchain_and, cmpchain_dup, entertrycatch, catch, is_bool, is_weak, weaken, unweaken, is_tainted, multiparam, paramstore */
+    0x0003, /* scalar, prototype, refgen, srefgen, readline, regcmaybe, regcreset, regcomp, substcont, chop, schop, defined, study, preinc, i_preinc, predec, i_predec, postinc, i_postinc, postdec, i_postdec, not, ucfirst, lcfirst, uc, lc, quotemeta, aeach, avalues, each, pop, shift, grepstart, anywhile, mapstart, mapwhile, range, dor, andassign, orassign, dorassign, argcheck, entergiven, leavegiven, enterwhen, leavewhen, untie, tied, dbmclose, getsockname, getpeername, lstat, stat, readlink, readdir, telldir, rewinddir, closedir, localtime, alarm, require, dofile, entertry, ghbyname, gnbyname, gpbyname, shostent, snetent, sprotoent, sservent, gpwnam, gpwuid, ggrnam, ggrgid, lock, once, fc, anonconst, cmpchain_and, cmpchain_dup, entertrycatch, catch, is_bool, is_weak, weaken, unweaken, is_tainted, multiparam, paramstore, generator_yield, generator_exhausted */
     0x473c, 0x6679, /* pushmark */
     0x00bd, /* wantarray, runcv */
     0x0b9e, 0x0694, 0x1df0, 0x67cc, 0x6188, 0x4cc5, /* const */
@@ -3700,6 +3712,8 @@ EXTCONST U8 PL_op_private_valid[] INIT( {
     /* MULTIPARAM */ (OPpARG1_MASK),
     /* PARAMTEST  */ (OPpARG1_MASK|OPpPARAM_IF_FALSE|OPpPARAM_IF_UNDEF),
     /* PARAMSTORE */ (OPpARG1_MASK),
+    /* GENERATOR_YIELD */ (OPpARG1_MASK),
+    /* GENERATOR_EXHAUSTED */ (OPpARG1_MASK),
 
 });
 

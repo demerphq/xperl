@@ -18,6 +18,16 @@ their inception, versions, etc. There's a lot of speculation here.
 
 =over 8
 
+=item Iterators
+
+Introduced in Perl 5.45.3.
+
+Using this feature requires C<use feature 'generator'>.  The
+C<generator_create>, C<generator_yield>, and C<generator_exhausted> keywords
+provide cooperative, one-shot resumable execution.
+
+See L<perlasync> and L<perlfunc/generator_create BLOCK>.
+
 =item Pluggable keywords
 
 Introduced in Perl 5.11.2

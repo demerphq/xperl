@@ -1336,6 +1336,112 @@ Use this typedef to declare variables that are to hold C<struct stackinfo>.
 */
 typedef struct stackinfo PERL_SI;
 
+/*
+ * The execution state which belongs to one resumable run of the interpreter.
+ *
+ * This is intentionally an internal, pointer-based description.  The stacks
+ * and the objects reachable from them remain owned by the interpreter; a
+ * process state only owns the references to the currently active portions.
+ * In particular, this must not contain a JMPENV: exception environments are
+ * C stack objects and are established afresh by each run/resume operation.
+ *
+ * Keep this list in step with the process-local interpreter variables in
+ * intrpvar.h.  It is the narrow boundary used by the eventual opcode-boundary
+ * scheduler.
+ */
+typedef struct perl_process_state {
+    OP *            op;
+    COP *           curcop;
+    PAD *           comppad;
+    SV **           curpad;
+
+    AV *            curstack;
+    PERL_SI *       curstackinfo;
+    SV **           stack_base;
+    SV **           stack_max;
+    SV **           stack_sp;
+
+    PMOP *           curpm;
+    PMOP *           curpm_under;
+    PMOP *           reg_curpm;
+    UNOP_AUX_item *  multideref_pc;
+    GV *             defgv;
+    HV *             curstash;
+    COP *            curcopdb;
+    bool             tainting;
+    bool             tainted;
+    U16              delaymagic;
+    U8               dowarn;
+
+    Stack_off_t *   markstack;
+    Stack_off_t *   markstack_ptr;
+    Stack_off_t *   markstack_max;
+
+    ANY *           savestack;
+    I32             savestack_ix;
+    I32             savestack_max;
+
+    I32 *           scopestack;
+    I32             scopestack_ix;
+    I32             scopestack_max;
+
+    SV **           tmps_stack;
+    SSize_t         tmps_ix;
+    SSize_t         tmps_floor;
+    SSize_t         tmps_max;
+
+    U8              in_eval;
+    U8              localizing;
+    OP *            restartop;
+} PERL_PROCESS_STATE;
+
+/* Result requested by a runops boundary hook.  Zero means continue; a
+ * non-zero result is returned by the runops loop to its scheduler. */
+#define PERL_RUNOPS_BOUNDARY_YIELD 1
+
+typedef struct perl_process_scheduler {
+    PERL_PROCESS_STATE *states;
+    U8                 *done;
+    U8                  count;
+    U8                  quantum;
+    U8                  current;
+    I32                 boundaries;
+    I32                 total_boundaries;
+    I32                 max_boundaries;
+    int                 failure;
+} PERL_PROCESS_SCHEDULER;
+
+typedef enum {
+    PERL_GENERATOR_INVALID = 0,
+    PERL_GENERATOR_NEW,
+    PERL_GENERATOR_RUNNING,
+    PERL_GENERATOR_YIELDED,
+    PERL_GENERATOR_EXHAUSTED,
+    PERL_GENERATOR_FAILED
+} PERL_GENERATOR_STATE;
+
+#define PERL_CVf_GENERATOR 0x800000 /* CV is the body of a generator */
+#define CvGENERATOR(cv)         (CvFLAGS(cv) & PERL_CVf_GENERATOR)
+#define CvGENERATOR_on(cv)      (CvFLAGS(cv) |= PERL_CVf_GENERATOR)
+#define CvGENERATOR_off(cv)     (CvFLAGS(cv) &= ~PERL_CVf_GENERATOR)
+
+typedef struct perl_generator {
+    U32                     magic;
+    CV *                    body;
+    LOGOP                   invoke;
+    PERL_PROCESS_STATE       process;
+    SV *                    value;
+    SV *                    error;
+    PERL_GENERATOR_STATE    state;
+    bool                    captured;
+    bool                    yield_pending;
+    bool                    stack_pushed;
+    bool                    stack_detached;
+    bool                    eval_active;
+} PERL_GENERATOR;
+
+#define PERL_GENERATOR_MAGIC 0x47594C44U
+
 #define cxstack		(PL_curstackinfo->si_cxstack)
 #define cxstack_ix	(PL_curstackinfo->si_cxix)
 #define cxstack_max	(PL_curstackinfo->si_cxmax)

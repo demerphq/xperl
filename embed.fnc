@@ -1502,6 +1502,19 @@ Adfpt	|char * |form		|NN const char *pat			\
 : Only used in perl.c
 p	|void	|free_tied_hv_pool
 Cp	|void	|free_tmps
+Chp	|void	|generator_capture					\
+				|NN PERL_GENERATOR *generator		\
+				|NULLOK SV *value
+Chp	|void	|generator_free |NN PERL_GENERATOR *generator
+Chp	|bool	|generator_is_exhausted 				\
+				|NN SV *generator_sv
+Chp	|PERL_GENERATOR *|generator_new 				\
+				|NN CV *body
+Chp	|int	|generator_resume					\
+				|NN PERL_GENERATOR *generator
+Chp	|CV *	|generator_wrap |NN CV *body
+Chp	|void	|generator_yield_value					\
+				|NN SV *value
 ERXp	|SV *	|get_and_check_backslash_N_name 			\
 				|SPTR const char *s			\
 				|EPTRge const char *e			\
@@ -2896,6 +2909,12 @@ Adp	|const char *|prescan_version					\
 				|NULLOK int *ssaw_decimal		\
 				|NULLOK int *swidth			\
 				|NULLOK bool *salpha
+Chp	|int	|process_scheduler_run					\
+				|NN PERL_PROCESS_SCHEDULER *scheduler
+Chp	|void	|process_state_restore					\
+				|NN const PERL_PROCESS_STATE *state
+Chp	|void	|process_state_save					\
+				|NN PERL_PROCESS_STATE *state
 ARdp	|void * |ptr_table_fetch|NN PTR_TBL_t * const tbl		\
 				|NULLOK const void * const sv
 Adp	|void	|ptr_table_free |NULLOK PTR_TBL_t * const tbl

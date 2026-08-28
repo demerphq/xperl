@@ -69,7 +69,7 @@
 %token <ival> KW_IF KW_ELSE KW_ELSIF KW_UNLESS
 %token <ival> KW_FOR KW_UNTIL KW_WHILE KW_CONTINUE
 %token <ival> KW_GIVEN KW_WHEN KW_DEFAULT
-%token <ival> KW_TRY KW_CATCH KW_FINALLY KW_DEFER
+%token <ival> KW_TRY KW_CATCH KW_FINALLY KW_DEFER KW_GENERATOR_CREATE KW_GENERATOR_YIELD KW_GENERATOR_EXHAUSTED
 %token <ival> KW_REQUIRE KW_DO
 
 /* The 'use' and 'no' keywords both emit this */
@@ -119,11 +119,12 @@
 %type <opval> bare_statement_when
 %type <opval> bare_statement_while
 %type <opval> bare_statement_yadayada
+%type <opval> bare_statement_generator_yield
 %type <opval> subscript_index
 %type <opval> subscript_keys
 %type <opval> subscriptable_reference
 
-%type <ival>  startsub startanonsub startanonmethod startformsub
+%type <ival>  startsub startanonsub startgenerator_create startanonmethod startformsub
 
 %type <ival> mintro
 
@@ -141,7 +142,7 @@
 %type <opval> subattrlist attrlist optattrlist myattrterm myterm
 %type <pval>  fieldvar /* pval is PADNAME */
 %type <opval> fielddecl
-%type <opval> termbinop termunop anonymous termdo
+%type <opval> termbinop termunop anonymous termdo termgenerator_exhausted
 %type <opval> termrelop relopchain termeqop eqopchain
 %type <ival>  sigslurpsigil sigvar
 %type <opval> sigscalarelem optsigscalardefault sigslurpelem
@@ -766,6 +767,15 @@ bare_statement_yadayada
 		}
 	;
 
+bare_statement_generator_yield
+	: KW_GENERATOR_YIELD term PERLY_SEMICOLON
+		{ if (!CvGENERATOR(PL_compcv)) {
+		      yyerror("generator_yield outside a generator_create");
+		      YYERROR;
+		  }
+		  $$ = newUNOP(OP_GENERATOR_YIELD, 0, scalar($term)); }
+	;
+
 subscript_index
 	/* Array/list access subscript: [ selector expression ]
 	 * Value of nonterminal: selector expression
@@ -941,6 +951,7 @@ barestmt
 	|	bare_statement_when
 	|	bare_statement_while
 	|	bare_statement_yadayada
+	|	bare_statement_generator_yield
 	;
 
 /* Format line */
@@ -1070,6 +1081,10 @@ startsub:	%empty	/* start a regular subroutine scope */
 startanonsub:	%empty	/* start an anonymous subroutine scope */
 			{ $$ = start_subparse(FALSE, CVf_ANON);
 			    SAVEFREESV(PL_compcv); }
+	;
+
+startgenerator_create:	KW_GENERATOR_CREATE startanonsub
+			{ CvGENERATOR_on(PL_compcv); $$ = $startanonsub; }
 	;
 
 startanonmethod:	%empty	/* start an anonymous method scope */
@@ -1565,6 +1580,9 @@ anonymous
 			{ $$ = newANONLIST($optexpr); }
 	|	HASHBRACK optexpr PERLY_SEMICOLON PERLY_BRACE_CLOSE	%prec PERLY_PAREN_OPEN /* { foo => "Bar" } */
 			{ $$ = newANONHASH($optexpr); }
+	|	startgenerator_create block    %prec PERLY_PAREN_OPEN
+			{ SvREFCNT_inc_simple_void(PL_compcv);
+			  $$ = newANONATTRSUB($startgenerator_create, 0, NULL, $block); }
 	|	KW_SUB_anon     startanonsub proto subattrlist subbody    %prec PERLY_PAREN_OPEN
 			{ SvREFCNT_inc_simple_void(PL_compcv);
 			  $$ = newANONATTRSUB($startanonsub, $proto, $subattrlist, $subbody); }
@@ -1591,10 +1609,16 @@ termdo	:       KW_DO term	%prec UNIOP                     /* do $filename */
 			{ $$ = newUNOP(OP_NULL, OPf_SPECIAL, op_scope($block));}
         ;
 
+termgenerator_exhausted
+	:       KW_GENERATOR_EXHAUSTED term	%prec UNIOP
+			{ $$ = newUNOP(OP_GENERATOR_EXHAUSTED, 0, $term); }
+	;
+
 term[product]	:	termbinop
 	|	termunop
 	|	anonymous
 	|	termdo
+	|	termgenerator_exhausted
 	|	term[condition] PERLY_QUESTION_MARK term[then] PERLY_COLON term[else]
 			{ $$ = newCONDOP(0, $condition, $then, $else); }
 	|	REFGEN term[operand]                          /* \$x, \@y, \%z */

@@ -46,6 +46,13 @@ This is approximately equal to the following, except that it is more efficient a
 
 For more detail, see L<perlop/Equality Operators>.
 
+=head2 Experimental generators
+
+The experimental C<generator> feature creates a callable one-shot generator
+from a block.  Each call resumes the block until its next C<generator_yield>,
+returning one value, and returns an empty list after the block has finished.
+See L<perlfunc/generator_create BLOCK> for details.
+
 =head1 Security
 
 XXX Any security-related notices go here. In particular, any security

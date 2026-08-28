@@ -1195,6 +1195,7 @@ like $@, qr'^Undefined format "STDOUT" called',
     method my ne neu next no or our package print printf q qq qr qw qx
     redo require return s say sort state sub tr try unless until use
     when while x xor y
+    generator_create generator_exhausted generator_yield
   );
   open my $kh, $keywords_file
     or die "$0 cannot open $keywords_file: $!";

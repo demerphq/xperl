@@ -5678,6 +5678,7 @@ struct perl_memory_debug_header {
 #endif
 
 typedef int (*runops_proc_t)(pTHX);
+typedef int (*runops_boundary_proc_t)(pTHX_ OP *nextop, void *data);
 typedef void (*share_proc_t) (pTHX_ SV *sv);
 typedef int  (*thrhook_proc_t) (pTHX);
 typedef OP* (*PPADDR_t[]) (pTHX);

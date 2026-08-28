@@ -6820,6 +6820,22 @@ PP(pp_pushdefer)
     return NORMAL;
 }
 
+PP(pp_generator_yield)
+{
+    dSP;
+    generator_yield_value(TOPs);
+    rpp_popfree_1_NN();
+    return PL_op->op_next;
+}
+
+PP(pp_generator_exhausted)
+{
+    dSP;
+    SV * const generator_sv = TOPs;
+    rpp_replace_1_IMM_NN(boolSV(generator_is_exhausted(generator_sv)));
+    return NORMAL;
+}
+
 static MAGIC *
 S_doparseform(pTHX_ SV *sv)
 {

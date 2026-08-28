@@ -1,0 +1,86 @@
+=encoding utf8
+
+=head1 NAME
+
+perlasync - cooperative resumable execution in Perl
+
+=head1 DESCRIPTION
+
+This document describes the experimental generator interface.  An generator
+allows a block of Perl code to suspend at an explicit C<generator_yield> and later
+continue from that point.  Iterators are cooperative: calling the generator
+is what advances it, and no thread, event loop, or implicit scheduling is
+provided.
+
+The interface is experimental and may change or be removed in a future Perl
+release.
+
+=head1 ITERATORS
+
+Enable the feature before using the C<generator_create> and C<generator_yield> keywords:
+
+    use feature 'generator';
+
+    my $counter = generator_create {
+        generator_yield 1;
+        generator_yield 2;
+    };
+
+The C<generator_create> expression returns a callable generator.  Calling it
+runs the body until the next C<generator_yield> or until the body finishes:
+
+    my @first  = $counter->(); # (1)
+    my @second = $counter->(); # (2)
+    my @done   = $counter->(); # ()
+
+Each C<generator_yield> produces exactly one list element.  In scalar context the yielded
+value is returned as the scalar result of the call.  C<undef> is a yielded
+value, not an empty result:
+
+    my $values = generator_create { generator_yield undef };
+    my @value = $values->(); # one element, whose value is undef
+
+The body runs in the context of the call that resumes it.  Lexical variables,
+loop state, and localization in the body remain in effect across an
+C<generator_yield> and are restored when the generator finishes.  The generator
+does not accept arguments.
+
+=head1 LIFETIME AND ERRORS
+
+When the body finishes without another C<generator_yield>, the completing call
+returns an empty list and the generator becomes exhausted.  Exhaustion is permanent: a
+later call raises an exception.  An generator is also permanently failed if an
+uncaught exception leaves its body.  That exception is propagated by the call
+which resumes the generator, and later calls raise an invalid-resume
+exception.  An exception caught by an C<eval> inside the body does not by
+itself terminate the generator.
+
+The C<generator_exhausted> keyword tests completion without resuming the generator:
+
+    generator_exhausted $counter
+
+It returns true only after a resume has run the body to completion and
+returned an empty list.  It returns false while the generator is new or
+suspended, and also for a failed generator.  Testing exhaustion does not
+advance the sequence.
+
+An generator cannot be resumed while it is already running.  This includes an
+generator attempting to call itself before it has reached an
+C<generator_yield>.  A suspended
+generator is a one-shot continuation; it is not copied when it is assigned or
+passed around, so all references designate the same continuation.
+
+=head1 WHERE C<generator_yield> MAY BE USED
+
+C<generator_yield> is valid only lexically inside an C<generator_create> block.
+It is not valid in an ordinary subroutine or in callback code such as C<sort>, C<map>,
+C<grep>, or a regular-expression code block.  Callback code cannot suspend
+the operation that invoked it.
+
+=head1 SEE ALSO
+
+L<perlfunc/generator_create BLOCK> describes the C<generator_create> keyword in
+the Perl function reference.  L<perlembed> and L<perlinterp> describe other forms of
+embedding and interpreter execution; they do not provide generator scheduling.
+
+=cut

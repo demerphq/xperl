@@ -98,6 +98,8 @@ PERL_CALLCONV PP(pp_fttext) __attribute__visibility__("hidden");
 PERL_CALLCONV PP(pp_fttty) __attribute__visibility__("hidden");
 PERL_CALLCONV PP(pp_ge) __attribute__visibility__("hidden");
 PERL_CALLCONV PP(pp_gelem) __attribute__visibility__("hidden");
+PERL_CALLCONV PP(pp_generator_exhausted) __attribute__visibility__("hidden");
+PERL_CALLCONV PP(pp_generator_yield) __attribute__visibility__("hidden");
 PERL_CALLCONV PP(pp_getc) __attribute__visibility__("hidden");
 PERL_CALLCONV PP(pp_getlogin) __attribute__visibility__("hidden");
 PERL_CALLCONV PP(pp_getpeername) __attribute__visibility__("hidden");

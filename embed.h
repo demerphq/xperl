@@ -29,6 +29,9 @@
 #   undef AMGf_no_GETMAGIC
 #   undef CC_MAGICAL_
 #   undef CC_UNDERSCORE_
+#   undef CvGENERATOR
+#   undef CvGENERATOR_off
+#   undef CvGENERATOR_on
 #   undef do_aexec
 #   undef F_atan2_amg
 #   undef F_cos_amg
@@ -43,6 +46,9 @@
 #   undef isFOO_or_UNDERSCORE_
 #   undef isIDCONT_lazy_if_safe
 #   undef KEY_equ
+#   undef KEY_generator_create
+#   undef KEY_generator_exhausted
+#   undef KEY_generator_yield
 #   undef KEY_neu
 #   undef MGv2f_SCALARVALUE_AUTOPROPAGATE
 #   undef MGv2f_WITH_KEYHEK
@@ -233,6 +239,13 @@
 # define forbid_outofblock_ops(a,b)             Perl_forbid_outofblock_ops(aTHX_ a,b)
 # define force_out_malformed_utf8_message_(a,b,c,d) Perl_force_out_malformed_utf8_message_(aTHX_ a,b,c,d)
 # define free_tmps()                            Perl_free_tmps(aTHX)
+# define generator_capture(a,b)                 Perl_generator_capture(aTHX_ a,b)
+# define generator_free(a)                      Perl_generator_free(aTHX_ a)
+# define generator_is_exhausted(a)              Perl_generator_is_exhausted(aTHX_ a)
+# define generator_new(a)                       Perl_generator_new(aTHX_ a)
+# define generator_resume(a)                    Perl_generator_resume(aTHX_ a)
+# define generator_wrap(a)                      Perl_generator_wrap(aTHX_ a)
+# define generator_yield_value(a)               Perl_generator_yield_value(aTHX_ a)
 # define get_av(a,b)                            Perl_get_av(aTHX_ a,b)
 # define get_cv(a,b)                            Perl_get_cv(aTHX_ a,b)
 # define get_cvn_flags(a,b,c)                   Perl_get_cvn_flags(aTHX_ a,b,c)
@@ -521,6 +534,9 @@
 # define pregfree2(a)                           Perl_pregfree2(aTHX_ a)
 # define prepare_export_lexical()               Perl_prepare_export_lexical(aTHX)
 # define prescan_version(a,b,c,d,e,f,g)         Perl_prescan_version(aTHX_ a,b,c,d,e,f,g)
+# define process_scheduler_run(a)               Perl_process_scheduler_run(aTHX_ a)
+# define process_state_restore(a)               Perl_process_state_restore(aTHX_ a)
+# define process_state_save(a)                  Perl_process_state_save(aTHX_ a)
 # define ptr_table_fetch(a,b)                   Perl_ptr_table_fetch(aTHX_ a,b)
 # define ptr_table_free(a)                      Perl_ptr_table_free(aTHX_ a)
 # define ptr_table_new()                        Perl_ptr_table_new(aTHX)

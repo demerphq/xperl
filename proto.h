@@ -1740,6 +1740,59 @@ Perl_free_tmps(pTHX)
 #define PERL_ARGS_ASSERT_FREE_TMPS              \
     STMT_START { Perl_assert_aTHX; } STMT_END
 
+PERL_CALLCONV void
+Perl_generator_capture(pTHX_ PERL_GENERATOR *generator, SV *value)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_GENERATOR_CAPTURE      \
+    STMT_START { Perl_assert_aTHX; assert(generator); } STMT_END
+
+PERL_CALLCONV void
+Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_GENERATOR_FREE         \
+    STMT_START { Perl_assert_aTHX; assert(generator); } STMT_END
+
+PERL_CALLCONV bool
+Perl_generator_is_exhausted(pTHX_ SV *generator_sv)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_GENERATOR_IS_EXHAUSTED \
+    STMT_START { Perl_assert_aTHX; assert(generator_sv); } STMT_END
+
+PERL_CALLCONV PERL_GENERATOR *
+Perl_generator_new(pTHX_ CV *body)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_GENERATOR_NEW          \
+    STMT_START { Perl_assert_aTHX; assert(body);                                \
+                 assert(SvTYPE(body) == SVt_PVCV || SvTYPE(body) == SVt_PVFM);  \
+    } STMT_END
+
+PERL_CALLCONV int
+Perl_generator_resume(pTHX_ PERL_GENERATOR *generator)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_GENERATOR_RESUME       \
+    STMT_START { Perl_assert_aTHX; assert(generator); } STMT_END
+
+PERL_CALLCONV CV *
+Perl_generator_wrap(pTHX_ CV *body)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_GENERATOR_WRAP         \
+    STMT_START { Perl_assert_aTHX; assert(body);                                \
+                 assert(SvTYPE(body) == SVt_PVCV || SvTYPE(body) == SVt_PVFM);  \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_generator_yield_value(pTHX_ SV *value)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_GENERATOR_YIELD_VALUE  \
+    STMT_START { Perl_assert_aTHX; assert(value); } STMT_END
+
 PERL_CALLCONV SV *
 Perl_get_and_check_backslash_N_name(pTHX_ const char *s, const char *e, const bool is_utf8, const char **error_msg)
         Perl_attribute_nonnull_aTHX
@@ -5568,6 +5621,27 @@ Perl_prescan_version(pTHX_ const char *s, bool strict, const char **errstr, bool
         Perl_attribute_nonnull(pTHX_1);
 #define PERL_ARGS_ASSERT_PRESCAN_VERSION        \
     STMT_START { Perl_assert_aTHX; assert(s); } STMT_END
+
+PERL_CALLCONV int
+Perl_process_scheduler_run(pTHX_ PERL_PROCESS_SCHEDULER *scheduler)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_PROCESS_SCHEDULER_RUN  \
+    STMT_START { Perl_assert_aTHX; assert(scheduler); } STMT_END
+
+PERL_CALLCONV void
+Perl_process_state_restore(pTHX_ const PERL_PROCESS_STATE *state)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_PROCESS_STATE_RESTORE  \
+    STMT_START { Perl_assert_aTHX; assert(state); } STMT_END
+
+PERL_CALLCONV void
+Perl_process_state_save(pTHX_ PERL_PROCESS_STATE *state)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_PROCESS_STATE_SAVE     \
+    STMT_START { Perl_assert_aTHX; assert(state); } STMT_END
 
 PERL_CALLCONV void *
 Perl_ptr_table_fetch(pTHX_ PTR_TBL_t * const tbl, const void * const sv)

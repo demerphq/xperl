@@ -59,6 +59,9 @@ my %feature_kw = (
     __CLASS__ => 'class',
     any       => 'keyword_any',
     all       => 'keyword_all',
+    generator_exhausted => 'generator',
+    generator_yield     => 'generator',
+    generator_create    => 'generator',
 );
 
 my %pos = map { ($_ => 1) } @{$by_strength{'+'}};
@@ -238,6 +241,9 @@ __END__
 -int
 -ioctl
 -isa
++generator_create
++generator_exhausted
++generator_yield
 -join
 -keys
 -kill

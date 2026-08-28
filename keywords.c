@@ -21,27 +21,27 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
       switch (name[0])
       {
         case 'm':
-          {                                       /* m                */
+          {                                       /* m                   */
             return KEY_m;
           }
 
         case 'q':
-          {                                       /* q                */
+          {                                       /* q                   */
             return KEY_q;
           }
 
         case 's':
-          {                                       /* s                */
+          {                                       /* s                   */
             return KEY_s;
           }
 
         case 'x':
-          {                                       /* x                */
+          {                                       /* x                   */
             return -KEY_x;
           }
 
         case 'y':
-          {                                       /* y                */
+          {                                       /* y                   */
             return KEY_y;
           }
 
@@ -54,7 +54,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
       {
         case 'd':
           if (name[1] == 'o')
-          {                                       /* do               */
+          {                                       /* do                  */
             return KEY_do;
           }
 
@@ -62,7 +62,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
         case 'e':
           if (name[1] == 'q')
-          {                                       /* eq               */
+          {                                       /* eq                  */
             return -KEY_eq;
           }
 
@@ -70,7 +70,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
         case 'f':
           if (name[1] == 'c')
-          {                                       /* fc               */
+          {                                       /* fc                  */
             return (all_keywords || FEATURE_FC_IS_ENABLED ? -KEY_fc : 0);
           }
 
@@ -80,12 +80,12 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           switch (name[1])
           {
             case 'e':
-              {                                   /* ge               */
+              {                                   /* ge                  */
                 return -KEY_ge;
               }
 
             case 't':
-              {                                   /* gt               */
+              {                                   /* gt                  */
                 return -KEY_gt;
               }
 
@@ -95,7 +95,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
         case 'i':
           if (name[1] == 'f')
-          {                                       /* if               */
+          {                                       /* if                  */
             return KEY_if;
           }
 
@@ -105,17 +105,17 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           switch (name[1])
           {
             case 'c':
-              {                                   /* lc               */
+              {                                   /* lc                  */
                 return -KEY_lc;
               }
 
             case 'e':
-              {                                   /* le               */
+              {                                   /* le                  */
                 return -KEY_le;
               }
 
             case 't':
-              {                                   /* lt               */
+              {                                   /* lt                  */
                 return -KEY_lt;
               }
 
@@ -125,7 +125,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
         case 'm':
           if (name[1] == 'y')
-          {                                       /* my               */
+          {                                       /* my                  */
             return KEY_my;
           }
 
@@ -135,12 +135,12 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           switch (name[1])
           {
             case 'e':
-              {                                   /* ne               */
+              {                                   /* ne                  */
                 return -KEY_ne;
               }
 
             case 'o':
-              {                                   /* no               */
+              {                                   /* no                  */
                 return KEY_no;
               }
 
@@ -150,7 +150,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
         case 'o':
           if (name[1] == 'r')
-          {                                       /* or               */
+          {                                       /* or                  */
             return -KEY_or;
           }
 
@@ -160,22 +160,22 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           switch (name[1])
           {
             case 'q':
-              {                                   /* qq               */
+              {                                   /* qq                  */
                 return KEY_qq;
               }
 
             case 'r':
-              {                                   /* qr               */
+              {                                   /* qr                  */
                 return KEY_qr;
               }
 
             case 'w':
-              {                                   /* qw               */
+              {                                   /* qw                  */
                 return KEY_qw;
               }
 
             case 'x':
-              {                                   /* qx               */
+              {                                   /* qx                  */
                 return KEY_qx;
               }
 
@@ -185,7 +185,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
         case 't':
           if (name[1] == 'r')
-          {                                       /* tr               */
+          {                                       /* tr                  */
             return KEY_tr;
           }
 
@@ -193,7 +193,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
         case 'u':
           if (name[1] == 'c')
-          {                                       /* uc               */
+          {                                       /* uc                  */
             return -KEY_uc;
           }
 
@@ -209,7 +209,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
         case 'E':
           if (name[1] == 'N' &&
               name[2] == 'D')
-          {                                       /* END              */
+          {                                       /* END                 */
             return KEY_END;
           }
 
@@ -220,7 +220,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           {
             case 'b':
               if (name[2] == 's')
-              {                                   /* abs              */
+              {                                   /* abs                 */
                 return -KEY_abs;
               }
 
@@ -228,7 +228,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
             case 'l':
               if (name[2] == 'l')
-              {                                   /* all              */
+              {                                   /* all                 */
                 return (all_keywords || FEATURE_KEYWORD_ALL_IS_ENABLED ? -KEY_all : 0);
               }
 
@@ -238,12 +238,12 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               switch (name[2])
               {
                 case 'd':
-                  {                               /* and              */
+                  {                               /* and                 */
                     return -KEY_and;
                   }
 
                 case 'y':
-                  {                               /* any              */
+                  {                               /* any                 */
                     return (all_keywords || FEATURE_KEYWORD_ANY_IS_ENABLED ? -KEY_any : 0);
                   }
 
@@ -260,7 +260,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           {
             case 'h':
               if (name[2] == 'r')
-              {                                   /* chr              */
+              {                                   /* chr                 */
                 return -KEY_chr;
               }
 
@@ -268,7 +268,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
             case 'm':
               if (name[2] == 'p')
-              {                                   /* cmp              */
+              {                                   /* cmp                 */
                 return -KEY_cmp;
               }
 
@@ -276,7 +276,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
             case 'o':
               if (name[2] == 's')
-              {                                   /* cos              */
+              {                                   /* cos                 */
                 return -KEY_cos;
               }
 
@@ -289,7 +289,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
         case 'd':
           if (name[1] == 'i' &&
               name[2] == 'e')
-          {                                       /* die              */
+          {                                       /* die                 */
             return -KEY_die;
           }
 
@@ -300,7 +300,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           {
             case 'o':
               if (name[2] == 'f')
-              {                                   /* eof              */
+              {                                   /* eof                 */
                 return -KEY_eof;
               }
 
@@ -308,7 +308,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
             case 'q':
               if (name[2] == 'u')
-              {                                   /* equ              */
+              {                                   /* equ                 */
                 return -KEY_equ;
               }
 
@@ -316,7 +316,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
             case 'x':
               if (name[2] == 'p')
-              {                                   /* exp              */
+              {                                   /* exp                 */
                 return -KEY_exp;
               }
 
@@ -329,7 +329,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
         case 'f':
           if (name[1] == 'o' &&
               name[2] == 'r')
-          {                                       /* for              */
+          {                                       /* for                 */
             return KEY_for;
           }
 
@@ -338,7 +338,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
         case 'h':
           if (name[1] == 'e' &&
               name[2] == 'x')
-          {                                       /* hex              */
+          {                                       /* hex                 */
             return -KEY_hex;
           }
 
@@ -349,7 +349,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           {
             case 'n':
               if (name[2] == 't')
-              {                                   /* int              */
+              {                                   /* int                 */
                 return -KEY_int;
               }
 
@@ -357,7 +357,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
             case 's':
               if (name[2] == 'a')
-              {                                   /* isa              */
+              {                                   /* isa                 */
                 return (all_keywords || FEATURE_ISA_IS_ENABLED ? -KEY_isa : 0);
               }
 
@@ -370,7 +370,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
         case 'l':
           if (name[1] == 'o' &&
               name[2] == 'g')
-          {                                       /* log              */
+          {                                       /* log                 */
             return -KEY_log;
           }
 
@@ -379,7 +379,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
         case 'm':
           if (name[1] == 'a' &&
               name[2] == 'p')
-          {                                       /* map              */
+          {                                       /* map                 */
             return KEY_map;
           }
 
@@ -390,7 +390,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           {
             case 'e':
               if (name[2] == 'u')
-              {                                   /* neu              */
+              {                                   /* neu                 */
                 return -KEY_neu;
               }
 
@@ -398,7 +398,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
             case 'o':
               if (name[2] == 't')
-              {                                   /* not              */
+              {                                   /* not                 */
                 return -KEY_not;
               }
 
@@ -413,7 +413,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           {
             case 'c':
               if (name[2] == 't')
-              {                                   /* oct              */
+              {                                   /* oct                 */
                 return -KEY_oct;
               }
 
@@ -421,7 +421,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
             case 'r':
               if (name[2] == 'd')
-              {                                   /* ord              */
+              {                                   /* ord                 */
                 return -KEY_ord;
               }
 
@@ -429,7 +429,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
             case 'u':
               if (name[2] == 'r')
-              {                                   /* our              */
+              {                                   /* our                 */
                 return KEY_our;
               }
 
@@ -445,12 +445,12 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             switch (name[2])
             {
               case 'p':
-                {                                 /* pop              */
+                {                                 /* pop                 */
                   return -KEY_pop;
                 }
 
               case 's':
-                {                                 /* pos              */
+                {                                 /* pos                 */
                   return KEY_pos;
                 }
 
@@ -464,7 +464,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
         case 'r':
           if (name[1] == 'e' &&
               name[2] == 'f')
-          {                                       /* ref              */
+          {                                       /* ref                 */
             return -KEY_ref;
           }
 
@@ -475,7 +475,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           {
             case 'a':
               if (name[2] == 'y')
-              {                                   /* say              */
+              {                                   /* say                 */
                 return (all_keywords || FEATURE_SAY_IS_ENABLED ? KEY_say : 0);
               }
 
@@ -483,7 +483,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
             case 'i':
               if (name[2] == 'n')
-              {                                   /* sin              */
+              {                                   /* sin                 */
                 return -KEY_sin;
               }
 
@@ -491,7 +491,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
             case 'u':
               if (name[2] == 'b')
-              {                                   /* sub              */
+              {                                   /* sub                 */
                 return KEY_sub;
               }
 
@@ -506,7 +506,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           {
             case 'i':
               if (name[2] == 'e')
-              {                                   /* tie              */
+              {                                   /* tie                 */
                 return -KEY_tie;
               }
 
@@ -514,7 +514,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
             case 'r':
               if (name[2] == 'y')
-              {                                   /* try              */
+              {                                   /* try                 */
                 return (all_keywords || FEATURE_TRY_IS_ENABLED ? KEY_try : 0);
               }
 
@@ -527,7 +527,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
         case 'u':
           if (name[1] == 's' &&
               name[2] == 'e')
-          {                                       /* use              */
+          {                                       /* use                 */
             return KEY_use;
           }
 
@@ -536,7 +536,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
         case 'v':
           if (name[1] == 'e' &&
               name[2] == 'c')
-          {                                       /* vec              */
+          {                                       /* vec                 */
             return -KEY_vec;
           }
 
@@ -545,7 +545,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
         case 'x':
           if (name[1] == 'o' &&
               name[2] == 'r')
-          {                                       /* xor              */
+          {                                       /* xor                 */
             return -KEY_xor;
           }
 
@@ -562,7 +562,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           if (name[1] == 'N' &&
               name[2] == 'I' &&
               name[3] == 'T')
-          {                                       /* INIT             */
+          {                                       /* INIT                */
             return KEY_INIT;
           }
 
@@ -572,7 +572,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           if (name[1] == 'i' &&
               name[2] == 'n' &&
               name[3] == 'd')
-          {                                       /* bind             */
+          {                                       /* bind                */
             return -KEY_bind;
           }
 
@@ -582,7 +582,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           if (name[1] == 'h' &&
               name[2] == 'o' &&
               name[3] == 'p')
-          {                                       /* chop             */
+          {                                       /* chop                */
             return -KEY_chop;
           }
 
@@ -592,7 +592,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           if (name[1] == 'u' &&
               name[2] == 'm' &&
               name[3] == 'p')
-          {                                       /* dump             */
+          {                                       /* dump                */
             return -KEY_dump;
           }
 
@@ -604,7 +604,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'a':
               if (name[2] == 'c' &&
                   name[3] == 'h')
-              {                                   /* each             */
+              {                                   /* each                */
                 return -KEY_each;
               }
 
@@ -613,7 +613,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'l':
               if (name[2] == 's' &&
                   name[3] == 'e')
-              {                                   /* else             */
+              {                                   /* else                */
                 return KEY_else;
               }
 
@@ -622,7 +622,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'v':
               if (name[2] == 'a' &&
                   name[3] == 'l')
-              {                                   /* eval             */
+              {                                   /* eval                */
                 return KEY_eval;
               }
 
@@ -633,7 +633,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               {
                 case 'e':
                   if (name[3] == 'c')
-                  {                               /* exec             */
+                  {                               /* exec                */
                     return -KEY_exec;
                   }
 
@@ -641,7 +641,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
                 case 'i':
                   if (name[3] == 't')
-                  {                               /* exit             */
+                  {                               /* exit                */
                     return -KEY_exit;
                   }
 
@@ -659,7 +659,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           if (name[1] == 'o' &&
               name[2] == 'r' &&
               name[3] == 'k')
-          {                                       /* fork             */
+          {                                       /* fork                */
             return -KEY_fork;
           }
 
@@ -671,7 +671,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'e':
               if (name[2] == 't' &&
                   name[3] == 'c')
-              {                                   /* getc             */
+              {                                   /* getc                */
                 return -KEY_getc;
               }
 
@@ -680,7 +680,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'l':
               if (name[2] == 'o' &&
                   name[3] == 'b')
-              {                                   /* glob             */
+              {                                   /* glob                */
                 return KEY_glob;
               }
 
@@ -689,7 +689,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'o':
               if (name[2] == 't' &&
                   name[3] == 'o')
-              {                                   /* goto             */
+              {                                   /* goto                */
                 return KEY_goto;
               }
 
@@ -698,7 +698,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'r':
               if (name[2] == 'e' &&
                   name[3] == 'p')
-              {                                   /* grep             */
+              {                                   /* grep                */
                 return KEY_grep;
               }
 
@@ -712,7 +712,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           if (name[1] == 'o' &&
               name[2] == 'i' &&
               name[3] == 'n')
-          {                                       /* join             */
+          {                                       /* join                */
             return -KEY_join;
           }
 
@@ -724,7 +724,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'e':
               if (name[2] == 'y' &&
                   name[3] == 's')
-              {                                   /* keys             */
+              {                                   /* keys                */
                 return -KEY_keys;
               }
 
@@ -733,7 +733,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'i':
               if (name[2] == 'l' &&
                   name[3] == 'l')
-              {                                   /* kill             */
+              {                                   /* kill                */
                 return -KEY_kill;
               }
 
@@ -749,7 +749,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'a':
               if (name[2] == 's' &&
                   name[3] == 't')
-              {                                   /* last             */
+              {                                   /* last                */
                 return KEY_last;
               }
 
@@ -758,7 +758,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'i':
               if (name[2] == 'n' &&
                   name[3] == 'k')
-              {                                   /* link             */
+              {                                   /* link                */
                 return -KEY_link;
               }
 
@@ -767,7 +767,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'o':
               if (name[2] == 'c' &&
                   name[3] == 'k')
-              {                                   /* lock             */
+              {                                   /* lock                */
                 return -KEY_lock;
               }
 
@@ -781,7 +781,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           if (name[1] == 'e' &&
               name[2] == 'x' &&
               name[3] == 't')
-          {                                       /* next             */
+          {                                       /* next                */
             return KEY_next;
           }
 
@@ -791,7 +791,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           if (name[1] == 'p' &&
               name[2] == 'e' &&
               name[3] == 'n')
-          {                                       /* open             */
+          {                                       /* open                */
             return -KEY_open;
           }
 
@@ -803,7 +803,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'a':
               if (name[2] == 'c' &&
                   name[3] == 'k')
-              {                                   /* pack             */
+              {                                   /* pack                */
                 return -KEY_pack;
               }
 
@@ -812,7 +812,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'i':
               if (name[2] == 'p' &&
                   name[3] == 'e')
-              {                                   /* pipe             */
+              {                                   /* pipe                */
                 return -KEY_pipe;
               }
 
@@ -821,7 +821,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'u':
               if (name[2] == 's' &&
                   name[3] == 'h')
-              {                                   /* push             */
+              {                                   /* push                */
                 return -KEY_push;
               }
 
@@ -837,7 +837,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'a':
               if (name[2] == 'n' &&
                   name[3] == 'd')
-              {                                   /* rand             */
+              {                                   /* rand                */
                 return -KEY_rand;
               }
 
@@ -848,7 +848,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               {
                 case 'a':
                   if (name[3] == 'd')
-                  {                               /* read             */
+                  {                               /* read                */
                     return -KEY_read;
                   }
 
@@ -856,7 +856,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
                 case 'c':
                   if (name[3] == 'v')
-                  {                               /* recv             */
+                  {                               /* recv                */
                     return -KEY_recv;
                   }
 
@@ -864,7 +864,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
                 case 'd':
                   if (name[3] == 'o')
-                  {                               /* redo             */
+                  {                               /* redo                */
                     return KEY_redo;
                   }
 
@@ -886,7 +886,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               {
                 case 'e':
                   if (name[3] == 'k')
-                  {                               /* seek             */
+                  {                               /* seek                */
                     return -KEY_seek;
                   }
 
@@ -894,7 +894,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
                 case 'n':
                   if (name[3] == 'd')
-                  {                               /* send             */
+                  {                               /* send                */
                     return -KEY_send;
                   }
 
@@ -907,7 +907,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'o':
               if (name[2] == 'r' &&
                   name[3] == 't')
-              {                                   /* sort             */
+              {                                   /* sort                */
                 return KEY_sort;
               }
 
@@ -916,7 +916,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'q':
               if (name[2] == 'r' &&
                   name[3] == 't')
-              {                                   /* sqrt             */
+              {                                   /* sqrt                */
                 return -KEY_sqrt;
               }
 
@@ -925,7 +925,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 't':
               if (name[2] == 'a' &&
                   name[3] == 't')
-              {                                   /* stat             */
+              {                                   /* stat                */
                 return -KEY_stat;
               }
 
@@ -941,7 +941,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'e':
               if (name[2] == 'l' &&
                   name[3] == 'l')
-              {                                   /* tell             */
+              {                                   /* tell                */
                 return -KEY_tell;
               }
 
@@ -952,7 +952,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               {
                 case 'e':
                   if (name[3] == 'd')
-                  {                               /* tied             */
+                  {                               /* tied                */
                     return -KEY_tied;
                   }
 
@@ -960,7 +960,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
                 case 'm':
                   if (name[3] == 'e')
-                  {                               /* time             */
+                  {                               /* time                */
                     return -KEY_time;
                   }
 
@@ -982,7 +982,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               {
                 case 'i':
                   if (name[3] == 't')
-                  {                               /* wait             */
+                  {                               /* wait                */
                     return -KEY_wait;
                   }
 
@@ -990,7 +990,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
                 case 'r':
                   if (name[3] == 'n')
-                  {                               /* warn             */
+                  {                               /* warn                */
                     return -KEY_warn;
                   }
 
@@ -1003,7 +1003,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             case 'h':
               if (name[2] == 'e' &&
                   name[3] == 'n')
-              {                                   /* when             */
+              {                                   /* when                */
                 return (all_keywords || FEATURE_SWITCH_IS_ENABLED ? KEY_when : 0);
               }
 
@@ -1025,7 +1025,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[2] == 'G' &&
               name[3] == 'I' &&
               name[4] == 'N')
-          {                                       /* BEGIN            */
+          {                                       /* BEGIN               */
             return KEY_BEGIN;
           }
 
@@ -1036,7 +1036,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[2] == 'E' &&
               name[3] == 'C' &&
               name[4] == 'K')
-          {                                       /* CHECK            */
+          {                                       /* CHECK               */
             return KEY_CHECK;
           }
 
@@ -1049,7 +1049,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'a' &&
                   name[3] == 'r' &&
                   name[4] == 'm')
-              {                                   /* alarm            */
+              {                                   /* alarm               */
                 return -KEY_alarm;
               }
 
@@ -1059,7 +1059,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'a' &&
                   name[3] == 'n' &&
                   name[4] == '2')
-              {                                   /* atan2            */
+              {                                   /* atan2               */
                 return -KEY_atan2;
               }
 
@@ -1076,7 +1076,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'e' &&
                   name[3] == 's' &&
                   name[4] == 's')
-              {                                   /* bless            */
+              {                                   /* bless               */
                 return -KEY_bless;
               }
 
@@ -1086,7 +1086,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'e' &&
                   name[3] == 'a' &&
                   name[4] == 'k')
-              {                                   /* break            */
+              {                                   /* break               */
                 return (all_keywords || FEATURE_SWITCH_IS_ENABLED ? -KEY_break : 0);
               }
 
@@ -1103,7 +1103,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 't' &&
                   name[3] == 'c' &&
                   name[4] == 'h')
-              {                                   /* catch            */
+              {                                   /* catch               */
                 return (all_keywords || FEATURE_TRY_IS_ENABLED ? KEY_catch : 0);
               }
 
@@ -1115,7 +1115,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                 case 'd':
                   if (name[3] == 'i' &&
                       name[4] == 'r')
-                  {                               /* chdir            */
+                  {                               /* chdir               */
                     return -KEY_chdir;
                   }
 
@@ -1124,7 +1124,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                 case 'm':
                   if (name[3] == 'o' &&
                       name[4] == 'd')
-                  {                               /* chmod            */
+                  {                               /* chmod               */
                     return -KEY_chmod;
                   }
 
@@ -1135,7 +1135,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   {
                     case 'm':
                       if (name[4] == 'p')
-                      {                           /* chomp            */
+                      {                           /* chomp               */
                         return -KEY_chomp;
                       }
 
@@ -1143,7 +1143,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
                     case 'w':
                       if (name[4] == 'n')
-                      {                           /* chown            */
+                      {                           /* chown               */
                         return -KEY_chown;
                       }
 
@@ -1163,7 +1163,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                 case 'a':
                   if (name[3] == 's' &&
                       name[4] == 's')
-                  {                               /* class            */
+                  {                               /* class               */
                     return (all_keywords || FEATURE_CLASS_IS_ENABLED ? -KEY_class : 0);
                   }
 
@@ -1172,7 +1172,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                 case 'o':
                   if (name[3] == 's' &&
                       name[4] == 'e')
-                  {                               /* close            */
+                  {                               /* close               */
                     return -KEY_close;
                   }
 
@@ -1186,7 +1186,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'y' &&
                   name[3] == 'p' &&
                   name[4] == 't')
-              {                                   /* crypt            */
+              {                                   /* crypt               */
                 return -KEY_crypt;
               }
 
@@ -1201,7 +1201,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[2] == 'f' &&
               name[3] == 'e' &&
               name[4] == 'r')
-          {                                       /* defer            */
+          {                                       /* defer               */
             return (all_keywords || FEATURE_DEFER_IS_ENABLED ? KEY_defer : 0);
           }
 
@@ -1212,7 +1212,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[2] == 's' &&
               name[3] == 'i' &&
               name[4] == 'f')
-          {                                       /* elsif            */
+          {                                       /* elsif               */
             return KEY_elsif;
           }
 
@@ -1225,7 +1225,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'n' &&
                   name[3] == 't' &&
                   name[4] == 'l')
-              {                                   /* fcntl            */
+              {                                   /* fcntl               */
                 return -KEY_fcntl;
               }
 
@@ -1235,7 +1235,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'e' &&
                   name[3] == 'l' &&
                   name[4] == 'd')
-              {                                   /* field            */
+              {                                   /* field               */
                 return (all_keywords || FEATURE_CLASS_IS_ENABLED ? -KEY_field : 0);
               }
 
@@ -1245,7 +1245,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'o' &&
                   name[3] == 'c' &&
                   name[4] == 'k')
-              {                                   /* flock            */
+              {                                   /* flock               */
                 return -KEY_flock;
               }
 
@@ -1260,7 +1260,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[2] == 'v' &&
               name[3] == 'e' &&
               name[4] == 'n')
-          {                                       /* given            */
+          {                                       /* given               */
             return (all_keywords || FEATURE_SWITCH_IS_ENABLED ? KEY_given : 0);
           }
 
@@ -1273,7 +1273,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'd' &&
                   name[3] == 'e' &&
                   name[4] == 'x')
-              {                                   /* index            */
+              {                                   /* index               */
                 return -KEY_index;
               }
 
@@ -1283,7 +1283,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'c' &&
                   name[3] == 't' &&
                   name[4] == 'l')
-              {                                   /* ioctl            */
+              {                                   /* ioctl               */
                 return -KEY_ioctl;
               }
 
@@ -1300,7 +1300,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'c' &&
                   name[3] == 'a' &&
                   name[4] == 'l')
-              {                                   /* local            */
+              {                                   /* local               */
                 return KEY_local;
               }
 
@@ -1310,7 +1310,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 't' &&
                   name[3] == 'a' &&
                   name[4] == 't')
-              {                                   /* lstat            */
+              {                                   /* lstat               */
                 return -KEY_lstat;
               }
 
@@ -1325,7 +1325,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[2] == 'd' &&
               name[3] == 'i' &&
               name[4] == 'r')
-          {                                       /* mkdir            */
+          {                                       /* mkdir               */
             return -KEY_mkdir;
           }
 
@@ -1336,7 +1336,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[2] == 'i' &&
               name[3] == 'n' &&
               name[4] == 't')
-          {                                       /* print            */
+          {                                       /* print               */
             return KEY_print;
           }
 
@@ -1349,7 +1349,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 's' &&
                   name[3] == 'e' &&
                   name[4] == 't')
-              {                                   /* reset            */
+              {                                   /* reset               */
                 return -KEY_reset;
               }
 
@@ -1359,7 +1359,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'd' &&
                   name[3] == 'i' &&
                   name[4] == 'r')
-              {                                   /* rmdir            */
+              {                                   /* rmdir               */
                 return -KEY_rmdir;
               }
 
@@ -1376,7 +1376,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'm' &&
                   name[3] == 'o' &&
                   name[4] == 'p')
-              {                                   /* semop            */
+              {                                   /* semop               */
                 return -KEY_semop;
               }
 
@@ -1386,7 +1386,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'i' &&
                   name[3] == 'f' &&
                   name[4] == 't')
-              {                                   /* shift            */
+              {                                   /* shift               */
                 return -KEY_shift;
               }
 
@@ -1396,7 +1396,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'e' &&
                   name[3] == 'e' &&
                   name[4] == 'p')
-              {                                   /* sleep            */
+              {                                   /* sleep               */
                 return -KEY_sleep;
               }
 
@@ -1406,7 +1406,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'l' &&
                   name[3] == 'i' &&
                   name[4] == 't')
-              {                                   /* split            */
+              {                                   /* split               */
                 return KEY_split;
               }
 
@@ -1416,7 +1416,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'a' &&
                   name[3] == 'n' &&
                   name[4] == 'd')
-              {                                   /* srand            */
+              {                                   /* srand               */
                 return -KEY_srand;
               }
 
@@ -1428,7 +1428,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                 case 'a':
                   if (name[3] == 't' &&
                       name[4] == 'e')
-                  {                               /* state            */
+                  {                               /* state               */
                     return (all_keywords || FEATURE_STATE_IS_ENABLED ? KEY_state : 0);
                   }
 
@@ -1437,7 +1437,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                 case 'u':
                   if (name[3] == 'd' &&
                       name[4] == 'y')
-                  {                               /* study            */
+                  {                               /* study               */
                     return KEY_study;
                   }
 
@@ -1456,7 +1456,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[2] == 'm' &&
               name[3] == 'e' &&
               name[4] == 's')
-          {                                       /* times            */
+          {                                       /* times               */
             return -KEY_times;
           }
 
@@ -1469,7 +1469,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'a' &&
                   name[3] == 's' &&
                   name[4] == 'k')
-              {                                   /* umask            */
+              {                                   /* umask               */
                 return -KEY_umask;
               }
 
@@ -1481,7 +1481,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                 case 'd':
                   if (name[3] == 'e' &&
                       name[4] == 'f')
-                  {                               /* undef            */
+                  {                               /* undef               */
                     return KEY_undef;
                   }
 
@@ -1493,12 +1493,12 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     switch (name[4])
                     {
                       case 'e':
-                        {                         /* untie            */
+                        {                         /* untie               */
                           return -KEY_untie;
                         }
 
                       case 'l':
-                        {                         /* until            */
+                        {                         /* until               */
                           return KEY_until;
                         }
 
@@ -1517,7 +1517,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'i' &&
                   name[3] == 'm' &&
                   name[4] == 'e')
-              {                                   /* utime            */
+              {                                   /* utime               */
                 return -KEY_utime;
               }
 
@@ -1534,7 +1534,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'i' &&
                   name[3] == 'l' &&
                   name[4] == 'e')
-              {                                   /* while            */
+              {                                   /* while               */
                 return KEY_while;
               }
 
@@ -1544,7 +1544,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               if (name[2] == 'i' &&
                   name[3] == 't' &&
                   name[4] == 'e')
-              {                                   /* write            */
+              {                                   /* write               */
                 return -KEY_write;
               }
 
@@ -1567,7 +1567,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[3] == 'U' &&
               name[4] == 'S' &&
               name[5] == 'T')
-          {                                       /* ADJUST           */
+          {                                       /* ADJUST              */
             return (all_keywords || FEATURE_CLASS_IS_ENABLED ? KEY_ADJUST : 0);
           }
 
@@ -1579,7 +1579,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[3] == 'e' &&
               name[4] == 'p' &&
               name[5] == 't')
-          {                                       /* accept           */
+          {                                       /* accept              */
             return -KEY_accept;
           }
 
@@ -1593,7 +1593,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[3] == 'l' &&
                   name[4] == 'e' &&
                   name[5] == 'r')
-              {                                   /* caller           */
+              {                                   /* caller              */
                 return -KEY_caller;
               }
 
@@ -1604,7 +1604,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[3] == 'o' &&
                   name[4] == 'o' &&
                   name[5] == 't')
-              {                                   /* chroot           */
+              {                                   /* chroot              */
                 return -KEY_chroot;
               }
 
@@ -1620,7 +1620,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[3] == 'e' &&
               name[4] == 't' &&
               name[5] == 'e')
-          {                                       /* delete           */
+          {                                       /* delete              */
             return KEY_delete;
           }
 
@@ -1634,7 +1634,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[3] == 'e' &&
                   name[4] == 'i' &&
                   name[5] == 'f')
-              {                                   /* elseif           */
+              {                                   /* elseif              */
                 ck_warner_d(packWARN(WARN_SYNTAX), "elseif should be elsif");
               }
 
@@ -1645,7 +1645,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[3] == 's' &&
                   name[4] == 't' &&
                   name[5] == 's')
-              {                                   /* exists           */
+              {                                   /* exists              */
                 return KEY_exists;
               }
 
@@ -1663,7 +1663,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[3] == 'e' &&
                   name[4] == 'n' &&
                   name[5] == 'o')
-              {                                   /* fileno           */
+              {                                   /* fileno              */
                 return -KEY_fileno;
               }
 
@@ -1674,7 +1674,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[3] == 'm' &&
                   name[4] == 'a' &&
                   name[5] == 't')
-              {                                   /* format           */
+              {                                   /* format              */
                 return KEY_format;
               }
 
@@ -1690,7 +1690,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[3] == 'i' &&
               name[4] == 'm' &&
               name[5] == 'e')
-          {                                       /* gmtime           */
+          {                                       /* gmtime              */
             return -KEY_gmtime;
           }
 
@@ -1704,7 +1704,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[3] == 'g' &&
                   name[4] == 't' &&
                   name[5] == 'h')
-              {                                   /* length           */
+              {                                   /* length              */
                 return -KEY_length;
               }
 
@@ -1715,7 +1715,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[3] == 't' &&
                   name[4] == 'e' &&
                   name[5] == 'n')
-              {                                   /* listen           */
+              {                                   /* listen              */
                 return -KEY_listen;
               }
 
@@ -1733,7 +1733,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[3] == 'h' &&
                   name[4] == 'o' &&
                   name[5] == 'd')
-              {                                   /* method           */
+              {                                   /* method              */
                 return (all_keywords || FEATURE_CLASS_IS_ENABLED ? -KEY_method : 0);
               }
 
@@ -1747,7 +1747,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   case 'c':
                     if (name[4] == 't' &&
                         name[5] == 'l')
-                    {                             /* msgctl           */
+                    {                             /* msgctl              */
                       return -KEY_msgctl;
                     }
 
@@ -1756,7 +1756,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   case 'g':
                     if (name[4] == 'e' &&
                         name[5] == 't')
-                    {                             /* msgget           */
+                    {                             /* msgget              */
                       return -KEY_msgget;
                     }
 
@@ -1765,7 +1765,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   case 'r':
                     if (name[4] == 'c' &&
                         name[5] == 'v')
-                    {                             /* msgrcv           */
+                    {                             /* msgrcv              */
                       return -KEY_msgrcv;
                     }
 
@@ -1774,7 +1774,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   case 's':
                     if (name[4] == 'n' &&
                         name[5] == 'd')
-                    {                             /* msgsnd           */
+                    {                             /* msgsnd              */
                       return -KEY_msgsnd;
                     }
 
@@ -1797,7 +1797,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[3] == 'n' &&
               name[4] == 't' &&
               name[5] == 'f')
-          {                                       /* printf           */
+          {                                       /* printf              */
             return KEY_printf;
           }
 
@@ -1813,7 +1813,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   if (name[3] == 'a' &&
                       name[4] == 'm' &&
                       name[5] == 'e')
-                  {                               /* rename           */
+                  {                               /* rename              */
                     return -KEY_rename;
                   }
 
@@ -1823,7 +1823,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   if (name[3] == 'u' &&
                       name[4] == 'r' &&
                       name[5] == 'n')
-                  {                               /* return           */
+                  {                               /* return              */
                     return KEY_return;
                   }
 
@@ -1838,7 +1838,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[3] == 'd' &&
                   name[4] == 'e' &&
                   name[5] == 'x')
-              {                                   /* rindex           */
+              {                                   /* rindex              */
                 return -KEY_rindex;
               }
 
@@ -1856,7 +1856,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[3] == 'l' &&
                   name[4] == 'a' &&
                   name[5] == 'r')
-              {                                   /* scalar           */
+              {                                   /* scalar              */
                 return KEY_scalar;
               }
 
@@ -1869,7 +1869,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   if (name[3] == 'e' &&
                       name[4] == 'c' &&
                       name[5] == 't')
-                  {                               /* select           */
+                  {                               /* select              */
                     return -KEY_select;
                   }
 
@@ -1881,7 +1881,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     case 'c':
                       if (name[4] == 't' &&
                           name[5] == 'l')
-                      {                           /* semctl           */
+                      {                           /* semctl              */
                         return -KEY_semctl;
                       }
 
@@ -1890,7 +1890,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     case 'g':
                       if (name[4] == 'e' &&
                           name[5] == 't')
-                      {                           /* semget           */
+                      {                           /* semget              */
                         return -KEY_semget;
                       }
 
@@ -1912,7 +1912,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   case 'c':
                     if (name[4] == 't' &&
                         name[5] == 'l')
-                    {                             /* shmctl           */
+                    {                             /* shmctl              */
                       return -KEY_shmctl;
                     }
 
@@ -1921,7 +1921,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   case 'g':
                     if (name[4] == 'e' &&
                         name[5] == 't')
-                    {                             /* shmget           */
+                    {                             /* shmget              */
                       return -KEY_shmget;
                     }
 
@@ -1939,7 +1939,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[3] == 'k' &&
                   name[4] == 'e' &&
                   name[5] == 't')
-              {                                   /* socket           */
+              {                                   /* socket              */
                 return -KEY_socket;
               }
 
@@ -1950,7 +1950,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[3] == 'i' &&
                   name[4] == 'c' &&
                   name[5] == 'e')
-              {                                   /* splice           */
+              {                                   /* splice              */
                 return -KEY_splice;
               }
 
@@ -1961,7 +1961,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[3] == 's' &&
                   name[4] == 't' &&
                   name[5] == 'r')
-              {                                   /* substr           */
+              {                                   /* substr              */
                 return -KEY_substr;
               }
 
@@ -1972,7 +1972,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[3] == 't' &&
                   name[4] == 'e' &&
                   name[5] == 'm')
-              {                                   /* system           */
+              {                                   /* system              */
                 return -KEY_system;
               }
 
@@ -1993,7 +1993,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   case 'e':
                     if (name[4] == 's' &&
                         name[5] == 's')
-                    {                             /* unless           */
+                    {                             /* unless              */
                       return KEY_unless;
                     }
 
@@ -2002,7 +2002,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   case 'i':
                     if (name[4] == 'n' &&
                         name[5] == 'k')
-                    {                             /* unlink           */
+                    {                             /* unlink              */
                       return -KEY_unlink;
                     }
 
@@ -2016,7 +2016,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                 if (name[3] == 'a' &&
                     name[4] == 'c' &&
                     name[5] == 'k')
-                {                                 /* unpack           */
+                {                                 /* unpack              */
                   return -KEY_unpack;
                 }
 
@@ -2035,7 +2035,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[3] == 'u' &&
               name[4] == 'e' &&
               name[5] == 's')
-          {                                       /* values           */
+          {                                       /* values              */
             return -KEY_values;
           }
 
@@ -2055,7 +2055,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[4] == 'R' &&
               name[5] == 'O' &&
               name[6] == 'Y')
-          {                                       /* DESTROY          */
+          {                                       /* DESTROY             */
             return KEY_DESTROY;
           }
 
@@ -2071,7 +2071,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[4] == 'D' &&
                     name[5] == '_' &&
                     name[6] == '_')
-                {                                 /* __END__          */
+                {                                 /* __END__             */
                   return KEY___END__;
                 }
 
@@ -2082,7 +2082,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[4] == 'B' &&
                     name[5] == '_' &&
                     name[6] == '_')
-                {                                 /* __SUB__          */
+                {                                 /* __SUB__             */
                   return (all_keywords || FEATURE___SUB___IS_ENABLED ? -KEY___SUB__ : 0);
                 }
 
@@ -2102,7 +2102,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[4] == 'o' &&
               name[5] == 'd' &&
               name[6] == 'e')
-          {                                       /* binmode          */
+          {                                       /* binmode             */
             return -KEY_binmode;
           }
 
@@ -2115,7 +2115,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[4] == 'e' &&
               name[5] == 'c' &&
               name[6] == 't')
-          {                                       /* connect          */
+          {                                       /* connect             */
             return -KEY_connect;
           }
 
@@ -2130,7 +2130,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[4] == 'p' &&
                   name[5] == 'e' &&
                   name[6] == 'n')
-              {                                   /* dbmopen          */
+              {                                   /* dbmopen             */
                 return -KEY_dbmopen;
               }
 
@@ -2145,7 +2145,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     if (name[4] == 'u' &&
                         name[5] == 'l' &&
                         name[6] == 't')
-                    {                             /* default          */
+                    {                             /* default             */
                       return (all_keywords || FEATURE_SWITCH_IS_ENABLED ? KEY_default : 0);
                     }
 
@@ -2155,7 +2155,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     if (name[4] == 'n' &&
                         name[5] == 'e' &&
                         name[6] == 'd')
-                    {                             /* defined          */
+                    {                             /* defined             */
                       return KEY_defined;
                     }
 
@@ -2181,7 +2181,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[4] == 'l' &&
                   name[5] == 'l' &&
                   name[6] == 'y')
-              {                                   /* finally          */
+              {                                   /* finally             */
                 return (all_keywords || FEATURE_TRY_IS_ENABLED ? KEY_finally : 0);
               }
 
@@ -2193,7 +2193,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[4] == 'a' &&
                   name[5] == 'c' &&
                   name[6] == 'h')
-              {                                   /* foreach          */
+              {                                   /* foreach             */
                 return KEY_foreach;
               }
 
@@ -2213,7 +2213,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               case 'g':
                 if (name[5] == 'r' &&
                     name[6] == 'p')
-                {                                 /* getpgrp          */
+                {                                 /* getpgrp             */
                   return -KEY_getpgrp;
                 }
 
@@ -2222,7 +2222,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               case 'p':
                 if (name[5] == 'i' &&
                     name[6] == 'd')
-                {                                 /* getppid          */
+                {                                 /* getppid             */
                   return -KEY_getppid;
                 }
 
@@ -2242,7 +2242,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[4] == 'r' &&
               name[5] == 's' &&
               name[6] == 't')
-          {                                       /* lcfirst          */
+          {                                       /* lcfirst             */
             return -KEY_lcfirst;
           }
 
@@ -2255,7 +2255,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[4] == 'd' &&
               name[5] == 'i' &&
               name[6] == 'r')
-          {                                       /* opendir          */
+          {                                       /* opendir             */
             return -KEY_opendir;
           }
 
@@ -2268,7 +2268,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[4] == 'a' &&
               name[5] == 'g' &&
               name[6] == 'e')
-          {                                       /* package          */
+          {                                       /* package             */
             return KEY_package;
           }
 
@@ -2284,7 +2284,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[4] == 'd' &&
                     name[5] == 'i' &&
                     name[6] == 'r')
-                {                                 /* readdir          */
+                {                                 /* readdir             */
                   return -KEY_readdir;
                 }
 
@@ -2295,7 +2295,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[4] == 'i' &&
                     name[5] == 'r' &&
                     name[6] == 'e')
-                {                                 /* require          */
+                {                                 /* require             */
                   return KEY_require;
                 }
 
@@ -2306,7 +2306,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[4] == 'r' &&
                     name[5] == 's' &&
                     name[6] == 'e')
-                {                                 /* reverse          */
+                {                                 /* reverse             */
                   return -KEY_reverse;
                 }
 
@@ -2330,7 +2330,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                       name[4] == 'd' &&
                       name[5] == 'i' &&
                       name[6] == 'r')
-                  {                               /* seekdir          */
+                  {                               /* seekdir             */
                     return -KEY_seekdir;
                   }
 
@@ -2341,7 +2341,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                       name[4] == 'g' &&
                       name[5] == 'r' &&
                       name[6] == 'p')
-                  {                               /* setpgrp          */
+                  {                               /* setpgrp             */
                     return -KEY_setpgrp;
                   }
 
@@ -2357,7 +2357,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[4] == 'e' &&
                   name[5] == 'a' &&
                   name[6] == 'd')
-              {                                   /* shmread          */
+              {                                   /* shmread             */
                 return -KEY_shmread;
               }
 
@@ -2369,7 +2369,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[4] == 'n' &&
                   name[5] == 't' &&
                   name[6] == 'f')
-              {                                   /* sprintf          */
+              {                                   /* sprintf             */
                 return -KEY_sprintf;
               }
 
@@ -2383,7 +2383,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                       name[4] == 'i' &&
                       name[5] == 'n' &&
                       name[6] == 'k')
-                  {                               /* symlink          */
+                  {                               /* symlink             */
                     return -KEY_symlink;
                   }
 
@@ -2396,7 +2396,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                       if (name[4] == 'a' &&
                           name[5] == 'l' &&
                           name[6] == 'l')
-                      {                           /* syscall          */
+                      {                           /* syscall             */
                         return -KEY_syscall;
                       }
 
@@ -2406,7 +2406,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                       if (name[4] == 'p' &&
                           name[5] == 'e' &&
                           name[6] == 'n')
-                      {                           /* sysopen          */
+                      {                           /* sysopen             */
                         return -KEY_sysopen;
                       }
 
@@ -2416,7 +2416,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                       if (name[4] == 'e' &&
                           name[5] == 'a' &&
                           name[6] == 'd')
-                      {                           /* sysread          */
+                      {                           /* sysread             */
                         return -KEY_sysread;
                       }
 
@@ -2426,7 +2426,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                       if (name[4] == 'e' &&
                           name[5] == 'e' &&
                           name[6] == 'k')
-                      {                           /* sysseek          */
+                      {                           /* sysseek             */
                         return -KEY_sysseek;
                       }
 
@@ -2451,7 +2451,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[4] == 'd' &&
               name[5] == 'i' &&
               name[6] == 'r')
-          {                                       /* telldir          */
+          {                                       /* telldir             */
             return -KEY_telldir;
           }
 
@@ -2466,7 +2466,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[4] == 'r' &&
                   name[5] == 's' &&
                   name[6] == 't')
-              {                                   /* ucfirst          */
+              {                                   /* ucfirst             */
                 return -KEY_ucfirst;
               }
 
@@ -2478,7 +2478,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[4] == 'i' &&
                   name[5] == 'f' &&
                   name[6] == 't')
-              {                                   /* unshift          */
+              {                                   /* unshift             */
                 return -KEY_unshift;
               }
 
@@ -2495,7 +2495,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[4] == 'p' &&
               name[5] == 'i' &&
               name[6] == 'd')
-          {                                       /* waitpid          */
+          {                                       /* waitpid             */
             return -KEY_waitpid;
           }
 
@@ -2516,7 +2516,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[5] == 'O' &&
               name[6] == 'A' &&
               name[7] == 'D')
-          {                                       /* AUTOLOAD         */
+          {                                       /* AUTOLOAD            */
             return KEY_AUTOLOAD;
           }
 
@@ -2533,7 +2533,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[5] == 'A' &&
                     name[6] == '_' &&
                     name[7] == '_')
-                {                                 /* __DATA__         */
+                {                                 /* __DATA__            */
                   return KEY___DATA__;
                 }
 
@@ -2545,7 +2545,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[5] == 'E' &&
                     name[6] == '_' &&
                     name[7] == '_')
-                {                                 /* __FILE__         */
+                {                                 /* __FILE__            */
                   return -KEY___FILE__;
                 }
 
@@ -2557,7 +2557,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[5] == 'E' &&
                     name[6] == '_' &&
                     name[7] == '_')
-                {                                 /* __LINE__         */
+                {                                 /* __LINE__            */
                   return -KEY___LINE__;
                 }
 
@@ -2580,7 +2580,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[5] == 'd' &&
                   name[6] == 'i' &&
                   name[7] == 'r')
-              {                                   /* closedir         */
+              {                                   /* closedir            */
                 return -KEY_closedir;
               }
 
@@ -2593,7 +2593,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[5] == 'n' &&
                   name[6] == 'u' &&
                   name[7] == 'e')
-              {                                   /* continue         */
+              {                                   /* continue            */
                 return -KEY_continue;
               }
 
@@ -2611,7 +2611,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[5] == 'o' &&
               name[6] == 's' &&
               name[7] == 'e')
-          {                                       /* dbmclose         */
+          {                                       /* dbmclose            */
             return -KEY_dbmclose;
           }
 
@@ -2628,7 +2628,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[5] == 'e' &&
                     name[6] == 'n' &&
                     name[7] == 't')
-                {                                 /* endgrent         */
+                {                                 /* endgrent            */
                   return -KEY_endgrent;
                 }
 
@@ -2639,7 +2639,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[5] == 'e' &&
                     name[6] == 'n' &&
                     name[7] == 't')
-                {                                 /* endpwent         */
+                {                                 /* endpwent            */
                   return -KEY_endpwent;
                 }
 
@@ -2660,7 +2660,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[5] == 'i' &&
               name[6] == 'n' &&
               name[7] == 'e')
-          {                                       /* formline         */
+          {                                       /* formline            */
             return -KEY_formline;
           }
 
@@ -2680,7 +2680,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     case 'e':
                       if (name[6] == 'n' &&
                           name[7] == 't')
-                      {                           /* getgrent         */
+                      {                           /* getgrent            */
                         return -KEY_getgrent;
                       }
 
@@ -2689,7 +2689,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     case 'g':
                       if (name[6] == 'i' &&
                           name[7] == 'd')
-                      {                           /* getgrgid         */
+                      {                           /* getgrgid            */
                         return -KEY_getgrgid;
                       }
 
@@ -2698,7 +2698,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     case 'n':
                       if (name[6] == 'a' &&
                           name[7] == 'm')
-                      {                           /* getgrnam         */
+                      {                           /* getgrnam            */
                         return -KEY_getgrnam;
                       }
 
@@ -2716,7 +2716,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[5] == 'g' &&
                     name[6] == 'i' &&
                     name[7] == 'n')
-                {                                 /* getlogin         */
+                {                                 /* getlogin            */
                   return -KEY_getlogin;
                 }
 
@@ -2730,7 +2730,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     case 'e':
                       if (name[6] == 'n' &&
                           name[7] == 't')
-                      {                           /* getpwent         */
+                      {                           /* getpwent            */
                         return -KEY_getpwent;
                       }
 
@@ -2739,7 +2739,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     case 'n':
                       if (name[6] == 'a' &&
                           name[7] == 'm')
-                      {                           /* getpwnam         */
+                      {                           /* getpwnam            */
                         return -KEY_getpwnam;
                       }
 
@@ -2748,7 +2748,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     case 'u':
                       if (name[6] == 'i' &&
                           name[7] == 'd')
-                      {                           /* getpwuid         */
+                      {                           /* getpwuid            */
                         return -KEY_getpwuid;
                       }
 
@@ -2782,12 +2782,12 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   switch (name[7])
                   {
                     case 'e':
-                      {                           /* readline         */
+                      {                           /* readline            */
                         return -KEY_readline;
                       }
 
                     case 'k':
-                      {                           /* readlink         */
+                      {                           /* readlink            */
                         return -KEY_readlink;
                       }
 
@@ -2802,7 +2802,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                 if (name[5] == 'i' &&
                     name[6] == 'p' &&
                     name[7] == 'e')
-                {                                 /* readpipe         */
+                {                                 /* readpipe            */
                   return -KEY_readpipe;
                 }
 
@@ -2828,7 +2828,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                         name[5] == 'e' &&
                         name[6] == 'n' &&
                         name[7] == 't')
-                    {                             /* setgrent         */
+                    {                             /* setgrent            */
                       return -KEY_setgrent;
                     }
 
@@ -2839,7 +2839,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                         name[5] == 'e' &&
                         name[6] == 'n' &&
                         name[7] == 't')
-                    {                             /* setpwent         */
+                    {                             /* setpwent            */
                       return -KEY_setpwent;
                     }
 
@@ -2861,7 +2861,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                       name[5] == 'i' &&
                       name[6] == 't' &&
                       name[7] == 'e')
-                  {                               /* shmwrite         */
+                  {                               /* shmwrite            */
                     return -KEY_shmwrite;
                   }
 
@@ -2873,7 +2873,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                       name[5] == 'o' &&
                       name[6] == 'w' &&
                       name[7] == 'n')
-                  {                               /* shutdown         */
+                  {                               /* shutdown            */
                     return -KEY_shutdown;
                   }
 
@@ -2890,7 +2890,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[5] == 'i' &&
                   name[6] == 't' &&
                   name[7] == 'e')
-              {                                   /* syswrite         */
+              {                                   /* syswrite            */
                 return -KEY_syswrite;
               }
 
@@ -2908,7 +2908,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[5] == 'a' &&
               name[6] == 't' &&
               name[7] == 'e')
-          {                                       /* truncate         */
+          {                                       /* truncate            */
             return -KEY_truncate;
           }
 
@@ -2930,7 +2930,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[6] == 'E' &&
               name[7] == 'C' &&
               name[8] == 'K')
-          {                                       /* UNITCHECK        */
+          {                                       /* UNITCHECK           */
             return KEY_UNITCHECK;
           }
 
@@ -2945,7 +2945,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[6] == 'S' &&
               name[7] == '_' &&
               name[8] == '_')
-          {                                       /* __CLASS__        */
+          {                                       /* __CLASS__           */
             return (all_keywords || FEATURE_CLASS_IS_ENABLED ? -KEY___CLASS__ : 0);
           }
 
@@ -2962,7 +2962,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[6] == 'e' &&
                   name[7] == 'n' &&
                   name[8] == 't')
-              {                                   /* endnetent        */
+              {                                   /* endnetent           */
                 return -KEY_endnetent;
               }
 
@@ -2976,7 +2976,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[6] == 't' &&
                   name[7] == 'e' &&
                   name[8] == 's')
-              {                                   /* evalbytes        */
+              {                                   /* evalbytes           */
                 return (all_keywords || FEATURE_EVALBYTES_IS_ENABLED ? -KEY_evalbytes : 0);
               }
 
@@ -2995,7 +2995,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[6] == 'e' &&
               name[7] == 'n' &&
               name[8] == 't')
-          {                                       /* getnetent        */
+          {                                       /* getnetent           */
             return -KEY_getnetent;
           }
 
@@ -3010,7 +3010,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[6] == 'i' &&
               name[7] == 'm' &&
               name[8] == 'e')
-          {                                       /* localtime        */
+          {                                       /* localtime           */
             return -KEY_localtime;
           }
 
@@ -3025,7 +3025,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[6] == 'y' &&
               name[7] == 'p' &&
               name[8] == 'e')
-          {                                       /* prototype        */
+          {                                       /* prototype           */
             return KEY_prototype;
           }
 
@@ -3040,7 +3040,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[6] == 'e' &&
               name[7] == 't' &&
               name[8] == 'a')
-          {                                       /* quotemeta        */
+          {                                       /* quotemeta           */
             return -KEY_quotemeta;
           }
 
@@ -3055,7 +3055,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[6] == 'd' &&
               name[7] == 'i' &&
               name[8] == 'r')
-          {                                       /* rewinddir        */
+          {                                       /* rewinddir           */
             return -KEY_rewinddir;
           }
 
@@ -3070,7 +3070,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[6] == 'e' &&
               name[7] == 'n' &&
               name[8] == 't')
-          {                                       /* setnetent        */
+          {                                       /* setnetent           */
             return -KEY_setnetent;
           }
 
@@ -3085,7 +3085,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[6] == 'r' &&
               name[7] == 'a' &&
               name[8] == 'y')
-          {                                       /* wantarray        */
+          {                                       /* wantarray           */
             return -KEY_wantarray;
           }
 
@@ -3111,7 +3111,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[7] == 'e' &&
                     name[8] == 'n' &&
                     name[9] == 't')
-                {                                 /* endhostent       */
+                {                                 /* endhostent          */
                   return -KEY_endhostent;
                 }
 
@@ -3124,7 +3124,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[7] == 'e' &&
                     name[8] == 'n' &&
                     name[9] == 't')
-                {                                 /* endservent       */
+                {                                 /* endservent          */
                   return -KEY_endservent;
                 }
 
@@ -3150,7 +3150,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[7] == 'e' &&
                     name[8] == 'n' &&
                     name[9] == 't')
-                {                                 /* gethostent       */
+                {                                 /* gethostent          */
                   return -KEY_gethostent;
                 }
 
@@ -3165,7 +3165,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                         name[7] == 'e' &&
                         name[8] == 'n' &&
                         name[9] == 't')
-                    {                             /* getservent       */
+                    {                             /* getservent          */
                       return -KEY_getservent;
                     }
 
@@ -3177,7 +3177,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                         name[7] == 'o' &&
                         name[8] == 'p' &&
                         name[9] == 't')
-                    {                             /* getsockopt       */
+                    {                             /* getsockopt          */
                       return -KEY_getsockopt;
                     }
 
@@ -3209,7 +3209,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                         name[7] == 'e' &&
                         name[8] == 'n' &&
                         name[9] == 't')
-                    {                             /* sethostent       */
+                    {                             /* sethostent          */
                       return -KEY_sethostent;
                     }
 
@@ -3224,7 +3224,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                             name[7] == 'e' &&
                             name[8] == 'n' &&
                             name[9] == 't')
-                        {                         /* setservent       */
+                        {                         /* setservent          */
                           return -KEY_setservent;
                         }
 
@@ -3236,7 +3236,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                             name[7] == 'o' &&
                             name[8] == 'p' &&
                             name[9] == 't')
-                        {                         /* setsockopt       */
+                        {                         /* setsockopt          */
                           return -KEY_setsockopt;
                         }
 
@@ -3262,7 +3262,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   name[7] == 'a' &&
                   name[8] == 'i' &&
                   name[9] == 'r')
-              {                                   /* socketpair       */
+              {                                   /* socketpair          */
                 return -KEY_socketpair;
               }
 
@@ -3290,7 +3290,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[8] == 'E' &&
               name[9] == '_' &&
               name[10] == '_')
-          {                                       /* __PACKAGE__      */
+          {                                       /* __PACKAGE__         */
             return -KEY___PACKAGE__;
           }
 
@@ -3307,7 +3307,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[8] == 'e' &&
               name[9] == 'n' &&
               name[10] == 't')
-          {                                       /* endprotoent      */
+          {                                       /* endprotoent         */
             return -KEY_endprotoent;
           }
 
@@ -3329,7 +3329,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                         name[8] == 'a' &&
                         name[9] == 'm' &&
                         name[10] == 'e')
-                    {                             /* getpeername      */
+                    {                             /* getpeername         */
                       return -KEY_getpeername;
                     }
 
@@ -3344,7 +3344,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                             name[8] == 'i' &&
                             name[9] == 't' &&
                             name[10] == 'y')
-                        {                         /* getpriority      */
+                        {                         /* getpriority         */
                           return -KEY_getpriority;
                         }
 
@@ -3356,7 +3356,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                             name[8] == 'e' &&
                             name[9] == 'n' &&
                             name[10] == 't')
-                        {                         /* getprotoent      */
+                        {                         /* getprotoent         */
                           return -KEY_getprotoent;
                         }
 
@@ -3378,7 +3378,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[8] == 'a' &&
                     name[9] == 'm' &&
                     name[10] == 'e')
-                {                                 /* getsockname      */
+                {                                 /* getsockname         */
                   return -KEY_getsockname;
                 }
 
@@ -3405,7 +3405,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[8] == 'i' &&
                     name[9] == 't' &&
                     name[10] == 'y')
-                {                                 /* setpriority      */
+                {                                 /* setpriority         */
                   return -KEY_setpriority;
                 }
 
@@ -3417,7 +3417,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                     name[8] == 'e' &&
                     name[9] == 'n' &&
                     name[10] == 't')
-                {                                 /* setprotoent      */
+                {                                 /* setprotoent         */
                   return -KEY_setprotoent;
                 }
 
@@ -3450,7 +3450,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             if (name[9] == 'd' &&
                 name[10] == 'd' &&
                 name[11] == 'r')
-            {                                     /* getnetbyaddr     */
+            {                                     /* getnetbyaddr        */
               return -KEY_getnetbyaddr;
             }
 
@@ -3460,7 +3460,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             if (name[9] == 'a' &&
                 name[10] == 'm' &&
                 name[11] == 'e')
-            {                                     /* getnetbyname     */
+            {                                     /* getnetbyname        */
               return -KEY_getnetbyname;
             }
 
@@ -3493,7 +3493,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   if (name[10] == 'd' &&
                       name[11] == 'd' &&
                       name[12] == 'r')
-                  {                               /* gethostbyaddr    */
+                  {                               /* gethostbyaddr       */
                     return -KEY_gethostbyaddr;
                   }
 
@@ -3503,7 +3503,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   if (name[10] == 'a' &&
                       name[11] == 'm' &&
                       name[12] == 'e')
-                  {                               /* gethostbyname    */
+                  {                               /* gethostbyname       */
                     return -KEY_gethostbyname;
                   }
 
@@ -3529,7 +3529,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   if (name[10] == 'a' &&
                       name[11] == 'm' &&
                       name[12] == 'e')
-                  {                               /* getservbyname    */
+                  {                               /* getservbyname       */
                     return -KEY_getservbyname;
                   }
 
@@ -3539,7 +3539,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
                   if (name[10] == 'o' &&
                       name[11] == 'r' &&
                       name[12] == 't')
-                  {                               /* getservbyport    */
+                  {                               /* getservbyport       */
                     return -KEY_getservbyport;
                   }
 
@@ -3574,31 +3574,109 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           name[11] == 'a' &&
           name[12] == 'm' &&
           name[13] == 'e')
-      {                                           /* getprotobyname   */
+      {                                           /* getprotobyname      */
         return -KEY_getprotobyname;
       }
 
       goto unknown;
 
-    case 16: /* 1 tokens of length 16 */
+    case 15: /* 1 tokens of length 15 */
       if (name[0] == 'g' &&
           name[1] == 'e' &&
-          name[2] == 't' &&
-          name[3] == 'p' &&
+          name[2] == 'n' &&
+          name[3] == 'e' &&
           name[4] == 'r' &&
-          name[5] == 'o' &&
+          name[5] == 'a' &&
           name[6] == 't' &&
           name[7] == 'o' &&
-          name[8] == 'b' &&
-          name[9] == 'y' &&
-          name[10] == 'n' &&
-          name[11] == 'u' &&
-          name[12] == 'm' &&
-          name[13] == 'b' &&
-          name[14] == 'e' &&
-          name[15] == 'r')
-      {                                           /* getprotobynumber */
-        return -KEY_getprotobynumber;
+          name[8] == 'r' &&
+          name[9] == '_' &&
+          name[10] == 'y' &&
+          name[11] == 'i' &&
+          name[12] == 'e' &&
+          name[13] == 'l' &&
+          name[14] == 'd')
+      {                                           /* generator_yield     */
+        return (all_keywords || FEATURE_GENERATOR_IS_ENABLED ? KEY_generator_yield : 0);
+      }
+
+      goto unknown;
+
+    case 16: /* 2 tokens of length 16 */
+      if (name[0] == 'g' &&
+          name[1] == 'e')
+      {
+        switch (name[2])
+        {
+          case 'n':
+            if (name[3] == 'e' &&
+                name[4] == 'r' &&
+                name[5] == 'a' &&
+                name[6] == 't' &&
+                name[7] == 'o' &&
+                name[8] == 'r' &&
+                name[9] == '_' &&
+                name[10] == 'c' &&
+                name[11] == 'r' &&
+                name[12] == 'e' &&
+                name[13] == 'a' &&
+                name[14] == 't' &&
+                name[15] == 'e')
+            {                                     /* generator_create    */
+              return (all_keywords || FEATURE_GENERATOR_IS_ENABLED ? KEY_generator_create : 0);
+            }
+
+            goto unknown;
+
+          case 't':
+            if (name[3] == 'p' &&
+                name[4] == 'r' &&
+                name[5] == 'o' &&
+                name[6] == 't' &&
+                name[7] == 'o' &&
+                name[8] == 'b' &&
+                name[9] == 'y' &&
+                name[10] == 'n' &&
+                name[11] == 'u' &&
+                name[12] == 'm' &&
+                name[13] == 'b' &&
+                name[14] == 'e' &&
+                name[15] == 'r')
+            {                                     /* getprotobynumber    */
+              return -KEY_getprotobynumber;
+            }
+
+            goto unknown;
+
+          default:
+            goto unknown;
+        }
+      }
+
+      goto unknown;
+
+    case 19: /* 1 tokens of length 19 */
+      if (name[0] == 'g' &&
+          name[1] == 'e' &&
+          name[2] == 'n' &&
+          name[3] == 'e' &&
+          name[4] == 'r' &&
+          name[5] == 'a' &&
+          name[6] == 't' &&
+          name[7] == 'o' &&
+          name[8] == 'r' &&
+          name[9] == '_' &&
+          name[10] == 'e' &&
+          name[11] == 'x' &&
+          name[12] == 'h' &&
+          name[13] == 'a' &&
+          name[14] == 'u' &&
+          name[15] == 's' &&
+          name[16] == 't' &&
+          name[17] == 'e' &&
+          name[18] == 'd')
+      {                                           /* generator_exhausted */
+        return (all_keywords || FEATURE_GENERATOR_IS_ENABLED ? KEY_generator_exhausted : 0);
       }
 
       goto unknown;
@@ -3612,5 +3690,5 @@ unknown:
 }
 
 /* Generated from:
- * 6314472316769769d8176b08a4b0fe3c461bc38d52170a303f7abd00c5a56677 regen/keywords.pl
+ * 4ec35c433204298665e6b808ed9fc4559f02dd1df64138b0affc702a87929231 regen/keywords.pl
  * ex: set ro ft=c: */
