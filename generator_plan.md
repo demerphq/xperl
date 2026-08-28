@@ -54,3 +54,13 @@ Follow-up: consider blessing the callable generator CODE reference into an
 `generator::Instance` class implemented in Perl, providing convenience methods
 such as `next()` and `exhausted()` to callers that do not enable the generator
 feature.  This should preserve the primitive callable protocol.
+
+## Parameterized generator continuation work
+
+- [x] Preserve initial invocation arguments for normal `@_` and signature binding
+- [x] Return resume arguments from `generator_yield` with Perl context semantics
+- [x] Preserve zero, one, and many yielded values, including `yield ()`
+- [x] Preserve explicit list-valued returns on exhaustion
+- [x] Accept generator signatures in `generator_create (...) { ... }`
+- [ ] Add focused regression coverage, diagnostics, and documentation
+- [ ] Run the relevant DEBUGGING, threaded, sanitizer, and `make_test` validation

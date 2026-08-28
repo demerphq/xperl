@@ -245,7 +245,7 @@
 # define generator_new(a)                       Perl_generator_new(aTHX_ a)
 # define generator_resume(a,b)                  Perl_generator_resume(aTHX_ a,b)
 # define generator_wrap(a)                      Perl_generator_wrap(aTHX_ a)
-# define generator_yield_value(a)               Perl_generator_yield_value(aTHX_ a)
+# define generator_yield_values(a,b)            Perl_generator_yield_values(aTHX_ a,b)
 # define get_av(a,b)                            Perl_get_av(aTHX_ a,b)
 # define get_cv(a,b)                            Perl_get_cv(aTHX_ a,b)
 # define get_cvn_flags(a,b,c)                   Perl_get_cvn_flags(aTHX_ a,b,c)

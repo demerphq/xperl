@@ -1432,6 +1432,8 @@ typedef struct perl_generator {
     PERL_PROCESS_STATE       process;
     AV *                    initial_args;
     AV *                    resume_args;
+    AV *                    result;
+    AV *                    values;
     SV *                    value;
     SV *                    error;
     PERL_GENERATOR_STATE    state;

@@ -238,11 +238,25 @@ S_generator_xsub(pTHX_ CV *cv)
     args = newAV();
     for (i = 0; i < items; i++)
         av_push(args, SvREFCNT_inc_simple(ST(i)));
-    if (!generator_resume(generator, args))
-        XSRETURN_EMPTY;
-    EXTEND(SP, 1);
-    ST(0) = newSVsv(generator->value);
-    XSRETURN(1);
+    if (!generator_resume(generator, args)) {
+        SSize_t i;
+        AV * const result = generator->result;
+        if (!result)
+            XSRETURN_EMPTY;
+        EXTEND(SP, AvFILLp(result) + 1);
+        for (i = 0; i <= AvFILLp(result); i++)
+            ST(i) = newSVsv(*av_fetch(result, i, 0));
+        XSRETURN(AvFILLp(result) + 1);
+    }
+    {
+        SSize_t i;
+        AV * const values = generator->values;
+        const SSize_t count = values ? AvFILLp(values) + 1 : 0;
+        EXTEND(SP, count);
+        for (i = 0; i < count; i++)
+            ST(i) = newSVsv(*av_fetch(values, i, 0));
+        XSRETURN(count);
+    }
 }
 
 CV *
@@ -327,9 +341,11 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
         S_generator_free_process_stacks(aTHX_ &generator->process);
     }
     SvREFCNT_dec(generator->value);
+    SvREFCNT_dec((SV *)generator->values);
     SvREFCNT_dec(generator->error);
     SvREFCNT_dec((SV *)generator->initial_args);
     SvREFCNT_dec((SV *)generator->resume_args);
+    SvREFCNT_dec((SV *)generator->result);
     SvREFCNT_dec((SV *)generator->body);
     Safefree(generator);
 }
@@ -407,19 +423,26 @@ typedef struct generator_run {
 } GENERATOR_RUN;
 
 void
-Perl_generator_yield_value(pTHX_ SV *value)
+Perl_generator_yield_values(pTHX_ SV **values, SSize_t count)
 {
     GENERATOR_RUN * const run =
         (GENERATOR_RUN *)PL_runops_boundary_data;
     PERL_GENERATOR * const generator = run ? run->generator : NULL;
 
-    PERL_ARGS_ASSERT_GENERATOR_YIELD_VALUE;
+    PERL_ARGS_ASSERT_GENERATOR_YIELD_VALUES;
     if (!generator || generator->magic != PERL_GENERATOR_MAGIC
         || generator->state != PERL_GENERATOR_RUNNING)
         croak("generator_yield outside a running generator_create");
 
+    SvREFCNT_dec((SV *)generator->values);
+    generator->values = newAV();
+    {
+        SSize_t i;
+        for (i = 0; i < count; i++)
+            av_push(generator->values, newSVsv(values[i]));
+    }
     SvREFCNT_dec(generator->value);
-    generator->value = newSVsv(value);
+    generator->value = count ? newSVsv(values[count - 1]) : NULL;
     generator->yield_context = GIMME_V;
     generator->yield_pending = TRUE;
 }
@@ -451,6 +474,15 @@ S_generator_boundary(pTHX_ OP *nextop, void *data)
     if (nextop && !generator->yield_pending)
         return 0;
 
+    if (!nextop) {
+        AV *result = newAV();
+        SV **svp;
+        for (svp = PL_stack_base + 1;
+             svp <= PL_stack_sp; svp++)
+            av_push(result, newSVsv(*svp));
+        SvREFCNT_dec((SV *)generator->result);
+        generator->result = result;
+    }
     process_state_save(&generator->process);
     generator->captured = TRUE;
     generator->state = nextop && generator->yield_pending

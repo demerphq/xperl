@@ -1790,11 +1790,11 @@ Perl_generator_wrap(pTHX_ CV *body)
     } STMT_END
 
 PERL_CALLCONV void
-Perl_generator_yield_value(pTHX_ SV *value)
+Perl_generator_yield_values(pTHX_ SV **values, SSize_t count)
         Perl_attribute_nonnull_aTHX
         Perl_attribute_nonnull(pTHX_1);
-#define PERL_ARGS_ASSERT_GENERATOR_YIELD_VALUE  \
-    STMT_START { Perl_assert_aTHX; assert(value); } STMT_END
+#define PERL_ARGS_ASSERT_GENERATOR_YIELD_VALUES \
+    STMT_START { Perl_assert_aTHX; assert(values); } STMT_END
 
 PERL_CALLCONV SV *
 Perl_get_and_check_backslash_N_name(pTHX_ const char *s, const char *e, const bool is_utf8, const char **error_msg)

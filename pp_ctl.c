@@ -6823,8 +6823,9 @@ PP(pp_pushdefer)
 PP(pp_generator_yield)
 {
     dSP;
-    generator_yield_value(TOPs);
-    rpp_popfree_1_NN();
+    dMARK;
+    generator_yield_values(MARK + 1, SP - MARK);
+    rpp_popfree_to_NN(MARK);
     return PL_op->op_next;
 }
 

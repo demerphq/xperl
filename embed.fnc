@@ -1514,8 +1514,9 @@ Chp	|int	|generator_resume					\
 				|NN PERL_GENERATOR *generator		\
 				|NN AV *args
 Chp	|CV *	|generator_wrap |NN CV *body
-Chp	|void	|generator_yield_value					\
-				|NN SV *value
+Chp	|void	|generator_yield_values 				\
+				|NN SV **values 			\
+				|SSize_t count
 ERXp	|SV *	|get_and_check_backslash_N_name 			\
 				|SPTR const char *s			\
 				|EPTRge const char *e			\
