@@ -8675,6 +8675,17 @@ S_namespace_hint(pTHX_ const char *key, STRLEN keylen)
     return NULL;
 }
 
+/*
+=for apidoc namespace_current
+
+Returns a new string containing the currently active lexical namespace.
+If no lexical namespace is active, the returned string is empty.  This is
+an experimental interface used by the C implementation of the C<namespaces>
+feature.
+
+=cut
+*/
+
 SV *
 Perl_namespace_current(pTHX)
 {
@@ -8686,6 +8697,17 @@ Perl_namespace_current(pTHX)
     SV *value = S_namespace_hint(aTHX_ STR_WITH_LEN(NAMESPACE_HINT_CURRENT));
     return value ? value : newSVpvs("");
 }
+
+/*
+=for apidoc namespace_resolve
+
+Returns a new string containing the package name obtained by resolving C<$name>
+against the active lexical namespace and any lexical package aliases.  Names
+with an explicit C<:::> boundary, and the special C<CORE::> and C<SUPER::>
+namespaces, are preserved according to the lexical namespace rules.
+
+=cut
+*/
 
 SV *
 Perl_namespace_resolve(pTHX_ SV *name)
@@ -8744,6 +8766,16 @@ Perl_namespace_resolve(pTHX_ SV *name)
     return newSVpvn(pv, len);
 }
 
+/*
+=for apidoc namespace_set
+
+Sets the current lexical namespace to C<$name>.  The namespace is stored in
+the current compile-time hints and is restored with the surrounding lexical
+scope.
+
+=cut
+*/
+
 void
 Perl_namespace_set(pTHX_ SV *name)
 {
@@ -8756,6 +8788,17 @@ Perl_namespace_set(pTHX_ SV *name)
                         NAMESPACE_HINT_CURRENT, resolved, 0));
     SvREFCNT_dec_NN(resolved);
 }
+
+/*
+=for apidoc namespace_alias
+
+Adds the lexical package alias C<$alias> for package name C<$name>.  The alias
+is visible from the current lexical scope and nested scopes, and is restored
+when that scope ends.  Attempting to redefine an alias in the same scope is
+an error.
+
+=cut
+*/
 
 void
 Perl_namespace_alias(pTHX_ SV *name, SV *alias)

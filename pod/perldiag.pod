@@ -75,6 +75,11 @@ removed in a future Perl version:
     use feature "refaliasing";
     \$x = \$y;
 
+=item Alias name must be a non-empty package component
+
+(F) A package alias must contain a non-empty package component and may not
+contain a package separator.
+
 =item all is experimental
 
 (S experimental::keyword_all) This warning is emitted if you use the
@@ -2474,6 +2479,11 @@ already been freed.
 (W unpack) You have applied the same modifier more than once after a
 type in a pack template.  See L<perlfunc/pack>.
 
+=item Duplicate package alias '%s'
+
+(F) A package alias with this name has already been declared in the current
+lexical scope.
+
 =item Duplicated subroutine parameter name
 
 (F) You have attempted to use a subroutine parameter name a second time.
@@ -4055,6 +4065,16 @@ a builtin library search path, prefix2 is substituted.  The error may
 appear if components are not found, or are too long.  See
 "PERLLIB_PREFIX" in L<perlos2>.
 
+=item Malformed namespace separator in package name
+
+(F) A lexical namespace separator was used in an invalid form.  The C<:::>
+syntax may occur only once in a package name and must separate valid package
+components.
+
+=item Namespace name is too long
+
+(F) A namespace name exceeded the maximum length permitted by Perl.
+
 =item Malformed prototype for %s: %s
 
 (F) You tried to use a function with a malformed prototype.  The
@@ -4836,10 +4856,20 @@ find the name of the file to which to write data destined for stdout.
 declarations, because that doesn't make much sense under existing rules.
 Such syntax is reserved for future extensions.
 
+=item package aliases are only allowed with use
+
+(F) A package alias was requested in a context other than a C<use>
+declaration.  Aliases are lexical and can only be introduced by C<use>.
+
 =item No Perl script found in input
 
 (F) You called C<perl -x>, but no line was found in the file beginning
 with #! and containing the word "perl".
+
+=item namespace is experimental
+
+(S experimental::namespaces) The C<namespace> declaration is experimental and
+its behaviour may change in future releases of Perl.
 
 =item No setregid available
 
@@ -6905,6 +6935,11 @@ will deny it.
 undef-aware equality operator.  This operator is currently experimental
 and its behaviour may change in future releases of Perl.
 
+=item __NAMESPACE__ is experimental
+
+(S experimental::namespaces) The C<__NAMESPACE__> token is experimental and
+its behaviour may change in future releases of Perl.
+
 =item The experimental declared_refs feature is not enabled
 
 (F) To declare references to variables, as in C<my \%x>, you must first enable
@@ -8568,6 +8603,10 @@ or until all closure references to it are destroyed.
 (A) You've accidentally run your script through B<csh> instead
 of Perl.  Check the #! line, or manually feed your script into
 Perl yourself.
+
+=item Variable name is too long
+
+(F) A variable name exceeded the maximum length permitted by Perl.
 
 =item Variable "%s" will not stay shared
 

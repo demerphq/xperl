@@ -6618,6 +6618,7 @@ t/comp/hints.t				See if %^H works
 t/comp/line_debug.t			See if @{"_<$file"} works
 t/comp/line_debug_0.aux			Auxiliary file for @{"_<$file"} test
 t/comp/multiline.t			See if multiline strings work
+t/comp/namespaces.t			See if lexical namespaces work
 t/comp/opsubs.t				See if q() etc. are not parsed as functions
 t/comp/our.t				Tests for our declaration
 t/comp/package.t			See if packages work
