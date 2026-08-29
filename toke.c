@@ -8530,6 +8530,8 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
         );
 
     case KEY___NAMESPACE__:
+        ck_warner_d(packWARN(WARN_EXPERIMENTAL__NAMESPACES),
+                    "__NAMESPACE__ is experimental");
         FUN0OP(newSVOP(OP_CONST, OPpCONST_TOKEN_PACKAGE<<8,
                        namespace_current()));
 
@@ -9039,6 +9041,8 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
         LOP(OP_MSGSND,XTERM);
 
     case KEY_namespace:
+        ck_warner_d(packWARN(WARN_EXPERIMENTAL__NAMESPACES),
+                    "namespace is experimental");
         s = skipspace(s);
         if (isIDFIRST_lazy_if_safe(s, PL_bufend, UTF)
             || (*s == ':' && s[1] == ':')) {
@@ -10638,6 +10642,20 @@ S_pending_ident(pTHX)
     const STRLEN tokenbuf_len = strlen(PL_tokenbuf);
     /* All routes through this function want to know if there is a colon.  */
     const char *const has_colon = (const char*) memchr (PL_tokenbuf, ':', tokenbuf_len);
+
+    if (FEATURE_NAMESPACES_IS_ENABLED && has_colon && !PL_in_my) {
+        SV *raw = newSVpvn_flags(PL_tokenbuf + 1, tokenbuf_len - 1,
+                                 UTF ? SVf_UTF8 : 0);
+        SV *resolved = namespace_resolve(raw);
+        STRLEN resolved_len;
+        const char *resolved_pv = SvPV_const(resolved, resolved_len);
+        if (resolved_len + 1 >= C_ARRAY_LENGTH(PL_tokenbuf))
+            croak("Variable name is too long");
+        Copy(resolved_pv, PL_tokenbuf + 1, resolved_len, char);
+        PL_tokenbuf[resolved_len + 1] = 0;
+        SvREFCNT_dec_NN(raw);
+        SvREFCNT_dec_NN(resolved);
+    }
 
     DEBUG_T({ PerlIO_printf(Perl_debug_log,
           "### Pending identifier '%s'\n", PL_tokenbuf); });

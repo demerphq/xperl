@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-print "1..6\n";
+print "1..8\n";
 
 my $result = eval q{
     use feature 'namespaces';
@@ -33,3 +33,17 @@ my $bad = eval q{
     namespace A:::B:::C;
 };
 print $@ =~ /Malformed namespace separator/ ? "ok 6 - malformed separator\n" : "not ok 6 - malformed separator\n";
+
+my $alias = eval q{
+    use feature 'namespaces';
+    use Carp as C;
+    C::croak('alias works');
+};
+print $@ =~ /alias works/ ? "ok 7 - package alias\n" : "not ok 7 - package alias\n";
+
+my $duplicate = eval q{
+    use feature 'namespaces';
+    use Carp as C;
+    use Carp as C;
+};
+print $@ =~ /Duplicate package alias/ ? "ok 8 - duplicate alias\n" : "not ok 8 - duplicate alias\n";

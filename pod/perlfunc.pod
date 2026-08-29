@@ -6299,6 +6299,13 @@ X<__PACKAGE__>
 
 A special token that returns the name of the package in which it occurs.
 
+=item __NAMESPACE__
+X<__NAMESPACE__>
+
+A special token provided by the experimental C<namespaces> feature.  It
+returns the current lexical namespace, which may differ from the package
+reported by C<__PACKAGE__>.  See L<perlnamespace>.
+
 =item __CLASS__
 X<__CLASS__>
 
