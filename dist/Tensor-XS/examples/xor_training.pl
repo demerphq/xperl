@@ -325,6 +325,8 @@ if ($accuracy >= 1.0) {
 
 __END__
 
+=encoding UTF-8
+
 =head1 NAME
 
 xor_training.pl - XOR Neural Network Training with Backpropagation
@@ -347,9 +349,9 @@ it's not linearly separable and requires a hidden layer.
 =head1 ARCHITECTURE
 
   Input Layer:    2 neurons (x1, x2)
-                     ↓
+                     v
   Hidden Layer:   4 neurons + ReLU
-                     ↓
+                     v
   Output Layer:   2 neurons + Softmax (one-hot: 0 or 1)
 
 =head1 EXPECTED RESULTS

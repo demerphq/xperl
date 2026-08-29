@@ -2,9 +2,9 @@
 use strict;
 use warnings;
 
-use lib -d '../dist/p5-matrix-utils/lib'
-    ? '../dist/p5-matrix-utils/lib'
-    : 'dist/p5-matrix-utils/lib';
+use lib -d '../dist/Tensor-XS/lib'
+    ? '../dist/Tensor-XS/lib'
+    : 'dist/Tensor-XS/lib';
 use experimental 'class';
 use Test::More;
 

@@ -4337,7 +4337,7 @@ sub readvars {
     foreach my $line_data (@{$hp->lines}) {
         #next unless $line_data->is_content;
         my $line= $line_data->line;
-        if ($line=~m/^\s*PERLVARA?I?C?\(\s*$pre\s*,\s*(\w+)/){
+        if ($line=~m/^\s*PERLVAR(?:CTX)?A?I?C?\(\s*$pre\s*,\s*(\w+)/){
             $seen{$1}++
                 and
                 die_at_end "duplicate symbol $1 while processing $file line "
@@ -4348,6 +4348,21 @@ sub readvars {
                         $a  cmp    $b }
               keys %seen;
     return @keys;
+}
+
+sub readctxvars {
+    my ($file, $pre) = @_;
+    my $hp = HeaderParser->new()->read_file($file);
+    my %seen;
+    foreach my $line_data (@{$hp->lines}) {
+        my $line = $line_data->line;
+        if ($line =~ m/^\s*PERLVARCTXI?\(\s*$pre\s*,\s*(\w+)/) {
+            $seen{$1}++
+                and die_at_end "duplicate context symbol $1 while processing "
+                    . "$file line " . $line_data->start_line_num . "\n";
+        }
+    }
+    return sort { lc($a) cmp lc($b) || $a cmp $b } keys %seen;
 }
 
 sub add_indent {
@@ -4692,6 +4707,7 @@ sub generate_embedvar_h {
 
 
     my @intrp = readvars 'intrpvar.h','I';
+    my %ctx = map { $_ => 1 } readctxvars 'intrpvar.h','I';
     #my @globvar = readvars 'perlvars.h','G';
 
 
@@ -4701,13 +4717,18 @@ sub generate_embedvar_h {
             print $em "# if !defined(PL_sawampersand)\n";
             $ind = "   ";
         }
-        my $line = multon($sym, 'I', 'vTHX->', $ind);
+        my $line = multon($sym, 'I',
+            $ctx{$sym} ? 'vTHX->Iexecution_context->' : 'vTHX->', $ind);
         print $em $line;
         if ($sym eq 'sawampersand') {
             print $em "# endif /* !defined(PL_sawampersand) */\n";
         }
     }
 
+    print $em "#else /* !MULTIPLICITY */\n";
+    for my $sym (sort { lc($a) cmp lc($b) || $a cmp $b } keys %ctx) {
+        print $em indent_define("PL_$sym", "(PL_execution_context->I$sym)");
+    }
     print $em "#endif       /* MULTIPLICITY */\n";
     close $em;
 

@@ -4160,8 +4160,15 @@ S_init_interp(pTHX)
 {
     PERL_ARGS_ASSERT_INIT_INTERP;
 
+    PL_execution_context = &PL_execution_context_storage;
+    Zero(PL_execution_context, 1, PERL_EXECUTION_CONTEXT);
+    PL_execution_context->Itmps_ix = -1;
+    PL_execution_context->Itmps_floor = -1;
+
 #ifdef MULTIPLICITY
 #  define PERLVAR(prefix,var,type)
+#  define PERLVARCTX(prefix,var,type)
+#  define PERLVARCTXI(prefix,var,type,init)
 #  define PERLVARA(prefix,var,n,type)
 #  if defined(MULTIPLICITY)
 #    define PERLVARI(prefix,var,type,init)	aTHX->prefix##var = init;
@@ -4172,16 +4179,22 @@ S_init_interp(pTHX)
 #  endif
 #  include "intrpvar.h"
 #  undef PERLVAR
+#  undef PERLVARCTX
+#  undef PERLVARCTXI
 #  undef PERLVARA
 #  undef PERLVARI
 #  undef PERLVARIC
 #else
 #  define PERLVAR(prefix,var,type)
+#  define PERLVARCTX(prefix,var,type)
+#  define PERLVARCTXI(prefix,var,type,init)
 #  define PERLVARA(prefix,var,n,type)
 #  define PERLVARI(prefix,var,type,init)	PL_##var = init;
 #  define PERLVARIC(prefix,var,type,init)	PL_##var = init;
 #  include "intrpvar.h"
 #  undef PERLVAR
+#  undef PERLVARCTX
+#  undef PERLVARCTXI
 #  undef PERLVARA
 #  undef PERLVARI
 #  undef PERLVARIC

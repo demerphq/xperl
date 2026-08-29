@@ -16,11 +16,11 @@ sub new {
 
 =head1 NAME
 
-Tensor::XS - native storage prototype for p5-matrix-utils
+Tensor::XS - native storage prototype for Tensor-XS
 
 =head1 DESCRIPTION
 
-This module is the first step of the p5-matrix-utils XS migration.  It
+This module is the first step of the Tensor-XS XS migration.  It
 provides a compact native Tensor storage object; the higher-level Tensor,
 Vector, and Matrix APIs will be moved onto it incrementally.
 

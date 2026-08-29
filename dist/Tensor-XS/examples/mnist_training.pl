@@ -412,6 +412,8 @@ say "  perl examples/mnist_training.pl 60000 10  # Will take ~30-60 minutes";
 
 __END__
 
+=encoding UTF-8
+
 =head1 NAME
 
 mnist_training.pl - MNIST Handwritten Digit Classification with Neural Network
@@ -433,7 +435,7 @@ This script trains a neural network to recognize handwritten digits from
 the MNIST dataset. It demonstrates a complete machine learning pipeline:
 
 1. Load and parse MNIST IDX binary format
-2. Normalize pixel values (0-255 → 0.0-1.0)
+2. Normalize pixel values (0-255 -> 0.0-1.0)
 3. Convert labels to one-hot encoding
 4. Train neural network with backpropagation
 5. Evaluate accuracy on training set
@@ -441,9 +443,9 @@ the MNIST dataset. It demonstrates a complete machine learning pipeline:
 =head1 ARCHITECTURE
 
   Input Layer:    784 neurons (28×28 pixels)
-                     ↓ W1 (784×128) + b1
+                     v W1 (784x128) + b1
   Hidden Layer:   128 neurons + ReLU
-                     ↓ W2 (128×10) + b2
+                     v W2 (128x10) + b2
   Output Layer:   10 neurons + Softmax (digits 0-9)
 
   Total Parameters: 101,770

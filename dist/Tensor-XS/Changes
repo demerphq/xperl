@@ -1,4 +1,4 @@
-Revision history for p5-matrix-utils
+Revision history for Tensor-XS
 
 This is an experimental in-core distribution containing the initial
 pure-Perl Tensor, Vector, Matrix, Scalar, and MNIST classes.  The native

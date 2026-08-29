@@ -424,8 +424,8 @@ MODULE = Tensor::XS  PACKAGE = Tensor::XS
 PROTOTYPES: DISABLE
 
 SV *
-new_with_dtype(class, shape, data, dtype)
-    const char *class
+new_with_dtype(class_name, shape, data, dtype)
+    const char *class_name
     SV *shape
     SV *data
     SV *dtype
@@ -504,7 +504,7 @@ new_with_dtype(class, shape, data, dtype)
     payload = newSV(0);
     sv_usepvn(payload, (char *)tensor, bytes);
     object = newRV_noinc(payload);
-    sv_bless(object, gv_stashpv(class, GV_ADD));
+    sv_bless(object, gv_stashpv(class_name, GV_ADD));
     RETVAL = object;
     OUTPUT:
     RETVAL

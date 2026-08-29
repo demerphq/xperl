@@ -16653,9 +16653,9 @@ Perl_ss_dup(pTHX_ PerlInterpreter *proto_perl, CLONE_PARAMS* param)
 {
     PERL_ARGS_ASSERT_SS_DUP;
 
-    ANY * const ss	= proto_perl->Isavestack;
-    const I32 max	= proto_perl->Isavestack_max + SS_MAXPUSH;
-    I32 ix		= proto_perl->Isavestack_ix;
+    ANY * const ss	= proto_perl->Iexecution_context->Isavestack;
+    const I32 max	= proto_perl->Iexecution_context->Isavestack_max + SS_MAXPUSH;
+    I32 ix		= proto_perl->Iexecution_context->Isavestack_ix;
     ANY *nss;
     const SV *sv;
     const GV *gv;
@@ -17094,6 +17094,10 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
 
 #ifdef DEBUGGING
     PoisonNew(my_perl, 1, PerlInterpreter);
+    PL_execution_context = &PL_execution_context_storage;
+    Zero(PL_execution_context, 1, PERL_EXECUTION_CONTEXT);
+    PL_execution_context->Itmps_ix = -1;
+    PL_execution_context->Itmps_floor = -1;
     PL_op = NULL;
     PL_curcop = NULL;
     PL_defstash = NULL; /* may be used by perl malloc() */
@@ -17118,6 +17122,10 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
 #else	/* !DEBUGGING */
     Zero(my_perl, 1, PerlInterpreter);
 #endif	/* DEBUGGING */
+    PL_execution_context = &PL_execution_context_storage;
+    Zero(PL_execution_context, 1, PERL_EXECUTION_CONTEXT);
+    PL_execution_context->Itmps_ix = -1;
+    PL_execution_context->Itmps_floor = -1;
 #ifdef USE_THREADS
     assert(proto_perl->Ienv_mutex_depth <= 0);
     PL_env_mutex_depth = 0;
@@ -17176,7 +17184,7 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
 
 #ifndef NO_TAINT_SUPPORT
     /* Set tainting stuff before PerlIO_debug can possibly get called */
-    PL_tainting		= proto_perl->Itainting;
+    PL_tainting		= proto_perl->Iexecution_context->Itainting;
     PL_taint_warn	= proto_perl->Itaint_warn;
 #else
     PL_tainting         = FALSE;
@@ -17194,7 +17202,7 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
     PL_minus_E		= proto_perl->Iminus_E;
     PL_minus_F		= proto_perl->Iminus_F;
     PL_doswitches	= proto_perl->Idoswitches;
-    PL_dowarn		= proto_perl->Idowarn;
+    PL_dowarn		= proto_perl->Iexecution_context->Idowarn;
 #ifdef PERL_SAWAMPERSAND
     PL_sawampersand	= proto_perl->Isawampersand;
 #endif
@@ -17298,25 +17306,25 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
 
     if (flags & CLONEf_COPY_STACKS) {
         /* next allocation will be PL_tmps_stack[PL_tmps_ix+1] */
-        PL_tmps_ix		= proto_perl->Itmps_ix;
-        PL_tmps_max		= proto_perl->Itmps_max;
-        PL_tmps_floor		= proto_perl->Itmps_floor;
+        PL_tmps_ix		= proto_perl->Iexecution_context->Itmps_ix;
+        PL_tmps_max		= proto_perl->Iexecution_context->Itmps_max;
+        PL_tmps_floor		= proto_perl->Iexecution_context->Itmps_floor;
 
         /* next push_scope()/ENTER sets PL_scopestack[PL_scopestack_ix]
          * NOTE: unlike the others! */
-        PL_scopestack_ix	= proto_perl->Iscopestack_ix;
-        PL_scopestack_max	= proto_perl->Iscopestack_max;
+        PL_scopestack_ix	= proto_perl->Iexecution_context->Iscopestack_ix;
+        PL_scopestack_max	= proto_perl->Iexecution_context->Iscopestack_max;
 
         /* next SSPUSHFOO() sets PL_savestack[PL_savestack_ix]
          * NOTE: unlike the others! */
-        PL_savestack_ix		= proto_perl->Isavestack_ix;
-        PL_savestack_max	= proto_perl->Isavestack_max;
+        PL_savestack_ix		= proto_perl->Iexecution_context->Isavestack_ix;
+        PL_savestack_max	= proto_perl->Iexecution_context->Isavestack_max;
     }
 
     PL_start_env	= proto_perl->Istart_env;	/* XXXXXX */
     PL_top_env		= &PL_start_env;
 
-    PL_op		= proto_perl->Iop;
+    PL_op		= proto_perl->Iexecution_context->Iop;
 
     PL_Sv		= NULL;
     my_perl->Ina	= proto_perl->Ina;
@@ -17324,20 +17332,20 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
     PL_statcache	= proto_perl->Istatcache;
 
 #ifndef NO_TAINT_SUPPORT
-    PL_tainted		= proto_perl->Itainted;
+    PL_tainted		= proto_perl->Iexecution_context->Itainted;
 #else
     PL_tainted          = FALSE;
 #endif
-    PL_curpm		= proto_perl->Icurpm;	/* XXX No PMOP ref count */
+    PL_curpm		= proto_perl->Iexecution_context->Icurpm;	/* XXX No PMOP ref count */
 
     PL_chopset		= proto_perl->Ichopset;	/* XXX never deallocated */
 
     PL_restartjmpenv	= proto_perl->Irestartjmpenv;
-    PL_restartop	= proto_perl->Irestartop;
-    PL_in_eval		= proto_perl->Iin_eval;
-    PL_delaymagic	= proto_perl->Idelaymagic;
+    PL_restartop	= proto_perl->Iexecution_context->Irestartop;
+    PL_in_eval		= proto_perl->Iexecution_context->Iin_eval;
+    PL_delaymagic	= proto_perl->Iexecution_context->Idelaymagic;
     PL_phase		= proto_perl->Iphase;
-    PL_localizing	= proto_perl->Ilocalizing;
+    PL_localizing	= proto_perl->Iexecution_context->Ilocalizing;
 
     PL_hv_fetch_ent_mh	= NULL;
     PL_modcount		= proto_perl->Imodcount;
@@ -17395,7 +17403,7 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
     ptr_table_store(PL_ptr_table, &proto_perl->Icompiling, &PL_compiling);
     PL_compiling.cop_warnings = DUP_WARNINGS(PL_compiling.cop_warnings);
     CopHINTHASH_set(&PL_compiling, cophh_copy(CopHINTHASH_get(&PL_compiling)));
-    PL_curcop		= (COP*)any_dup(proto_perl->Icurcop, proto_perl);
+    PL_curcop		= (COP*)any_dup(proto_perl->Iexecution_context->Icurcop, proto_perl);
 
     param->stashes      = newAV();  /* Setup array of objects to call clone on */
     /* This makes no difference to the implementation, as it always pushes
@@ -17461,7 +17469,7 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
     PL_ofsgv            = gv_dup_inc(proto_perl->Iofsgv, param);
     PL_stdingv		= gv_dup(proto_perl->Istdingv, param);
     PL_stderrgv		= gv_dup(proto_perl->Istderrgv, param);
-    PL_defgv		= gv_dup(proto_perl->Idefgv, param);
+    PL_defgv		= gv_dup(proto_perl->Iexecution_context->Idefgv, param);
     PL_argvgv		= gv_dup_inc(proto_perl->Iargvgv, param);
     PL_argvoutgv	= gv_dup(proto_perl->Iargvoutgv, param);
     PL_argvout_stack	= av_dup_inc(proto_perl->Iargvout_stack, param);
@@ -17483,7 +17491,7 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
 
     /* symbol tables */
     PL_defstash		= hv_dup_inc(proto_perl->Idefstash, param);
-    PL_curstash		= hv_dup_inc(proto_perl->Icurstash, param);
+    PL_curstash		= hv_dup_inc(proto_perl->Iexecution_context->Icurstash, param);
     PL_debstash		= hv_dup(proto_perl->Idebstash, param);
     PL_globalstash	= hv_dup(proto_perl->Iglobalstash, param);
     PL_curstname	= sv_dup_inc(proto_perl->Icurstname, param);
@@ -17516,7 +17524,7 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
     OP_REFCNT_UNLOCK;
 
     /* runtime control stuff */
-    PL_curcopdb		= (COP*)any_dup(proto_perl->Icurcopdb, proto_perl);
+    PL_curcopdb		= (COP*)any_dup(proto_perl->Iexecution_context->Icurcopdb, proto_perl);
 
     PL_preambleav	= av_dup_inc(proto_perl->Ipreambleav, param);
 
@@ -17711,23 +17719,24 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
 
     if (flags & CLONEf_COPY_STACKS) {
         Newx(PL_tmps_stack, PL_tmps_max, SV*);
-        sv_dup_inc_multiple(proto_perl->Itmps_stack, PL_tmps_stack,
+        sv_dup_inc_multiple(proto_perl->Iexecution_context->Itmps_stack, PL_tmps_stack,
                             PL_tmps_ix+1, param);
 
         /* next PUSHMARK() sets *(PL_markstack_ptr+1) */
-        i = proto_perl->Imarkstack_max - proto_perl->Imarkstack;
+        i = proto_perl->Iexecution_context->Imarkstack_max
+            - proto_perl->Iexecution_context->Imarkstack;
         Newx(PL_markstack, i, Stack_off_t);
-        PL_markstack_max	= PL_markstack + (proto_perl->Imarkstack_max
-                                                  - proto_perl->Imarkstack);
-        PL_markstack_ptr	= PL_markstack + (proto_perl->Imarkstack_ptr
-                                                  - proto_perl->Imarkstack);
-        Copy(proto_perl->Imarkstack, PL_markstack,
+        PL_markstack_max	= PL_markstack + (proto_perl->Iexecution_context->Imarkstack_max
+                                                  - proto_perl->Iexecution_context->Imarkstack);
+        PL_markstack_ptr	= PL_markstack + (proto_perl->Iexecution_context->Imarkstack_ptr
+                                                  - proto_perl->Iexecution_context->Imarkstack);
+        Copy(proto_perl->Iexecution_context->Imarkstack, PL_markstack,
              PL_markstack_ptr - PL_markstack + 1, Stack_off_t);
 
         /* next push_scope()/ENTER sets PL_scopestack[PL_scopestack_ix]
          * NOTE: unlike the others! */
         Newx(PL_scopestack, PL_scopestack_max, I32);
-        Copy(proto_perl->Iscopestack, PL_scopestack, PL_scopestack_ix, I32);
+        Copy(proto_perl->Iexecution_context->Iscopestack, PL_scopestack, PL_scopestack_ix, I32);
 
 #ifdef DEBUGGING
         Newx(PL_scopestack_name, PL_scopestack_max, const char *);
@@ -17735,20 +17744,21 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
 #endif
         /* reset stack AV to correct length before its duped via
          * PL_curstackinfo */
-        AvFILLp(proto_perl->Icurstack) =
-                            proto_perl->Istack_sp - proto_perl->Istack_base;
+        AvFILLp(proto_perl->Iexecution_context->Icurstack) =
+                            proto_perl->Iexecution_context->Istack_sp
+                            - proto_perl->Iexecution_context->Istack_base;
 
         /* NOTE: si_dup() looks at PL_markstack */
-        PL_curstackinfo		= si_dup(proto_perl->Icurstackinfo, param);
+        PL_curstackinfo		= si_dup(proto_perl->Iexecution_context->Icurstackinfo, param);
 
         /* PL_curstack		= PL_curstackinfo->si_stack; */
-        PL_curstack		= av_dup(proto_perl->Icurstack, param);
+        PL_curstack		= av_dup(proto_perl->Iexecution_context->Icurstack, param);
         PL_mainstack		= av_dup(proto_perl->Imainstack, param);
 
         /* next PUSHs() etc. set *(PL_stack_sp+1) */
         PL_stack_base		= AvARRAY(PL_curstack);
-        PL_stack_sp		= PL_stack_base + (proto_perl->Istack_sp
-                                                   - proto_perl->Istack_base);
+        PL_stack_sp		= PL_stack_base + (proto_perl->Iexecution_context->Istack_sp
+                                                   - proto_perl->Iexecution_context->Istack_base);
         PL_stack_max		= PL_stack_base + AvMAX(PL_curstack);
 
         /*Newxz(PL_savestack, PL_savestack_max, ANY);*/

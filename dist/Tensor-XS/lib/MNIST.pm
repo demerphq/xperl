@@ -268,6 +268,6 @@ All integers are big-endian.
 
 =head1 AUTHOR
 
-Generated for the p5-matrix-utils MNIST training example.
+Generated for the Tensor-XS MNIST training example.
 
 =cut

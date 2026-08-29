@@ -43,8 +43,9 @@ CODE:
     pop_stackinfo();
 
     /* continue after 'clone_with_stack' */
-    if (interp_dup->Iop)
-        interp_dup->Iop = interp_dup->Iop->op_next;
+    if (interp_dup->Iexecution_context->Iop)
+        interp_dup->Iexecution_context->Iop =
+            interp_dup->Iexecution_context->Iop->op_next;
 
     /* run with new perl */
     CALLRUNOPS(interp_dup);

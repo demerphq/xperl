@@ -1336,6 +1336,25 @@ Use this typedef to declare variables that are to hold C<struct stackinfo>.
 */
 typedef struct stackinfo PERL_SI;
 
+/* The fields marked PERLVARCTX in intrpvar.h form the swappable execution
+ * record.  Keep this generated from the same declarations as the
+ * interpreter/global state; the access indirection is added by embedvar.h. */
+typedef struct perl_execution_context {
+#define PERLVAR(prefix,var,type)
+#define PERLVARA(prefix,var,n,type)
+#define PERLVARI(prefix,var,type,init)
+#define PERLVARIC(prefix,var,type,init)
+#define PERLVARCTX(prefix,var,type) type prefix##var;
+#define PERLVARCTXI(prefix,var,type,init) type prefix##var;
+#include "intrpvar.h"
+#undef PERLVAR
+#undef PERLVARA
+#undef PERLVARI
+#undef PERLVARIC
+#undef PERLVARCTX
+#undef PERLVARCTXI
+} PERL_EXECUTION_CONTEXT;
+
 /*
  * The execution state which belongs to one resumable run of the interpreter.
  *

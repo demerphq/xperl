@@ -3,9 +3,9 @@ use strict;
 use warnings;
 use Test::More;
 
-my @lib = -d '../dist/p5-matrix-utils/blib/arch'
-    ? ('../dist/p5-matrix-utils/blib/lib', '../dist/p5-matrix-utils/blib/arch')
-    : ('dist/p5-matrix-utils/blib/lib', 'dist/p5-matrix-utils/blib/arch');
+my @lib = -d '../dist/Tensor-XS/blib/arch'
+    ? ('../dist/Tensor-XS/blib/lib', '../dist/Tensor-XS/blib/arch')
+    : ('dist/Tensor-XS/blib/lib', 'dist/Tensor-XS/blib/arch');
 unshift @INC, @lib;
 
 eval { require Tensor::XS; 1 }
