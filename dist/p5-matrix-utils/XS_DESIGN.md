@@ -8,19 +8,14 @@ and numeric data.  It currently exposes construction, rank, size, shape,
 strides, flat indexing, row-major data access, and bounds-checked coordinate
 access and mutation.  Flat and nested bulk loads validate completely before
 publishing native data.  The existing `Tensor`, `Vector`, and `Matrix` classes
-still use their original Perl-array storage while this boundary is validated.
+The public `Tensor` class now owns this native storage, and `Vector` and
+`Matrix` inherit that storage through the Perl class layer.
 
-The next migration step is to add explicit native mutation and bulk-operation
-entry points, then move `Tensor` onto the native object.  The Perl API must not
-mutate a temporary array returned by an accessor and mistake that copy for
-native storage; this is why the public-class conversion follows the storage
-prototype rather than being folded into it prematurely.
-
-The public `Tensor` wrapper now owns a native tensor and exposes its legacy
-array-shaped data interface through a tied array. Existing `Vector` and
-`Matrix` methods therefore continue to use the established API while element
-fetches and stores are forwarded to XS storage. Higher-level operations will
-be moved to direct native bulk operations incrementally.
+The higher-level Perl methods retain their existing API.  Accessing `data`
+returns a Perl list copy for those methods, and an in-place operation publishes
+its completed result back through the XS bulk setter.  This keeps the native
+allocation authoritative while allowing the existing Perl implementations to
+be migrated to direct native operations independently.
 
 This document describes the intended native representation of `Tensor` and
 records the incremental XS implementation as it lands.
@@ -180,9 +175,12 @@ size, alignment, numeric load/store behavior, and operation dispatch.  This
 also permits later additions such as FP8 or packed integer formats without
 changing the allocation header or pointer-calculation scheme.
 
-The default neural-network dtype should be `float32`. A C `short` is normally
-a 16-bit integer, not a 16-bit floating-point type. Half precision (`float16`)
-and bfloat16 can be added later as distinct dtypes if required.
+The standalone XS constructor currently defaults to `BF16`, reflecting the
+common reduced-precision neural-network use case.  The public `Tensor` wrapper
+currently requests `F64` to preserve the established Perl API's precision;
+that policy can change independently once operation promotion rules are
+defined.  A C `short` is normally a 16-bit integer, not a 16-bit floating-point
+type.  Half precision (`float16`) and bfloat16 are distinct dtypes.
 
 Operations need explicit promotion rules. In particular, integer division,
 transcendental functions, and neural-network operations will generally produce

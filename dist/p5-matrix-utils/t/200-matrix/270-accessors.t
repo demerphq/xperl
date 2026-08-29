@@ -2,7 +2,6 @@ use v5.40;
 use experimental qw[ class ];
 
 use Test::More;
-use Test::Exception;
 use Data::Dumper;
 
 use Matrix;
@@ -181,12 +180,17 @@ subtest 'accessor methods - error conditions' => sub {
     my $m = Matrix->new( shape => [2, 2], data => [1, 2, 3, 4] );
 
     # Test accessing out of bounds rows
-    throws_ok { $m->row_at(2) } qr//, 'row_at(2) on 2x2 matrix should cause error';
-    throws_ok { $m->row_at(-1) } qr//, 'row_at(-1) should cause error';
+    my $error;
+    { local $@; eval { $m->row_at(2) }; $error = $@ }
+    ok length $error, 'row_at(2) on 2x2 matrix should cause error';
+    { local $@; eval { $m->row_at(-1) }; $error = $@ }
+    ok length $error, 'row_at(-1) should cause error';
 
     # Test accessing out of bounds columns
-    throws_ok { $m->col_at(2) } qr//, 'col_at(2) on 2x2 matrix should cause error';
-    throws_ok { $m->col_at(-1) } qr//, 'col_at(-1) should cause error';
+    { local $@; eval { $m->col_at(2) }; $error = $@ }
+    ok length $error, 'col_at(2) on 2x2 matrix should cause error';
+    { local $@; eval { $m->col_at(-1) }; $error = $@ }
+    ok length $error, 'col_at(-1) should cause error';
 };
 
 done_testing;

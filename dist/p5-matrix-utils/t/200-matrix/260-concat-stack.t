@@ -2,7 +2,6 @@ use v5.40;
 use experimental qw[ class ];
 
 use Test::More;
-use Test::Exception;
 use Data::Dumper;
 
 use Matrix;
@@ -114,10 +113,13 @@ subtest 'concat method - error conditions' => sub {
     my $m1 = Matrix->new( shape => [2, 2], data => [1, 2, 3, 4] );
     my $m2 = Matrix->new( shape => [3, 2], data => [5, 6, 7, 8, 9, 10] );
 
-    throws_ok { Matrix->concat($m1, $m2) } qr/Rows must be equal to concat/, 'concat with different row counts should cause error';
+    my $error;
+    { local $@; eval { Matrix->concat($m1, $m2) }; $error = $@ }
+    like $error, qr/Rows must be equal to concat/, 'concat with different row counts should cause error';
 
     # Test with matrices having different number of rows (reverse order)
-    throws_ok { Matrix->concat($m2, $m1) } qr/Rows must be equal to concat/, 'concat with different row counts should cause error (reverse order)';
+    { local $@; eval { Matrix->concat($m2, $m1) }; $error = $@ }
+    like $error, qr/Rows must be equal to concat/, 'concat with different row counts should cause error (reverse order)';
 };
 
 subtest 'concat method - edge cases' => sub {
@@ -251,10 +253,13 @@ subtest 'stack method - error conditions' => sub {
     my $m1 = Matrix->new( shape => [2, 2], data => [1, 2, 3, 4] );
     my $m2 = Matrix->new( shape => [2, 3], data => [5, 6, 7, 8, 9, 10] );
 
-    throws_ok { Matrix->stack($m1, $m2) } qr/Cols must be equal to stack/, 'stack with different column counts should cause error';
+    my $error;
+    { local $@; eval { Matrix->stack($m1, $m2) }; $error = $@ }
+    like $error, qr/Cols must be equal to stack/, 'stack with different column counts should cause error';
 
     # Test with matrices having different number of columns (reverse order)
-    throws_ok { Matrix->stack($m2, $m1) } qr/Cols must be equal to stack/, 'stack with different column counts should cause error (reverse order)';
+    { local $@; eval { Matrix->stack($m2, $m1) }; $error = $@ }
+    like $error, qr/Cols must be equal to stack/, 'stack with different column counts should cause error (reverse order)';
 };
 
 subtest 'stack method - edge cases' => sub {

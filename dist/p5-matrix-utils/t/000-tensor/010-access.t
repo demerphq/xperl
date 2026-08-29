@@ -2,7 +2,6 @@ use v5.40;
 use experimental qw[ class ];
 
 use Test::More;
-use Test::Exception;
 use Data::Dumper;
 
 use Tensor;
@@ -62,12 +61,17 @@ subtest 'at method - with floating point numbers' => sub {
 subtest 'at method - edge cases and error conditions' => sub {
     my $t = Tensor->initialize([3], [1, 2, 3]);
 
-    throws_ok { $t->at(3) } qr/Index out of bounds/, 'at(3) on size-3 tensor should cause error';
-    throws_ok { $t->at(-1) } qr/Index out of bounds/, 'at(-1) should cause error';
+    my $error;
+    { local $@; eval { $t->at(3) }; $error = $@ }
+    like $error, qr/Index out of bounds/, 'at(3) on size-3 tensor should cause error';
+    { local $@; eval { $t->at(-1) }; $error = $@ }
+    like $error, qr/Index out of bounds/, 'at(-1) should cause error';
 
     my $t2d = Tensor->initialize([2, 2], [1, 2, 3, 4]);
-    throws_ok { $t2d->at(2, 0) } qr//, 'at(2,0) on 2x2 tensor should cause error';
-    throws_ok { $t2d->at(0, 2) } qr//, 'at(0,2) on 2x2 tensor should cause error';
+    { local $@; eval { $t2d->at(2, 0) }; $error = $@ }
+    ok length $error, 'at(2,0) on 2x2 tensor should cause error';
+    { local $@; eval { $t2d->at(0, 2) }; $error = $@ }
+    ok length $error, 'at(0,2) on 2x2 tensor should cause error';
 };
 
 subtest 'dim_at method - accessing 1D tensor elements' => sub {
@@ -143,9 +147,12 @@ subtest 'index method - coordinate to flat index conversion' => sub {
 subtest 'index method - error conditions' => sub {
     my $t = Tensor->initialize([2, 3], [1..6]);
 
-    throws_ok { $t->index(0) } qr/number of indicies must match the rank/,
+    my $error;
+    { local $@; eval { $t->index(0) }; $error = $@ }
+    like $error, qr/number of indicies must match the rank/,
         'index with wrong number of coordinates should error';
-    throws_ok { $t->index(0, 0, 0) } qr/number of indicies must match the rank/,
+    { local $@; eval { $t->index(0, 0, 0) }; $error = $@ }
+    like $error, qr/number of indicies must match the rank/,
         'index with too many coordinates should error';
 };
 
