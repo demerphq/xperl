@@ -710,10 +710,6 @@ cpan/CPAN-Meta-YAML/t/tml-world/Vanilla-Perl.tml			Test file related to CPAN::Me
 cpan/CPAN-Meta-YAML/t/tml-world/YAML-Tiny-META.tml			Test file related to CPAN::Meta::YAML
 cpan/CPAN-Meta-YAML/t/tml-world/yaml_org.tml				Test file related to CPAN::Meta::YAML
 cpan/CPAN-Meta-YAML/weaver.ini						CPAN-Meta-YAML
-cpan/Cpanel-JSON-XS/.whitesource									Cpanel-JSON-XS
-cpan/Cpanel-JSON-XS/.appveyor.yml									Cpanel-JSON-XS
-cpan/Cpanel-JSON-XS/.github/FUNDING.yml									Cpanel-JSON-XS
-cpan/Cpanel-JSON-XS/.github/workflows/testsuite.yml							Cpanel-JSON-XS
 cpan/Cpanel-JSON-XS/bin/cpanel_json_xs									Cpanel-JSON-XS
 cpan/Cpanel-JSON-XS/eg/bench										Cpanel-JSON-XS
 cpan/Cpanel-JSON-XS/t/00_load.t										Cpanel-JSON-XS
@@ -1116,7 +1112,10 @@ cpan/Cpanel-JSON-XS/t/test_transform/string_3_invalid_codepoints.json					Cpanel
 cpan/Cpanel-JSON-XS/t/test_transform/string_with_escaped_NULL.json					Cpanel-JSON-XS
 cpan/Cpanel-JSON-XS/t/zero-mojibake.t									Cpanel-JSON-XS
 cpan/Cpanel-JSON-XS/typemap										Cpanel-JSON-XS
+cpan/Cpanel-JSON-XS/XS.pm										Cpanel-JSON-XS
 cpan/Cpanel-JSON-XS/XS.xs										Cpanel-JSON-XS
+cpan/Cpanel-JSON-XS/XS/Boolean.pm									Cpanel-JSON-XS
+cpan/Cpanel-JSON-XS/XS/Type.pm										Cpanel-JSON-XS
 cpan/Cpanel-JSON-XS/xt/changes.t									Cpanel-JSON-XS
 cpan/Cpanel-JSON-XS/xt/checkchanges.t									Cpanel-JSON-XS
 cpan/Cpanel-JSON-XS/xt/gh70-asan.t									Cpanel-JSON-XS
@@ -7344,6 +7343,7 @@ t/win32/system.t			See if system works in Win*
 t/win32/system_tests			Test runner for system.t
 utils/corelist.PL			Module::CoreList
 utils/cpan.PL				easily interact with CPAN from the command line
+utils/cpanel_json_xs.PL			Cpanel::JSON::XS command line utility
 utils/enc2xs.PL				Encode module generator
 utils/encguess.PL			guess character encodings of files
 utils/h2ph.PL				A thing to turn C .h files into perl .ph files
