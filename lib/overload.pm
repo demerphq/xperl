@@ -2,6 +2,7 @@ package overload 1.42;
 
 use v5.42;
 no strict 'refs';
+no warnings 'redefine';
 
 our %ops = (
     with_assign         => "+ - * / % ** << >> x .",
