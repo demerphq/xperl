@@ -5,6 +5,7 @@
 # file, too.
 
 use strict;
+no warnings 'experimental::equ';
 
 BEGIN {
     chdir 't' if -d 't';
@@ -18,6 +19,7 @@ use B;
 
 my %unsupported = map +($_=>1), qw (
  __DATA__ __END__ ADJUST AUTOLOAD BEGIN UNITCHECK CORE DESTROY END INIT CHECK
+ __NAMESPACE__ as namespace
   all and any catch class cmp default defer do implements dump else elsif eq equ eval
   field finally for foreach format ge given goto grep gt if isa last le local
   lt m map method my ne neu next no or our package print printf q qq qr qw qx

@@ -1,7 +1,13 @@
 #!./perl
 
+BEGIN {
+    chdir 't' if -d 't';
+    unshift @INC, '../lib';
+}
+
 use strict;
 use warnings;
+no warnings 'experimental::namespaces';
 
 print "1..8\n";
 

@@ -1191,6 +1191,7 @@ like $@, qr'^Undefined format "STDOUT" called',
   my %nottest_words = map { $_ => 1 } qw(
     ADJUST AUTOLOAD BEGIN CHECK CORE DESTROY END INIT UNITCHECK
     __DATA__ __END__
+    __NAMESPACE__ as namespace
     all and any catch class cmp default defer do implements dump else elsif
     eq equ eval field finally
     for foreach format ge given goto grep gt if isa last le local lt m map
