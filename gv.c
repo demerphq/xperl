@@ -618,10 +618,10 @@ S_maybe_add_coresub(pTHX_ HV * const stash, GV *gv,
     switch (code < 0 ? -code : code) {
      /* no support for \&CORE::infix;
         no support for funcs that do not parse like funcs */
-    case KEY___DATA__: case KEY___END__ :
+    case KEY___DATA__: case KEY___END__ : case KEY___NAMESPACE__:
     case KEY_ADJUST  : case KEY_AUTOLOAD: case KEY_BEGIN : case KEY_CHECK :
     case KEY_DESTROY : case KEY_END     : case KEY_INIT  : case KEY_UNITCHECK:
-    case KEY_all     : case KEY_and     : case KEY_any   :
+    case KEY_all     : case KEY_and     : case KEY_any   : case KEY_as:
     case KEY_catch   : case KEY_class   :
     case KEY_cmp     : case KEY_default : case KEY_defer :
     case KEY_do      : case KEY_dump   : case KEY_else  : case KEY_elsif  :
@@ -637,6 +637,7 @@ S_maybe_add_coresub(pTHX_ HV * const stash, GV *gv,
     case KEY_le      : case KEY_local  : case KEY_lt    : case KEY_m      :
     case KEY_map     : case KEY_method : case KEY_my    :
     case KEY_ne      : case KEY_neu    : case KEY_next : case KEY_no:
+    case KEY_namespace:
     case KEY_or      : case KEY_our    :
     case KEY_package: case KEY_print: case KEY_printf:
     case KEY_q    : case KEY_qq   : case KEY_qr     : case KEY_qw    :
