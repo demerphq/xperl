@@ -219,10 +219,11 @@ our %Modules = (
     },
 
     'Cpanel::JSON::XS' => {
-        'DISTRIBUTION' => 'RURBAN/Cpanel-JSON-XS-4.42.tar.gz',
+        'DISTRIBUTION' => 'RURBAN/Cpanel-JSON-XS-4.43.tar.gz',
+        'SYNCINFO'     => 'demerphq on Sat Aug 29 12:19:20 2026',
         'FILES'        => q[cpan/Cpanel-JSON-XS],
         'EXCLUDED'     => [
-            qr{^xt/},
+            'xt/changes.t',
         ],
     },
 
