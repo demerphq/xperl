@@ -248,6 +248,17 @@ perl_construct(pTHXx)
 {
     PERL_ARGS_ASSERT_PERL_CONSTRUCT;
 
+#ifndef MULTIPLICITY
+    /* The unthreaded interpreter may skip init_interp() when the caller has
+     * not requested full destruction.  The indirection must nevertheless be
+     * live before any PL_* context variable is used. */
+    if (!PL_execution_context) {
+        PL_execution_context = &PL_execution_context_storage;
+        PL_execution_context->Itmps_ix = -1;
+        PL_execution_context->Itmps_floor = -1;
+    }
+#endif
+
 #ifdef MULTIPLICITY
     init_interp();
     PL_perl_destruct_level = 1;
