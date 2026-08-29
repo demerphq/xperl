@@ -9,7 +9,7 @@ use strict;
 use warnings;
 no warnings 'experimental::namespaces';
 
-print "1..8\n";
+print "1..9\n";
 
 my $result = eval q{
     use feature 'namespaces';
@@ -53,3 +53,9 @@ my $duplicate = eval q{
     use Carp as C;
 };
 print $@ =~ /Duplicate package alias/ ? "ok 8 - duplicate alias\n" : "not ok 8 - duplicate alias\n";
+
+my $core = eval q{
+    use feature 'namespaces';
+    CORE:::abs(-2) == CORE::abs(-2);
+};
+print !$@ && $core ? "ok 9 - explicit CORE boundary\n" : "not ok 9 - explicit CORE boundary\n";

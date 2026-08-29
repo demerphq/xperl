@@ -8298,8 +8298,22 @@ yyl_just_a_word(pTHX_ char *s, STRLEN len, I32 orig_keyword, struct code c)
     if ((*s == '\'' && FEATURE_APOS_AS_NAME_SEP_IS_ENABLED)
         || (*s == ':' && s[1] == ':')) {
         STRLEN morelen;
-        s = scan_word(s, PL_tokenbuf + len, C_ARRAY_LENGTH(PL_tokenbuf) - len,
-                      TRUE, &morelen);
+        if (*s == ':' && s[1] == ':' && s[2] == ':') {
+            char *const package_start = s;
+            while (s < PL_bufend
+                   && (*s == ':'
+                       || isWORDCHAR_lazy_if_safe(s, PL_bufend, UTF)))
+                s++;
+            morelen = s - package_start;
+            if (len + morelen >= C_ARRAY_LENGTH(PL_tokenbuf))
+                croak("Identifier too long");
+            Copy(package_start, PL_tokenbuf + len, morelen, char);
+            PL_tokenbuf[len + morelen] = '\0';
+        }
+        else
+            s = scan_word(s, PL_tokenbuf + len,
+                          C_ARRAY_LENGTH(PL_tokenbuf) - len,
+                          TRUE, &morelen);
         if (no_op_error) {
             S_warn_expect_operator(aTHX_ "Bareword",s,FALSE);
             no_op_error = FALSE;
@@ -9654,7 +9668,7 @@ yyl_keylookup(pTHX_ char *s, GV *gv)
     anydelim = word_takes_any_delimiter(PL_tokenbuf, len);
 
     /* x::* is just a word, unless x is "CORE" */
-    if (!anydelim && *s == ':' && s[1] == ':') {
+    if (!anydelim && *s == ':' && s[1] == ':' && s[2] != ':') {
         if (memEQs(PL_tokenbuf, len, "CORE"))
             return yyl_key_core(aTHX_ s, len, c);
         return yyl_just_a_word(aTHX_ s, len, 0, c);
