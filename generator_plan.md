@@ -111,6 +111,17 @@ than copying those values.
    copying only after DEBUGGING, threaded, sanitizer, and full `make_test`
    runs pass.
 
+The preferred ownership model is to keep one default context record embedded
+in each interpreter and have the interpreter's active pointer initially refer
+to it.  This makes ordinary thread/interpreter creation and destruction follow
+the existing interpreter allocation lifecycle.  A generator or scheduler that
+needs an independent context owns an additional record, and its cleanup must
+release that record only after its stacks and temporary references have been
+disposed of.  `perl_clone()` must clone the active/default record according to
+the existing `CLONEf_COPY_STACKS` rules rather than blindly copying stack
+pointers; a cloned active pointer must point at the clone's embedded record,
+not at the source interpreter or a generator-owned record.
+
 ### State classification to audit
 
 The first candidate set is `op`, `curcop`, `comppad`, `curpad`, the active
