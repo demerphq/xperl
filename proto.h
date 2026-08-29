@@ -4320,6 +4320,38 @@ Perl_my_vsnprintf(char *buffer, const Size_t len, const char *format, va_list ap
 #define PERL_ARGS_ASSERT_MY_VSNPRINTF           \
     STMT_START { assert(buffer); assert(format); } STMT_END
 
+PERL_CALLCONV void
+Perl_namespace_alias(pTHX_ SV *name, SV *alias)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_NAMESPACE_ALIAS        \
+        Perl_assert_aTHX; assert(name); assert(alias)
+
+PERL_CALLCONV SV *
+Perl_namespace_current(pTHX)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_NAMESPACE_CURRENT      \
+        Perl_assert_aTHX
+
+PERL_CALLCONV SV *
+Perl_namespace_resolve(pTHX_ SV *name)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_NAMESPACE_RESOLVE      \
+        Perl_assert_aTHX; assert(name)
+
+PERL_CALLCONV void
+Perl_namespace_set(pTHX_ SV *name)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_NAMESPACE_SET          \
+        Perl_assert_aTHX; assert(name)
+
 PERL_CALLCONV OP *
 Perl_newANONATTRSUB(pTHX_ I32 floor, OP *proto, OP *attrs, OP *block)
         Perl_attribute_nonnull_aTHX;

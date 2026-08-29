@@ -56,6 +56,7 @@ my %feature = (
         keyword_all
         smartmatch
         enhanced_xx
+        namespaces
     )
 );
 

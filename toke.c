@@ -2350,6 +2350,12 @@ S_force_word(pTHX_ char *start, int token, U32 flags)
         NEXTVAL_NEXTTOKE.opval
             = newSVOP(OP_CONST,0,
                            S_newSV_maybe_utf8(aTHX_ PL_tokenbuf, len));
+        if (FEATURE_NAMESPACES_IS_ENABLED) {
+            SV *word = cSVOPx(NEXTVAL_NEXTTOKE.opval)->op_sv;
+            SV *resolved = namespace_resolve(word);
+            cSVOPx(NEXTVAL_NEXTTOKE.opval)->op_sv = resolved;
+            SvREFCNT_dec_NN(word);
+        }
         NEXTVAL_NEXTTOKE.opval->op_private |= OPpCONST_BARE;
         force_next(token);
     }
@@ -5667,6 +5673,17 @@ S_tokenize_use(pTHX_ int is_use, char *s)
         s = force_version(s, FALSE);
     }
     pl_yylval.ival = is_use;
+    s = skipspace(s);
+    if (FEATURE_NAMESPACES_IS_ENABLED
+        && memEQs(s, 2, "as")
+        && !isWORDCHAR_lazy_if_safe(s + 2, PL_bufend, UTF)) {
+        s += 2;
+        I32 nexttoke = PL_nexttoke;
+        force_next(KW_AS);
+        Move(PL_nexttype, PL_nexttype + 1, nexttoke, I32);
+        Move(PL_nextval, PL_nextval + 1, nexttoke, YYSTYPE);
+        PL_nexttype[0] = KW_AS;
+    }
     return s;
 }
 #ifdef DEBUGGING
@@ -8305,6 +8322,11 @@ yyl_just_a_word(pTHX_ char *s, STRLEN len, I32 orig_keyword, struct code c)
 
     if (!c.sv)
         c.sv = S_newSV_maybe_utf8(aTHX_ PL_tokenbuf, len);
+    if (FEATURE_NAMESPACES_IS_ENABLED && pkgname) {
+        SV *resolved = namespace_resolve(c.sv);
+        SvREFCNT_dec_NN(c.sv);
+        c.sv = resolved;
+    }
     if (c.gvp) {
         SV *sv = newSVpvs("CORE::GLOBAL::");
         sv_catsv(sv, c.sv);
@@ -8507,6 +8529,10 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
                      : &PL_sv_undef))
         );
 
+    case KEY___NAMESPACE__:
+        FUN0OP(newSVOP(OP_CONST, OPpCONST_TOKEN_PACKAGE<<8,
+                       namespace_current()));
+
     case KEY___DATA__:
     case KEY___END__:
         if (PL_rsfp && (!PL_in_eval || PL_tokenbuf[2] == 'D'))
@@ -8547,6 +8573,10 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
 
     case KEY_abs:
         UNI(OP_ABS);
+
+    case KEY_as:
+        PL_expect = XTERM;
+        TOKEN(KW_AS);
 
     case KEY_alarm:
         UNI(OP_ALARM);
@@ -9007,6 +9037,34 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
 
     case KEY_msgsnd:
         LOP(OP_MSGSND,XTERM);
+
+    case KEY_namespace:
+        s = skipspace(s);
+        if (isIDFIRST_lazy_if_safe(s, PL_bufend, UTF)
+            || (*s == ':' && s[1] == ':')) {
+            STRLEN nslen;
+            char *start = s;
+            if (strstr(s, ":::")) {
+                while (s < PL_bufend
+                       && (*s == ':'
+                           || isWORDCHAR_lazy_if_safe(s, PL_bufend, UTF)))
+                    s++;
+                nslen = s - start;
+                if (nslen >= C_ARRAY_LENGTH(PL_tokenbuf))
+                    croak("Namespace name is too long");
+                Copy(start, PL_tokenbuf, nslen, char);
+                PL_tokenbuf[nslen] = 0;
+            }
+            else
+                s = scan_word(s, PL_tokenbuf, C_ARRAY_LENGTH(PL_tokenbuf),
+                              TRUE, &nslen);
+            NEXTVAL_NEXTTOKE.opval =
+                newSVOP(OP_CONST, 0,
+                        S_newSV_maybe_utf8(aTHX_ PL_tokenbuf, nslen));
+            NEXTVAL_NEXTTOKE.opval->op_private |= OPpCONST_BARE;
+            force_next(BAREWORD);
+        }
+        PREBLOCK(KW_NAMESPACE);
 
     case KEY_our:
     case KEY_my:
@@ -9688,6 +9746,9 @@ yyl_keylookup(pTHX_ char *s, GV *gv)
 
     /* Check for built-in keyword */
     key = keyword(PL_tokenbuf, len, 0);
+    if ((!key || key == -KEY_as) && FEATURE_NAMESPACES_IS_ENABLED
+        && memEQs(PL_tokenbuf, len, "as"))
+        key = KEY_as;
 
     if (key < 0)
         key = yyl_secondclass_keyword(aTHX_ s, len, key, &orig_keyword, &c.gv, &c.gvp);

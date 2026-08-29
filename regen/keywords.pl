@@ -64,6 +64,9 @@ my %feature_kw = (
     generator_exhausted => 'generator',
     generator_yield     => 'generator',
     generator_create    => 'generator',
+    namespace           => 'namespaces',
+    as                  => 'namespaces',
+    __NAMESPACE__       => 'namespaces',
 );
 
 my %pos = map { ($_ => 1) } @{$by_strength{'+'}};
@@ -129,6 +132,7 @@ __END__
 -__FILE__
 -__LINE__
 -__PACKAGE__
+-__NAMESPACE__
 -__SUB__
 +ADJUST
 +AUTOLOAD
@@ -143,6 +147,7 @@ __END__
 -alarm
 -all
 -and
+-as
 -any
 -atan2
 -bind
@@ -272,6 +277,7 @@ __END__
 -msgrcv
 -msgsnd
 +my
+-namespace
 -ne
 -neu
 +next

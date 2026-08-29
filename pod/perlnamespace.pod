@@ -1,0 +1,52 @@
+=head1 NAME
+
+perlnamespace - lexical namespaces and package aliases
+
+=head1 DESCRIPTION
+
+The experimental C<namespaces> feature provides a lexical namespace prefix
+for package names.  It does not change the current package.  Enable it with:
+
+    use feature 'namespaces';
+
+After a declaration such as:
+
+    namespace My::Application;
+
+an unqualified package name in the lexical scope is interpreted relative to
+C<My::Application>.  A relative declaration extends the current namespace;
+an explicit C<:::> boundary replaces it:
+
+    namespace Model;
+    namespace User;       # Model::User
+    namespace :::Shared;  # Shared
+
+The C<:::> separator is syntax for an explicit namespace boundary.  It is
+canonicalised to the ordinary C<::> package separator and does not occur in
+package names, stash names, or file names.  Runtime strings are not rewritten.
+
+C<__NAMESPACE__> is a compile-time constant containing the current lexical
+namespace.  It is distinct from C<__PACKAGE__>, which continues to contain
+the current package.
+
+=head2 Package aliases
+
+The C<as> form of C<use> introduces a lexical package alias:
+
+    use Some::Library as Library;
+
+Within the scope of the declaration, C<Library::Thing> refers to
+C<Some::Library::Thing>.  Aliases are lexical, may be used for descendants,
+and do not rewrite runtime strings.  An explicit C<:::> boundary takes
+precedence over an alias.  Repeating an alias in one lexical scope is an
+error.
+
+The normal version and import-list forms of C<use> remain available.  The
+namespace and alias syntax is experimental and is only recognised when the
+C<namespaces> feature is enabled.
+
+=head1 SEE ALSO
+
+L<perlsyn>, L<perlfunc>
+
+=cut
