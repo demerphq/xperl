@@ -559,6 +559,7 @@
 # define prepare_export_lexical()               Perl_prepare_export_lexical(aTHX)
 # define prescan_version(a,b,c,d,e,f,g)         Perl_prescan_version(aTHX_ a,b,c,d,e,f,g)
 # define process_scheduler_run(a)               Perl_process_scheduler_run(aTHX_ a)
+# define process_state_capture(a)               Perl_process_state_capture(aTHX_ a)
 # define process_state_restore(a)               Perl_process_state_restore(aTHX_ a)
 # define process_state_save(a)                  Perl_process_state_save(aTHX_ a)
 # define ptr_table_fetch(a,b)                   Perl_ptr_table_fetch(aTHX_ a,b)

@@ -38,86 +38,22 @@ void
 Perl_process_state_save(pTHX_ PERL_PROCESS_STATE *state)
 {
     PERL_ARGS_ASSERT_PROCESS_STATE_SAVE;
-
-    state->op = PL_op;
-    state->curcop = PL_curcop;
-    state->comppad = PL_comppad;
-    state->curpad = PL_curpad;
-    state->curstack = PL_curstack;
-    state->curstackinfo = PL_curstackinfo;
-    state->stack_base = PL_stack_base;
-    state->stack_max = PL_stack_max;
-    state->stack_sp = PL_stack_sp;
-    state->curpm = PL_curpm;
-    state->curpm_under = PL_curpm_under;
-    state->reg_curpm = PL_reg_curpm;
-    state->multideref_pc = PL_multideref_pc;
-    state->defgv = PL_defgv;
-    state->curstash = PL_curstash;
-    state->curcopdb = PL_curcopdb;
-    state->tainting = PL_tainting;
-    state->tainted = PL_tainted;
-    state->delaymagic = PL_delaymagic;
-    state->dowarn = PL_dowarn;
-    state->markstack = PL_markstack;
-    state->markstack_ptr = PL_markstack_ptr;
-    state->markstack_max = PL_markstack_max;
-    state->savestack = PL_savestack;
-    state->savestack_ix = PL_savestack_ix;
-    state->savestack_max = PL_savestack_max;
-    state->scopestack = PL_scopestack;
-    state->scopestack_ix = PL_scopestack_ix;
-    state->scopestack_max = PL_scopestack_max;
-    state->tmps_stack = PL_tmps_stack;
-    state->tmps_ix = PL_tmps_ix;
-    state->tmps_floor = PL_tmps_floor;
-    state->tmps_max = PL_tmps_max;
-    state->in_eval = PL_in_eval;
-    state->localizing = PL_localizing;
-    state->restartop = PL_restartop;
+    state->context = PL_execution_context;
 }
 
 void
 Perl_process_state_restore(pTHX_ const PERL_PROCESS_STATE *state)
 {
     PERL_ARGS_ASSERT_PROCESS_STATE_RESTORE;
+    PL_execution_context = state->context;
+}
 
-    PL_op = state->op;
-    PL_curcop = state->curcop;
-    PL_comppad = state->comppad;
-    PL_curpad = state->curpad;
-    PL_curstack = state->curstack;
-    PL_curstackinfo = state->curstackinfo;
-    PL_stack_base = state->stack_base;
-    PL_stack_max = state->stack_max;
-    PL_stack_sp = state->stack_sp;
-    PL_curpm = state->curpm;
-    PL_curpm_under = state->curpm_under;
-    PL_reg_curpm = state->reg_curpm;
-    PL_multideref_pc = state->multideref_pc;
-    PL_defgv = state->defgv;
-    PL_curstash = state->curstash;
-    PL_curcopdb = state->curcopdb;
-    PL_tainting = state->tainting;
-    PL_tainted = state->tainted;
-    PL_delaymagic = state->delaymagic;
-    PL_dowarn = state->dowarn;
-    PL_markstack = state->markstack;
-    PL_markstack_ptr = state->markstack_ptr;
-    PL_markstack_max = state->markstack_max;
-    PL_savestack = state->savestack;
-    PL_savestack_ix = state->savestack_ix;
-    PL_savestack_max = state->savestack_max;
-    PL_scopestack = state->scopestack;
-    PL_scopestack_ix = state->scopestack_ix;
-    PL_scopestack_max = state->scopestack_max;
-    PL_tmps_stack = state->tmps_stack;
-    PL_tmps_ix = state->tmps_ix;
-    PL_tmps_floor = state->tmps_floor;
-    PL_tmps_max = state->tmps_max;
-    PL_in_eval = state->in_eval;
-    PL_localizing = state->localizing;
-    PL_restartop = state->restartop;
+void
+Perl_process_state_capture(pTHX_ PERL_PROCESS_STATE *state)
+{
+    PERL_ARGS_ASSERT_PROCESS_STATE_CAPTURE;
+    state->context_storage = *PL_execution_context;
+    state->context = &state->context_storage;
 }
 
 static int
@@ -295,8 +231,9 @@ static void S_generator_attach_stackinfo(pTHX_ PERL_GENERATOR *generator);
 static void
 S_generator_free_tmps(pTHX_ PERL_PROCESS_STATE *process)
 {
-    while (process->tmps_ix >= 0) {
-        SV * const sv = process->tmps_stack[process->tmps_ix--];
+    PERL_EXECUTION_CONTEXT * const context = process->context;
+    while (context->Itmps_ix >= 0) {
+        SV * const sv = context->Itmps_stack[context->Itmps_ix--];
         if (sv) {
             SvTEMP_off(sv);
             SvREFCNT_dec_NN(sv);
@@ -307,15 +244,16 @@ S_generator_free_tmps(pTHX_ PERL_PROCESS_STATE *process)
 static void
 S_generator_free_process_stacks(pTHX_ PERL_PROCESS_STATE *process)
 {
+    PERL_EXECUTION_CONTEXT * const context = process->context;
     S_generator_free_tmps(aTHX_ process);
-    Safefree(process->markstack);
-    Safefree(process->savestack);
-    Safefree(process->scopestack);
-    Safefree(process->tmps_stack);
-    process->markstack = NULL;
-    process->savestack = NULL;
-    process->scopestack = NULL;
-    process->tmps_stack = NULL;
+    Safefree(context->Imarkstack);
+    Safefree(context->Isavestack);
+    Safefree(context->Iscopestack);
+    Safefree(context->Itmps_stack);
+    context->Imarkstack = NULL;
+    context->Isavestack = NULL;
+    context->Iscopestack = NULL;
+    context->Itmps_stack = NULL;
 }
 
 void
@@ -351,7 +289,8 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
             process_state_restore(&caller_state);
         }
     }
-    else if (generator->process.tmps_stack) {
+    else if (generator->process.context
+             && generator->process.context->Itmps_stack) {
         S_generator_free_process_stacks(aTHX_ &generator->process);
     }
     SvREFCNT_dec(generator->value);
@@ -367,7 +306,7 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
 static void
 S_generator_pop_stackinfo(pTHX_ PERL_GENERATOR *generator)
 {
-    PERL_SI * const saved_si = generator->process.curstackinfo;
+    PERL_SI * const saved_si = generator->process.context->Icurstackinfo;
 
     if (!saved_si)
         return;
@@ -380,7 +319,7 @@ S_generator_pop_stackinfo(pTHX_ PERL_GENERATOR *generator)
 static void
 S_generator_detach_stackinfo(pTHX_ PERL_GENERATOR *generator)
 {
-    PERL_SI * const si = generator->process.curstackinfo;
+    PERL_SI * const si = generator->process.context->Icurstackinfo;
     PERL_SI * const prev = si ? si->si_prev : NULL;
     PERL_SI * const next = si ? si->si_next : NULL;
 
@@ -398,7 +337,7 @@ S_generator_detach_stackinfo(pTHX_ PERL_GENERATOR *generator)
 static void
 S_generator_attach_stackinfo(pTHX_ PERL_GENERATOR *generator)
 {
-    PERL_SI * const si = generator->process.curstackinfo;
+    PERL_SI * const si = generator->process.context->Icurstackinfo;
     PERL_SI * const prev = PL_curstackinfo;
     PERL_SI * const next = prev ? prev->si_next : NULL;
 
@@ -625,12 +564,13 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         if (new_generator
             && generator->state == PERL_GENERATOR_RUNNING
             && !generator->captured) {
+            process_state_capture(&generator->process);
+            process_state_restore(&generator->process);
             push_stackinfo(PERLSI_UNKNOWN, 0);
             generator->stack_pushed = TRUE;
             S_generator_new_stacks(aTHX);
             PL_in_eval = 0;
             PL_restartop = NULL;
-            process_state_save(&generator->process);
             PUSHMARK(PL_stack_sp);
             create_eval_scope(NULL, PL_stack_sp, G_FAKINGEVAL);
             generator->eval_active = TRUE;

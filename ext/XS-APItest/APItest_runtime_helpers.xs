@@ -379,14 +379,17 @@ process_state_roundtrip()
 CODE:
 {
     PERL_PROCESS_STATE state;
+    PERL_EXECUTION_CONTEXT * const original_context = PL_execution_context;
     OP * const op = PL_op;
     PERL_SI * const stackinfo = PL_curstackinfo;
 
-    process_state_save(&state);
+    process_state_capture(&state);
     PL_op = NULL;
     PL_curstackinfo = NULL;
     process_state_restore(&state);
     RETVAL = PL_op == op && PL_curstackinfo == stackinfo;
+    *original_context = state.context_storage;
+    PL_execution_context = original_context;
 }
 OUTPUT:
     RETVAL
@@ -421,8 +424,8 @@ CODE:
         ops[i][1]->op_ppaddr = S_process_scheduler_test_pp;
         ops[i][0]->op_next = ops[i][1];
         ops[i][1]->op_next = NULL;
-        process_state_save(&states[i]);
-        states[i].op = ops[i][0];
+        process_state_capture(&states[i]);
+        states[i].context->Iop = ops[i][0];
     }
 
     Zero(&scheduler, 1, PERL_PROCESS_SCHEDULER);
@@ -435,7 +438,7 @@ CODE:
     RETVAL = ret == 0
         && scheduler.total_boundaries == 2
         && done[0] && done[1]
-        && !states[0].op && !states[1].op;
+        && !states[0].context->Iop && !states[1].context->Iop;
 
     for (i = 0; i < 2; i++) {
         op_free(ops[i][1]);

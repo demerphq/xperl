@@ -2922,6 +2922,8 @@ Adp	|const char *|prescan_version					\
 				|NULLOK bool *salpha
 Chp	|int	|process_scheduler_run					\
 				|NN PERL_PROCESS_SCHEDULER *scheduler
+Chp	|void	|process_state_capture					\
+				|NN PERL_PROCESS_STATE *state
 Chp	|void	|process_state_restore					\
 				|NN const PERL_PROCESS_STATE *state
 Chp	|void	|process_state_save					\

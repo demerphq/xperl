@@ -1369,49 +1369,8 @@ typedef struct perl_execution_context {
  * scheduler.
  */
 typedef struct perl_process_state {
-    OP *            op;
-    COP *           curcop;
-    PAD *           comppad;
-    SV **           curpad;
-
-    AV *            curstack;
-    PERL_SI *       curstackinfo;
-    SV **           stack_base;
-    SV **           stack_max;
-    SV **           stack_sp;
-
-    PMOP *           curpm;
-    PMOP *           curpm_under;
-    PMOP *           reg_curpm;
-    UNOP_AUX_item *  multideref_pc;
-    GV *             defgv;
-    HV *             curstash;
-    COP *            curcopdb;
-    bool             tainting;
-    bool             tainted;
-    U16              delaymagic;
-    U8               dowarn;
-
-    Stack_off_t *   markstack;
-    Stack_off_t *   markstack_ptr;
-    Stack_off_t *   markstack_max;
-
-    ANY *           savestack;
-    I32             savestack_ix;
-    I32             savestack_max;
-
-    I32 *           scopestack;
-    I32             scopestack_ix;
-    I32             scopestack_max;
-
-    SV **           tmps_stack;
-    SSize_t         tmps_ix;
-    SSize_t         tmps_floor;
-    SSize_t         tmps_max;
-
-    U8              in_eval;
-    U8              localizing;
-    OP *            restartop;
+    PERL_EXECUTION_CONTEXT *context;
+    PERL_EXECUTION_CONTEXT  context_storage;
 } PERL_PROCESS_STATE;
 
 /* Result requested by a runops boundary hook.  Zero means continue; a
