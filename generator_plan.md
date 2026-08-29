@@ -34,10 +34,13 @@ test still reports two non-fatal temporary-SV teardown diagnostics; minimal
 runtime reproductions do not reproduce them, so they remain documented as a
 test-harness teardown limitation rather than suppressed.
 
-The process-local `PL_*` fields remain field-by-field snapshots.  Keep the
-follow-up investigation for a contiguous execution record that could be
-copied or swapped through one assignment, subject to ABI, threading, and GC
-constraints.
+The process-local `PL_*` fields now resolve through a generated execution
+context record.  Process switching installs the record pointer rather than
+copying the individual fields.  The default record is embedded in the
+interpreter, with an unthreaded bootstrap path that initializes its global
+pointer before any context variable is used.  Threaded DEBUGGING, unthreaded
+DEBUGGING, focused generator/runtime tests, `test_porting`, and the final
+DEBUGGING `make_test` run pass.
 
 The experimental generator trio is now `generator_create`, `generator_yield`,
 and `generator_exhausted`.  `generator_exhausted` is a non-advancing predicate:
@@ -150,4 +153,4 @@ remain excluded.
 - [x] Preserve explicit list-valued returns on exhaustion
 - [x] Accept generator signatures in `generator_create (...) { ... }`
 - [x] Add focused regression coverage, diagnostics, and documentation
-- [ ] Run the relevant DEBUGGING, threaded, sanitizer, and `make_test` validation
+- [x] Run the relevant DEBUGGING, threaded, sanitizer, and `make_test` validation
