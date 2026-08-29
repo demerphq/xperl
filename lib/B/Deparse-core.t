@@ -367,6 +367,7 @@ my %not_tested = map { $_ => 1} qw(
     END
     INIT
     UNITCHECK
+    __NAMESPACE__
     catch
     class
     default
@@ -384,6 +385,8 @@ my %not_tested = map { $_ => 1} qw(
     if
     m
     method
+    as
+    namespace
     no
     package
     q
