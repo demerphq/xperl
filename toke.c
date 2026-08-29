@@ -8298,7 +8298,8 @@ yyl_just_a_word(pTHX_ char *s, STRLEN len, I32 orig_keyword, struct code c)
     if ((*s == '\'' && FEATURE_APOS_AS_NAME_SEP_IS_ENABLED)
         || (*s == ':' && s[1] == ':')) {
         STRLEN morelen;
-        if (*s == ':' && s[1] == ':' && s[2] == ':') {
+        if (FEATURE_NAMESPACES_IS_ENABLED
+            && *s == ':' && s[1] == ':' && s[2] == ':') {
             char *const package_start = s;
             while (s < PL_bufend
                    && (*s == ':'
@@ -9668,7 +9669,8 @@ yyl_keylookup(pTHX_ char *s, GV *gv)
     anydelim = word_takes_any_delimiter(PL_tokenbuf, len);
 
     /* x::* is just a word, unless x is "CORE" */
-    if (!anydelim && *s == ':' && s[1] == ':' && s[2] != ':') {
+    if (!anydelim && *s == ':' && s[1] == ':'
+        && (!FEATURE_NAMESPACES_IS_ENABLED || s[2] != ':')) {
         if (memEQs(PL_tokenbuf, len, "CORE"))
             return yyl_key_core(aTHX_ s, len, c);
         return yyl_just_a_word(aTHX_ s, len, 0, c);

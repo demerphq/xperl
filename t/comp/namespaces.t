@@ -5,8 +5,6 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-use strict;
-use warnings;
 no warnings 'experimental::namespaces';
 
 print "1..9\n";
