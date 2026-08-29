@@ -2327,8 +2327,21 @@ S_force_word(pTHX_ char *start, int token, U32 flags)
     if (   isIDFIRST_lazy_if_safe(s, PL_bufend, UTF)
         || (allow_pack && *s == ':' && s[1] == ':') )
     {
-        s = scan_word(s, PL_tokenbuf, C_ARRAY_LENGTH(PL_tokenbuf),
-                      allow_pack, &len);
+        if (allow_pack && strstr(s, ":::")) {
+            char *start = s;
+            while (s < PL_bufend
+                   && (*s == ':'
+                       || isWORDCHAR_lazy_if_safe(s, PL_bufend, UTF)))
+                s++;
+            len = s - start;
+            if (len >= C_ARRAY_LENGTH(PL_tokenbuf))
+                croak("Identifier too long");
+            Copy(start, PL_tokenbuf, len, char);
+            PL_tokenbuf[len] = 0;
+        }
+        else
+            s = scan_word(s, PL_tokenbuf, C_ARRAY_LENGTH(PL_tokenbuf),
+                          allow_pack, &len);
         if (check_keyword) {
           char *s2 = PL_tokenbuf;
           STRLEN len2 = len;
@@ -6115,6 +6128,11 @@ yyl_sub(pTHX_ char *s, const int key)
             sv_setsv(PL_subname,PL_curstname);
             sv_catpvs(PL_subname,"::");
             sv_catpvn(PL_subname,tmpbuf,len);
+        }
+        if (FEATURE_NAMESPACES_IS_ENABLED && memchr(tmpbuf, ':', len)) {
+            SV *resolved = namespace_resolve(PL_subname);
+            sv_setsv(PL_subname, resolved);
+            SvREFCNT_dec_NN(resolved);
         }
         if (SvUTF8(PL_linestr))
             SvUTF8_on(PL_subname);
