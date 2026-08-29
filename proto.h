@@ -5750,6 +5750,13 @@ Perl_process_state_capture(pTHX_ PERL_PROCESS_STATE *state)
     STMT_START { Perl_assert_aTHX; assert(state); } STMT_END
 
 PERL_CALLCONV void
+Perl_process_state_capture(pTHX_ PERL_PROCESS_STATE *state)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_PROCESS_STATE_CAPTURE  \
+        Perl_assert_aTHX; assert(state)
+
+PERL_CALLCONV void
 Perl_process_state_restore(pTHX_ const PERL_PROCESS_STATE *state)
         Perl_attribute_nonnull_aTHX
         Perl_attribute_nonnull(pTHX_1);
