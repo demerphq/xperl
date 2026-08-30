@@ -12,7 +12,7 @@ git diff origin/blead..HEAD
 Comparison baseline: `origin/blead` at `65d0414b44c1b3c1f1879069332ed7c5b85e00e4`.
 
 At the time of this update, the branch is 77 commits ahead of that baseline,
-with 618 changed paths, 38,679 additions, and 3,223 deletions. The changes
+with 620 changed paths, 39,076 additions, and 3,223 deletions. The changes
 include generated files, tests, bundled distributions, documentation, and
 development tooling in addition to the runtime changes described below.
 
@@ -41,6 +41,20 @@ than copy each individual `PL_*` value. Threaded and unthreaded initialization,
 exports, generated access macros, and lifecycle handling were updated for this
 model.
 
+Generators are also a small cooperative-concurrency primitive: a caller can
+explicitly resume one generator, retain its suspended continuation, and resume
+another generator before returning to the first. They do not create threads or
+provide implicit scheduling; any interleaving is controlled by the code that
+resumes the generators. The continuation is delimited by the generator body
+and is one-shot, while the saved process state preserves the Perl execution
+context across each suspension.
+
+Related POD: `pod/perlasync.pod` is the dedicated description of generators,
+continuations, and cooperative resumable execution. `pod/perlexperiment.pod`,
+`pod/perlfunc.pod`, `pod/perlsyn.pod`, `pod/perldiag.pod`, and
+`pod/perldelta.pod` cover the experimental status, keywords, syntax,
+diagnostics, and release notes.
+
 ### Lexical namespaces
 
 An experimental `namespaces` feature adds lexical namespace state, namespace
@@ -49,6 +63,11 @@ resolution, and explicit `CORE:::` boundaries. The parser, keyword tables,
 diagnostics, deparser tests, generated headers, and documentation were
 updated. `CORE` receives special handling because it is the implementation
 namespace for Perl's builtins and operators.
+
+Related POD: `pod/perlnamespace.pod` is the dedicated namespace reference;
+`pod/perlsyn.pod`, `pod/perlfunc.pod`, `pod/perlexperiment.pod`,
+`pod/perldiag.pod`, and `pod/perldelta.pod` cover syntax, builtins,
+experimental status, diagnostics, and release notes.
 
 ### Classes and roles
 
@@ -64,6 +83,11 @@ The branch includes substantial class and role work, including:
 - cloning of role metadata in threaded stashes;
 - corresponding parser, opcode, diagnostics, documentation, and tests.
 
+Related POD: `pod/perlclass.pod` is the primary class and role reference;
+`pod/perlfunc.pod`, `pod/perlexperiment.pod`, `pod/perldiag.pod`, and
+`pod/perldelta.pod` cover the builtins, experimental status, diagnostics, and
+release notes.
+
 ### Class objects and Data::Dumper
 
 `Data::Dumper` now understands the new class-object representation through
@@ -71,6 +95,11 @@ class-object/hash conversion APIs. The XS and pure-Perl Data::Dumper paths
 were updated in `dist/Data-Dumper`, with compatibility guards for building
 the distribution on older Perl versions. The class-object support is
 documented and tested.
+
+Related POD: `pod/perlclass.pod`, `pod/perlfunc.pod`, and `pod/perldelta.pod`
+describe the class-object APIs and their user-visible integration.
+Distribution-specific history is in `dist/Data-Dumper/Changes`; no separate
+Data::Dumper POD document was added for this change.
 
 ## Bundled distribution changes
 
@@ -80,6 +109,10 @@ documented and tested.
 implementation, Perl support files, command-line utility, test suite, JSON
 specification fixtures, extended tests, metadata, and core maintainer/build
 integration.
+
+Related POD: `pod/perldelta.pod` records the bundled-core change. The imported
+distribution's API and tests remain documented in its own source and test
+files; no separate core POD document was added for Cpanel::JSON::XS.
 
 ### Tensor-XS and p5-matrix-utils
 
@@ -103,6 +136,12 @@ The native tensor work includes:
 The tensor distribution remains an active experimental area and should not be
 read as a finalized numerical-computing ABI.
 
+Related POD: `pod/perldelta.pod` records the bundled distribution change.
+Tensor-specific design and status are documented in
+`dist/Tensor-XS/Changes`, `dist/Tensor-XS/XS_DESIGN.md`,
+`dist/Tensor-XS/NOTES.md`, and the other design and result Markdown files in
+that distribution; no dedicated core POD document was added.
+
 ## Test and development workflow
 
 The branch adds or changes substantial test coverage for generators, classes,
@@ -118,6 +157,10 @@ tracked source files.
 Several tests were adjusted for root-directory execution, generated-file
 checks, experimental warning handling, and bundled-distribution layout.
 
+Related POD: no dedicated POD document was added for the test-harness and
+agent-workflow changes. Their operational documentation is in `AGENTS.md`,
+`.agent/skills/`, and the tracked materials under `planning/`.
+
 ## Generated and platform integration
 
 Because the branch changes keywords, features, opcodes, embedding declarations,
@@ -129,6 +172,10 @@ platform integration changes appear in `Configure`, `Makefile.SH`, `Cross/`,
 These generated changes are consequences of the source changes above and must
 be regenerated when the relevant inputs change.
 
+Related POD: `pod/perldelta.pod` records user-visible consequences; no
+separate POD document was added for the generated-file and platform
+integration details.
+
 ## Compatibility posture
 
 Most existing Perl behavior is intentionally preserved where practical, and
@@ -136,3 +183,7 @@ the branch contains compatibility fixes for feature-disabled code, `CORE`
 handling, threaded builds, and bundled distributions. Nevertheless, the
 features listed here are experimental and the project explicitly permits
 incompatible changes when they are judged necessary for the fork's goals.
+
+Related POD: `pod/perldelta.pod` records notable user-visible differences,
+while `pod/perlexperiment.pod`, `pod/perlasync.pod`, `pod/perlclass.pod`, and
+`pod/perlnamespace.pod` document the experimental features themselves.

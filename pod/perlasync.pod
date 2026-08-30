@@ -8,9 +8,17 @@ perlasync - cooperative resumable execution in Perl
 
 This document describes the experimental generator interface.  A generator
 allows a block of Perl code to suspend at an explicit C<generator_yield> and later
-continue from that point.  Iterators are cooperative: calling the generator
-is what advances it, and no thread, event loop, or implicit scheduling is
-provided.
+continue from that point.  Generators are cooperative concurrency primitives:
+code can resume one generator, retain its suspended continuation, and then
+resume another generator.  Calling the generator is what advances it; no
+thread, event loop, or implicit scheduler is provided.
+
+Each suspended generator owns a delimited, one-shot continuation.  The
+continuation includes the Perl execution state needed to return to the yield
+point, including lexical and localized state.  This permits explicit
+interleaving of independent generator computations without copying their
+execution state at every switch, but it is not parallel execution and does
+not make shared data automatically safe.
 
 The interface is experimental and may change or be removed in a future Perl
 release.

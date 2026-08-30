@@ -21,6 +21,13 @@ more capable runtime, or a more useful default distribution.
 A summary of the differences between AI Perl and mainline Perl can be found
 in [BLEAD-DELTA.md](BLEAD-DELTA.md).
 
+AI Perl is currently in a pre-release state. Until the project declares a
+release through its own release process, anything in this repository may
+change, be replaced, or be removed without notice. Documentation and code may
+refer to mainline Perl, the Perl 5 Porters community, or their processes. Such
+references may be accurate descriptions of their current state, but they may
+not remain relevant to AI Perl as this project evolves.
+
 AI Perl is stewarded by Yves Orton and Stevan Little.
 
 We welcome ideas, suggestions, bug reports, feedback, and contributions;
