@@ -1,3 +1,7 @@
+Perl is Copyright (C) 1993 - 2026 by Larry Wall and others.
+
+All rights reserved.
+
 # ABOUT AI-PERL
 
 This is a fork of the Perl project. See
@@ -19,12 +23,6 @@ The exact details of what we will include can and will change at any time.
 We aim to be highly backwards compatible with perl code, and mostly backwards
 compatible with XS code, but we will deviate from both when it benefits the
 language.
-
-# COPYRIGHT
-
-Perl is Copyright (C) 1993 - 2026 by Larry Wall and others.
-
-All rights reserved.
 
 # ABOUT PERL
 
