@@ -6356,7 +6356,7 @@ pod/perl589delta.pod			Perl changes in version 5.8.9
 pod/perl58delta.pod			Perl changes in version 5.8.0
 pod/perlapio.pod			Perl internal IO abstraction interface
 pod/perlartistic.pod			Perl Artistic License
-pod/perlasync.pod			Cooperative resumable execution
+pod/perlgenerator.pod			Generator and cooperative resumable execution
 pod/perlbook.pod			Perl book information
 pod/perlboot.pod
 pod/perlbot.pod

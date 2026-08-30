@@ -107,7 +107,7 @@ POD = perl.pod	\
 	perlapi.pod	\
 	perlapio.pod	\
 	perlartistic.pod	\
-	perlasync.pod	\
+	perlgenerator.pod	\
 	perlbook.pod	\
 	perlboot.pod	\
 	perlbot.pod	\
@@ -301,7 +301,7 @@ MAN = perl.man	\
 	perlapi.man	\
 	perlapio.man	\
 	perlartistic.man	\
-	perlasync.man	\
+	perlgenerator.man	\
 	perlbook.man	\
 	perlboot.man	\
 	perlbot.man	\
@@ -495,7 +495,7 @@ HTML = perl.html	\
 	perlapi.html	\
 	perlapio.html	\
 	perlartistic.html	\
-	perlasync.html	\
+	perlgenerator.html	\
 	perlbook.html	\
 	perlboot.html	\
 	perlbot.html	\
@@ -689,7 +689,7 @@ TEX = perl.tex	\
 	perlapi.tex	\
 	perlapio.tex	\
 	perlartistic.tex	\
-	perlasync.tex	\
+	perlgenerator.tex	\
 	perlbook.tex	\
 	perlboot.tex	\
 	perlbot.tex	\

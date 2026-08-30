@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-perlasync - cooperative resumable execution in Perl
+perlgenerator - generators and cooperative resumable execution in Perl
 
 =head1 DESCRIPTION
 

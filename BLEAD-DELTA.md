@@ -49,7 +49,7 @@ resumes the generators. The continuation is delimited by the generator body
 and is one-shot, while the saved process state preserves the Perl execution
 context across each suspension.
 
-Related POD: [`pod/perlasync.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlasync.pod) is the dedicated description of generators,
+Related POD: [`pod/perlgenerator.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlgenerator.pod) is the dedicated description of generators,
 continuations, and cooperative resumable execution. [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlexperiment.pod),
 [`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlfunc.pod), [`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlsyn.pod), [`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldiag.pod), and
 [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldelta.pod) cover the experimental status, keywords, syntax,
@@ -193,5 +193,5 @@ features listed here are experimental and the project explicitly permits
 incompatible changes when they are judged necessary for the fork's goals.
 
 Related POD: [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldelta.pod) records notable user-visible differences,
-while [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlexperiment.pod), [`pod/perlasync.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlasync.pod), [`pod/perlclass.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlclass.pod), and
+while [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlexperiment.pod), [`pod/perlgenerator.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlgenerator.pod), [`pod/perlclass.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlclass.pod), and
 [`pod/perlnamespace.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlnamespace.pod) document the experimental features themselves.

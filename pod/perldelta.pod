@@ -60,7 +60,7 @@ returning the yielded list in list context or its first value in scalar
 context.  Separate generators can be resumed in an explicitly interleaved,
 cooperative-concurrency pattern.  Generator calls can also send arguments
 back to the suspended C<generator_yield>.  See L<perlfunc/generator_create
-BLOCK> and L<perlasync> for details.
+BLOCK> and L<perlgenerator> for details.
 
 =head2 Data::Dumper supports class objects
 
