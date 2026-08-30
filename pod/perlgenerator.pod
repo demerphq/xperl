@@ -6,56 +6,66 @@ perlgenerator - generators and cooperative resumable execution in Perl
 
 =head1 DESCRIPTION
 
-This document describes the experimental generator interface.  A generator
-allows a block of Perl code to suspend at an explicit C<generator_yield> and later
-continue from that point.  Generators are cooperative concurrency primitives:
-code can resume one generator, retain its suspended continuation, and then
-resume another generator.  Calling the generator is what advances it; no
-thread, event loop, or implicit scheduler is provided.
+A generator is a function that can pause and continue later.  Each time you
+call it, it runs until it reaches a C<generator_yield> statement or until it
+finishes.  The next call continues at the point where the previous call
+paused.
 
-Each suspended generator owns a delimited, one-shot continuation.  The
-continuation includes the Perl execution state needed to return to the yield
-point, including lexical and localized state.  This permits explicit
-interleaving of independent generator computations without copying their
-execution state at every switch, but it is not parallel execution and does
-not make shared data automatically safe.
+Generators are useful when a program needs to produce a sequence of values
+one at a time.  They can also be used to take turns between several pieces of
+work.  The program chooses when to call each generator, so this is a simple
+form of cooperative concurrency.  It is not parallel execution: only one
+piece of Perl code is running at a time, and a generator does not run unless
+the program calls it.
 
-The interface is experimental and may change or be removed in a future Perl
+The feature is experimental and may change or be removed in a future Perl
 release.
 
-=head1 GENERATORS
+=head1 THE BASIC IDEA
 
-=head2 generator_create BLOCK
-
-C<generator_create> is an experimental keyword that turns BLOCK into a
-callable, one-shot generator.  The body does not run when the generator is
-created.  Each call to the resulting generator resumes the body until the
-next C<generator_yield> or until the body finishes.
-
-Enable the feature before using the C<generator_create> and C<generator_yield> keywords:
+Enable the feature before using the generator keywords:
 
     use feature 'generator';
+
+The C<generator_create> keyword makes a generator from a block.  Creating the
+generator does not run the block:
 
     my $counter = generator_create {
         generator_yield 1;
         generator_yield 2;
     };
 
-The C<generator_create> expression returns a callable generator.  Calling it
-runs the body until the next C<generator_yield> or until the body finishes:
+Calling the generator runs it until the next yield:
 
     my @first  = $counter->(); # (1)
     my @second = $counter->(); # (2)
     my @done   = $counter->(); # ()
 
-Generators can be interleaved explicitly.  Each generator retains its own
-continuation, so resuming one does not advance the other:
+The first call stops at the first yield.  The second call starts immediately
+after that yield and stops at the next one.  The third call finishes the
+block, so it returns an empty list.
+
+The generator remembers where it stopped.  This saved point is sometimes
+called a continuation; here it simply means “the rest of the generator that
+has not run yet”.
+
+=head1 GENERATOR KEYWORDS
+
+=head2 generator_create BLOCK
+
+C<generator_create> creates and returns a callable generator.  BLOCK does not
+run until the generator is called.  The generator can be called repeatedly;
+each call continues where the previous call stopped.
+
+The block keeps its own variables and its own position.  Creating a second
+generator creates a separate sequence:
 
     my $numbers = generator_create {
         for my $i (0 .. 9) {
             generator_yield $i;
         }
     };
+
     my $letters = generator_create {
         for my $letter ("A" .. "J") {
             generator_yield $letter;
@@ -67,91 +77,130 @@ continuation, so resuming one does not advance the other:
     }
     # prints: 0A 1B 2C 3D 4E 5F 6G 7H 8I 9J
 
-This is cooperative concurrency rather than parallel execution: the caller
-chooses when each generator is resumed, and no generator runs unless the
-caller resumes it.
+The program calls one generator and then the other on every pass through the
+loop.  Neither generator changes the other one.
 
-=head2 generator_yield LIST
-
-C<generator_yield> suspends the enclosing generator and produces LIST to the
-call that resumed it.  LIST is evaluated in list context, so a yield may
-produce zero, one, or many values.  An empty yield is a real suspension and is
-not exhaustion.  In scalar context the first yielded value is returned; in
-list context all yielded values are returned.  C<undef> is a valid yielded
-value.
-
-    my $values = generator_create { generator_yield undef };
-    my @value = $values->(); # one element, whose value is undef
-
-An empty yield produces no values in either context but still suspends the
-generator.  The body runs in the context of the call that resumes it.  Lexical variables,
-loop state, and localization in the body remain in effect across an
-C<generator_yield> and are restored when the generator finishes.
-
-Arguments passed to the first call are the generator body's normal arguments:
+The first call's arguments are passed to the generator block in the usual
+way.  The block can read them from C<@_>:
 
     my $adder = generator_create {
         my ($x, $y) = @_;
-        my $next = generator_yield($x + $y);
-        return $next;
+        generator_yield $x + $y;
     };
 
     $adder->(2, 3); # yields 5
 
-Arguments passed to later calls are returned by the suspended
-C<generator_yield>.  In list context all arguments are returned; in scalar
-context the first argument is returned, and in void context they are
-discarded.
-The initial arguments can also be bound with a signature (with the
-C<signatures> feature enabled):
+The arguments may instead be named with a signature when the C<signatures>
+feature is enabled:
+
+    use feature 'generator';
+    use feature 'signatures';
 
     my $adder = generator_create ($x, $y) {
-        my $next = generator_yield($x + $y);
-        return $next;
+        generator_yield $x + $y;
     };
 
-An explicit C<return> can provide the final list returned by the completing
-call.  Once that call has completed, C<generator_exhausted> reports true and
-further calls fail.
+=head2 generator_yield LIST
+
+C<generator_yield> pauses the generator and sends LIST back to the call that
+resumed it.  A yield can send no values, one value, or several values:
+
+    generator_yield ();           # no values, but still pauses
+    generator_yield $value;       # one value
+    generator_yield $key, $value; # two values
+
+An empty yield is still a pause.  It is not the same as finishing the
+generator.  C<undef> is also a value, so yielding C<undef> is different from
+yielding no values.
+
+In list context, the call receives all the values from the yield.  In scalar
+context, it receives the first value:
+
+    my $g = generator_create {
+        generator_yield 10, 20;
+    };
+
+    my @values = $g->(); # (10, 20)
+
+    my $value_generator = generator_create {
+        generator_yield 10, 20;
+    };
+    my $first = $value_generator->(); # 10
+
+The context in which the generator is called is also the context in which the
+body continues to run.  Lexical variables, loop variables, and localized
+values keep their state while the generator is paused.
+
+The value returned by C<generator_yield> comes from the next call to the same
+generator.  This lets the caller send an answer back into the paused block:
+
+    my $conversation = generator_create {
+        my $answer = generator_yield "What is your name?";
+        return "Hello, $answer";
+    };
+
+    my $question = $conversation->();
+    my $reply = $conversation->("Ada");
+    # $question is "What is your name?"
+    # $reply is "Hello, Ada"
+
+Arguments passed to a later call are returned by C<generator_yield>.  In list
+context all of them are returned.  In scalar context the first argument is
+returned.  In void context they are discarded.
 
 =head2 generator_exhausted EXPR
 
-C<generator_exhausted> tests whether EXPR is a generator that has completed,
-without resuming it.  It returns true only after a call has run the generator
-body to completion.  It returns false for a new or suspended generator and
-also for a failed generator.  Testing exhaustion does not advance the
-sequence.
+C<generator_exhausted> checks whether EXPR is a generator that has finished.
+It does not run the generator or move it forward.
 
-    generator_exhausted $counter
+It returns false when the generator is new or paused, and true after a call
+has run the body to completion:
 
-=head1 LIFETIME AND ERRORS
+    my $g = generator_create {
+        generator_yield "last value";
+    };
 
-When the body finishes without another C<generator_yield>, the completing call
-returns its explicit return list (or an empty list) and the generator becomes
-exhausted.  Exhaustion is permanent: a
-later call raises an exception.  A generator is also permanently failed if an
-uncaught exception leaves its body.  That exception is propagated by the call
-which resumes the generator, and later calls raise an invalid-resume
-exception.  An exception caught by an C<eval> inside the body does not by
-itself terminate the generator.
+    generator_exhausted $g; # false
+    $g->();                 # "last value"
+    generator_exhausted $g; # still false
+    $g->();                 # finishes the block
+    generator_exhausted $g; # true
 
-A generator cannot be resumed while it is already running.  This includes a
-generator attempting to call itself before it has reached
-C<generator_yield>.  A suspended generator is a one-shot continuation; it is
-not copied when it is assigned or passed around, so all references designate
-the same continuation.
+An empty yield does not make a generator exhausted.  A generator that failed
+with an uncaught exception is not reported as exhausted.
+
+=head1 FINISHING AND ERRORS
+
+When the body reaches the end, or executes C<return>, the call that finishes
+it returns the explicit return list.  If there is no return value, it returns
+an empty list.  The generator then becomes exhausted permanently.
+
+Calling an exhausted generator raises an exception.  A generator that leaves
+an uncaught exception is permanently failed.  The call that resumed it sees
+the original exception, and later calls raise an invalid-resume exception.
+An exception caught by an C<eval> inside the generator does not by itself
+finish or fail the generator.
+
+A generator cannot be called while it is already running.  For example, a
+generator cannot call itself before it reaches a yield.  This prevents two
+executions from trying to use the same saved state at the same time.
+
+The saved state belongs to the generator.  Assigning it to another variable
+or passing it to another function does not make a copy; all references still
+refer to the same sequence.
 
 =head1 WHERE C<generator_yield> MAY BE USED
 
-C<generator_yield> is valid only lexically inside an C<generator_create> block.
-It is not valid in an ordinary subroutine or in callback code such as C<sort>, C<map>,
-C<grep>, or a regular-expression code block.  Callback code cannot suspend
-the operation that invoked it.
+C<generator_yield> is valid only inside a C<generator_create> block.  It is
+not valid in an ordinary subroutine or in callback code such as C<sort>,
+C<map>, C<grep>, or a regular-expression code block.  Such callbacks cannot
+pause the operation that called them.
 
 =head1 SEE ALSO
 
-L<perlfunc/generator_create BLOCK> describes the C<generator_create> keyword in
-the Perl function reference.  L<perlembed> and L<perlinterp> describe other forms of
-embedding and interpreter execution; they do not provide generator scheduling.
+L<perlfunc/generator_create BLOCK> gives the short function-reference entries
+for the three generator keywords.  L<perlexperiment> lists the experimental
+feature.  L<perlembed> and L<perlinterp> describe other forms of embedding
+and interpreter execution; they do not provide generator scheduling.
 
 =cut
