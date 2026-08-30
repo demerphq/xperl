@@ -25,6 +25,13 @@ release.
 
 =head1 GENERATORS
 
+=head2 generator_create BLOCK
+
+C<generator_create> is an experimental keyword that turns BLOCK into a
+callable, one-shot generator.  The body does not run when the generator is
+created.  Each call to the resulting generator resumes the body until the
+next C<generator_yield> or until the body finishes.
+
 Enable the feature before using the C<generator_create> and C<generator_yield> keywords:
 
     use feature 'generator';
@@ -64,18 +71,20 @@ This is cooperative concurrency rather than parallel execution: the caller
 chooses when each generator is resumed, and no generator runs unless the
 caller resumes it.
 
-The operand of C<generator_yield> is evaluated in list context, so a yield can
-produce zero, one, or many values.  An empty yield is still a suspension; it is
-not exhaustion.  In scalar context the yielded value is returned as the scalar
-result of the call.  C<undef> is a yielded value, not an empty result:
+=head2 generator_yield LIST
+
+C<generator_yield> suspends the enclosing generator and produces LIST to the
+call that resumed it.  LIST is evaluated in list context, so a yield may
+produce zero, one, or many values.  An empty yield is a real suspension and is
+not exhaustion.  In scalar context the first yielded value is returned; in
+list context all yielded values are returned.  C<undef> is a valid yielded
+value.
 
     my $values = generator_create { generator_yield undef };
     my @value = $values->(); # one element, whose value is undef
 
-In scalar context, a generator call returns the first value from the yield;
-in list context, it returns all yielded values.  An empty yield produces no
-values in either context but still suspends the generator.  The body runs in
-the context of the call that resumes it.  Lexical variables,
+An empty yield produces no values in either context but still suspends the
+generator.  The body runs in the context of the call that resumes it.  Lexical variables,
 loop state, and localization in the body remain in effect across an
 C<generator_yield> and are restored when the generator finishes.
 
@@ -105,6 +114,16 @@ An explicit C<return> can provide the final list returned by the completing
 call.  Once that call has completed, C<generator_exhausted> reports true and
 further calls fail.
 
+=head2 generator_exhausted EXPR
+
+C<generator_exhausted> tests whether EXPR is a generator that has completed,
+without resuming it.  It returns true only after a call has run the generator
+body to completion.  It returns false for a new or suspended generator and
+also for a failed generator.  Testing exhaustion does not advance the
+sequence.
+
+    generator_exhausted $counter
+
 =head1 LIFETIME AND ERRORS
 
 When the body finishes without another C<generator_yield>, the completing call
@@ -115,15 +134,6 @@ uncaught exception leaves its body.  That exception is propagated by the call
 which resumes the generator, and later calls raise an invalid-resume
 exception.  An exception caught by an C<eval> inside the body does not by
 itself terminate the generator.
-
-The C<generator_exhausted> keyword tests completion without resuming the generator:
-
-    generator_exhausted $counter
-
-It returns true only after a resume has run the body to completion.  It returns
-false while the generator is new or
-suspended, and also for a failed generator.  Testing exhaustion does not
-advance the sequence.
 
 A generator cannot be resumed while it is already running.  This includes a
 generator attempting to call itself before it has reached
