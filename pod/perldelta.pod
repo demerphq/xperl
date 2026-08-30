@@ -62,6 +62,11 @@ cooperative-concurrency pattern.  Generator calls can also send arguments
 back to the suspended C<generator_yield>.  See L<perlfunc/generator_create
 BLOCK> and L<perlgenerator> for details.
 
+The C<generator_running>, C<generator_completed>, C<generator_failed>, and
+C<generator_exhausted> predicates are experimental builtins.  They can be
+imported individually with C<use builtin>, or together with the feature by
+using the C<generator> pragma.
+
 =head2 Data::Dumper supports class objects
 
 C<Data::Dumper> can now dump objects created by the experimental C<class>

@@ -8,10 +8,10 @@ BEGIN {
     set_up_inc('../lib');
 }
 
-plan(tests => 64);
+plan(tests => 75);
 
-use feature 'generator';
-use feature 'signatures';
+use generator;
+no warnings 'experimental::builtin';
 
 sub next_values {
     my ($generator, @args) = @_;
@@ -36,6 +36,7 @@ ok(!generator_exhausted($finite), 'suspended generator is not exhausted');
 is_deeply(next_values($finite), [ 2 ], 'second generator_yield');
 is_deeply(next_values($finite), [], 'exhaustion returns an empty list');
 ok(generator_exhausted $finite, 'completed generator is exhausted');
+ok(generator_completed($finite), 'normally completed generator reports completion');
 my $exhausted = eval { $finite->(); 1 };
 ok(!$exhausted, 'exhaustion is permanent');
 like($@, qr/cannot resume an exhausted generator/, 'exhaustion diagnostic');
@@ -72,6 +73,8 @@ my $failed = generator_create {
     die "generator failure\n";
 };
 ok(!generator_exhausted $failed, 'failed generator is not initially exhausted');
+ok(!generator_completed($failed), 'failed generator is not initially completed');
+ok(!generator_failed($failed), 'failed generator is not initially failed');
 is_deeply(next_values($failed), [ 'before failure' ], 'failure follows a yield');
 my ($failure, $failure_error, $resumed_failed, $resumed_failed_error);
 {
@@ -83,7 +86,9 @@ my ($failure, $failure_error, $resumed_failed, $resumed_failed_error);
 }
 ok(!$failure, 'failure is reported by resume');
 like($failure_error, qr/generator failure/, 'original failure is rethrown');
-ok(!generator_exhausted($failed), 'failed generator is not exhausted');
+ok(generator_exhausted($failed), 'failed generator is terminal');
+ok(!generator_completed($failed), 'failed generator is not completed');
+ok(generator_failed($failed), 'failed generator reports failure');
 ok(!$resumed_failed, 'failed generator cannot be resumed');
 like($resumed_failed_error, qr/cannot resume a failed generator/, 'failed-resume diagnostic');
 
@@ -180,6 +185,23 @@ $void_context->();
 is($void_resume_context, 'void',
     'void context is supplied when resuming after a yield');
 
+my $running_one = generator_create { generator_yield 1 };
+my $running_two = generator_create { generator_yield 2 };
+my @running = generator_running($running_one, $finite, $running_two);
+is(scalar @running, 2, 'generator_running filters terminal generators');
+is($running[0], $running_one, 'generator_running keeps the first active generator');
+is($running[1], $running_two, 'generator_running keeps the second active generator');
+my $empty_yield_running = generator_create {
+    generator_yield ();
+    generator_yield 9;
+};
+is_deeply(next_values($empty_yield_running), [],
+    'fresh generator produces an empty yield');
+is_deeply([ generator_running($empty_yield_running) ], [ $empty_yield_running ],
+    'generator_running keeps a generator after an empty yield');
+is_deeply([ generator_running($failed) ], [],
+    'generator_running omits a failed generator');
+
 my $saved_input_separator = $/;
 my $localized = generator_create {
     local $/ = 'generator separator';
@@ -238,7 +260,7 @@ like(runperl(switches => ['-Mfeature=generator'], stderr => 1,
              prog => 'q[a] =~ /(?{ generator_yield 1 })/'),
     qr/generator_yield outside a generator_create/, 'generator_yield is rejected in regex callbacks');
 
-is(runperl(switches => ['-Mfeature=generator', '-MScalar::Util=weaken'],
+is(runperl(switches => ['-Mfeature=generator', '-Mbuiltin=weaken'],
            prog => 'package Generator::Cleanup; sub DESTROY { }'
                 . ' package main; my $weak;'
                 . ' my $generator = generator_create { my $object = bless {},'

@@ -42,10 +42,17 @@ pointer before any context variable is used.  Threaded DEBUGGING, unthreaded
 DEBUGGING, focused generator/runtime tests, `test_porting`, and the final
 DEBUGGING `make_test` run pass.
 
-The experimental generator trio is now `generator_create`, `generator_yield`,
-and `generator_exhausted`.  `generator_exhausted` is a non-advancing predicate:
-it is true only after the generator completes, and false for new, suspended,
-and failed generators.
+The experimental generator syntax consists of `generator_create` and
+`generator_yield`.  The non-advancing predicate builtins are
+`generator_running`, `generator_completed`, `generator_failed`, and
+`generator_exhausted`.  `generator_exhausted` is a non-advancing predicate:
+it is true after the generator completes or fails, and false for new or
+suspended generators.  `generator_completed` distinguishes normal
+completion from failure, while `generator_running` returns the active members
+of a supplied list.
+The `generator` pragma enables both the generator and signatures features and
+imports all four predicate builtins; `use feature 'generator'` enables only
+the two syntax keywords, while `use builtin` can import predicates directly.
 The final DEBUGGING `make_test` run completed 2,947 files and 1,398,115 tests.
 All generator tests passed.  Its diagnostic failures were the four generator
 messages added after that run began; a subsequent standalone diagnostic check

@@ -1514,7 +1514,15 @@ Chp	|void	|generator_capture					\
 				|NN PERL_GENERATOR *generator		\
 				|NULLOK SV *value
 Chp	|void	|generator_free |NN PERL_GENERATOR *generator
+Chp	|bool	|generator_is_completed 				\
+				|NN SV *generator_sv
 Chp	|bool	|generator_is_exhausted 				\
+				|NN SV *generator_sv
+Chp	|bool	|generator_is_failed					\
+				|NN SV *generator_sv
+Chp	|bool	|generator_is_running					\
+				|NN SV *generator_sv
+Chp	|bool	|generator_is_valid					\
 				|NN SV *generator_sv
 Chp	|void	|generator_mark_return
 Chp	|PERL_GENERATOR *|generator_new 				\

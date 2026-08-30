@@ -51,11 +51,13 @@
 #   undef is_WORD_BUT_NONCONT_safe
 #   undef isFOO_or_UNDERSCORE_
 #   undef isIDCONT_lazy_if_safe
+#   undef KEY___NAMESPACE__
+#   undef KEY_as
 #   undef KEY_equ
 #   undef KEY_generator_create
-#   undef KEY_generator_exhausted
 #   undef KEY_generator_yield
 #   undef KEY_implements
+#   undef KEY_namespace
 #   undef KEY_neu
 #   undef KEY_role
 #   undef MGv2f_SCALARVALUE_AUTOPROPAGATE
@@ -264,7 +266,11 @@
 # define free_tmps()                            Perl_free_tmps(aTHX)
 # define generator_capture(a,b)                 Perl_generator_capture(aTHX_ a,b)
 # define generator_free(a)                      Perl_generator_free(aTHX_ a)
+# define generator_is_completed(a)              Perl_generator_is_completed(aTHX_ a)
 # define generator_is_exhausted(a)              Perl_generator_is_exhausted(aTHX_ a)
+# define generator_is_failed(a)                 Perl_generator_is_failed(aTHX_ a)
+# define generator_is_running(a)                Perl_generator_is_running(aTHX_ a)
+# define generator_is_valid(a)                  Perl_generator_is_valid(aTHX_ a)
 # define generator_mark_return()                Perl_generator_mark_return(aTHX)
 # define generator_new(a)                       Perl_generator_new(aTHX_ a)
 # define generator_resume(a,b)                  Perl_generator_resume(aTHX_ a,b)
@@ -1168,6 +1174,10 @@
 #   define my_stat_flags(a)                     Perl_my_stat_flags(aTHX_ a)
 #   define my_strerror(a,b)                     Perl_my_strerror(aTHX_ a,b)
 #   define my_unexec()                          Perl_my_unexec(aTHX)
+#   define namespace_alias(a,b)                 Perl_namespace_alias(aTHX_ a,b)
+#   define namespace_current()                  Perl_namespace_current(aTHX)
+#   define namespace_resolve(a)                 Perl_namespace_resolve(aTHX_ a)
+#   define namespace_set(a)                     Perl_namespace_set(aTHX_ a)
 #   define newATTRSUB_x(a,b,c,d,e,f)            Perl_newATTRSUB_x(aTHX_ a,b,c,d,e,f)
 #   define newSTUB(a,b)                         Perl_newSTUB(aTHX_ a,b)
 #   define newSVavdefelem(a,b,c)                Perl_newSVavdefelem(aTHX_ a,b,c)

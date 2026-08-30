@@ -411,7 +411,6 @@ $bits{fttty}{0} = $bf[0];
 $bits{ftzero}{0} = $bf[0];
 @{$bits{ge}}{1,0} = ($bf[1], $bf[1]);
 @{$bits{gelem}}{1,0} = ($bf[1], $bf[1]);
-$bits{generator_exhausted}{0} = $bf[0];
 @{$bits{getc}}{3,2,1,0} = ($bf[5], $bf[5], $bf[5], $bf[5]);
 $bits{getpeername}{0} = $bf[0];
 @{$bits{getpgrp}}{3,2,1,0} = ($bf[5], $bf[5], $bf[5], $bf[5]);

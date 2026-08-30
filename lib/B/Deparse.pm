@@ -2571,7 +2571,6 @@ my %feature_keywords = (
    implements => 'class',
    generator_create => 'generator',
    generator_yield    => 'generator',
-   generator_exhausted => 'generator',
 );
 
 # keywords that are strong and also have a prototype

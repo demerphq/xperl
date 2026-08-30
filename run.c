@@ -415,11 +415,11 @@ Perl_generator_yield_values(pTHX_ SV **values, SSize_t count)
 }
 
 bool
-Perl_generator_is_exhausted(pTHX_ SV *generator_sv)
+Perl_generator_is_valid(pTHX_ SV *generator_sv)
 {
     PERL_GENERATOR *generator;
 
-    PERL_ARGS_ASSERT_GENERATOR_IS_EXHAUSTED;
+    PERL_ARGS_ASSERT_GENERATOR_IS_VALID;
     if (generator_sv && SvROK(generator_sv))
         generator_sv = SvRV(generator_sv);
     if (!generator_sv || SvTYPE(generator_sv) != SVt_PVCV)
@@ -428,8 +428,80 @@ Perl_generator_is_exhausted(pTHX_ SV *generator_sv)
     generator = (PERL_GENERATOR *)CvXSUBANY((CV *)generator_sv).any_ptr;
 
     return generator
+        && generator->magic == PERL_GENERATOR_MAGIC;
+}
+
+bool
+Perl_generator_is_exhausted(pTHX_ SV *generator_sv)
+{
+    PERL_GENERATOR *generator;
+
+    PERL_ARGS_ASSERT_GENERATOR_IS_EXHAUSTED;
+    if (!generator_is_valid(generator_sv))
+        return FALSE;
+    if (generator_sv && SvROK(generator_sv))
+        generator_sv = SvRV(generator_sv);
+
+    generator = (PERL_GENERATOR *)CvXSUBANY((CV *)generator_sv).any_ptr;
+
+    return generator
+        && (generator->state == PERL_GENERATOR_EXHAUSTED
+            || generator->state == PERL_GENERATOR_FAILED);
+}
+
+bool
+Perl_generator_is_completed(pTHX_ SV *generator_sv)
+{
+    PERL_GENERATOR *generator;
+
+    PERL_ARGS_ASSERT_GENERATOR_IS_COMPLETED;
+    if (!generator_is_valid(generator_sv))
+        return FALSE;
+    if (generator_sv && SvROK(generator_sv))
+        generator_sv = SvRV(generator_sv);
+
+    generator = (PERL_GENERATOR *)CvXSUBANY((CV *)generator_sv).any_ptr;
+
+    return generator
         && generator->magic == PERL_GENERATOR_MAGIC
         && generator->state == PERL_GENERATOR_EXHAUSTED;
+}
+
+bool
+Perl_generator_is_failed(pTHX_ SV *generator_sv)
+{
+    PERL_GENERATOR *generator;
+
+    PERL_ARGS_ASSERT_GENERATOR_IS_FAILED;
+    if (!generator_is_valid(generator_sv))
+        return FALSE;
+    if (generator_sv && SvROK(generator_sv))
+        generator_sv = SvRV(generator_sv);
+
+    generator = (PERL_GENERATOR *)CvXSUBANY((CV *)generator_sv).any_ptr;
+
+    return generator
+        && generator->magic == PERL_GENERATOR_MAGIC
+        && generator->state == PERL_GENERATOR_FAILED;
+}
+
+bool
+Perl_generator_is_running(pTHX_ SV *generator_sv)
+{
+    PERL_GENERATOR *generator;
+
+    PERL_ARGS_ASSERT_GENERATOR_IS_RUNNING;
+    if (!generator_is_valid(generator_sv))
+        return FALSE;
+    if (generator_sv && SvROK(generator_sv))
+        generator_sv = SvRV(generator_sv);
+
+    generator = (PERL_GENERATOR *)CvXSUBANY((CV *)generator_sv).any_ptr;
+
+    return generator
+        && generator->magic == PERL_GENERATOR_MAGIC
+        && (generator->state == PERL_GENERATOR_NEW
+            || generator->state == PERL_GENERATOR_YIELDED);
 }
 
 static int

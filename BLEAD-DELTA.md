@@ -25,7 +25,9 @@ The fork contains an experimental generator implementation with:
 - `use feature 'generator'`;
 - `generator_create` blocks;
 - explicit `generator_yield` operations;
-- `generator_exhausted` state inspection;
+- `generator_running`, `generator_completed`, `generator_failed`, and
+  `generator_exhausted` predicate builtins;
+- a `use generator` pragma that enables the feature and imports the predicates;
 - parameterized generator calls, including values sent back into a suspended
   yield;
 - list-valued yields and scalar-context handling;
@@ -49,7 +51,7 @@ resumes the generators. The continuation is delimited by the generator body
 and is one-shot, while the saved process state preserves the Perl execution
 context across each suspension.
 
-Related POD: [`pod/perlgenerator.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlgenerator.pod) is the dedicated description of generators,
+Related POD: [`pod/perlgenerator.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlgenerator.pod) and [`lib/generator.pm`](https://github.com/demerphq/perl5/blob/ai-perl/lib/generator.pm) describe the combined pragma and generator interface; [`lib/builtin.pm`](https://github.com/demerphq/perl5/blob/ai-perl/lib/builtin.pm) documents builtin import behavior.  The dedicated POD covers generators,
 continuations, and cooperative resumable execution. [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlexperiment.pod),
 [`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlfunc.pod), [`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlsyn.pod), [`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldiag.pod), and
 [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldelta.pod) cover the experimental status, keywords, syntax,

@@ -628,4 +628,3 @@ multiparam	signature processing	ck_null		+
 paramtest	signature argument value test	ck_null	|
 paramstore	signature parameter default expression	ck_null	1
 generator_yield	yield values from a generator	ck_null	m@	L
-generator_exhausted	test whether a generator is exhausted	ck_null	1	S

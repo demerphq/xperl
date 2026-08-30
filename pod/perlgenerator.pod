@@ -18,14 +18,19 @@ form of cooperative concurrency.  It is not parallel execution: only one
 piece of Perl code is running at a time, and a generator does not run unless
 the program calls it.
 
-The feature is experimental and may change or be removed in a future Perl
-release.
+The feature and its associated builtins are experimental and may change or be
+removed in a future Perl release.
 
 =head1 THE BASIC IDEA
 
-Enable the feature before using the generator keywords:
+The simplest way to enable the complete generator interface is the combined
+pragma:
 
-    use feature 'generator';
+    use generator;
+    # This also enables signatures.
+
+If you only need the two keywords, use C<use feature 'generator'>.  The
+predicate builtins can be imported separately with C<use builtin>.
 
 The C<generator_create> keyword makes a generator from a block.  Creating the
 generator does not run the block:
@@ -90,11 +95,10 @@ way.  The block can read them from C<@_>:
 
     $adder->(2, 3); # yields 5
 
-The arguments may instead be named with a signature when the C<signatures>
-feature is enabled:
+The combined C<generator> pragma enables the C<signatures> feature, so the
+arguments may instead be named with a signature:
 
-    use feature 'generator';
-    use feature 'signatures';
+    use generator;
 
     my $adder = generator_create ($x, $y) {
         generator_yield $x + $y;
@@ -162,10 +166,21 @@ Arguments passed to a later call are returned by C<generator_yield>.  In list
 context all of them are returned.  In scalar context the first argument is
 returned.  In void context they are discarded.
 
-=head2 generator_exhausted EXPR
+=head2 Generator predicate builtins
 
-C<generator_exhausted> checks whether EXPR is a generator that has finished.
-It does not run the generator or move it forward.
+The predicates are ordinary builtins, not generator keywords.  Import them
+with C<use builtin>, or import all of them together with C<use generator>.
+The scalar predicates return C<undef> when given something that is not a
+generator; for a valid generator they return the ordinary Perl false or true
+value.  C<generator_running> expects generator arguments and returns the still
+running ones.
+
+=head3 generator_exhausted EXPR
+
+C<generator_exhausted> checks whether EXPR is a generator that can no longer
+produce another value.  It does not run the generator or move it forward.  A
+generator is exhausted after it completes normally or after it fails with an
+uncaught exception.
 
 It returns false when the generator is new or paused, and true after a call
 has run the body to completion:
@@ -181,7 +196,36 @@ has run the body to completion:
     generator_exhausted $g; # true
 
 An empty yield does not make a generator exhausted.  A generator that failed
-with an uncaught exception is not reported as exhausted.
+with an uncaught exception is exhausted, but it is not completed.
+
+=head3 generator_completed EXPR
+
+C<generator_completed> checks whether EXPR is a generator that reached the end
+of its block or returned normally.  It returns false for a new or paused
+generator and for a generator that failed with an uncaught exception.
+
+=head3 generator_failed EXPR
+
+C<generator_failed> checks whether EXPR is a generator that stopped because of
+an uncaught exception.  It does not resume the generator and does not hide or
+consume the exception.  The exception is reported by the call that encounters
+it, while later calls cannot resume the failed generator.
+
+=head3 generator_running LIST
+
+C<generator_running> filters a list of generators and returns the generators
+that are not exhausted.  It is useful when several generators are being
+advanced in turns:
+
+    while (@generators = generator_running(@generators)) {
+        $_->() for @generators;
+    }
+
+The returned values are the original generator references.  A generator that
+yielded an empty list remains in the returned list because it can still
+continue.  Normally completed and failed generators are omitted.  In list
+context an empty input list, or a list containing no running generators,
+produces an empty list.
 
 =head1 FINISHING AND ERRORS
 
@@ -213,7 +257,8 @@ pause the operation that called them.
 =head1 SEE ALSO
 
 L<perlfunc/generator_create BLOCK> gives the short function-reference entries
-for the three generator keywords.  L<perlexperiment> lists the experimental
+for the two generator keywords and the associated predicate builtins.
+L<perlexperiment> lists the experimental
 feature.  L<perlembed> and L<perlinterp> describe other forms of embedding
 and interpreter execution; they do not provide generator scheduling.
 

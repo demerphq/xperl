@@ -61,7 +61,6 @@ my %feature_kw = (
     implements => 'class',
     any       => 'keyword_any',
     all       => 'keyword_all',
-    generator_exhausted => 'generator',
     generator_yield     => 'generator',
     generator_create    => 'generator',
     namespace           => 'namespaces',
@@ -250,7 +249,6 @@ __END__
 -ioctl
 -isa
 +generator_create
-+generator_exhausted
 +generator_yield
 -join
 -keys

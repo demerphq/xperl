@@ -510,7 +510,8 @@ Perl_builtin_package_implements(pTHX_ SV *package_or_object, SV *role)
         Perl_attribute_nonnull(pTHX_1)
         Perl_attribute_nonnull(pTHX_2);
 #define PERL_ARGS_ASSERT_BUILTIN_PACKAGE_IMPLEMENTS \
-        Perl_assert_aTHX; assert(package_or_object); assert(role)
+    STMT_START { Perl_assert_aTHX; assert(package_or_object); assert(role);  \
+    } STMT_END
 
 PERL_CALLCONV const char *
 Perl_byte_dump_string_(pTHX_ const U8 * const start, const STRLEN len, const bool format)
@@ -720,14 +721,15 @@ Perl_class_object_from_hash(pTHX_ SV *hashref, SV *classname)
         Perl_attribute_nonnull(pTHX_1)
         Perl_attribute_nonnull(pTHX_2);
 #define PERL_ARGS_ASSERT_CLASS_OBJECT_FROM_HASH \
-        Perl_assert_aTHX; assert(hashref); assert(classname)
+    STMT_START { Perl_assert_aTHX; assert(hashref); assert(classname);  \
+    } STMT_END
 
 PERL_CALLCONV SV *
 Perl_class_object_to_hash(pTHX_ SV *object)
         Perl_attribute_nonnull_aTHX
         Perl_attribute_nonnull(pTHX_1);
 #define PERL_ARGS_ASSERT_CLASS_OBJECT_TO_HASH   \
-        Perl_assert_aTHX; assert(object)
+    STMT_START { Perl_assert_aTHX; assert(object); } STMT_END
 
 PERL_CALLCONV void
 Perl_clear_defarray(pTHX_ AV *av, bool abandon)
@@ -1778,10 +1780,38 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
     STMT_START { Perl_assert_aTHX; assert(generator); } STMT_END
 
 PERL_CALLCONV bool
+Perl_generator_is_completed(pTHX_ SV *generator_sv)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_GENERATOR_IS_COMPLETED \
+    STMT_START { Perl_assert_aTHX; assert(generator_sv); } STMT_END
+
+PERL_CALLCONV bool
 Perl_generator_is_exhausted(pTHX_ SV *generator_sv)
         Perl_attribute_nonnull_aTHX
         Perl_attribute_nonnull(pTHX_1);
 #define PERL_ARGS_ASSERT_GENERATOR_IS_EXHAUSTED \
+    STMT_START { Perl_assert_aTHX; assert(generator_sv); } STMT_END
+
+PERL_CALLCONV bool
+Perl_generator_is_failed(pTHX_ SV *generator_sv)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_GENERATOR_IS_FAILED    \
+    STMT_START { Perl_assert_aTHX; assert(generator_sv); } STMT_END
+
+PERL_CALLCONV bool
+Perl_generator_is_running(pTHX_ SV *generator_sv)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_GENERATOR_IS_RUNNING   \
+    STMT_START { Perl_assert_aTHX; assert(generator_sv); } STMT_END
+
+PERL_CALLCONV bool
+Perl_generator_is_valid(pTHX_ SV *generator_sv)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_GENERATOR_IS_VALID     \
     STMT_START { Perl_assert_aTHX; assert(generator_sv); } STMT_END
 
 PERL_CALLCONV void
@@ -4327,14 +4357,14 @@ Perl_namespace_alias(pTHX_ SV *name, SV *alias)
         Perl_attribute_nonnull(pTHX_2)
         __attribute__visibility__("hidden");
 #define PERL_ARGS_ASSERT_NAMESPACE_ALIAS        \
-        Perl_assert_aTHX; assert(name); assert(alias)
+    STMT_START { Perl_assert_aTHX; assert(name); assert(alias); } STMT_END
 
 PERL_CALLCONV SV *
 Perl_namespace_current(pTHX)
         Perl_attribute_nonnull_aTHX
         __attribute__visibility__("hidden");
 #define PERL_ARGS_ASSERT_NAMESPACE_CURRENT      \
-        Perl_assert_aTHX
+    STMT_START { Perl_assert_aTHX; } STMT_END
 
 PERL_CALLCONV SV *
 Perl_namespace_resolve(pTHX_ SV *name)
@@ -4342,7 +4372,7 @@ Perl_namespace_resolve(pTHX_ SV *name)
         Perl_attribute_nonnull(pTHX_1)
         __attribute__visibility__("hidden");
 #define PERL_ARGS_ASSERT_NAMESPACE_RESOLVE      \
-        Perl_assert_aTHX; assert(name)
+    STMT_START { Perl_assert_aTHX; assert(name); } STMT_END
 
 PERL_CALLCONV void
 Perl_namespace_set(pTHX_ SV *name)
@@ -4350,7 +4380,7 @@ Perl_namespace_set(pTHX_ SV *name)
         Perl_attribute_nonnull(pTHX_1)
         __attribute__visibility__("hidden");
 #define PERL_ARGS_ASSERT_NAMESPACE_SET          \
-        Perl_assert_aTHX; assert(name)
+    STMT_START { Perl_assert_aTHX; assert(name); } STMT_END
 
 PERL_CALLCONV OP *
 Perl_newANONATTRSUB(pTHX_ I32 floor, OP *proto, OP *attrs, OP *block)
@@ -5698,7 +5728,7 @@ Perl_process_state_capture(pTHX_ PERL_PROCESS_STATE *state)
         Perl_attribute_nonnull_aTHX
         Perl_attribute_nonnull(pTHX_1);
 #define PERL_ARGS_ASSERT_PROCESS_STATE_CAPTURE  \
-        Perl_assert_aTHX; assert(state)
+    STMT_START { Perl_assert_aTHX; assert(state); } STMT_END
 
 PERL_CALLCONV void
 Perl_process_state_restore(pTHX_ const PERL_PROCESS_STATE *state)

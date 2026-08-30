@@ -401,7 +401,6 @@ my %not_tested = map { $_ => 1} qw(
     unless
     until
     use
-    generator_exhausted
     generator_create
     generator_yield
     role

@@ -48,6 +48,58 @@ XS(XS_builtin_true)
     XSRETURN_YES;
 }
 
+XS(XS_builtin_generator_exhausted);
+XS(XS_builtin_generator_exhausted)
+{
+    dXSARGS;
+    if (items != 1)
+        croak_xs_usage(cv, "generator");
+    if (!generator_is_valid(ST(0)))
+        XSRETURN_UNDEF;
+    ST(0) = boolSV(generator_is_exhausted(ST(0)));
+    XSRETURN(1);
+}
+
+XS(XS_builtin_generator_completed);
+XS(XS_builtin_generator_completed)
+{
+    dXSARGS;
+    if (items != 1)
+        croak_xs_usage(cv, "generator");
+    if (!generator_is_valid(ST(0)))
+        XSRETURN_UNDEF;
+    ST(0) = boolSV(generator_is_completed(ST(0)));
+    XSRETURN(1);
+}
+
+XS(XS_builtin_generator_failed);
+XS(XS_builtin_generator_failed)
+{
+    dXSARGS;
+    if (items != 1)
+        croak_xs_usage(cv, "generator");
+    if (!generator_is_valid(ST(0)))
+        XSRETURN_UNDEF;
+    ST(0) = boolSV(generator_is_failed(ST(0)));
+    XSRETURN(1);
+}
+
+XS(XS_builtin_generator_running);
+XS(XS_builtin_generator_running)
+{
+    dXSARGS;
+    int i;
+    int out = 0;
+
+    for (i = 0; i < items; i++) {
+        if (!generator_is_valid(ST(i)))
+            croak("generator_running expects generator arguments");
+        if (generator_is_running(ST(i)))
+            ST(out++) = ST(i);
+    }
+    XSRETURN(out);
+}
+
 XS(XS_builtin_false);
 XS(XS_builtin_false)
 {
@@ -661,6 +713,10 @@ static const struct BuiltinFuncDescriptor builtins[] = {
     { "package_implements", NO_BUNDLE, true, &XS_builtin_package_implements, NULL, 0 },
     { "class_object_to_hash", NO_BUNDLE, true, &XS_builtin_class_object_to_hash, NULL, 0 },
     { "class_object_from_hash", NO_BUNDLE, true, &XS_builtin_class_object_from_hash, NULL, 0 },
+    { "generator_exhausted", NO_BUNDLE, true, &XS_builtin_generator_exhausted, &ck_builtin_func1, 0 },
+    { "generator_completed", NO_BUNDLE, true, &XS_builtin_generator_completed, &ck_builtin_func1, 0 },
+    { "generator_failed", NO_BUNDLE, true, &XS_builtin_generator_failed, &ck_builtin_func1, 0 },
+    { "generator_running", NO_BUNDLE, true, &XS_builtin_generator_running, &ck_builtin_funcN, 0 },
 
     /* list functions */
     { "indexed",          SHORTVER(5,39), false, &Perl_XS_builtin_indexed,     &ck_builtin_funcN, 0 },

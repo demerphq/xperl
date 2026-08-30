@@ -466,7 +466,10 @@ C<for>,
 C<foreach>,
 C<ge>,
 C<generator_create>,
+C<generator_completed>,
 C<generator_exhausted>,
+C<generator_failed>,
+C<generator_running>,
 C<generator_yield>,
 C<given>,
 C<gt>,
@@ -3603,11 +3606,15 @@ the yielded list in list context or its first value in scalar context.  The
 generator body runs in the context of the call that resumes it, and its lexical
 and localized state is retained across yields.
 
+The generator keywords can be enabled with C<use feature 'generator'>.  For
+the complete generator interface, including the predicate builtins, use the
+combined C<generator> pragma:
+
 The body can use C<wantarray> to observe that context.  A list, scalar, or
 void call gives the resumed body list, scalar, or void context respectively;
 the context may change between calls.
 
-    use feature 'generator';
+    use generator;
 
     my $numbers = generator_create {
         generator_yield 1;
@@ -3690,11 +3697,47 @@ X<generator_exhausted>
 
 =for Pod::Functions test whether a generator is exhausted
 
-Returns true if EXPR is a generator that has completed and returned an empty
-list on its final resume.  It returns false for a new or suspended generator,
-and does not resume or advance the generator.  A failed generator is not
-exhausted.  This keyword is experimental and requires C<use feature
-'generator'>.
+Returns true if EXPR is a generator that can no longer run.  It returns false
+for a new or suspended generator, and does not resume or advance the
+generator.  A failed generator is also exhausted, even though it did not
+complete normally.  This experimental builtin can be imported with C<use
+builtin> or C<use generator>.
+
+=item generator_completed EXPR
+X<generator_completed>
+
+=for Pod::Functions test whether a generator completed normally
+
+Returns true if EXPR is a generator that reached the end of its block or
+returned normally.  It returns false for a new or suspended generator and for
+a generator that failed with an uncaught exception.  This experimental builtin
+can be imported with C<use builtin> or C<use generator>.
+
+=item generator_failed EXPR
+X<generator_failed>
+
+=for Pod::Functions test whether a generator failed
+
+Returns true if EXPR is a generator that stopped because of an uncaught
+exception.  It does not resume the generator or consume the exception.  This
+experimental builtin can be imported with C<use builtin> or C<use generator>.
+
+=item generator_running LIST
+X<generator_running>
+
+=for Pod::Functions return generators that can still run
+
+Returns the original generator references from LIST that are not exhausted.
+A generator that yielded an empty list is still returned because it can
+continue.  Normally completed and failed generators are omitted.  This is
+useful for advancing several generators in turns:
+
+    while (@generators = generator_running(@generators)) {
+        $_->() for @generators;
+    }
+
+This experimental builtin can be imported with C<use builtin> or C<use
+generator>.
 
 =item glob EXPR
 X<glob> X<wildcard> X<filename, expansion> X<expand>
