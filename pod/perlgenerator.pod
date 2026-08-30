@@ -233,11 +233,11 @@ When the body reaches the end, or executes C<return>, the call that finishes
 it returns the explicit return list.  If there is no return value, it returns
 an empty list.  The generator then becomes exhausted permanently.
 
-Calling an exhausted generator raises an exception.  A generator that leaves
-an uncaught exception is permanently failed.  The call that resumed it sees
-the original exception, and later calls raise an invalid-resume exception.
-An exception caught by an C<eval> inside the generator does not by itself
-finish or fail the generator.
+Calling a normally exhausted generator returns an empty list.  It remains
+exhausted permanently.  A generator that leaves an uncaught exception is
+permanently failed: the call that resumed it sees the original exception, and
+later calls raise an invalid-resume exception.  An exception caught by an
+C<eval> inside the generator does not by itself finish or fail the generator.
 
 A generator cannot be called while it is already running.  For example, a
 generator cannot call itself before it reaches a yield.  This prevents two

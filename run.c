@@ -587,8 +587,11 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
     int ret;
 
     PERL_ARGS_ASSERT_GENERATOR_RESUME;
-    if (generator->state == PERL_GENERATOR_EXHAUSTED)
-        croak("cannot resume an exhausted generator");
+    if (generator->state == PERL_GENERATOR_EXHAUSTED) {
+        SvREFCNT_dec((SV *)generator->result);
+        generator->result = newAV();
+        return 0;
+    }
     if (generator->state == PERL_GENERATOR_FAILED)
         croak("cannot resume a failed generator");
     if (generator->state != PERL_GENERATOR_NEW && !generator->captured)

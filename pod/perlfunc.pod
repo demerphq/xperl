@@ -3646,9 +3646,9 @@ own continuation:
 
 C<undef> is a valid yielded value, and is still one value rather than an empty
 list.  When the body finishes without yielding again, that call returns an
-empty list and the generator becomes exhausted.  A later call then raises an
-exception; exhaustion is permanent.  An empty yield is distinct from
-exhaustion and can be used to suspend without producing values.
+empty list and the generator becomes exhausted.  Later calls also return an
+empty list; normal exhaustion is permanent and harmless.  An empty yield is
+distinct from exhaustion and can be used to suspend without producing values.
 
 A generator accepts arguments on its first call as ordinary subroutine
 arguments.  Arguments passed to a later call are returned by the suspended

@@ -8,7 +8,7 @@ BEGIN {
     set_up_inc('../lib');
 }
 
-plan(tests => 75);
+plan(tests => 76);
 
 use generator;
 no warnings 'experimental::builtin';
@@ -37,9 +37,9 @@ is_deeply(next_values($finite), [ 2 ], 'second generator_yield');
 is_deeply(next_values($finite), [], 'exhaustion returns an empty list');
 ok(generator_exhausted $finite, 'completed generator is exhausted');
 ok(generator_completed($finite), 'normally completed generator reports completion');
-my $exhausted = eval { $finite->(); 1 };
-ok(!$exhausted, 'exhaustion is permanent');
-like($@, qr/cannot resume an exhausted generator/, 'exhaustion diagnostic');
+is_deeply(next_values($finite), [],
+    'calling a normally exhausted generator returns an empty list');
+ok(generator_exhausted($finite), 'normal exhaustion remains permanent');
 
 my $undef = generator_create { generator_yield undef };
 my $undef_values = next_values($undef);
@@ -134,6 +134,8 @@ my $return_list = generator_create {
 is_deeply(next_values($return_list), [ 1 ], 'yield precedes list return');
 is_deeply(next_values($return_list), [ 2, 3 ],
     'list return values are returned on completion');
+is_deeply(next_values($return_list), [],
+    'later calls after normal completion return an empty list');
 
 my $signature_args = generator_create ($x, $y) {
     my $sum = generator_yield($x + $y);
@@ -289,7 +291,6 @@ undef $nested_outer;
 undef $nested_inner;
 undef $undef_values;
 undef $reentered;
-undef $exhausted;
 undef $failure;
 undef $resumed_failed;
 undef $saved_input_separator;
