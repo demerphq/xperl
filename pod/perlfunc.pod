@@ -3603,6 +3603,10 @@ the yielded list in list context or its first value in scalar context.  The
 generator body runs in the context of the call that resumes it, and its lexical
 and localized state is retained across yields.
 
+The body can use C<wantarray> to observe that context.  A list, scalar, or
+void call gives the resumed body list, scalar, or void context respectively;
+the context may change between calls.
+
     use feature 'generator';
 
     my $numbers = generator_create {

@@ -8,7 +8,7 @@ BEGIN {
     set_up_inc('../lib');
 }
 
-plan(tests => 59);
+plan(tests => 64);
 
 use feature 'generator';
 use feature 'signatures';
@@ -150,6 +150,35 @@ my $scalar_context = generator_create {
     generator_yield (wantarray ? 'list' : 'scalar');
 };
 is($scalar_context->(), 'scalar', 'generator body sees scalar context');
+
+my $list_resume_context = generator_create {
+    generator_yield 1;
+    return wantarray ? 'list' : 'scalar';
+};
+is_deeply(next_values($list_resume_context), [ 1 ],
+    'first generator call supplies list context');
+is_deeply(next_values($list_resume_context), [ 'list' ],
+    'list context is supplied when resuming after a yield');
+
+my $scalar_resume_context = generator_create {
+    generator_yield 1;
+    return wantarray ? 'list' : 'scalar';
+};
+is($scalar_resume_context->(), 1,
+    'first scalar generator call supplies scalar context');
+is($scalar_resume_context->(), 'scalar',
+    'scalar context is supplied when resuming after a yield');
+
+my $void_resume_context;
+my $void_context = generator_create {
+    generator_yield 1;
+    $void_resume_context = !defined(wantarray) ? 'void'
+                         : wantarray ? 'list' : 'scalar';
+};
+$void_context->();
+$void_context->();
+is($void_resume_context, 'void',
+    'void context is supplied when resuming after a yield');
 
 my $saved_input_separator = $/;
 my $localized = generator_create {

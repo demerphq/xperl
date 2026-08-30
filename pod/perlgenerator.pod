@@ -131,6 +131,20 @@ The context in which the generator is called is also the context in which the
 body continues to run.  Lexical variables, loop variables, and localized
 values keep their state while the generator is paused.
 
+This includes the result of C<wantarray>.  The body sees list context when it
+is called in list context, scalar context when it is called in scalar context,
+and void context when its result is ignored.  The context can change from one
+call to the next, including when a call resumes a generator after a yield.
+
+    my $context = generator_create {
+        generator_yield "paused";
+        return !defined(wantarray) ? "void"
+             : wantarray ? "list" : "scalar";
+    };
+
+    my @paused = $context->(); # list context
+    my @answer = $context->(); # also list context, so @answer is ("list")
+
 The value returned by C<generator_yield> comes from the next call to the same
 generator.  This lets the caller send an answer back into the paused block:
 
