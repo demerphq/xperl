@@ -3614,16 +3614,39 @@ and localized state is retained across yields.
     my @second = $numbers->(); # (2)
     my @done   = $numbers->(); # ()
 
+Generators can be interleaved explicitly, with each generator retaining its
+own continuation:
+
+    my $numbers = generator_create {
+        for my $i (0 .. 9) {
+            generator_yield $i;
+        }
+    };
+    my $letters = generator_create {
+        for my $letter ("A" .. "J") {
+            generator_yield $letter;
+        }
+    };
+
+    for (1 .. 10) {
+        print $numbers->(), $letters->(), " ";
+    }
+    # prints: 0A 1B 2C 3D 4E 5F 6G 7H 8I 9J
+
 C<undef> is a valid yielded value, and is still one value rather than an empty
 list.  When the body finishes without yielding again, that call returns an
 empty list and the generator becomes exhausted.  A later call then raises an
-exception; exhaustion is permanent.
+exception; exhaustion is permanent.  An empty yield is distinct from
+exhaustion and can be used to suspend without producing values.
 
-A generator does not accept arguments.  It is a one-shot continuation: it
-cannot be resumed while it is already running, after exhaustion, or after an
-uncaught exception.  An exception caught by an C<eval> inside the generator
-does not exhaust it; an uncaught exception is propagated by the call that
-resumes the generator and permanently puts it into the failed state.
+A generator accepts arguments on its first call as ordinary subroutine
+arguments.  Arguments passed to a later call are returned by the suspended
+C<generator_yield>, with the first argument returned in scalar context and all
+arguments returned in list context.  It is a one-shot continuation: it cannot
+be resumed while it is already running, after exhaustion, or after an uncaught
+exception.  An exception caught by an C<eval> inside the generator does not
+exhaust it; an uncaught exception is propagated by the call that resumes the
+generator and permanently puts it into the failed state.
 
 C<generator_yield> is only valid lexically inside an C<generator_create> block.
 It cannot be used in an ordinary subroutine or in callback code such as

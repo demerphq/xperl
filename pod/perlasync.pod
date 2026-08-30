@@ -41,6 +41,29 @@ runs the body until the next C<generator_yield> or until the body finishes:
     my @second = $counter->(); # (2)
     my @done   = $counter->(); # ()
 
+Generators can be interleaved explicitly.  Each generator retains its own
+continuation, so resuming one does not advance the other:
+
+    my $numbers = generator_create {
+        for my $i (0 .. 9) {
+            generator_yield $i;
+        }
+    };
+    my $letters = generator_create {
+        for my $letter ("A" .. "J") {
+            generator_yield $letter;
+        }
+    };
+
+    for (1 .. 10) {
+        print $numbers->(), $letters->(), " ";
+    }
+    # prints: 0A 1B 2C 3D 4E 5F 6G 7H 8I 9J
+
+This is cooperative concurrency rather than parallel execution: the caller
+chooses when each generator is resumed, and no generator runs unless the
+caller resumes it.
+
 The operand of C<generator_yield> is evaluated in list context, so a yield can
 produce zero, one, or many values.  An empty yield is still a suspension; it is
 not exhaustion.  In scalar context the yielded value is returned as the scalar
