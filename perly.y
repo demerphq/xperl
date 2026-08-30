@@ -123,7 +123,6 @@
 %type <opval> bare_statement_when
 %type <opval> bare_statement_while
 %type <opval> bare_statement_yadayada
-%type <opval> bare_statement_generator_yield
 %type <opval> termgenerator_yield
 %type <opval> subscript_index
 %type <opval> subscript_keys
@@ -836,20 +835,6 @@ bare_statement_yadayada
 		}
 	;
 
-bare_statement_generator_yield
-	: KW_GENERATOR_YIELD term PERLY_SEMICOLON
-		{ if (!CvGENERATOR(PL_compcv)) {
-		      yyerror("generator_yield outside a generator_create");
-		      YYERROR;
-		  }
-		  $$ = newLISTOP(OP_GENERATOR_YIELD,
-                                  OPf_WANT_VOID | OPf_SPECIAL,
-                                  newOP(OP_PUSHMARK, 0),
-                                  (($term->op_flags & OPf_PARENS)
-                                      ? list(op_force_list($term))
-                                      : scalar($term))); }
-	;
-
 subscript_index
 	/* Array/list access subscript: [ selector expression ]
 	 * Value of nonterminal: selector expression
@@ -1028,7 +1013,6 @@ barestmt
 	|	bare_statement_when
 	|	bare_statement_while
 	|	bare_statement_yadayada
-	|	bare_statement_generator_yield
 	;
 
 /* Format line */
@@ -1657,9 +1641,6 @@ anonymous
 			{ $$ = newANONLIST($optexpr); }
 	|	HASHBRACK optexpr PERLY_SEMICOLON PERLY_BRACE_CLOSE	%prec PERLY_PAREN_OPEN /* { foo => "Bar" } */
 			{ $$ = newANONHASH($optexpr); }
-	|	startgenerator_create block    %prec PERLY_PAREN_OPEN
-			{ SvREFCNT_inc_simple_void(PL_compcv);
-			  $$ = newANONATTRSUB($startgenerator_create, 0, NULL, $block); }
 	|	startgenerator_create subattrlist sigsubbody %prec PERLY_PAREN_OPEN
 			{ SvREFCNT_inc_simple_void(PL_compcv);
 			  $$ = newANONATTRSUB($startgenerator_create, NULL,
