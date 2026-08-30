@@ -909,11 +909,6 @@ A class may only have one definition block.
 (F) You attempted to resume a generator after an uncaught exception had
 already caused it to fail.  A failed generator cannot be resumed.
 
-=item cannot resume an exhausted generator
-
-(F) You attempted to resume a generator after it had completed.  An exhausted
-generator cannot be resumed.
-
 =item Cannot set tied @DB::args
 
 (F) C<caller> tried to set C<@DB::args>, but found it tied.  Tying C<@DB::args>
@@ -3780,6 +3775,11 @@ line.  See L<perlrun|perlrun/-i[extension]> for more details.
 
 (F) You attempted to capture or resume a generator when its continuation was
 not available.
+
+=item generator_running expects generator arguments
+
+(F) The C<generator_running> builtin was called with a value that is not a
+generator.  Pass only generator values to this builtin.
 
 =item generator_yield outside a generator_create
 

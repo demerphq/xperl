@@ -35,9 +35,9 @@ print $fh <<'EOT';
 # Files to be built with variable substitution after miniperl is
 # available.  Dependencies handled manually below (for now).
 
-pl = corelist.PL cpan.PL h2ph.PL h2xs.PL instmodsh.PL json_pp.PL perlbug.PL perldoc.PL perlivp.PL pl2pm.PL prove.PL ptar.PL ptardiff.PL ptargrep.PL shasum.PL splain.PL libnetcfg.PL piconv.PL enc2xs.PL encguess.PL xsubpp.PL pod2html.PL zipdetails.PL streamzip.PL
-plextract = corelist cpan h2ph h2xs instmodsh json_pp perlbug perldoc perlivp pl2pm prove ptar ptardiff ptargrep shasum splain libnetcfg piconv enc2xs encguess xsubpp pod2html zipdetails streamzip
-plextractexe = ./corelist ./cpan ./h2ph ./h2xs ./json_pp ./instmodsh ./perlbug ./perldoc ./perlivp ./pl2pm ./prove ./ptar ./ptardiff ./ptargrep ./shasum ./splain ./libnetcfg ./piconv ./enc2xs ./encguess ./xsubpp ./pod2html ./zipdetails ./streamzip
+pl = corelist.PL cpan.PL h2ph.PL h2xs.PL instmodsh.PL json_pp.PL cpanel_json_xs.PL perlbug.PL perldoc.PL perlivp.PL pl2pm.PL prove.PL ptar.PL ptardiff.PL ptargrep.PL shasum.PL splain.PL libnetcfg.PL piconv.PL enc2xs.PL encguess.PL xsubpp.PL pod2html.PL zipdetails.PL streamzip.PL
+plextract = corelist cpan h2ph h2xs instmodsh json_pp cpanel_json_xs perlbug perldoc perlivp pl2pm prove ptar ptardiff ptargrep shasum splain libnetcfg piconv enc2xs encguess xsubpp pod2html zipdetails streamzip
+plextractexe = ./corelist ./cpan ./h2ph ./h2xs ./instmodsh ./json_pp ./cpanel_json_xs ./perlbug ./perldoc ./perlivp ./pl2pm ./prove ./ptar ./ptardiff ./ptargrep ./shasum ./splain ./libnetcfg ./piconv ./enc2xs ./encguess ./xsubpp ./pod2html ./zipdetails ./streamzip
 
 all: $(plextract) 
 
@@ -55,6 +55,8 @@ h2xs:		h2xs.PL ../config.sh
 instmodsh:	instmodsh.PL ../config.sh
 
 json_pp:	json_pp.PL ../config.sh
+
+cpanel_json_xs:	cpanel_json_xs.PL ../config.sh ../cpan/Cpanel-JSON-XS/bin/cpanel_json_xs
 
 perlbug:	perlbug.PL ../config.sh ../patchlevel.h
 
