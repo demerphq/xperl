@@ -1,1 +1,0 @@
-../BLEAD-DELTA.md
