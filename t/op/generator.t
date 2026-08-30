@@ -8,7 +8,7 @@ BEGIN {
     set_up_inc('../lib');
 }
 
-plan(tests => 76);
+plan(tests => 78);
 
 use generator;
 no warnings 'experimental::builtin';
@@ -136,6 +136,22 @@ is_deeply(next_values($return_list), [ 2, 3 ],
     'list return values are returned on completion');
 is_deeply(next_values($return_list), [],
     'later calls after normal completion return an empty list');
+
+my $unparenthesized_list = generator_create {
+    my $source = generator_create { generator_yield 1 };
+    generator_yield $source->(), 'A';
+};
+is_deeply(next_values($unparenthesized_list), [ 1, 'A' ],
+    'unparenthesized generator_yield accepts multiple values');
+
+my $unparenthesized_nested = generator_create {
+    my $source = generator_create { generator_yield 'left' };
+    for my $right ('A' .. 'B') {
+        generator_yield $source->(), $right;
+    }
+};
+is_deeply(next_values($unparenthesized_nested), [ 'left', 'A' ],
+    'unparenthesized generator_yield keeps a nested call and following value together');
 
 my $signature_args = generator_create ($x, $y) {
     my $sum = generator_yield($x + $y);

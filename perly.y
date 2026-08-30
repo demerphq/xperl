@@ -123,7 +123,7 @@
 %type <opval> bare_statement_when
 %type <opval> bare_statement_while
 %type <opval> bare_statement_yadayada
-%type <opval> termgenerator_yield
+%type <opval> generator_yield_args generator_yield_tail termgenerator_yield
 %type <opval> subscript_index
 %type <opval> subscript_keys
 %type <opval> subscriptable_reference
@@ -1671,17 +1671,33 @@ termdo	:       KW_DO term	%prec UNIOP                     /* do $filename */
 			{ $$ = newUNOP(OP_NULL, OPf_SPECIAL, op_scope($block));}
         ;
 
+generator_yield_tail
+	:       %empty	%prec PREC_LOW
+			{ $$ = NULL; }
+	|       PERLY_COMMA term generator_yield_tail
+			{ $$ = $3
+			        ? op_append_elem(OP_LIST, list($term), $3)
+			        : list($term); }
+	;
+
+generator_yield_args
+	:       term generator_yield_tail
+			{ $$ = $generator_yield_tail
+			        ? op_append_elem(OP_LIST, list($term), $generator_yield_tail)
+			        : $term; }
+	;
+
 termgenerator_yield
-	:       KW_GENERATOR_YIELD term	%prec UNIOP
+	:       KW_GENERATOR_YIELD generator_yield_args	%prec UNIOP
 			{ if (!CvGENERATOR(PL_compcv)) {
 			      yyerror("generator_yield outside a generator_create");
 			      YYERROR;
 			  }
 			  $$ = newLISTOP(OP_GENERATOR_YIELD, 0,
                                       newOP(OP_PUSHMARK, 0),
-                                      (($term->op_flags & OPf_PARENS)
-                                          ? list(op_force_list($term))
-                                          : scalar($term))); }
+                                      (($generator_yield_args->op_flags & OPf_PARENS)
+                                          ? list(op_force_list($generator_yield_args))
+                                          : list($generator_yield_args))); }
 	;
 
 term[product]	:	termbinop
