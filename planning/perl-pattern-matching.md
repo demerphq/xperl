@@ -108,7 +108,7 @@ set:
 
 | Pattern | Meaning |
 | --- | --- |
-| `_` | Match anything without binding |
+| `_` | Match anything without binding; usable as a nested placeholder |
 | Literal scalar | Match by a specified equality rule |
 | `$name` | Bind a lexical on successful match |
 | `$name` listed by `with` | Compare with the value pinned by the enclosing `case` |
@@ -116,13 +116,23 @@ set:
 | `[$head, @tail]` | Match a prefix and bind the remaining elements |
 | `{ key => $value }` | Match required hash keys and bind their values |
 | `{ key => $value, ... }` | Match selected keys while allowing additional keys |
-| `($a, $b)` | Match a tuple-like list value |
 | `Type(...)` | Match an object/class and selected fields, subject to a defined object API |
 | `pattern if GUARD` | Apply a guard after structural matching |
 
 Questions such as optional fields, defaults, nested slurps, regex patterns,
 ranges, alternatives, and object destructuring should be added only after the
 core transaction and failure semantics are stable.
+
+The `_` pattern is the general placeholder value. It succeeds for any value
+without introducing a binding, and may appear wherever a nested pattern is
+allowed, for example `[$first, _, $third]` or `{ name => _, id => $id }`.
+It is a wildcard pattern, not a request to inspect or bind Perl's special
+`$_` variable.
+
+The initial design should use array references for tuple-like data, such as
+`[$a, $b]`. Parenthesised Perl lists are temporary list-context expressions,
+not scalar values that can be passed to the planned scalar `case` subject, so
+`($a, $b)` is not a separate tuple pattern.
 
 ### Composite scalar patterns
 
