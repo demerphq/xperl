@@ -112,9 +112,10 @@ set:
 | Literal scalar | Match by a specified equality rule |
 | `$name` | Bind a lexical on successful match |
 | `$name` listed by `with` | Compare with the value pinned by the enclosing `case` |
-| `[$a, $b]` | Match an array value with positional elements |
+| `[$a, $b]` | Match an array reference with exactly two elements |
 | `[$head, @tail]` | Match a prefix and bind the remaining elements |
-| `{ key => $value }` | Match required hash keys and bind their values |
+| `[..., $a, $b]` | Match a suffix at the end of an array reference |
+| `{ key => $value }` | Match a hash reference with exactly the listed keys |
 | `{ key => $value, ... }` | Match selected keys while allowing additional keys |
 | `Type(...)` | Match an object/class and selected fields, subject to a defined object API |
 | `pattern if GUARD` | Apply a guard after structural matching |
@@ -388,18 +389,66 @@ The policy may differ by construct, but the difference must be explicit.
 
 ## Data and object patterns
 
-### Arrays and lists
+### Arrays and array references
 
-Perl arrays are mutable and may contain aliases, magic, or tied behavior. A
-pattern needs rules for exact length, prefix/suffix matching, slurpy captures,
-and tied arrays. The initial implementation should avoid invoking arbitrary
-methods or stringification while determining shape.
+Perl arrays are mutable and may contain aliases, magic, or tied behavior. The
+pattern subject should be an array reference; a parenthesised Perl list is not
+a first-class scalar value. An array pattern without `...` is exact: it must
+match an array reference with exactly the specified number of elements. A
+trailing `...` permits an arbitrary suffix, while a leading `...` permits an
+arbitrary prefix:
+
+```perl
+case ($items) {
+    match([$a, $b, $c]) {
+        exactly_three($a, $b, $c);
+    }
+    match([$a, $b, $c, ...]) {
+        starts_with_three($a, $b, $c);
+    }
+    match([... , "foo", $value, "bar", ...]) {
+        contains_subsequence($value);
+    }
+}
+```
+
+With both a leading and trailing `...`, the fixed portion is a contiguous
+subsequence that may occur anywhere in the array. The matcher chooses the
+leftmost position at which the fixed portion can match. A scalar binding such
+as `$value` consumes one element; `...` consumes any prefix or suffix without
+binding it. Empty prefixes and suffixes are allowed, so the same form also
+matches an array whose contents are exactly `("foo", VALUE, "bar")`.
+
+The matching and binding rules for multiple adjacent variable-length captures
+must be specified separately. The initial design should keep `...` as a
+boundary marker, with the fixed portion matched as one contiguous sequence,
+and should avoid implicit regex-like backtracking beyond the defined
+leftmost-choice rule.
 
 ### Hashes and maps
 
 The implementation should distinguish “these keys must exist” from “the hash
-has exactly these keys”. It should specify behavior for magical and tied
-hashes, overloaded values, and undef-valued keys.
+has exactly these keys”. A hash pattern without `...` is closed and requires
+exactly the listed keys:
+
+```perl
+case ($record) {
+    match({ foo => $value }) {
+        one_key_only($value);
+    }
+    match({ foo => $value, ... }) {
+        foo_with_other_keys($value);
+    }
+}
+```
+
+In a hash pattern, `...` is a final open marker. It does not bind the other
+keys, and `{ ... }` matches any hash reference. The rules for magical and tied
+hashes, overloaded values, and undef-valued keys must still be specified.
+
+The `...` marker is meaningful only in pattern syntax. Outside a pattern,
+Perl's existing yada-yada behavior is unchanged, and `..` retains its normal
+range meaning.
 
 ### Objects and classes
 
