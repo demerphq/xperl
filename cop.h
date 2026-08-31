@@ -1406,6 +1406,8 @@ typedef enum {
 typedef struct perl_generator {
     U32                     magic;
     CV *                    body;
+    SV *                    defsv;
+    AV *                    defav;
     LOGOP                   invoke;
     PERL_PROCESS_STATE       process;
     AV *                    initial_args;

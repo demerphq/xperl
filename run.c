@@ -135,6 +135,9 @@ Perl_generator_new(pTHX_ CV *body)
     Newxz(generator, 1, PERL_GENERATOR);
     generator->magic = PERL_GENERATOR_MAGIC;
     generator->body = (CV *)SvREFCNT_inc_simple((SV *)body);
+    generator->defsv = newSVsv(GvSV(PL_defgv)
+                               ? GvSV(PL_defgv) : &PL_sv_undef);
+    generator->defav = newAV();
     generator->invoke.op_ppaddr = PL_ppaddr[OP_ENTERSUB];
     generator->invoke.op_type = OP_ENTERSUB;
     generator->invoke.op_flags = OPf_STACKED | OPf_WANT_SCALAR;
@@ -229,6 +232,49 @@ static void S_generator_detach_stackinfo(pTHX_ PERL_GENERATOR *generator);
 static void S_generator_attach_stackinfo(pTHX_ PERL_GENERATOR *generator);
 
 static void
+S_generator_swap_sv(SV *a, SV *b)
+{
+    const U32 keep = SVs_PADSTALE | SVs_PADTMP | SVs_PADMY;
+    SV tmp;
+
+    SvANY(&tmp) = SvANY(a);
+    SvANY(a) = SvANY(b);
+    SvANY(b) = SvANY(&tmp);
+
+    SvFLAGS(&tmp) = SvFLAGS(a);
+    SvFLAGS(a) = (SvFLAGS(a) & keep) | (SvFLAGS(b) & ~keep);
+    SvFLAGS(b) = (SvFLAGS(b) & keep) | (SvFLAGS(&tmp) & ~keep);
+
+    tmp.sv_u = a->sv_u;
+    a->sv_u = b->sv_u;
+    b->sv_u = tmp.sv_u;
+
+    if (SvTYPE(a) == SVt_NULL || SvTYPE(a) == SVt_IV
+#if NVSIZE <= IVSIZE
+        || SvTYPE(a) == SVt_NV
+#endif
+    )
+        SvANY(a) = (void *)((PTRV)SvANY(a) - (PTRV)b + (PTRV)a);
+
+    if (SvTYPE(b) == SVt_NULL || SvTYPE(b) == SVt_IV
+#if NVSIZE <= IVSIZE
+        || SvTYPE(b) == SVt_NV
+#endif
+    )
+        SvANY(b) = (void *)((PTRV)SvANY(b) - (PTRV)a + (PTRV)b);
+}
+
+static void
+S_generator_swap_default_variables(pTHX_ PERL_GENERATOR *generator)
+{
+    AV * const defav = GvAV(PL_defgv);
+
+    S_generator_swap_sv(GvSVn(PL_defgv), generator->defsv);
+    GvAV(PL_defgv) = generator->defav;
+    generator->defav = defav;
+}
+
+static void
 S_generator_free_tmps(pTHX_ PERL_PROCESS_STATE *process)
 {
     PERL_EXECUTION_CONTEXT * const context = process->context;
@@ -295,6 +341,8 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
     }
     SvREFCNT_dec(generator->value);
     SvREFCNT_dec((SV *)generator->values);
+    SvREFCNT_dec(generator->defsv);
+    SvREFCNT_dec((SV *)generator->defav);
     SvREFCNT_dec(generator->error);
     SvREFCNT_dec((SV *)generator->initial_args);
     SvREFCNT_dec((SV *)generator->resume_args);
@@ -583,6 +631,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
     void * const old_data = PL_runops_boundary_data;
     JMPENV * const caller_restartjmpenv = PL_restartjmpenv;
     const bool new_generator = generator->state == PERL_GENERATOR_NEW;
+    volatile bool default_variables_swapped = FALSE;
     GENERATOR_RUN run = { generator, NULL };
     int ret;
 
@@ -657,6 +706,8 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             }
             rpp_xpush_1(MUTABLE_SV(generator->body));
             PL_op = (OP *)&generator->invoke;
+            S_generator_swap_default_variables(aTHX_ generator);
+            default_variables_swapped = TRUE;
             PL_runops(aTHX);
         }
         else {
@@ -666,6 +717,8 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
                     cxstack[i].blk_eval.cur_top_env = &cur_env;
             }
             S_generator_push_resume_result(aTHX_ generator);
+            S_generator_swap_default_variables(aTHX_ generator);
+            default_variables_swapped = TRUE;
             PL_runops(aTHX);
         }
         break;
@@ -683,6 +736,8 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         JMPENV_POP;
         PL_runops_boundary_hook = old_hook;
         PL_runops_boundary_data = old_data;
+        if (default_variables_swapped)
+            S_generator_swap_default_variables(aTHX_ generator);
         process_state_restore(&caller_state);
         PL_restartjmpenv = PL_top_env;
         {
@@ -709,6 +764,8 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         S_generator_pop_stackinfo(aTHX_ generator);
         generator->captured = FALSE;
     }
+    if (default_variables_swapped)
+        S_generator_swap_default_variables(aTHX_ generator);
     process_state_restore(&caller_state);
     PL_restartjmpenv = caller_restartjmpenv;
     return generator->state == PERL_GENERATOR_YIELDED ? 1 : 0;

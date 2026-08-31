@@ -8,7 +8,7 @@ BEGIN {
     set_up_inc('../lib');
 }
 
-plan(tests => 78);
+plan(tests => 82);
 
 use generator;
 no warnings 'experimental::builtin';
@@ -232,6 +232,39 @@ is_deeply(next_values($localized), [ 'generator separator' ],
     'localization survives the second suspension');
 is_deeply(next_values($localized), [], 'localized generator exhausts');
 is($/, $saved_input_separator, 'localization is restored at exhaustion');
+
+my $default_scalar_isolated;
+my $default_scalar_generator = generator_create {
+    $_ = 'generator';
+    generator_yield $_;
+    generator_yield $_;
+};
+{
+    local $_ = 'caller';
+    is($default_scalar_generator->(), 'generator',
+       'generator has its own default scalar on first run');
+    $_ = 'caller changed';
+    $default_scalar_isolated = $default_scalar_generator->();
+    is($default_scalar_isolated, 'generator',
+       'caller changes to the default scalar do not affect a generator');
+    is($_, 'caller changed',
+       'generator changes to the default scalar do not affect its caller');
+}
+
+sub argument_isolation_probe {
+    my $argument_isolated = generator_create {
+        my $before = join ',', @_;
+        generator_yield $before;
+        push @_, 'generator';
+        generator_yield join ',', @_;
+    };
+    my $first = $argument_isolated->('initial');
+    @_ = ('caller changed');
+    my $second = $argument_isolated->();
+    return "$first|$second|" . join(',', @_);
+}
+is(argument_isolation_probe(), 'initial|initial,generator|caller changed',
+   'generator @_ is isolated from the caller @_');
 
 my $reentrant;
 $reentrant = generator_create { generator_yield $reentrant->() };
