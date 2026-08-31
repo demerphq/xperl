@@ -421,6 +421,7 @@ S_generator_new_stacks(pTHX)
 typedef struct generator_run {
     PERL_GENERATOR *generator;
     JMPENV *env;
+    PERL_SI *stackinfo;
 } GENERATOR_RUN;
 
 void
@@ -558,6 +559,13 @@ S_generator_boundary(pTHX_ OP *nextop, void *data)
     GENERATOR_RUN * const run = (GENERATOR_RUN *)data;
     PERL_GENERATOR * const generator = run->generator;
 
+    /* The generator hook is also visible to nested runops invocations.  A
+     * class constructor, for example, runs its field initialiser on a
+     * constructor stack.  Only the generator's own stack may terminate or
+     * suspend the generator. */
+    if (PL_curstackinfo != run->stackinfo)
+        return 0;
+
     if (nextop && !generator->yield_pending)
         return 0;
 
@@ -632,7 +640,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
     JMPENV * const caller_restartjmpenv = PL_restartjmpenv;
     const bool new_generator = generator->state == PERL_GENERATOR_NEW;
     volatile bool default_variables_swapped = FALSE;
-    GENERATOR_RUN run = { generator, NULL };
+    GENERATOR_RUN run = { generator, NULL, NULL };
     int ret;
 
     PERL_ARGS_ASSERT_GENERATOR_RESUME;
@@ -708,6 +716,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             PL_op = (OP *)&generator->invoke;
             S_generator_swap_default_variables(aTHX_ generator);
             default_variables_swapped = TRUE;
+            run.stackinfo = PL_curstackinfo;
             PL_runops(aTHX);
         }
         else {
@@ -719,6 +728,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             S_generator_push_resume_result(aTHX_ generator);
             S_generator_swap_default_variables(aTHX_ generator);
             default_variables_swapped = TRUE;
+            run.stackinfo = PL_curstackinfo;
             PL_runops(aTHX);
         }
         break;

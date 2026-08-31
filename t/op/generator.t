@@ -8,9 +8,10 @@ BEGIN {
     set_up_inc('../lib');
 }
 
-plan(tests => 82);
+plan(tests => 83);
 
 use generator;
+use experimental 'class';
 no warnings 'experimental::builtin';
 
 sub next_values {
@@ -289,6 +290,15 @@ is_deeply(next_values($nested_outer), [ 10 ],
 is_deeply(next_values($nested_outer), [ 20 ],
     'nested generator preserves the inner continuation');
 is_deeply(next_values($nested_outer), [], 'nested generator exhausts');
+
+class GeneratorClassConstructionTest {}
+my $class_inside_generator = generator_create {
+    my $object = GeneratorClassConstructionTest->new;
+    generator_yield $object;
+};
+my $class_value = $class_inside_generator->();
+ok(defined($class_value) && ref($class_value) eq 'GeneratorClassConstructionTest',
+   'class construction inside a generator survives until generator_yield');
 
 like(runperl(switches => ['-Mfeature=generator'], stderr => 1,
              prog => 'generator_yield 1'),
