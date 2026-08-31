@@ -407,10 +407,34 @@ unrelated modules should require an explicit adapter or pattern method.
 
 ### Regexes and user-defined patterns
 
-Regexes are already a powerful pattern language, but embedding them into a
-general matcher raises capture, context, and side-effect questions. They
-should initially be a leaf pattern with clearly documented capture behavior.
-User-defined patterns should be an explicit protocol, not arbitrary overload
+Regexes should be usable as explicit leaf patterns against the `case` subject:
+
+```perl
+case ($text) {
+    match(/^\d+$/) {
+        process_number($text);
+    }
+    match(/^x(?<inner>.*)z$/) {
+        process_inner($inner);
+    }
+}
+```
+
+The first form is a predicate pattern. The second also captures the text
+between `x` and `z`. Named captures should become arm-local pattern bindings,
+committed only after the complete regex match succeeds, rather than exposing
+the arm through the ordinary global-ish `$1`, `$2`, or `%+` interfaces. A
+regex pattern must operate on the explicitly supplied subject, never an
+implicit `$_`, and the subject and regex should each be evaluated once.
+
+The initial implementation should support regexes as predicate patterns and
+then add named-capture bindings once their interaction with transactional arm
+bindings is specified. It must define duplicate named captures, captures that
+did not participate, stringification and Unicode behavior, and whether regex
+code blocks such as `(?{ ... })` and `(??{ ... })` are forbidden or isolated.
+Regex patterns should use normal Perl regex matching rules where possible, but
+must not become a route for arbitrary hidden method dispatch. User-defined
+patterns should likewise be an explicit protocol, not arbitrary overload
 dispatch hidden inside a structural match.
 
 ## Compiler and runtime work
@@ -518,3 +542,118 @@ These safeguards also affect the implementation plan. Reusing the existing
 implicit smartmatch evaluator is not. The compiler should lower each pattern
 into a known matcher or a dedicated pattern op tree, with a match frame for
 temporary bindings and explicit arm dispatch.
+
+## What the literature says went wrong with `given`/`when`
+
+The official Perl documentation is unusually direct about this history. The
+Perl 5.38 delta says that smartmatch and the switch feature had changed
+significantly between 5.10.0 and 5.10.1, remained experimental for years, and
+were declared a failed experiment after repeated proposals to fix or
+supplement them. It specifically groups the `given`/`when` framework with the
+smartmatch operator. See
+[perl5380delta, “Switch and Smart Match operator”](https://perldoc.perl.org/perl5380delta#Switch-and-Smart-Match-operator).
+
+The syntax documentation warns that `when` has “tricky behaviours” and says
+not to rely on its current implementation. It also documents that `when`
+conditions are interpreted through implicit smartmatch and that their exact
+meaning is hard to describe precisely because the implementation guesses what
+the programmer wants. See
+[perlsyn, “Experimental Details on given and when”](https://perldoc.perl.org/perlsyn#Experimental-Details-on-given-and-when).
+
+The smartmatch documentation identifies the underlying source of the problem:
+smartmatch infers a comparison from the runtime types of both operands,
+recurses into arrays, treats hashes specially, has a direction-sensitive
+table, and can invoke object overloading. See
+[perlop, “Smartmatch Operator”](https://perldoc.perl.org/perlop#Smartmatch-Operator).
+
+The recurring failure modes are therefore:
+
+### 1. One operator secretly means many unrelated relations
+
+`~~` is not one relation such as equality or containment. Its meaning changes
+depending on whether operands are scalars, arrays, hashes, regexes, code
+references, objects, or undef. A programmer cannot determine the operation from
+the operator alone; they must remember a dispatch table and its precedence.
+
+**Protection for the new design:** a pattern must determine the operation.
+`[ $x, $y ]` means sequence matching, `{ key => $v }` means record matching,
+and `Type(...)` means an explicit object pattern. The subject's runtime type
+may cause a clean mismatch, but must not silently select a different relation.
+
+### 2. Operand direction is surprising
+
+Smartmatch is commonly described as containment, so `small ~~ large` can mean
+something different from `large ~~ small`. This is especially difficult when
+the operands are arrays or hashes and the result depends on which side owns
+the type-directed rule.
+
+**Protection for the new design:** the syntax must have fixed roles:
+`case SUBJECT` supplies the value and `match PATTERN` supplies the constraint.
+There is no symmetric binary pattern operator in the first version. If an
+operator is added later, its left/right roles must be stated in the grammar and
+documentation and must not be inferred from operand types.
+
+### 3. Recursive matching is implicit and under-specified
+
+Smartmatch recursively compares nested arrays and has special behavior for
+cycles. That makes a shallow-looking comparison potentially perform arbitrary
+deep traversal, with surprising results for partially nested structures.
+
+**Protection for the new design:** recursion occurs only where the pattern is
+syntactically nested. Cycle handling must be explicit and bounded by the
+matcher implementation. A pattern must never become recursive merely because
+the subject happens to contain nested references. The first implementation
+should use identity tracking for cycles and document whether a repeated
+reference is accepted, rejected, or compared by identity.
+
+### 4. Objects can execute arbitrary user code during a comparison
+
+Smartmatch can invoke object overloading. That means a comparison that appears
+to be a test may dispatch into user code, have side effects, throw, or return a
+result unrelated to the object's actual shape.
+
+**Protection for the new design:** structural patterns must not invoke
+`~~`, stringification, numeric conversion, constructors, or arbitrary methods
+implicitly. Object matching should use a defined class/field introspection
+contract. An explicit user-defined pattern protocol may run code, but that
+should be visible in the pattern and documented as effectful.
+
+### 5. Testing and boolean selection are conflated with destructuring
+
+The old framework mainly answers “does this condition match?”, while the
+language people often expect from pattern matching also answers “what values
+were extracted?” Smartmatch itself returns a boolean and provides no coherent
+binding model. Users consequently combine it with ad hoc tests and assignments.
+
+**Protection for the new design:** matching and binding are one transactional
+operation. A successful arm creates explicitly scoped bindings; a failed arm
+creates none. The arm's result value is separate from the match decision, and
+there is no hidden assignment to `$_` or to caller variables.
+
+### 6. Dynamic topic and control-flow behavior is too magical
+
+`given` localizes or assigns the topic variable, and `when` has special
+behavior in both `given` blocks and loops. `continue`, `break`, `next`, nested
+loops, and statement modifiers interact with that hidden dynamic context. The
+documentation also notes that the argument to `given` and `when` is scalar
+context, another fact that is easy to miss.
+
+**Protection for the new design:** evaluate the subject exactly once and make
+it available by an explicit name or a well-defined read-only match subject.
+Patterns and guards must have specified context. Arm entry, fall-through,
+`next`, `last`, `redo`, and nested-loop behavior must be tested independently.
+The new mode should not depend on ambient `$_` as the subject.
+
+### 7. The semantics changed repeatedly while the syntax stayed familiar
+
+The same surface syntax survived significant changes in implementation and
+meaning. The feature was later retroactively classified as experimental, then
+deprecated as a failed experiment, and later retained behind a feature for
+compatibility in current Perl documentation. This is a warning about semantic
+instability, not merely about the warning category.
+
+**Protection for the new design:** make the pattern language a deliberately
+small, named semantic system. Feature-gate the entire replacement mode, give
+each pattern form stable rules before adding sugar, test compiler output and
+diagnostics, and do not overload legacy smartmatch behavior to obtain a quick
+implementation.
