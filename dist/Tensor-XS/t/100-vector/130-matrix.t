@@ -155,12 +155,16 @@ subtest 'matrix_multiply method - size validation' => sub {
         data => [1, 2, 3, 4, 5, 6]
     );
 
-    # Vector of size 2 trying to multiply with 3x2 matrix should work
+    # Vector of size 2 trying to multiply with a 3x2 matrix is invalid.
     my $vector = Vector->initialize( 2, [ 1, 2 ] );
-    my $result = $vector->matrix_multiply($matrix);
-
-    isa_ok( $result, 'Vector', 'matrix_multiply returns a Vector' );
-    is( $result->size, 2, 'result vector has correct size (matrix cols)' );
+    my $error;
+    {
+        local $@;
+        eval { $vector->matrix_multiply($matrix) };
+        $error = $@;
+    }
+    like( $error, qr/matrix multiplication dimensions do not agree/,
+        'matrix_multiply rejects incompatible vector and matrix sizes' );
 };
 
 done_testing;

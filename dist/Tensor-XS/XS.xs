@@ -1053,7 +1053,7 @@ matrix_multiply(object, other)
         left_cols = tensor_shape(left)[0];
         right_rows = tensor_shape(right)[0];
         right_cols = tensor_shape(right)[1];
-        if (left_cols > right_rows)
+        if (left_cols != right_rows)
             croak("matrix multiplication dimensions do not agree");
         shape[0] = right_cols;
     }
