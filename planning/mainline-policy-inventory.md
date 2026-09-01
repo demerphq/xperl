@@ -1,6 +1,6 @@
 # Mainline Perl and policy reference inventory
 
-This document catalogs references in the AI Perl tree to mainline Perl
+This document catalogs references in the XPerl tree to mainline Perl
 development, Perl branches, P5P rules and policy, compatibility expectations,
 and Perl build/version identity. It is an inventory for future policy work;
 it does not prescribe changes and is not exhaustive at the individual-match
@@ -106,9 +106,9 @@ The repository uses “compatibility” for at least three different concerns:
 2. C, XS, embedding, and binary interfaces;
 3. operating-system, compiler, and platform behavior.
 
-The AI Perl mission explicitly relaxes the first category when useful, but
+The XPerl mission explicitly relaxes the first category when useful, but
 does not automatically imply relaxing the second or third. Active references
-are found in `AI-PERL-MISSION.md`, `BLEAD-DELTA.md`, `AGENTS.md`,
+are found in `XPERL-MISSION.md`, `BLEAD-DELTA.md`, `AGENTS.md`,
 `Porting/Glossary`, `Porting/pumpkin.pod`, `INSTALL`, `Configure`,
 `Makefile.SH`, `perl.c`, `XSUB.h`, `handy.h`, `vutil.h`, and the bundled
 distribution tests and Changes files.
@@ -146,7 +146,7 @@ Potentially user-visible branch or build identity is propagated through:
 
 This can expose branch names, Git descriptions, commit IDs, snapshot status,
 Perl version, compiler options, target architecture, and configuration paths.
-It should be considered if AI Perl develops its own identity in `perl -v`,
+It should be considered if XPerl develops its own identity in `perl -v`,
 `perl -V`, bug reports, crash output, or generated metadata.
 
 ## Historical and incidental references
@@ -160,13 +160,13 @@ Many matches are not active policy and should not be changed automatically:
 - platform documentation for old Perl versions;
 - test data containing the word “mainline”.
 
-These should remain separate from current AI Perl policy work.
+These should remain separate from current XPerl policy work.
 
-## Existing AI Perl policy material
+## Existing XPerl policy material
 
 The project-specific policy is currently concentrated in:
 
-- `AI-PERL-MISSION.md`, which defines the experimental, batteries-included,
+- `XPERL-MISSION.md`, which defines the experimental, batteries-included,
   AI-focused, independently stewarded project and its compatibility posture;
 - `BLEAD-DELTA.md`, which summarizes current divergence from `origin/blead`;
 - `AGENTS.md` and `.agent/skills/`, which define AI-agent workspace guidance;
@@ -177,13 +177,13 @@ The project-specific policy is currently concentrated in:
 Future policy work should decide:
 
 - whether `blead` is only a comparison baseline or also an upstream source;
-- whether AI Perl needs its own branch and remote conventions in porting tools;
-- whether CPAN versus AI Perl requires a third ownership state;
-- how AI Perl identifies itself in `perl -v`, `perl -V`, bug reports, and
+- whether XPerl needs its own branch and remote conventions in porting tools;
+- whether CPAN versus XPerl requires a third ownership state;
+- how XPerl identifies itself in `perl -v`, `perl -V`, bug reports, and
   generated metadata;
 - whether odd/even release numbering remains appropriate;
 - which guarantees apply to Perl source, XS/API, embedding ABI, binary
   compatibility, configuration, and installation paths;
 - which P5P release instructions remain useful and which are upstream-only;
-- whether `perldelta` is sufficient or needs an AI Perl companion;
+- whether `perldelta` is sufficient or needs an XPerl companion;
 - which historical references should remain untouched.

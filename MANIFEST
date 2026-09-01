@@ -1,14 +1,14 @@
 .dir-locals.el				Emacs control file
 .editorconfig				EditorConfig style file
 .metaconf-exclusions.txt		Symbols that should ignored when generating Configure
-AI-PERL-MISSION.md			Mission and contribution principles for AI Perl
+XPERL-MISSION.md			Mission and contribution principles for XPerl
 Artistic				The "Artistic License"
 asan_ignore				Errors to skip under clang's Addresss Sanitizer
 AUTHORS					Contact info for contributors
 autodoc.pl				Creates pod/perlintern.pod and pod/perlapi.pod
 av.c					Array value code
 av.h					Array value header
-BLEAD-DELTA.md				Differences between AI Perl and mainline Perl
+BLEAD-DELTA.md				Differences between XPerl and mainline Perl
 builtin.c				Functions in the builtin:: namespace
 caretx.c				C file to create $^X
 cflags.SH				A script that emits C compilation flags per file

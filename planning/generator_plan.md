@@ -1,6 +1,6 @@
 # Trial generators using one-shot continuations
 
-Working branch: `ai-perl`.
+Working branch: `xperl-main`.
 
 This plan was restored during a completion audit because the previous removal
 was not supported by sufficient evidence.
