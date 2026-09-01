@@ -1,7 +1,6 @@
 .dir-locals.el				Emacs control file
 .editorconfig				EditorConfig style file
 .metaconf-exclusions.txt		Symbols that should ignored when generating Configure
-XPERL-MISSION.md			Mission and contribution principles for XPerl
 Artistic				The "Artistic License"
 asan_ignore				Errors to skip under clang's Addresss Sanitizer
 AUTHORS					Contact info for contributors
@@ -218,6 +217,7 @@ vutil.h					Version object headers
 vxs.inc					Version object XS methods
 warnings.h				The warning numbers
 write_buildcustomize.pl			Generate lib/buildcustomize.pl
+XPERL-MISSION.md			Mission and contribution principles for XPerl
 XSUB.h					Include file for extension subroutines
 zaphod32_hash.h				Zaphod32 hash code (32 bit fast hash function)
 amigaos4/amigaio.c			AmigaOS4 port
