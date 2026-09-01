@@ -3776,19 +3776,19 @@ line.  See L<perlrun|perlrun/-i[extension]> for more details.
 (F) You attempted to capture or resume a generator when its continuation was
 not available.
 
-=item generator_running expects generator arguments
+=item running expects generator arguments
 
-(F) The C<generator_running> builtin was called with a value that is not a
+(F) The C<running> builtin was called with a value that is not a
 generator.  Pass only generator values to this builtin.
 
-=item generator_yield outside a generator_create
+=item yield outside a gen
 
-(F) The generator_yield operation was invoked without a currently running
-generator_create body.
+(F) The yield operation was invoked without a currently running
+gen body.
 
-=item generator_yield outside a running generator_create
+=item yield outside a running gen
 
-(F) The generator_yield operation was invoked when no generator_create body
+(F) The yield operation was invoked when no gen body
 was currently running.
 
 =item Junk on end of regexp in regex m/%s/

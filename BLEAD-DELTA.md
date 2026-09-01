@@ -23,11 +23,12 @@ development tooling in addition to the runtime changes described below.
 The fork contains an experimental generator implementation with:
 
 - `use feature 'generator'`;
-- `generator_create` blocks;
-- explicit `generator_yield` operations;
-- `generator_running`, `generator_completed`, `generator_failed`, and
-  `generator_exhausted` predicate builtins;
-- a `use generator` pragma that enables the feature and imports the predicates;
+- `gen` blocks, the generator equivalent of `sub`;
+- explicit `yield` operations;
+- `generator::running`, `generator::completed`, `generator::failed`, and
+  `generator::exhausted` functions, also available as methods on generator
+  objects;
+- a `use generator` pragma that enables the feature and signatures;
 - parameterized generator calls, including values sent back into a suspended
   yield;
 - list-valued yields and scalar-context handling;
