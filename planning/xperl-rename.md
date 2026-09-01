@@ -4,19 +4,19 @@
 
 Rename the experimental distribution currently called AI Perl to XPerl.
 The working branch currently named `ai-perl` should become
-`xperl-main`.  Tracked source and documentation references should use the
+`xperl/main`.  Tracked source and documentation references should use the
 new terminology, while unrelated uses of `ai` or `AI` must remain unchanged.
 
 The selected spelling is:
 
 | Existing form | Replacement | Typical use |
 |---|---|---|
-| `ai-perl` | `xperl` or `xperl-main` | historical product name or branch URL, depending on context |
+| `ai-perl` | `xperl` or `xperl/main` | historical product name or branch URL, depending on context |
 | `aiperl` | `xperl` | historical compact product/installation name |
 | `AI-PERL` | `XPERL` | historical heading and maintainer identifier |
 | `AI-PERL-MISSION.md` | `XPERL-MISSION.md` | mission filename |
 
-Branch references in GitHub URLs must use `xperl-main`, not merely `xperl`,
+Branch references in GitHub URLs must use `xperl/main`, not merely `xperl`,
 because that is the new branch name.
 
 ## Current inventory
@@ -48,7 +48,7 @@ rename, if that installation is being renamed too.
 
 - Use `XPerl` in prose and user-facing headings.
 - Use `xperl` for compact identifiers and installation names.
-- Use `xperl-main` for the main development branch and branch-specific GitHub
+- Use `xperl/main` for the main development branch and branch-specific GitHub
   links.
 - The mission file is renamed to `XPERL-MISSION.md`; `MANIFEST`, README links,
   and references must remain consistent.
@@ -84,10 +84,10 @@ when they are not identifying this distribution.
 Only after the tracked content is ready and committed:
 
 ```sh
-git branch -m ai-perl xperl-main
+git branch -m ai-perl xperl/main
 ```
 
-Then publish `xperl-main` to the `dmq` remote, verify it, update local branch
+Then publish `xperl/main` to the `dmq` remote, verify it, update local branch
 tracking, and delete the old `dmq/ai-perl` branch. The new remote branch must
 be confirmed present before the old one is removed.
 
@@ -137,7 +137,7 @@ Before the branch rename, revert source commits normally. After the local
 branch rename, return to the old name with:
 
 ```sh
-git branch -m xperl-main ai-perl
+git branch -m xperl/main ai-perl
 ```
 
 Remote branch changes, if any, require their own explicit rollback.
