@@ -30,8 +30,8 @@ here, but most should go in the L</Performance Enhancements> section.
 =head2 Lexical namespaces
 
 The experimental C<namespaces> feature provides lexical namespace prefixes,
-the C<namespace> declaration, C<__NAMESPACE__>, and lexical package aliases
-using C<use ... as ...>.  See L<perlnamespace>.
+the C<namespace> declaration and block form, C<__NAMESPACE__>, and lexical
+package aliases using C<use ... as ...>.  See L<perlnamespace>.
 
 =head2 Undef-aware equality operators
 

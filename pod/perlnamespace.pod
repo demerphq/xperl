@@ -21,6 +21,20 @@ an explicit C<:::> boundary replaces it:
     namespace User;       # Model::User
     namespace :::Shared;  # Shared
 
+A namespace declaration may also contain a block.  The namespace is active
+while the block is compiled, and the surrounding namespace is restored after
+the block:
+
+    namespace Model {
+        package User;
+        # This package is Model::User.
+    }
+
+    # The Model namespace is no longer active here.
+
+The block form is useful when a group of package declarations should share a
+namespace without changing the namespace of the surrounding code.
+
 The C<:::> separator is syntax for an explicit namespace boundary.  It is
 canonicalised to the ordinary C<::> package separator and does not occur in
 package names, stash names, or file names.  Runtime strings are not rewritten.

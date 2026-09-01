@@ -7,7 +7,7 @@ BEGIN {
 
 no warnings 'experimental::namespaces';
 
-print "1..9\n";
+print "1..10\n";
 
 my $result = eval q{
     use feature 'namespaces';
@@ -57,3 +57,15 @@ my $core = eval q{
     CORE:::abs(-2) == CORE::abs(-2);
 };
 print !$@ && $core ? "ok 9 - explicit CORE boundary\n" : "not ok 9 - explicit CORE boundary\n";
+
+my $block = eval q{
+    use feature 'namespaces';
+    namespace Block {
+        my $inside = __NAMESPACE__;
+        namespace Child;
+        [ $inside, __NAMESPACE__ ];
+    }
+};
+print !$@ && $block->[0] eq 'Block' && $block->[1] eq 'Block::Child'
+    ? "ok 10 - namespace block\n"
+    : "not ok 10 - namespace block\n";

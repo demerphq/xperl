@@ -624,6 +624,19 @@ bare_statement_namespace
 			op_free($BAREWORD);
 			$$ = NULL;
 		}
+	| KW_NAMESPACE BAREWORD PERLY_BRACE_OPEN
+		remember
+		{
+			namespace_set(cSVOPx($BAREWORD)->op_sv);
+			op_free($BAREWORD);
+		}
+		stmtseq
+		PERLY_BRACE_CLOSE
+		{
+			$$ = new_block_statement (block_end ($remember, $stmtseq), NULL);
+			if (parser->copline > (line_t)$PERLY_BRACE_OPEN)
+				parser->copline = (line_t)$PERLY_BRACE_OPEN;
+		}
 	;
 
 bare_statement_phaser
