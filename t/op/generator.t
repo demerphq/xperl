@@ -8,7 +8,7 @@ BEGIN {
     set_up_inc('../lib');
 }
 
-plan(tests => 83);
+plan(tests => 89);
 
 use generator;
 use experimental 'class';
@@ -26,56 +26,60 @@ sub is_deeply {
        join("\x1f", map { defined $_ ? $_ : "\x00" } @$expected), $name);
 }
 
-my $finite = generator_create {
-    generator_yield 1;
-    generator_yield 2;
+my $finite = gen {
+    yield 1;
+    yield 2;
 };
 
-ok(!generator_exhausted $finite, 'new generator is not exhausted');
-is_deeply(next_values($finite), [ 1 ], 'first generator_yield');
-ok(!generator_exhausted($finite), 'suspended generator is not exhausted');
-is_deeply(next_values($finite), [ 2 ], 'second generator_yield');
+is(ref($finite), 'generator', 'generator is blessed into generator package');
+ok($finite->can('exhausted'), 'generator exposes predicate methods');
+ok(!$finite->exhausted, 'new generator is not exhausted');
+is_deeply(next_values($finite), [ 1 ], 'first yield');
+ok(!$finite->exhausted, 'suspended generator is not exhausted');
+is_deeply(next_values($finite), [ 2 ], 'second yield');
 is_deeply(next_values($finite), [], 'exhaustion returns an empty list');
-ok(generator_exhausted $finite, 'completed generator is exhausted');
-ok(generator_completed($finite), 'normally completed generator reports completion');
+ok($finite->exhausted, 'completed generator is exhausted');
+ok($finite->completed, 'normally completed generator reports completion');
+ok(generator::exhausted($finite), 'package exhausted predicate works');
+ok(generator::completed($finite), 'package completed predicate works');
 is_deeply(next_values($finite), [],
     'calling a normally exhausted generator returns an empty list');
-ok(generator_exhausted($finite), 'normal exhaustion remains permanent');
+ok($finite->exhausted, 'normal exhaustion remains permanent');
 
-my $undef = generator_create { generator_yield undef };
+my $undef = gen { yield undef };
 my $undef_values = next_values($undef);
 is(scalar(@$undef_values), 1, 'undef is still one yielded value');
 ok(!defined($undef_values->[0]), 'yielded undef is preserved');
 
 my $n = 10;
-my $closure = generator_create { generator_yield $n++; generator_yield $n++ };
+my $closure = gen { yield $n++; yield $n++ };
 is_deeply(next_values($closure), [ 10 ], 'generator closes over lexical state');
 is_deeply(next_values($closure), [ 11 ], 'lexical state survives suspension');
 
-my $loop = generator_create {
+my $loop = gen {
     for my $value (1 .. 3) {
-        generator_yield $value;
+        yield $value;
     }
 };
-is_deeply(next_values($loop), [ 1 ], 'loop generator_yield one');
-is_deeply(next_values($loop), [ 2 ], 'loop generator_yield two');
-is_deeply(next_values($loop), [ 3 ], 'loop generator_yield three');
+is_deeply(next_values($loop), [ 1 ], 'loop yield one');
+is_deeply(next_values($loop), [ 2 ], 'loop yield two');
+is_deeply(next_values($loop), [ 3 ], 'loop yield three');
 is_deeply(next_values($loop), [], 'loop generator exhausts');
 
-my $inner_eval = generator_create {
+my $inner_eval = gen {
     my $ignored = eval { die "inner failure\n" };
-    generator_yield $@;
+    yield $@;
 };
 like($inner_eval->(), qr/inner failure/, 'inner eval catches its failure');
 is_deeply(next_values($inner_eval), [], 'inner-eval generator exhausts');
 
-my $failed = generator_create {
-    generator_yield 'before failure';
+my $failed = gen {
+    yield 'before failure';
     die "generator failure\n";
 };
-ok(!generator_exhausted $failed, 'failed generator is not initially exhausted');
-ok(!generator_completed($failed), 'failed generator is not initially completed');
-ok(!generator_failed($failed), 'failed generator is not initially failed');
+ok(!$failed->exhausted, 'failed generator is not initially exhausted');
+ok(!$failed->completed, 'failed generator is not initially completed');
+ok(!$failed->failed, 'failed generator is not initially failed');
 is_deeply(next_values($failed), [ 'before failure' ], 'failure follows a yield');
 my ($failure, $failure_error, $resumed_failed, $resumed_failed_error);
 {
@@ -87,32 +91,33 @@ my ($failure, $failure_error, $resumed_failed, $resumed_failed_error);
 }
 ok(!$failure, 'failure is reported by resume');
 like($failure_error, qr/generator failure/, 'original failure is rethrown');
-ok(generator_exhausted($failed), 'failed generator is terminal');
-ok(!generator_completed($failed), 'failed generator is not completed');
-ok(generator_failed($failed), 'failed generator reports failure');
+ok($failed->exhausted, 'failed generator is terminal');
+ok(!$failed->completed, 'failed generator is not completed');
+ok($failed->failed, 'failed generator reports failure');
+ok(generator::failed($failed), 'package failed predicate works');
 ok(!$resumed_failed, 'failed generator cannot be resumed');
 like($resumed_failed_error, qr/cannot resume a failed generator/, 'failed-resume diagnostic');
 
-my $args = generator_create {
+my $args = gen {
     my ($first, $second) = @_;
-    my ($next, @rest) = generator_yield($first + $second);
+    my ($next, @rest) = yield($first + $second);
     return ($next, @rest);
 };
 is_deeply(next_values($args, 2, 3), [ 5 ], 'initial arguments reach @_');
 is_deeply(next_values($args, 7, 8), [ 7, 8 ],
-    'resume arguments are returned by generator_yield');
-ok(generator_exhausted($args), 'return marks an argument generator exhausted');
+    'resume arguments are returned by yield');
+ok($args->exhausted, 'return marks an argument generator exhausted');
 
-my $scalar_resume = generator_create {
-    my $count = generator_yield 1;
+my $scalar_resume = gen {
+    my $count = yield 1;
     return $count;
 };
 is($scalar_resume->(), 1, 'initial scalar yield remains available');
 is($scalar_resume->(10, 20), 10,
-    'scalar generator_yield returns the first resume argument');
+    'scalar yield returns the first resume argument');
 
-my $parameterized = generator_create ($x, $y, $z) {
-    my $sum = generator_yield($x + $y);
+my $parameterized = gen ($x, $y, $z) {
+    my $sum = yield($x + $y);
     return $z * $sum;
 };
 my $parameterized_sum = $parameterized->(1, 2, 3);
@@ -120,16 +125,16 @@ is($parameterized_sum, 3, 'scalar generator call returns its first yield');
 cmp_ok(abs($parameterized->(sqrt($parameterized_sum)) - 5.19615242270663), '<',
     1e-12, 'scalar generator resume returns its first argument');
 
-my $empty_yield = generator_create {
-    generator_yield ();
+my $empty_yield = gen {
+    yield ();
     return 9;
 };
 is_deeply(next_values($empty_yield), [], 'empty list is a real yield');
-ok(!generator_exhausted($empty_yield), 'empty yield does not exhaust');
+ok(!$empty_yield->exhausted, 'empty yield does not exhaust');
 is_deeply(next_values($empty_yield), [ 9 ], 'return follows an empty yield');
 
-my $return_list = generator_create {
-    generator_yield 1;
+my $return_list = gen {
+    yield 1;
     return (2, 3);
 };
 is_deeply(next_values($return_list), [ 1 ], 'yield precedes list return');
@@ -138,45 +143,45 @@ is_deeply(next_values($return_list), [ 2, 3 ],
 is_deeply(next_values($return_list), [],
     'later calls after normal completion return an empty list');
 
-my $unparenthesized_list = generator_create {
-    my $source = generator_create { generator_yield 1 };
-    generator_yield $source->(), 'A';
+my $unparenthesized_list = gen {
+    my $source = gen { yield 1 };
+    yield $source->(), 'A';
 };
 is_deeply(next_values($unparenthesized_list), [ 1, 'A' ],
-    'unparenthesized generator_yield accepts multiple values');
+    'unparenthesized yield accepts multiple values');
 
-my $unparenthesized_nested = generator_create {
-    my $source = generator_create { generator_yield 'left' };
+my $unparenthesized_nested = gen {
+    my $source = gen { yield 'left' };
     for my $right ('A' .. 'B') {
-        generator_yield $source->(), $right;
+        yield $source->(), $right;
     }
 };
 is_deeply(next_values($unparenthesized_nested), [ 'left', 'A' ],
-    'unparenthesized generator_yield keeps a nested call and following value together');
+    'unparenthesized yield keeps a nested call and following value together');
 
-my $signature_args = generator_create ($x, $y) {
-    my $sum = generator_yield($x + $y);
+my $signature_args = gen ($x, $y) {
+    my $sum = yield($x + $y);
     return $sum;
 };
 is($signature_args->(4, 5), 9, 'generator signature binds initial arguments');
 is($signature_args->(12), 12,
     'signature bindings survive while resume args are supplied');
 
-my $scalar = generator_create { generator_yield 42 };
+my $scalar = gen { yield 42 };
 is(scalar($scalar->()), 42, 'scalar context returns the yielded value');
 
-my $list_context = generator_create {
-    generator_yield (wantarray ? 'list' : 'scalar');
+my $list_context = gen {
+    yield (wantarray ? 'list' : 'scalar');
 };
 is_deeply(next_values($list_context), [ 'list' ],
     'generator body sees list context');
-my $scalar_context = generator_create {
-    generator_yield (wantarray ? 'list' : 'scalar');
+my $scalar_context = gen {
+    yield (wantarray ? 'list' : 'scalar');
 };
 is($scalar_context->(), 'scalar', 'generator body sees scalar context');
 
-my $list_resume_context = generator_create {
-    generator_yield 1;
+my $list_resume_context = gen {
+    yield 1;
     return wantarray ? 'list' : 'scalar';
 };
 is_deeply(next_values($list_resume_context), [ 1 ],
@@ -184,8 +189,8 @@ is_deeply(next_values($list_resume_context), [ 1 ],
 is_deeply(next_values($list_resume_context), [ 'list' ],
     'list context is supplied when resuming after a yield');
 
-my $scalar_resume_context = generator_create {
-    generator_yield 1;
+my $scalar_resume_context = gen {
+    yield 1;
     return wantarray ? 'list' : 'scalar';
 };
 is($scalar_resume_context->(), 1,
@@ -194,8 +199,8 @@ is($scalar_resume_context->(), 'scalar',
     'scalar context is supplied when resuming after a yield');
 
 my $void_resume_context;
-my $void_context = generator_create {
-    generator_yield 1;
+my $void_context = gen {
+    yield 1;
     $void_resume_context = !defined(wantarray) ? 'void'
                          : wantarray ? 'list' : 'scalar';
 };
@@ -204,28 +209,29 @@ $void_context->();
 is($void_resume_context, 'void',
     'void context is supplied when resuming after a yield');
 
-my $running_one = generator_create { generator_yield 1 };
-my $running_two = generator_create { generator_yield 2 };
-my @running = generator_running($running_one, $finite, $running_two);
-is(scalar @running, 2, 'generator_running filters terminal generators');
-is($running[0], $running_one, 'generator_running keeps the first active generator');
-is($running[1], $running_two, 'generator_running keeps the second active generator');
-my $empty_yield_running = generator_create {
-    generator_yield ();
-    generator_yield 9;
+my $running_one = gen { yield 1 };
+my $running_two = gen { yield 2 };
+ok($running_one->running, 'running method works in scalar context');
+my @running = generator::running($running_one, $finite, $running_two);
+is(scalar @running, 2, 'running filters terminal generators');
+is($running[0], $running_one, 'running keeps the first active generator');
+is($running[1], $running_two, 'running keeps the second active generator');
+my $empty_yield_running = gen {
+    yield ();
+    yield 9;
 };
 is_deeply(next_values($empty_yield_running), [],
     'fresh generator produces an empty yield');
-is_deeply([ generator_running($empty_yield_running) ], [ $empty_yield_running ],
-    'generator_running keeps a generator after an empty yield');
-is_deeply([ generator_running($failed) ], [],
-    'generator_running omits a failed generator');
+is_deeply([ generator::running($empty_yield_running) ], [ $empty_yield_running ],
+    'running keeps a generator after an empty yield');
+is_deeply([ generator::running($failed) ], [],
+    'running omits a failed generator');
 
 my $saved_input_separator = $/;
-my $localized = generator_create {
+my $localized = gen {
     local $/ = 'generator separator';
-    generator_yield $/;
-    generator_yield $/;
+    yield $/;
+    yield $/;
 };
     is_deeply(next_values($localized), [ 'generator separator' ],
     'localization survives the first suspension');
@@ -235,10 +241,10 @@ is_deeply(next_values($localized), [], 'localized generator exhausts');
 is($/, $saved_input_separator, 'localization is restored at exhaustion');
 
 my $default_scalar_isolated;
-my $default_scalar_generator = generator_create {
+my $default_scalar_generator = gen {
     $_ = 'generator';
-    generator_yield $_;
-    generator_yield $_;
+    yield $_;
+    yield $_;
 };
 {
     local $_ = 'caller';
@@ -253,11 +259,11 @@ my $default_scalar_generator = generator_create {
 }
 
 sub argument_isolation_probe {
-    my $argument_isolated = generator_create {
+    my $argument_isolated = gen {
         my $before = join ',', @_;
-        generator_yield $before;
+        yield $before;
         push @_, 'generator';
-        generator_yield join ',', @_;
+        yield join ',', @_;
     };
     my $first = $argument_isolated->('initial');
     @_ = ('caller changed');
@@ -268,7 +274,7 @@ is(argument_isolation_probe(), 'initial|initial,generator|caller changed',
    'generator @_ is isolated from the caller @_');
 
 my $reentrant;
-$reentrant = generator_create { generator_yield $reentrant->() };
+$reentrant = gen { yield $reentrant->() };
 my ($reentered, $reentered_error);
 {
     local $@;
@@ -280,10 +286,10 @@ like($reentered_error, qr/generator has no suspended continuation/,
     're-entrant resume diagnostic');
 $reentrant = undef;
 
-my $nested_inner = generator_create { generator_yield 10; generator_yield 20 };
-my $nested_outer = generator_create {
-    generator_yield $nested_inner->();
-    generator_yield $nested_inner->();
+my $nested_inner = gen { yield 10; yield 20 };
+my $nested_outer = gen {
+    yield $nested_inner->();
+    yield $nested_inner->();
 };
 is_deeply(next_values($nested_outer), [ 10 ],
     'nested generator resumes its inner generator');
@@ -292,47 +298,47 @@ is_deeply(next_values($nested_outer), [ 20 ],
 is_deeply(next_values($nested_outer), [], 'nested generator exhausts');
 
 class GeneratorClassConstructionTest {}
-my $class_inside_generator = generator_create {
+my $class_inside_generator = gen {
     my $object = GeneratorClassConstructionTest->new;
-    generator_yield $object;
+    yield $object;
 };
 my $class_value = $class_inside_generator->();
 ok(defined($class_value) && ref($class_value) eq 'GeneratorClassConstructionTest',
-   'class construction inside a generator survives until generator_yield');
+   'class construction inside a generator survives until yield');
 
 like(runperl(switches => ['-Mfeature=generator'], stderr => 1,
-             prog => 'generator_yield 1'),
-    qr/generator_yield outside a generator_create/, 'generator_yield is rejected outside a generator');
+             prog => 'yield 1'),
+    qr/yield outside a gen/, 'yield is rejected outside a generator');
 
 like(runperl(switches => ['-Mfeature=generator'], stderr => 1,
-             prog => 'sub ordinary_generator_test { generator_yield 1 }'),
-    qr/generator_yield outside a generator_create/, 'generator_yield is rejected in an ordinary sub');
+             prog => 'sub ordinary_generator_test { yield 1 }'),
+    qr/yield outside a gen/, 'yield is rejected in an ordinary sub');
 
 like(runperl(switches => ['-Mfeature=generator'], stderr => 1,
-             prog => 'sort { generator_yield 1 } 1, 2'),
-    qr/generator_yield outside a generator_create/, 'generator_yield is rejected in sort callbacks');
+             prog => 'sort { yield 1 } 1, 2'),
+    qr/yield outside a gen/, 'yield is rejected in sort callbacks');
 like(runperl(switches => ['-Mfeature=generator'], stderr => 1,
-             prog => 'map { generator_yield 1 } 1, 2'),
-    qr/generator_yield outside a generator_create/, 'generator_yield is rejected in map callbacks');
+             prog => 'map { yield 1 } 1, 2'),
+    qr/yield outside a gen/, 'yield is rejected in map callbacks');
 like(runperl(switches => ['-Mfeature=generator'], stderr => 1,
-             prog => 'grep { generator_yield 1 } 1, 2'),
-    qr/generator_yield outside a generator_create/, 'generator_yield is rejected in grep callbacks');
+             prog => 'grep { yield 1 } 1, 2'),
+    qr/yield outside a gen/, 'yield is rejected in grep callbacks');
 like(runperl(switches => ['-Mfeature=generator'], stderr => 1,
-             prog => 'q[a] =~ /(?{ generator_yield 1 })/'),
-    qr/generator_yield outside a generator_create/, 'generator_yield is rejected in regex callbacks');
+             prog => 'q[a] =~ /(?{ yield 1 })/'),
+    qr/yield outside a gen/, 'yield is rejected in regex callbacks');
 
 is(runperl(switches => ['-Mfeature=generator', '-Mbuiltin=weaken'],
            prog => 'package Generator::Cleanup; sub DESTROY { }'
                 . ' package main; my $weak;'
-                . ' my $generator = generator_create { my $object = bless {},'
+                . ' my $generator = gen { my $object = bless {},'
                 . ' q[Generator::Cleanup]; $weak = $object; weaken($weak);'
-                . ' generator_yield 1 }; $generator->(); undef $generator;'
+                . ' yield 1 }; $generator->(); undef $generator;'
                 . ' print defined($weak) ? q[live] : q[destroyed]'),
    'destroyed', 'dropping a suspended generator releases its pad');
 
 like(runperl(stderr => 1,
-             prog => 'my $not_a_generator = generator_create { 1 }'),
-    qr/Can't locate object method "generator_create"/,
+             prog => 'my $not_a_generator = gen { 1 }'),
+    qr/Can't locate object method "gen"/,
     'generator syntax remains feature gated');
 
 undef $finite;

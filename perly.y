@@ -69,7 +69,7 @@
 %token <ival> KW_IF KW_ELSE KW_ELSIF KW_UNLESS
 %token <ival> KW_FOR KW_UNTIL KW_WHILE KW_CONTINUE
 %token <ival> KW_GIVEN KW_WHEN KW_DEFAULT
-%token <ival> KW_TRY KW_CATCH KW_FINALLY KW_DEFER KW_GENERATOR_CREATE KW_GENERATOR_YIELD
+%token <ival> KW_TRY KW_CATCH KW_FINALLY KW_DEFER KW_GEN KW_YIELD
 %token <ival> KW_REQUIRE KW_DO
 
 /* The 'use' and 'no' keywords both emit this */
@@ -123,12 +123,12 @@
 %type <opval> bare_statement_when
 %type <opval> bare_statement_while
 %type <opval> bare_statement_yadayada
-%type <opval> generator_yield_args generator_yield_tail termgenerator_yield
+%type <opval> yield_args yield_tail termyield
 %type <opval> subscript_index
 %type <opval> subscript_keys
 %type <opval> subscriptable_reference
 
-%type <ival>  startsub startanonsub startgenerator_create startanonmethod startformsub
+%type <ival>  startsub startanonsub startgen startanonmethod startformsub
 
 %type <ival> mintro
 
@@ -1144,7 +1144,7 @@ startanonsub:	%empty	/* start an anonymous subroutine scope */
 			    SAVEFREESV(PL_compcv); }
 	;
 
-startgenerator_create:	KW_GENERATOR_CREATE startanonsub
+startgen:	KW_GEN startanonsub
 			{ CvGENERATOR_on(PL_compcv); $$ = $startanonsub; }
 	;
 
@@ -1641,9 +1641,9 @@ anonymous
 			{ $$ = newANONLIST($optexpr); }
 	|	HASHBRACK optexpr PERLY_SEMICOLON PERLY_BRACE_CLOSE	%prec PERLY_PAREN_OPEN /* { foo => "Bar" } */
 			{ $$ = newANONHASH($optexpr); }
-	|	startgenerator_create subattrlist sigsubbody %prec PERLY_PAREN_OPEN
+	|	startgen subattrlist sigsubbody %prec PERLY_PAREN_OPEN
 			{ SvREFCNT_inc_simple_void(PL_compcv);
-			  $$ = newANONATTRSUB($startgenerator_create, NULL,
+			  $$ = newANONATTRSUB($startgen, NULL,
 			                      $subattrlist, $sigsubbody); }
 	|	KW_SUB_anon     startanonsub proto subattrlist subbody    %prec PERLY_PAREN_OPEN
 			{ SvREFCNT_inc_simple_void(PL_compcv);
@@ -1671,40 +1671,40 @@ termdo	:       KW_DO term	%prec UNIOP                     /* do $filename */
 			{ $$ = newUNOP(OP_NULL, OPf_SPECIAL, op_scope($block));}
         ;
 
-generator_yield_tail
+yield_tail
 	:       %empty	%prec PREC_LOW
 			{ $$ = NULL; }
-	|       PERLY_COMMA term generator_yield_tail
+	|       PERLY_COMMA term yield_tail
 			{ $$ = $3
 			        ? op_append_elem(OP_LIST, list($term), $3)
 			        : list($term); }
 	;
 
-generator_yield_args
-	:       term generator_yield_tail
-			{ $$ = $generator_yield_tail
-			        ? op_append_elem(OP_LIST, list($term), $generator_yield_tail)
+yield_args
+	:       term yield_tail
+			{ $$ = $yield_tail
+			        ? op_append_elem(OP_LIST, list($term), $yield_tail)
 			        : $term; }
 	;
 
-termgenerator_yield
-	:       KW_GENERATOR_YIELD generator_yield_args	%prec UNIOP
+termyield
+	:       KW_YIELD yield_args	%prec UNIOP
 			{ if (!CvGENERATOR(PL_compcv)) {
-			      yyerror("generator_yield outside a generator_create");
+			      yyerror("yield outside a gen");
 			      YYERROR;
 			  }
-			  $$ = newLISTOP(OP_GENERATOR_YIELD, 0,
+			  $$ = newLISTOP(OP_YIELD, 0,
                                       newOP(OP_PUSHMARK, 0),
-                                      (($generator_yield_args->op_flags & OPf_PARENS)
-                                          ? list(op_force_list($generator_yield_args))
-                                          : list($generator_yield_args))); }
+				      (($yield_args->op_flags & OPf_PARENS)
+                                          ? list(op_force_list($yield_args))
+					      : list($yield_args))); }
 	;
 
 term[product]	:	termbinop
 	|	termunop
 	|	anonymous
 	|	termdo
-	|	termgenerator_yield
+	|	termyield
 	|	term[condition] PERLY_QUESTION_MARK term[then] PERLY_COLON term[else]
 			{ $$ = newCONDOP(0, $condition, $then, $else); }
 	|	REFGEN term[operand]                          /* \$x, \@y, \%z */

@@ -972,7 +972,7 @@ case 2: /* @1: %empty  */
 
     break;
 
-  case 145: /* startgenerator_create: KW_GENERATOR_CREATE startanonsub  */
+  case 145: /* startgen: KW_GEN startanonsub  */
 #line 1148 "perly.y"
                         { CvGENERATOR_on(PL_compcv); (yyval.ival) = (ps[0].val.ival); }
 
@@ -1758,7 +1758,7 @@ case 2: /* @1: %empty  */
 
     break;
 
-  case 273: /* anonymous: startgenerator_create subattrlist sigsubbody  */
+  case 273: /* anonymous: startgen subattrlist sigsubbody  */
 #line 1645 "perly.y"
                         { SvREFCNT_inc_simple_void(PL_compcv);
 			  (yyval.opval) = newANONATTRSUB((ps[-2].val.ival), NULL,
@@ -1819,13 +1819,13 @@ case 2: /* @1: %empty  */
 
     break;
 
-  case 282: /* generator_yield_tail: %empty  */
+  case 282: /* yield_tail: %empty  */
 #line 1676 "perly.y"
                         { (yyval.opval) = NULL; }
 
     break;
 
-  case 283: /* generator_yield_tail: PERLY_COMMA term generator_yield_tail  */
+  case 283: /* yield_tail: PERLY_COMMA term yield_tail  */
 #line 1678 "perly.y"
                         { (yyval.opval) = (ps[0].val.opval)
 			        ? op_append_elem(OP_LIST, list((ps[-1].val.opval)), (ps[0].val.opval))
@@ -1833,7 +1833,7 @@ case 2: /* @1: %empty  */
 
     break;
 
-  case 284: /* generator_yield_args: term generator_yield_tail  */
+  case 284: /* yield_args: term yield_tail  */
 #line 1685 "perly.y"
                         { (yyval.opval) = (ps[0].val.opval)
 			        ? op_append_elem(OP_LIST, list((ps[-1].val.opval)), (ps[0].val.opval))
@@ -1841,17 +1841,17 @@ case 2: /* @1: %empty  */
 
     break;
 
-  case 285: /* termgenerator_yield: KW_GENERATOR_YIELD generator_yield_args  */
+  case 285: /* termyield: KW_YIELD yield_args  */
 #line 1692 "perly.y"
                         { if (!CvGENERATOR(PL_compcv)) {
-			      yyerror("generator_yield outside a generator_create");
+			      yyerror("yield outside a gen");
 			      YYERROR;
 			  }
-			  (yyval.opval) = newLISTOP(OP_GENERATOR_YIELD, 0,
+			  (yyval.opval) = newLISTOP(OP_YIELD, 0,
                                       newOP(OP_PUSHMARK, 0),
-                                      (((ps[0].val.opval)->op_flags & OPf_PARENS)
+				      (((ps[0].val.opval)->op_flags & OPf_PARENS)
                                           ? list(op_force_list((ps[0].val.opval)))
-                                          : list((ps[0].val.opval)))); }
+					      : list((ps[0].val.opval)))); }
 
     break;
 
@@ -2440,6 +2440,6 @@ case 2: /* @1: %empty  */
     
 
 /* Generated from:
- * 55ef902f4d260d0ec9d1155d77c2357c60c9cef5813470266006732bffddd52c perly.y
+ * 9a2c9a8345a6501432ad6137f7c8e47ec36effa41d68d9b39dac16915f60f7b6 perly.y
  * 1a4cfc5b32006b09aba17cc80cd31ade3503ab1e829681adfe337d9c26e19fe0 regen_perly.pl
  * ex: set ro ft=c: */

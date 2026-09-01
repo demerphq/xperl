@@ -8722,13 +8722,13 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
         ck_warner_d(packWARN(WARN_EXPERIMENTAL__DEFER), "defer is experimental");
         PREBLOCK(KW_DEFER);
 
-    case KEY_generator_create:
-        PREBLOCK(KW_GENERATOR_CREATE);
+    case KEY_gen:
+        PREBLOCK(KW_GEN);
 
-    case KEY_generator_yield:
+    case KEY_yield:
         PL_expect = XTERM;
         PL_bufptr = s;
-        return REPORT(KW_GENERATOR_YIELD);
+        return REPORT(KW_YIELD);
 
     case KEY_do:
         return yyl_do(aTHX_ s, orig_keyword);

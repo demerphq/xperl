@@ -26,6 +26,11 @@
 #include "perl.h"
 #include "XSUB.h"
 
+static XS(XS_generator_exhausted);
+static XS(XS_generator_completed);
+static XS(XS_generator_failed);
+static XS(XS_generator_running);
+
 /*
  * 'Away now, Shadowfax!  Run, greatheart, run as you have never run before!
  *  Now we are come to the lands where you were foaled, and every stone you
@@ -212,11 +217,12 @@ S_generator_xsub(pTHX_ CV *cv)
     }
 }
 
-CV *
+SV *
 Perl_generator_wrap(pTHX_ CV *body)
 {
     CV *wrapper;
     PERL_GENERATOR *generator;
+    SV *reference;
 
     PERL_ARGS_ASSERT_GENERATOR_WRAP;
     generator = generator_new(body);
@@ -224,7 +230,78 @@ Perl_generator_wrap(pTHX_ CV *body)
     CvXSUBANY(wrapper).any_ptr = generator;
     sv_magicext(MUTABLE_SV(wrapper), NULL, PERL_MAGIC_ext,
                 &S_generator_magic, (char *)generator, 0);
-    return wrapper;
+    reference = sv_2mortal(newRV_noinc(MUTABLE_SV(wrapper)));
+    sv_bless(reference, gv_stashpvs("generator", GV_ADD));
+    return reference;
+}
+
+static XS(XS_generator_exhausted)
+{
+    dXSARGS;
+    if (items != 1)
+        croak_xs_usage(cv, "generator");
+    if (!generator_is_valid(ST(0)))
+        XSRETURN_UNDEF;
+    ST(0) = boolSV(generator_is_exhausted(ST(0)));
+    XSRETURN(1);
+}
+
+static XS(XS_generator_completed)
+{
+    dXSARGS;
+    if (items != 1)
+        croak_xs_usage(cv, "generator");
+    if (!generator_is_valid(ST(0)))
+        XSRETURN_UNDEF;
+    ST(0) = boolSV(generator_is_completed(ST(0)));
+    XSRETURN(1);
+}
+
+static XS(XS_generator_failed)
+{
+    dXSARGS;
+    if (items != 1)
+        croak_xs_usage(cv, "generator");
+    if (!generator_is_valid(ST(0)))
+        XSRETURN_UNDEF;
+    ST(0) = boolSV(generator_is_failed(ST(0)));
+    XSRETURN(1);
+}
+
+static XS(XS_generator_running)
+{
+    dXSARGS;
+    int i;
+    int out = 0;
+
+    if (items == 1 && GIMME_V == G_SCALAR) {
+        if (!generator_is_valid(ST(0)))
+            XSRETURN_UNDEF;
+        ST(0) = boolSV(generator_is_running(ST(0)));
+        XSRETURN(1);
+    }
+
+    for (i = 0; i < items; i++) {
+        if (!generator_is_valid(ST(i)))
+            croak("generator::running expects generator arguments");
+        if (generator_is_running(ST(i)))
+            ST(out++) = ST(i);
+    }
+    XSRETURN(out);
+}
+
+void
+Perl_boot_core_generator(pTHX)
+{
+    PERL_ARGS_ASSERT_BOOT_CORE_GENERATOR;
+    newXS_flags("generator::exhausted", &XS_generator_exhausted,
+                __FILE__, "$", 0);
+    newXS_flags("generator::completed", &XS_generator_completed,
+                __FILE__, "$", 0);
+    newXS_flags("generator::failed", &XS_generator_failed,
+                __FILE__, "$", 0);
+    newXS_flags("generator::running", &XS_generator_running,
+                __FILE__, "@", 0);
 }
 
 static void S_generator_pop_stackinfo(pTHX_ PERL_GENERATOR *generator);
@@ -447,7 +524,7 @@ Perl_generator_yield_values(pTHX_ SV **values, SSize_t count)
     PERL_ARGS_ASSERT_GENERATOR_YIELD_VALUES;
     if (!generator || generator->magic != PERL_GENERATOR_MAGIC
         || generator->state != PERL_GENERATOR_RUNNING)
-        croak("generator_yield outside a running generator_create");
+        croak("yield outside a running gen");
 
     SvREFCNT_dec((SV *)generator->values);
     generator->values = newAV();

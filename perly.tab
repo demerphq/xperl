@@ -58,8 +58,8 @@ enum yysymbol_kind_t
   YYSYMBOL_KW_CATCH = 47,                  /* KW_CATCH  */
   YYSYMBOL_KW_FINALLY = 48,                /* KW_FINALLY  */
   YYSYMBOL_KW_DEFER = 49,                  /* KW_DEFER  */
-  YYSYMBOL_KW_GENERATOR_CREATE = 50,       /* KW_GENERATOR_CREATE  */
-  YYSYMBOL_KW_GENERATOR_YIELD = 51,        /* KW_GENERATOR_YIELD  */
+  YYSYMBOL_KW_GEN = 50,                    /* KW_GEN  */
+  YYSYMBOL_KW_YIELD = 51,                  /* KW_YIELD  */
   YYSYMBOL_KW_REQUIRE = 52,                /* KW_REQUIRE  */
   YYSYMBOL_KW_DO = 53,                     /* KW_DO  */
   YYSYMBOL_KW_USE_or_NO = 54,              /* KW_USE_or_NO  */
@@ -229,7 +229,7 @@ enum yysymbol_kind_t
   YYSYMBOL_formname = 218,                 /* formname  */
   YYSYMBOL_startsub = 219,                 /* startsub  */
   YYSYMBOL_startanonsub = 220,             /* startanonsub  */
-  YYSYMBOL_startgenerator_create = 221,    /* startgenerator_create  */
+  YYSYMBOL_startgen = 221,                 /* startgen  */
   YYSYMBOL_startanonmethod = 222,          /* startanonmethod  */
   YYSYMBOL_startformsub = 223,             /* startformsub  */
   YYSYMBOL_subname = 224,                  /* subname  */
@@ -271,9 +271,9 @@ enum yysymbol_kind_t
   YYSYMBOL_termunop = 260,                 /* termunop  */
   YYSYMBOL_anonymous = 261,                /* anonymous  */
   YYSYMBOL_termdo = 262,                   /* termdo  */
-  YYSYMBOL_generator_yield_tail = 263,     /* generator_yield_tail  */
-  YYSYMBOL_generator_yield_args = 264,     /* generator_yield_args  */
-  YYSYMBOL_termgenerator_yield = 265,      /* termgenerator_yield  */
+  YYSYMBOL_yield_tail = 263,               /* yield_tail  */
+  YYSYMBOL_yield_args = 264,               /* yield_args  */
+  YYSYMBOL_termyield = 265,                /* termyield  */
   YYSYMBOL_term = 266,                     /* term  */
   YYSYMBOL_267_26 = 267,                   /* @26  */
   YYSYMBOL_myattrterm = 268,               /* myattrterm  */
@@ -445,27 +445,26 @@ static const char *const yytname[] =
   "KW_CLASS", "KW_ROLE", "KW_NAMESPACE", "KW_AS", "KW_LOCAL", "KW_MY",
   "KW_FIELD", "KW_IF", "KW_ELSE", "KW_ELSIF", "KW_UNLESS", "KW_FOR",
   "KW_UNTIL", "KW_WHILE", "KW_CONTINUE", "KW_GIVEN", "KW_WHEN",
-  "KW_DEFAULT", "KW_TRY", "KW_CATCH", "KW_FINALLY", "KW_DEFER",
-  "KW_GENERATOR_CREATE", "KW_GENERATOR_YIELD", "KW_REQUIRE", "KW_DO",
-  "KW_USE_or_NO", "KW_SUB_named", "KW_SUB_named_sig", "KW_SUB_anon",
-  "KW_SUB_anon_sig", "KW_METHOD_named", "KW_METHOD_anon", "BAREWORD",
-  "METHCALL0", "METHCALL", "ATTRLIST", "THING", "PMFUNC", "PRIVATEREF",
-  "QWLIST", "FUNC0OP", "FUNC0SUB", "UNIOPSUB", "LSTOPSUB", "PLUGEXPR",
-  "PLUGSTMT", "LABEL", "PROTOTYPE", "LOOPEX", "DOTDOT", "YADAYADA",
-  "FUNC0", "FUNC1", "FUNC", "UNIOP", "LSTOP", "BLKLSTOP", "POWOP", "MULOP",
-  "ADDOP", "DOLSHARP", "HASHBRACK", "NOAMP", "COLONATTR", "FORMLBRACK",
-  "FORMRBRACK", "SUBLEXSTART", "SUBLEXEND", "PHASER", "PREC_LOW",
-  "PLUGIN_LOW_OP", "OROP", "PLUGIN_LOGICAL_OR_LOW_OP", "ANDOP",
-  "PLUGIN_LOGICAL_AND_LOW_OP", "NOTOP", "ASSIGNOP", "PLUGIN_ASSIGN_OP",
-  "PERLY_QUESTION_MARK", "PERLY_COLON", "OROR", "DORDOR",
-  "PLUGIN_LOGICAL_OR_OP", "ANDAND", "PLUGIN_LOGICAL_AND_OP", "BITOROP",
-  "BITANDOP", "CHEQOP", "NCEQOP", "CHRELOP", "NCRELOP", "PLUGIN_REL_OP",
-  "SHIFTOP", "PLUGIN_ADD_OP", "PLUGIN_MUL_OP", "MATCHOP",
-  "PERLY_EXCLAMATION_MARK", "PERLY_TILDE", "UMINUS", "REFGEN",
-  "PLUGIN_POW_OP", "PREINC", "PREDEC", "POSTINC", "POSTDEC", "POSTJOIN",
-  "PLUGIN_HIGH_OP", "ARROW", "PERLY_PAREN_CLOSE", "PERLY_PAREN_OPEN",
-  "$accept", "grammar", "@1", "@2", "@3", "@4", "@5", "@6", "@7",
-  "bare_statement_block", "bare_statement_class_declaration",
+  "KW_DEFAULT", "KW_TRY", "KW_CATCH", "KW_FINALLY", "KW_DEFER", "KW_GEN",
+  "KW_YIELD", "KW_REQUIRE", "KW_DO", "KW_USE_or_NO", "KW_SUB_named",
+  "KW_SUB_named_sig", "KW_SUB_anon", "KW_SUB_anon_sig", "KW_METHOD_named",
+  "KW_METHOD_anon", "BAREWORD", "METHCALL0", "METHCALL", "ATTRLIST",
+  "THING", "PMFUNC", "PRIVATEREF", "QWLIST", "FUNC0OP", "FUNC0SUB",
+  "UNIOPSUB", "LSTOPSUB", "PLUGEXPR", "PLUGSTMT", "LABEL", "PROTOTYPE",
+  "LOOPEX", "DOTDOT", "YADAYADA", "FUNC0", "FUNC1", "FUNC", "UNIOP",
+  "LSTOP", "BLKLSTOP", "POWOP", "MULOP", "ADDOP", "DOLSHARP", "HASHBRACK",
+  "NOAMP", "COLONATTR", "FORMLBRACK", "FORMRBRACK", "SUBLEXSTART",
+  "SUBLEXEND", "PHASER", "PREC_LOW", "PLUGIN_LOW_OP", "OROP",
+  "PLUGIN_LOGICAL_OR_LOW_OP", "ANDOP", "PLUGIN_LOGICAL_AND_LOW_OP",
+  "NOTOP", "ASSIGNOP", "PLUGIN_ASSIGN_OP", "PERLY_QUESTION_MARK",
+  "PERLY_COLON", "OROR", "DORDOR", "PLUGIN_LOGICAL_OR_OP", "ANDAND",
+  "PLUGIN_LOGICAL_AND_OP", "BITOROP", "BITANDOP", "CHEQOP", "NCEQOP",
+  "CHRELOP", "NCRELOP", "PLUGIN_REL_OP", "SHIFTOP", "PLUGIN_ADD_OP",
+  "PLUGIN_MUL_OP", "MATCHOP", "PERLY_EXCLAMATION_MARK", "PERLY_TILDE",
+  "UMINUS", "REFGEN", "PLUGIN_POW_OP", "PREINC", "PREDEC", "POSTINC",
+  "POSTDEC", "POSTJOIN", "PLUGIN_HIGH_OP", "ARROW", "PERLY_PAREN_CLOSE",
+  "PERLY_PAREN_OPEN", "$accept", "grammar", "@1", "@2", "@3", "@4", "@5",
+  "@6", "@7", "bare_statement_block", "bare_statement_class_declaration",
   "bare_statement_class_definition", "$@8",
   "bare_statement_role_declaration", "bare_statement_role_definition",
   "$@9", "bare_statement_default", "bare_statement_defer",
@@ -485,18 +484,17 @@ static const char *const yytname[] =
   "formstmtseq", "fullstmt", "labfullstmt", "barestmt", "formline",
   "formarg", "condition", "sideff", "else", "cont", "finally", "mintro",
   "nexpr", "texpr", "iexpr", "mexpr", "mnexpr", "formname", "startsub",
-  "startanonsub", "startgenerator_create", "startanonmethod",
-  "startformsub", "subname", "proto", "subattrlist", "attrlist",
-  "optattrlist", "sigvar", "sigslurpsigil", "sigslurpelem", "optcolon",
-  "sigscalarelem", "optsigscalardefault", "sigelem", "siglist",
-  "optsiglist", "optsubsignature", "subsignature", "subsigguts", "$@21",
-  "optsubbody", "subbody", "$@22", "optsigsubbody", "sigsubbody", "$@23",
-  "$@24", "expr", "listexpr", "listop", "@25", "methodname", "subscripted",
-  "termbinop", "termrelop", "relopchain", "termeqop", "eqopchain",
-  "termunop", "anonymous", "termdo", "generator_yield_tail",
-  "generator_yield_args", "termgenerator_yield", "term", "@26",
-  "myattrterm", "myterm", "fieldvar", "fielddecl", "$@27", "optlistexpr",
-  "optexpr", "optrepl", "my_scalar", "list_of_itervars",
+  "startanonsub", "startgen", "startanonmethod", "startformsub", "subname",
+  "proto", "subattrlist", "attrlist", "optattrlist", "sigvar",
+  "sigslurpsigil", "sigslurpelem", "optcolon", "sigscalarelem",
+  "optsigscalardefault", "sigelem", "siglist", "optsiglist",
+  "optsubsignature", "subsignature", "subsigguts", "$@21", "optsubbody",
+  "subbody", "$@22", "optsigsubbody", "sigsubbody", "$@23", "$@24", "expr",
+  "listexpr", "listop", "@25", "methodname", "subscripted", "termbinop",
+  "termrelop", "relopchain", "termeqop", "eqopchain", "termunop",
+  "anonymous", "termdo", "yield_tail", "yield_args", "termyield", "term",
+  "@26", "myattrterm", "myterm", "fieldvar", "fielddecl", "$@27",
+  "optlistexpr", "optexpr", "optrepl", "my_scalar", "list_of_itervars",
   "my_list_of_itervars", "my_var", "refgen_topic", "my_refgen", "amper",
   "scalar", "ary", "hsh", "arylen", "star", "sliceme", "kvslice", "gelem",
   "indirob", YY_NULLPTR
@@ -1717,27 +1715,26 @@ static const toketypes yy_type_tab[] =
   toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
   toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
   toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
+  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
   toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
   toketype_ival, toketype_ival, toketype_ival, toketype_ival,
+  toketype_ival, toketype_opval, toketype_opval, toketype_opval, toketype_opval,
+  toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval,
+  toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval,
+  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
+  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
+  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
+  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
+  toketype_ival, toketype_ival, toketype_ival,
   toketype_ival, toketype_ival, toketype_ival, toketype_ival,
-  toketype_ival, toketype_ival, toketype_ival, toketype_opval,
-  toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval,
-  toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval,
-  toketype_opval, toketype_opval, toketype_opval, toketype_ival, toketype_ival, toketype_ival,
+  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
+  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
+  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
+  toketype_ival, toketype_ival, toketype_ival, toketype_ival,
+  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
+  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
   toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
-  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
-  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
-  toketype_ival, toketype_ival, toketype_ival, toketype_ival,
-  toketype_ival, toketype_ival, toketype_ival, toketype_ival,
-  toketype_ival, toketype_ival, toketype_ival, toketype_ival,
-  toketype_ival, toketype_ival, toketype_ival, toketype_ival,
-  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
-  toketype_ival, toketype_ival, toketype_ival, toketype_ival,
-  toketype_ival, toketype_ival, toketype_ival, toketype_ival,
-  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
-  toketype_ival, toketype_ival, toketype_ival, toketype_ival,
-  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_ival,
-  toketype_opval, toketype_opval,
+  toketype_ival, toketype_ival, toketype_opval, toketype_opval,
   toketype_opval, toketype_ival,
   toketype_opval, toketype_opval,
   toketype_ival, toketype_opval, toketype_opval,
@@ -1757,24 +1754,23 @@ static const toketypes yy_type_tab[] =
   toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval,
   toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_ival,
   toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_ival,
-  toketype_ival, toketype_ival, toketype_ival,
-  toketype_ival, toketype_opval, toketype_opval, toketype_opval, toketype_opval,
-  toketype_opval, toketype_ival, toketype_ival, toketype_opval, toketype_ival,
-  toketype_opval, toketype_opval, toketype_opval, toketype_opval,
+  toketype_ival, toketype_ival, toketype_ival, toketype_ival, toketype_opval,
   toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_ival,
-  toketype_opval, toketype_opval, toketype_ival, toketype_opval, toketype_opval, toketype_ival,
-  toketype_ival, toketype_opval, toketype_opval, toketype_opval, toketype_ival, toketype_opval, toketype_opval,
+  toketype_ival, toketype_opval, toketype_ival, toketype_opval,
+  toketype_opval, toketype_opval, toketype_opval, toketype_opval,
+  toketype_opval, toketype_opval, toketype_opval, toketype_ival, toketype_opval,
+  toketype_opval, toketype_ival, toketype_opval, toketype_opval, toketype_ival, toketype_ival, toketype_opval,
+  toketype_opval, toketype_opval, toketype_ival, toketype_opval, toketype_opval, toketype_opval,
   toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval,
-  toketype_opval, toketype_opval, toketype_opval, toketype_opval,
-  toketype_opval, toketype_opval, toketype_opval, toketype_ival,
-  toketype_opval, toketype_opval, toketype_pval, toketype_opval, toketype_ival, toketype_opval,
-  toketype_opval, toketype_opval, toketype_opval, toketype_opval,
+  toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval,
+  toketype_ival, toketype_opval, toketype_opval, toketype_pval, toketype_opval, toketype_ival,
+  toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval,
   toketype_opval, toketype_opval, toketype_opval, toketype_ival, toketype_opval,
   toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval, toketype_opval,
   toketype_opval
 };
 
 /* Generated from:
- * 55ef902f4d260d0ec9d1155d77c2357c60c9cef5813470266006732bffddd52c perly.y
+ * 9a2c9a8345a6501432ad6137f7c8e47ec36effa41d68d9b39dac16915f60f7b6 perly.y
  * 1a4cfc5b32006b09aba17cc80cd31ade3503ab1e829681adfe337d9c26e19fe0 regen_perly.pl
  * ex: set ro ft=c: */

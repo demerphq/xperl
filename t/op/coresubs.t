@@ -24,7 +24,7 @@ my %unsupported = map +($_=>1), qw (
   field finally for foreach format ge given goto grep gt if isa last le local
   lt m map method my ne neu next no or our package print printf q qq qr qw qx
   redo require return s say sort state sub tr try unless until use
-  when while x xor y role generator_create generator_yield
+  when while x xor y role gen yield
 );
 my %args_for = (
   dbmopen  => '%1,$2,$3',

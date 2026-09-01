@@ -211,7 +211,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           goto unknown;
       }
 
-    case 3: /* 34 tokens of length 3 */
+    case 3: /* 35 tokens of length 3 */
       switch (name[0])
       {
         case 'E':
@@ -339,6 +339,15 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[2] == 'r')
           {                                       /* for              */
             return KEY_for;
+          }
+
+          goto unknown;
+
+        case 'g':
+          if (name[1] == 'e' &&
+              name[2] == 'n')
+          {                                       /* gen              */
+            return (all_keywords || FEATURE_GENERATOR_IS_ENABLED ? KEY_gen : 0);
           }
 
           goto unknown;
@@ -1034,7 +1043,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           goto unknown;
       }
 
-    case 5: /* 43 tokens of length 5 */
+    case 5: /* 44 tokens of length 5 */
       switch (name[0])
       {
         case 'B':
@@ -1570,6 +1579,17 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
             default:
               goto unknown;
           }
+
+        case 'y':
+          if (name[1] == 'i' &&
+              name[2] == 'e' &&
+              name[3] == 'l' &&
+              name[4] == 'd')
+          {                                       /* yield            */
+            return (all_keywords || FEATURE_GENERATOR_IS_ENABLED ? KEY_yield : 0);
+          }
+
+          goto unknown;
 
         default:
           goto unknown;
@@ -3653,77 +3673,25 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
       goto unknown;
 
-    case 15: /* 1 tokens of length 15 */
+    case 16: /* 1 tokens of length 16 */
       if (name[0] == 'g' &&
           name[1] == 'e' &&
-          name[2] == 'n' &&
-          name[3] == 'e' &&
+          name[2] == 't' &&
+          name[3] == 'p' &&
           name[4] == 'r' &&
-          name[5] == 'a' &&
+          name[5] == 'o' &&
           name[6] == 't' &&
           name[7] == 'o' &&
-          name[8] == 'r' &&
-          name[9] == '_' &&
-          name[10] == 'y' &&
-          name[11] == 'i' &&
-          name[12] == 'e' &&
-          name[13] == 'l' &&
-          name[14] == 'd')
-      {                                           /* generator_yield  */
-        return (all_keywords || FEATURE_GENERATOR_IS_ENABLED ? KEY_generator_yield : 0);
-      }
-
-      goto unknown;
-
-    case 16: /* 2 tokens of length 16 */
-      if (name[0] == 'g' &&
-          name[1] == 'e')
-      {
-        switch (name[2])
-        {
-          case 'n':
-            if (name[3] == 'e' &&
-                name[4] == 'r' &&
-                name[5] == 'a' &&
-                name[6] == 't' &&
-                name[7] == 'o' &&
-                name[8] == 'r' &&
-                name[9] == '_' &&
-                name[10] == 'c' &&
-                name[11] == 'r' &&
-                name[12] == 'e' &&
-                name[13] == 'a' &&
-                name[14] == 't' &&
-                name[15] == 'e')
-            {                                     /* generator_create */
-              return (all_keywords || FEATURE_GENERATOR_IS_ENABLED ? KEY_generator_create : 0);
-            }
-
-            goto unknown;
-
-          case 't':
-            if (name[3] == 'p' &&
-                name[4] == 'r' &&
-                name[5] == 'o' &&
-                name[6] == 't' &&
-                name[7] == 'o' &&
-                name[8] == 'b' &&
-                name[9] == 'y' &&
-                name[10] == 'n' &&
-                name[11] == 'u' &&
-                name[12] == 'm' &&
-                name[13] == 'b' &&
-                name[14] == 'e' &&
-                name[15] == 'r')
-            {                                     /* getprotobynumber */
-              return -KEY_getprotobynumber;
-            }
-
-            goto unknown;
-
-          default:
-            goto unknown;
-        }
+          name[8] == 'b' &&
+          name[9] == 'y' &&
+          name[10] == 'n' &&
+          name[11] == 'u' &&
+          name[12] == 'm' &&
+          name[13] == 'b' &&
+          name[14] == 'e' &&
+          name[15] == 'r')
+      {                                           /* getprotobynumber */
+        return -KEY_getprotobynumber;
       }
 
       goto unknown;
@@ -3737,5 +3705,5 @@ unknown:
 }
 
 /* Generated from:
- * d49617f5fb1c4d1c7cdcd6a8a9df44836d40fe86c25f712c16e119e4fbcba18a regen/keywords.pl
+ * b0e77e81bbfe93ca5374f79e2674489d1982143b7f4c914d1bdba94f900d033d regen/keywords.pl
  * ex: set ro ft=c: */

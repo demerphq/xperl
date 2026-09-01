@@ -54,12 +54,12 @@
 #   undef KEY___NAMESPACE__
 #   undef KEY_as
 #   undef KEY_equ
-#   undef KEY_generator_create
-#   undef KEY_generator_yield
+#   undef KEY_gen
 #   undef KEY_implements
 #   undef KEY_namespace
 #   undef KEY_neu
 #   undef KEY_role
+#   undef KEY_yield
 #   undef MGv2f_SCALARVALUE_AUTOPROPAGATE
 #   undef MGv2f_WITH_KEYHEK
 #   undef NETDB_R_OBSOLETE
@@ -1028,6 +1028,7 @@
 #   define boot_core_PerlIO()                   Perl_boot_core_PerlIO(aTHX)
 #   define boot_core_UNIVERSAL()                Perl_boot_core_UNIVERSAL(aTHX)
 #   define boot_core_builtin()                  Perl_boot_core_builtin(aTHX)
+#   define boot_core_generator()                Perl_boot_core_generator(aTHX)
 #   define boot_core_mro()                      Perl_boot_core_mro(aTHX)
 #   define build_infix_plugin(a,b,c)            Perl_build_infix_plugin(aTHX_ a,b,c)
 #   define cando(a,b,c)                         Perl_cando(aTHX_ a,b,c)

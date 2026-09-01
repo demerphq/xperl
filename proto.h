@@ -486,6 +486,13 @@ Perl_boot_core_builtin(pTHX)
     STMT_START { Perl_assert_aTHX; } STMT_END
 
 PERL_CALLCONV void
+Perl_boot_core_generator(pTHX)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_BOOT_CORE_GENERATOR    \
+    STMT_START { Perl_assert_aTHX; } STMT_END
+
+PERL_CALLCONV void
 Perl_boot_core_mro(pTHX)
         Perl_attribute_nonnull_aTHX
         __attribute__visibility__("hidden");
@@ -1839,7 +1846,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
                  assert(SvTYPE(args) == SVt_PVAV);                   \
     } STMT_END
 
-PERL_CALLCONV CV *
+PERL_CALLCONV SV *
 Perl_generator_wrap(pTHX_ CV *body)
         Perl_attribute_nonnull_aTHX
         Perl_attribute_nonnull(pTHX_1);

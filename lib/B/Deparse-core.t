@@ -375,7 +375,7 @@ my %not_tested = map { $_ => 1} qw(
     else
     elsif
     field
-    generator_create
+    gen
     implements
     finally
     for
@@ -401,8 +401,8 @@ my %not_tested = map { $_ => 1} qw(
     unless
     until
     use
-    generator_create
-    generator_yield
+    gen
+    yield
     role
     when
     while

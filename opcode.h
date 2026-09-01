@@ -581,7 +581,7 @@ EXTCONST char* const PL_op_name[] INIT({
 	"multiparam",
 	"paramtest",
 	"paramstore",
-	"generator_yield",
+	"yield",
         "freed",
 });
 
@@ -1470,7 +1470,7 @@ INIT({
 	Perl_pp_multiparam,
 	Perl_pp_paramtest,
 	Perl_pp_paramstore,
-	Perl_pp_generator_yield,
+	Perl_pp_yield,
 });
 
 EXT Perl_check_t PL_check[] /* or perlvars.h */
@@ -1912,7 +1912,7 @@ INIT({
 	Perl_ck_null,		/* multiparam */
 	Perl_ck_null,		/* paramtest */
 	Perl_ck_null,		/* paramstore */
-	Perl_ck_null,		/* generator_yield */
+	Perl_ck_null,		/* yield */
 
 /* The final entries are function pointers not attached to an opcode.
  * These are to be used to compare with function pointers in the earlier
@@ -2372,7 +2372,7 @@ EXTCONST U32 PL_opargs[] INIT({
 	0x00000f00,	/* multiparam */
 	0x00000300,	/* paramtest */
 	0x00000100,	/* paramstore */
-	0x00002401,	/* generator_yield */
+	0x00002401,	/* yield */
 });
 
 END_EXTERN_C
@@ -3163,7 +3163,7 @@ EXTCONST I16  PL_op_private_bitdef_ix[]  INIT( {
        0, /* multiparam */
      203, /* paramtest */
        0, /* paramstore */
-      -1, /* generator_yield */
+      -1, /* yield */
 
 });
 
@@ -3713,7 +3713,7 @@ EXTCONST U8 PL_op_private_valid[] INIT( {
     /* MULTIPARAM */ (OPpARG1_MASK),
     /* PARAMTEST  */ (OPpARG1_MASK|OPpPARAM_IF_FALSE|OPpPARAM_IF_UNDEF),
     /* PARAMSTORE */ (OPpARG1_MASK),
-    /* GENERATOR_YIELD */ (0),
+    /* YIELD      */ (0),
 
 });
 

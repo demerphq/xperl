@@ -29,8 +29,6 @@ builtin - Perl pragma to import built-in utility functions
         load_module
         package_implements
         class_object_to_hash class_object_from_hash
-        generator_exhausted generator_completed
-        generator_failed generator_running
     );
 
     use builtin ':5.40';  # most of the above
@@ -513,13 +511,6 @@ values are shared with the object; they are not recursively copied.
 Creates a class object from the field hash returned by
 C<class_object_to_hash>.  This bypasses the class constructor and installs
 the field values directly, sharing the values with the supplied hash.
-
-=head2 Generator predicates
-
-The experimental generator predicates are available as builtins:
-C<generator_running>, C<generator_completed>, C<generator_failed>, and
-C<generator_exhausted>.  They can be imported explicitly with C<use
-builtin> or together with the generator syntax by writing C<use generator>.
 
 =head1 SEE ALSO
 
