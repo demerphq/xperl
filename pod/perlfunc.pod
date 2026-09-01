@@ -3656,6 +3656,31 @@ exception.  An exception caught by an C<eval> inside the generator does not
 exhaust it; an uncaught exception is propagated by the call that resumes the
 generator and permanently puts it into the failed state.
 
+With the combined pragma, a generator can use a signature for its initial
+arguments:
+
+    use generator;
+
+    my $g = gen ($name) {
+        my $reply = yield "Hello, $name";
+        return "You said: $reply";
+    };
+
+    my $greeting = $g->("Ada");          # "Hello, Ada"
+    my $answer   = $g->("Good morning"); # "You said: Good morning"
+
+An ordinary C<@_> body is also supported.  Initial call arguments populate
+C<@_>; arguments supplied when resuming are returned by C<yield> instead:
+
+    my $g = gen {
+        my ($factor) = @_;
+        my $reply = yield 10 * $factor;
+        return $reply * $factor;
+    };
+
+    my $value = $g->(3); # 30
+    my $total = $g->(4); # 12
+
 This feature is experimental and may change or be removed in a future Perl
 release.
 

@@ -26,14 +26,13 @@ change or be removed in a future Perl release.
 The simplest way to enable the complete generator interface is the combined
 pragma:
 
-    use generator;
-    # This enables both the generator and signatures features.
+    use generator; # enables both generator and signatures.
 
-If you only need the two keywords, use C<use feature 'generator'>.  That does
-not enable signatures; add C<use feature 'signatures'> separately if you want
-to use signature syntax.  The
-predicate methods are available on generator objects, and the same methods
-can be called as functions in the C<generator::> package.
+If you only need the two keywords, use C<use feature 'generator'>.  That
+does not enable signatures; add C<use feature 'signatures'> separately
+if you want to use signature syntax.  The predicate methods are available
+on generator objects, and the same methods can be called as functions in
+the C<generator::> package.
 
 The C<gen> keyword makes a generator from a block.  Creating the
 generator does not run the block:
@@ -115,6 +114,37 @@ ordinary C<@_> method or a signature.  They can also be mixed with the
 resume-argument mechanism described below.  Arguments supplied by a later
 call are returned by the suspended C<yield>; they do not run the signature
 again or replace its lexical bindings.
+
+Here is a complete example using a signature.  The first call supplies the
+signature arguments and receives the first yielded value.  The second call
+sends an argument back into the paused generator, and receives its final
+return value:
+
+    use generator;
+
+    my $conversation = gen ($name) {
+        my $reply = yield "Hello, $name";
+        return "You said: $reply";
+    };
+
+    my $question = $conversation->("Ada"); # "Hello, Ada"
+    my $answer   = $conversation->("Good morning");
+                                             # "You said: Good morning"
+
+The same pattern works without a signature.  In this version the initial
+argument is read from C<@_>:
+
+    my $multiplier = gen {
+        my ($factor) = @_;
+        my $reply = yield 10 * $factor;
+        return $reply * $factor;
+    };
+
+    my $value = $multiplier->(3); # 30
+    my $total = $multiplier->(4); # 12
+
+The C<3> and C<4> have different jobs: C<3> initializes C<$factor>, while
+C<4> is returned by C<yield> when the generator resumes.
 
 =head2 yield LIST
 
