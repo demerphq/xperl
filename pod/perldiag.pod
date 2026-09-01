@@ -3776,10 +3776,10 @@ line.  See L<perlrun|perlrun/-i[extension]> for more details.
 (F) You attempted to capture or resume a generator when its continuation was
 not available.
 
-=item running expects generator arguments
+=item generator::running expects generator arguments
 
-(F) The C<running> builtin was called with a value that is not a
-generator.  Pass only generator values to this builtin.
+(F) C<generator::running> was called with a value that is not a generator.
+Pass only generator values to it.
 
 =item yield outside a gen
 

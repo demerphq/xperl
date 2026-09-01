@@ -466,7 +466,6 @@ C<for>,
 C<foreach>,
 C<ge>,
 C<gen>,
-C<yield>,
 C<given>,
 C<gt>,
 C<if>,
@@ -484,7 +483,8 @@ C<until>,
 C<when>,
 C<while>,
 C<x>,
-C<xor>
+C<xor>,
+C<yield>
 
 =back
 
