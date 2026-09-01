@@ -3603,8 +3603,9 @@ generator body runs in the context of the call that resumes it, and its lexical
 and localized state is retained across yields.
 
 The generator keywords can be enabled with C<use feature 'generator'>.  The
-complete object interface is documented in L<perlgenerator>; use the combined
-C<generator> pragma when signatures should be enabled as well:
+complete object interface is documented in L<perlgenerator>.  The combined
+C<generator> pragma enables both C<generator> and C<signatures>, so a generator
+can use either ordinary C<@_> arguments or a signature:
 
 The body can use C<wantarray> to observe that context.  A list, scalar, or
 void call gives the resumed body list, scalar, or void context respectively;

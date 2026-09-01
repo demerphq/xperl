@@ -27,9 +27,11 @@ The simplest way to enable the complete generator interface is the combined
 pragma:
 
     use generator;
-    # This also enables signatures.
+    # This enables both the generator and signatures features.
 
-If you only need the two keywords, use C<use feature 'generator'>.  The
+If you only need the two keywords, use C<use feature 'generator'>.  That does
+not enable signatures; add C<use feature 'signatures'> separately if you want
+to use signature syntax.  The
 predicate methods are available on generator objects, and the same methods
 can be called as functions in the C<generator::> package.
 
@@ -87,7 +89,7 @@ The program calls one generator and then the other on every pass through the
 loop.  Neither generator changes the other one.
 
 The first call's arguments are passed to the generator block in the usual
-way.  The block can read them from C<@_>:
+way.  This means that a generator can use the ordinary C<@_> mechanism:
 
     my $adder = gen {
         my ($x, $y) = @_;
@@ -96,14 +98,23 @@ way.  The block can read them from C<@_>:
 
     $adder->(2, 3); # yields 5
 
-The combined C<generator> pragma enables the C<signatures> feature, so the
-arguments may instead be named with a signature:
+The combined C<generator> pragma automatically enables the C<signatures>
+feature, so the arguments may instead be named with a signature.  The
+signature is applied when the generator is first called:
 
     use generator;
 
     my $adder = gen ($x, $y) {
         yield $x + $y;
     };
+
+    $adder->(2, 3); # $x is 2 and $y is 3
+
+These are two ways of receiving the initial arguments; choose either the
+ordinary C<@_> method or a signature.  They can also be mixed with the
+resume-argument mechanism described below.  Arguments supplied by a later
+call are returned by the suspended C<yield>; they do not run the signature
+again or replace its lexical bindings.
 
 =head2 yield LIST
 
