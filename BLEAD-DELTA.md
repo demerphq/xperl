@@ -29,8 +29,10 @@ The fork contains an experimental generator implementation with:
   `generator::exhausted` functions, also available as methods on generator
   objects;
 - a `use generator` pragma that enables the feature and signatures;
+- initial generator arguments through either a normal `@_` body or a
+  signature, with `use generator` enabling signatures automatically;
 - parameterized generator calls, including values sent back into a suspended
-  yield;
+  yield without rebinding the initial signature;
 - list-valued yields and scalar-context handling;
 - one-shot continuation ownership and invalid-resume diagnostics;
 - exception, cleanup, destruction, GC, callback-context, and re-entrancy
