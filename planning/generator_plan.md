@@ -1,6 +1,6 @@
 # Trial generators using one-shot continuations
 
-Working branch: `yves/fork_sub`.
+Working branch: `ai-perl`.
 
 This plan was restored during a completion audit because the previous removal
 was not supported by sufficient evidence.
@@ -42,17 +42,21 @@ pointer before any context variable is used.  Threaded DEBUGGING, unthreaded
 DEBUGGING, focused generator/runtime tests, `test_porting`, and the final
 DEBUGGING `make_test` run pass.
 
-The experimental generator syntax consists of `generator_create` and
-`generator_yield`.  The non-advancing predicate builtins are
-`generator_running`, `generator_completed`, `generator_failed`, and
-`generator_exhausted`.  `generator_exhausted` is a non-advancing predicate:
-it is true after the generator completes or fails, and false for new or
-suspended generators.  `generator_completed` distinguishes normal
-completion from failure, while `generator_running` returns the active members
-of a supplied list.
-The `generator` pragma enables both the generator and signatures features and
-imports all four predicate builtins; `use feature 'generator'` enables only
-the two syntax keywords, while `use builtin` can import predicates directly.
+The current implementation uses `generator_create` and `generator_yield`, with
+the non-advancing predicate builtins `generator_running`,
+`generator_completed`, `generator_failed`, and `generator_exhausted`.
+`generator_exhausted` is true after the generator completes or fails, and
+false for new or suspended generators.  `generator_completed` distinguishes
+normal completion from failure, while `generator_running` returns the active
+members of a supplied list.  This is the API that the follow-up below will
+replace; do not add compatibility aliases automatically unless a later design
+decision calls for them.
+
+The current `generator` pragma enables both the generator and signatures
+features and imports the predicate builtins; `use feature 'generator'`
+enables the two syntax keywords, while `use builtin` can import predicates
+directly.  The follow-up will make the predicates ordinary methods/functions
+in the `generator` package rather than builtin exports.
 The final DEBUGGING `make_test` run completed 2,947 files and 1,398,115 tests.
 All generator tests passed.  Its diagnostic failures were the four generator
 messages added after that run began; a subsequent standalone diagnostic check
@@ -60,10 +64,114 @@ confirmed those messages are documented.  The only remaining version-check
 notice is the generated `B::Op_private` file, whose version is tied to the
 unchanged core Perl version.
 
-Follow-up: consider blessing the callable generator CODE reference into an
-`generator::Instance` class implemented in Perl, providing convenience methods
-such as `next()` and `exhausted()` to callers that do not enable the generator
-feature.  This should preserve the primitive callable protocol.
+## Generator naming and object API follow-up
+
+Review feedback identified two related usability problems in the current
+interface: the names are unnecessarily long, and a bare CODE reference does
+not make it obvious in a debugger that it represents a suspended computation.
+The next generator revision should address both at once.
+
+### Target API
+
+The generator-producing keyword becomes `gen`, and the suspension keyword
+becomes `yield`:
+
+    use feature 'generator';
+
+    my $numbers = gen {
+        yield 1;
+        yield 2;
+    };
+
+`gen` is documented as the generator equivalent of `sub`: it creates a
+callable body without running it, while `yield` returns values to the caller
+and suspends the body until its next call.  The existing parameterized-call,
+list-context, scalar-context, resume-argument, empty-yield, return, exception,
+and one-shot-continuation semantics remain unchanged by the spelling change.
+
+Each created callable is blessed into package `generator`.  It must remain
+callable with the existing `$generator->(@args)` syntax, but its package name
+must make its special continuation state visible to debuggers and ordinary
+introspection.  Blessing must not copy the CODE reference or duplicate the
+suspended process state.
+
+The four state predicates move out of `builtin` and become methods and package
+functions in `generator`:
+
+    $generator->exhausted();
+    generator::exhausted($generator);
+
+The same dual calling convention applies to `completed` and `failed`.  For
+`running`, the package form retains the useful list-filtering behavior:
+
+    my @live = generator::running(@generators);
+
+The object form, `$generator->running()`, is the scalar predicate for one
+generator.  The implementation should define the exact context behavior in
+tests before changing the public documentation.  Invalid arguments should
+retain the established distinction between “not a generator” (`undef`) and a
+valid generator whose predicate is false.
+
+`generator::exhausted($generator)` remains the union predicate: it is true
+after normal completion or uncaught failure.  `completed` and `failed` remain
+mutually exclusive terminal-state predicates, and `running` is the inverse
+of `exhausted` for valid generator objects.  None of these predicates resumes
+or advances a generator.
+
+### Implementation phases
+
+1. **Freeze the API contract.** Add focused tests describing blessed
+   generator identity, callable behavior after blessing, method and package
+   predicate calls, scalar/list context, invalid arguments, and the four
+   terminal states.  Confirm that predicates do not advance the continuation.
+2. **Add the Perl package.** Implement package `generator` in Perl with the
+   predicate methods and package functions.  Keep the low-level continuation
+   state private; methods must inspect it through the existing internal
+   representation rather than reconstructing it from user-visible values.
+3. **Bless at construction.** Change generator creation to bless the returned
+   CODE reference into `generator`.  Verify that closures, reference counts,
+   destruction of suspended state, recursion, re-entrancy checks, and threaded
+   cloning remain correct.  Add debugger/introspection assertions where the
+   existing test tools support them.
+4. **Rename the syntax.** Change the feature grammar, keyword tables, opcode
+   metadata, diagnostics, compiler checks, deparser expectations, and
+   generated files from `generator_create`/`generator_yield` to `gen`/`yield`.
+   Regenerate all derived parser, keyword, feature, opcode, and documentation
+   files with the normal regeneration targets.
+5. **Remove predicate builtin exports.** Delete the four predicate exports
+   from `builtin` and make `use generator` provide the package API while still
+   enabling the `generator` and `signatures` features.  `use builtin` must no
+   longer be required for generator predicates.  Check for namespace and
+   `CORE` interactions before finalizing this step.
+6. **Update documentation and diagnostics.** Revise `perlgenerator.pod`,
+   `perlfunc.pod`, `perlsyn.pod`, `perlexperiment.pod`, `perldiag.pod`, and
+   `perldelta.pod` to use only the new public names.  Explain `gen` as the
+   `sub` counterpart, show both predicate calling forms, and document that
+   the callable is blessed.  Do not describe the old spellings as supported
+   syntax; they were experimental and have not been released.
+7. **Validate and commit incrementally.** Run focused generator, feature,
+   builtin, deparse, diagnostic, and threaded tests after each phase; run
+   `make regen` using the system Perl where required; run `test_porting` before
+   the final `make_test` in window 3.  Include DEBUGGING, ASAN/LSAN with
+   `PERL_DESTRUCT_LEVEL=2`, and both threaded and unthreaded validation where
+   available.  Keep the rename, object API, predicate migration, and docs in
+   separate commits.
+
+### Open design checks
+
+- Decide whether `generator::running()` with no arguments is an error, an
+  empty list, or a scalar false value; do not infer this from Perl's ordinary
+  method-call defaults.
+- Ensure a user can still call a blessed generator as a CODE reference and
+  that method lookup cannot accidentally invoke or resume the continuation.
+- Decide whether package functions should accept subclasses of `generator`
+  and whether users may subclass the package without exposing continuation
+  internals.
+- Check how `UNIVERSAL::can`, `ref`, `Scalar::Util::blessed`, the debugger,
+  serialization tools, and cloning report the new object.
+- Confirm that a `yield` keyword remains restricted to a `gen` body and that
+  ordinary Perl `yield` names, if any, are unaffected when the feature is
+  disabled.
 
 ## Execution-context indirection follow-up
 
