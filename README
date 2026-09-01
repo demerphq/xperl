@@ -2,14 +2,14 @@ Perl is Copyright (C) 1993 - 2026 by Larry Wall and others.
 
 All rights reserved.
 
-# ABOUT AI-PERL
+# ABOUT XPERL
 
 This is a fork of the Perl project. See
-[AI-PERL-MISSION.md](https://github.com/demerphq/perl5/blob/ai-perl/AI-PERL-MISSION.md)
+[XPERL-MISSION.md](https://github.com/demerphq/perl5/blob/xperl-main/XPERL-MISSION.md)
 for details.
 
 For a brief summary of how this fork differs from mainline Perl, see
-[BLEAD-DELTA.md](https://github.com/demerphq/perl5/blob/ai-perl/BLEAD-DELTA.md).
+[BLEAD-DELTA.md](https://github.com/demerphq/perl5/blob/xperl-main/BLEAD-DELTA.md).
 The principal differences include:
 
   * experimental generators with cooperative resumable execution;

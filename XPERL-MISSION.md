@@ -1,6 +1,6 @@
-# AI Perl mission
+# XPerl mission
 
-AI Perl is an experimental fork of Perl intended to be a
+XPerl is an experimental fork of Perl intended to be a
 batteries-included distribution suitable for the AI era. It aims to
 provide a practical, capable Perl environment for a broad range of
 modern tasks without requiring users to install additional modules
@@ -18,17 +18,17 @@ code as reasonably possible, but we are open to breaking compatibility
 when doing so enables something more important: a better language, a
 more capable runtime, or a more useful default distribution.
 
-A summary of the differences between AI Perl and mainline Perl can be found
+A summary of the differences between XPerl and mainline Perl can be found
 in [BLEAD-DELTA.md](BLEAD-DELTA.md).
 
-AI Perl is currently in a pre-release state. Until the project declares a
+XPerl is currently in a pre-release state. Until the project declares a
 release through its own release process, anything in this repository may
 change, be replaced, or be removed without notice. Documentation and code may
 refer to mainline Perl, the Perl 5 Porters community, or their processes. Such
 references may be accurate descriptions of their current state, but they may
-not remain relevant to AI Perl as this project evolves.
+not remain relevant to XPerl as this project evolves.
 
-AI Perl is stewarded by Yves Orton and Stevan Little.
+XPerl is stewarded by Yves Orton and Stevan Little.
 
 We welcome ideas, suggestions, bug reports, feedback, and contributions;
 however, we want to be clear that the project is intended to "scratch our
