@@ -8,7 +8,7 @@ was not supported by sufficient evidence.
 ## Audit status
 
 - [x] Process snapshots, opcode-boundary hooks, and private stack ownership
-- [x] Generator syntax, one-shot resume protocol, and explicit `generator_yield`
+- [x] Generator syntax, one-shot resume protocol, and explicit `yield`
 - [x] Nested eval, failure propagation, exhaustion, and re-entrancy
 - [x] Feature/compiler diagnostics and documentation metadata
 - [x] DEBUGGING and sanitizer validation
@@ -42,21 +42,11 @@ pointer before any context variable is used.  Threaded DEBUGGING, unthreaded
 DEBUGGING, focused generator/runtime tests, `test_porting`, and the final
 DEBUGGING `make_test` run pass.
 
-The current implementation uses `generator_create` and `generator_yield`, with
-the non-advancing predicate builtins `generator_running`,
-`generator_completed`, `generator_failed`, and `generator_exhausted`.
-`generator_exhausted` is true after the generator completes or fails, and
-false for new or suspended generators.  `generator_completed` distinguishes
-normal completion from failure, while `generator_running` returns the active
-members of a supplied list.  This is the API that the follow-up below will
-replace; do not add compatibility aliases automatically unless a later design
-decision calls for them.
-
-The current `generator` pragma enables both the generator and signatures
-features and imports the predicate builtins; `use feature 'generator'`
-enables the two syntax keywords, while `use builtin` can import predicates
-directly.  The follow-up will make the predicates ordinary methods/functions
-in the `generator` package rather than builtin exports.
+The implementation now uses `gen` and `yield`.  Generators are callable
+references blessed into `generator`; the non-advancing predicates are methods
+and package functions named `running`, `completed`, `failed`, and `exhausted`.
+The `generator` pragma enables both the generator and signatures features.
+The old long spellings are not compatibility aliases.
 The final DEBUGGING `make_test` run completed 2,947 files and 1,398,115 tests.
 All generator tests passed.  Its diagnostic failures were the four generator
 messages added after that run began; a subsequent standalone diagnostic check
@@ -64,7 +54,7 @@ confirmed those messages are documented.  The only remaining version-check
 notice is the generated `B::Op_private` file, whose version is tied to the
 unchanged core Perl version.
 
-## Generator naming and object API follow-up
+## Generator naming and object API follow-up — complete
 
 Review feedback identified two related usability problems in the current
 interface: the names are unnecessarily long, and a bare CODE reference does
@@ -156,6 +146,12 @@ or advances a generator.
    `PERL_DESTRUCT_LEVEL=2`, and both threaded and unthreaded validation where
    available.  Keep the rename, object API, predicate migration, and docs in
    separate commits.
+
+All seven implementation phases are complete.  The focused generator suite
+passes all 89 tests, including callable blessed-object behavior and
+suspended-state cleanup; the core opcode and deparse suites used for the
+rename also pass.  The runtime and documentation were committed separately
+as `a0f58fab58` and `c38ffbeb67`.
 
 ### Open design checks
 
