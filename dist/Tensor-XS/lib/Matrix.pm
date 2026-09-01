@@ -160,22 +160,7 @@ class Matrix :isa(Tensor) {
     # --------------------------------------------------------------------------
 
     method transpose {
-        # OPTIMIZED: Direct array manipulation
-        my $rows = $self->rows;
-        my $cols = $self->cols;
-
-        my $data = $self->data;
-        my @result;
-
-        # Transpose: result[j,i] = original[i,j]
-        for (my $j = 0; $j < $cols; $j++) {
-            for (my $i = 0; $i < $rows; $i++) {
-                # Original[i,j] in row-major = data[i * cols + j]
-                $result[$j * $rows + $i] = $data->[$i * $cols + $j];
-            }
-        }
-
-        return __CLASS__->initialize([$cols, $rows], \@result);
+        __CLASS__->from_native($self->_native->transpose)
     }
 
     # --------------------------------------------------------------------------
@@ -183,69 +168,23 @@ class Matrix :isa(Tensor) {
     # --------------------------------------------------------------------------
 
     method matrix_multiply ($other) {
-        # Matrix × Vector: Matrix (m×n) × Vector (n) = Vector (m)
-        # OPTIMIZED: Direct array manipulation
-        if ($other isa Vector) {
-            my $rows = $self->rows;
-            my $cols = $self->cols;
+        my $result = $self->_native->matrix_multiply($other->_native);
+        return Vector->from_native($result) if $other isa Vector;
+        return Matrix->from_native($result);
+    }
 
-            my $mat_data = $self->data;
-            my $vec_data = $other->data;
-
-            my @result;
-
-            for (my $r = 0; $r < $rows; $r++) {
-                my $sum = 0;
-                my $row_start = $r * $cols;
-                for (my $c = 0; $c < $cols; $c++) {
-                    $sum += $mat_data->[$row_start + $c] * $vec_data->[$c];
-                }
-                push @result, $sum;
-            }
-
-            return Vector->initialize($rows, \@result);
-        }
-
-        # Matrix × Matrix: Matrix (m×n) × Matrix (n×p) = Matrix (m×p)
-        # OPTIMIZED: Direct array manipulation
-        my $m = $self->rows;
-        my $n = $self->cols;
-        my $p = $other->cols;
-
-        my $a_data = $self->data;
-        my $b_data = $other->data;
-
-        my @result;
-
-        for (my $i = 0; $i < $m; $i++) {
-            for (my $j = 0; $j < $p; $j++) {
-                my $sum = 0;
-                my $a_row_start = $i * $n;
-                for (my $k = 0; $k < $n; $k++) {
-                    # A[i,k] * B[k,j]
-                    $sum += $a_data->[$a_row_start + $k] * $b_data->[$k * $p + $j];
-                }
-                push @result, $sum;
-            }
-        }
-
-        return __CLASS__->initialize([$m, $p], \@result);
+    method binary_op ($operation, $other) {
+        return Tensor::binary_op($self, $operation, $other)
+            unless ref $operation eq 'CODE' && $other isa Vector;
+        return __CLASS__->construct(
+            [ $self->shape->@* ],
+            sub ($x, $y) { $operation->($self->at($x, $y), $other->at($y)) }
+        );
     }
 
     # --------------------------------------------------------------------------
     # Specialized version of Tensor's binary_op to handle the edge case
     # --------------------------------------------------------------------------
-
-    method binary_op ($f, $other) {
-        # FIXME: do this better, is it really a special case?
-        return __CLASS__->construct(
-            [ $self->shape->@* ],
-            sub ($x, $y) { $f->( $self->at($x, $y), $other->at($y) ) }
-        ) if $other isa Vector;
-
-        # Call parent's binary_op from Tensor class
-        return Tensor::binary_op($self, $f, $other);
-    }
 
     # --------------------------------------------------------------------------
 

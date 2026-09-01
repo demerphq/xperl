@@ -3,6 +3,7 @@ use v5.40;
 use experimental qw[ class ];
 
 use List::Util;
+use Scalar::Util qw[ refaddr ];
 
 class Tensor {
     # --------------------------------------------------------------------------
@@ -75,11 +76,12 @@ class Tensor {
     # Internal ND Array
     # --------------------------------------------------------------------------
 
-    field $data  :param;
-    field $shape :param;
-    field $native :reader;
+    field $data  :param = undef;
+    field $shape :param = undef;
+    field $native :param :reader = undef;
 
     ADJUST {
+        return if defined $native;
         $data    = $data->get if $data isa Scalar;
         $shape   = [ map { $_ isa Scalar ? $_->get : $_ } @$shape ];
         $data    = allocate_data_array($shape, $data); # unless ref $data eq 'ARRAY';
@@ -104,6 +106,18 @@ class Tensor {
             shape   => $self->shape,
             strides => $self->strides,
         }
+    }
+
+    sub from_native ($class, $native) {
+        return $class->new(native => $native);
+    }
+
+    method _native { $native }
+
+    my sub native_operand ($other) {
+        return $other->get if $other isa Scalar;
+        return $other->_native if $other isa Tensor;
+        return $other;
     }
 
     # --------------------------------------------------------------------------
@@ -256,22 +270,63 @@ class Tensor {
     # Scalar Values
     # --------------------------------------------------------------------------
 
-    method sum  { $self->reduce_data_array(\&Tensor::Ops::add, 0) }
+    method sum  { $native->reduce('sum') }
     method mean { $self->sum / $self->size }
 
-    method min_value { $self->reduce_data_array(\&Tensor::Ops::min) }
-    method max_value { $self->reduce_data_array(\&Tensor::Ops::max) }
+    method min_value { $native->reduce('min') }
+    method max_value { $native->reduce('max') }
 
     # --------------------------------------------------------------------------
     # Operations
     # --------------------------------------------------------------------------
 
-    method unary_op ($f) {
-        __CLASS__->initialize($self->shape, $self->map_data_array($f))
+    method unary_op ($operation) {
+        if (ref $operation eq 'CODE') {
+            state %operation_name = (
+                refaddr(\&Tensor::Ops::neg)   => 'neg',
+                refaddr(\&Tensor::Ops::abs)   => 'abs',
+                refaddr(\&Tensor::Ops::exp)   => 'exp',
+                refaddr(\&Tensor::Ops::log)   => 'log',
+                refaddr(\&Tensor::Ops::sqrt)  => 'sqrt',
+                refaddr(\&Tensor::Ops::trunc) => 'trunc',
+                refaddr(\&Tensor::Ops::fract) => 'fract',
+            );
+            my $name = $operation_name{refaddr($operation)};
+            return __CLASS__->initialize($self->shape,
+                $self->map_data_array($operation)) unless defined $name;
+            $operation = $name;
+        }
+        __CLASS__->from_native($native->unary($operation))
     }
 
-    method binary_op ($f, $other) {
-        __CLASS__->initialize($self->shape, $self->zip_data_arrays($f, $other))
+    method binary_op ($operation, $other) {
+        if (ref $operation eq 'CODE') {
+            state %operation_name = (
+                refaddr(\&Tensor::Ops::add) => 'add',
+                refaddr(\&Tensor::Ops::sub) => 'sub',
+                refaddr(\&Tensor::Ops::mul) => 'mul',
+                refaddr(\&Tensor::Ops::div) => 'div',
+                refaddr(\&Tensor::Ops::mod) => 'mod',
+                refaddr(\&Tensor::Ops::pow) => 'pow',
+                refaddr(\&Tensor::Ops::eq)  => 'eq',
+                refaddr(\&Tensor::Ops::ne)  => 'ne',
+                refaddr(\&Tensor::Ops::lt)  => 'lt',
+                refaddr(\&Tensor::Ops::le)  => 'le',
+                refaddr(\&Tensor::Ops::gt)  => 'gt',
+                refaddr(\&Tensor::Ops::ge)  => 'ge',
+                refaddr(\&Tensor::Ops::cmp) => 'cmp',
+                refaddr(\&Tensor::Ops::and) => 'and',
+                refaddr(\&Tensor::Ops::or)  => 'or',
+                refaddr(\&Tensor::Ops::min) => 'min',
+                refaddr(\&Tensor::Ops::max) => 'max',
+            );
+            my $name = $operation_name{refaddr($operation)};
+            return __CLASS__->initialize($self->shape,
+                $self->zip_data_arrays($operation, $other)) unless defined $name;
+            $operation = $name;
+        }
+        __CLASS__->from_native($native->binary(
+            native_operand($other), $operation))
     }
 
     # --------------------------------------------------------------------------
@@ -280,77 +335,25 @@ class Tensor {
 
     method add_inplace ($other) {
         # $self += $other (modifies $self in place)
-        my $self_data = $self->data;
-        my $other_data = ref($other) ? $other->data : $other;
-
-        if (ref($other)) {
-            for (my $i = 0; $i < @$self_data; $i++) {
-                $self_data->[$i] += $other_data->[$i];
-            }
-        } else {
-            # Scalar addition
-            for (my $i = 0; $i < @$self_data; $i++) {
-                $self_data->[$i] += $other;
-            }
-        }
-        $native->set_data($self_data);
+        $native->inplace(native_operand($other), 'add');
         return $self;
     }
 
     method sub_inplace ($other) {
         # $self -= $other (modifies $self in place)
-        my $self_data = $self->data;
-        my $other_data = ref($other) ? $other->data : $other;
-
-        if (ref($other)) {
-            for (my $i = 0; $i < @$self_data; $i++) {
-                $self_data->[$i] -= $other_data->[$i];
-            }
-        } else {
-            # Scalar subtraction
-            for (my $i = 0; $i < @$self_data; $i++) {
-                $self_data->[$i] -= $other;
-            }
-        }
-        $native->set_data($self_data);
+        $native->inplace(native_operand($other), 'sub');
         return $self;
     }
 
     method mul_inplace ($other) {
         # $self *= $other (modifies $self in place)
-        my $self_data = $self->data;
-        my $other_data = ref($other) ? $other->data : $other;
-
-        if (ref($other)) {
-            for (my $i = 0; $i < @$self_data; $i++) {
-                $self_data->[$i] *= $other_data->[$i];
-            }
-        } else {
-            # Scalar multiplication
-            for (my $i = 0; $i < @$self_data; $i++) {
-                $self_data->[$i] *= $other;
-            }
-        }
-        $native->set_data($self_data);
+        $native->inplace(native_operand($other), 'mul');
         return $self;
     }
 
     method div_inplace ($other) {
         # $self /= $other (modifies $self in place)
-        my $self_data = $self->data;
-        my $other_data = ref($other) ? $other->data : $other;
-
-        if (ref($other)) {
-            for (my $i = 0; $i < @$self_data; $i++) {
-                $self_data->[$i] /= $other_data->[$i];
-            }
-        } else {
-            # Scalar division
-            for (my $i = 0; $i < @$self_data; $i++) {
-                $self_data->[$i] /= $other;
-            }
-        }
-        $native->set_data($self_data);
+        $native->inplace(native_operand($other), 'div');
         return $self;
     }
 
@@ -359,59 +362,59 @@ class Tensor {
     ## -------------------------------------------------------------------------
 
     # unary
-    method neg  { $self->unary_op(\&Tensor::Ops::neg) }
-    method abs  { $self->unary_op(\&Tensor::Ops::abs) }
-    method exp  { $self->unary_op(\&Tensor::Ops::exp) }
-    method log  { $self->unary_op(\&Tensor::Ops::log) }
-    method sqrt { $self->unary_op(\&Tensor::Ops::sqrt) }
+    method neg  { __CLASS__->from_native($native->unary('neg')) }
+    method abs  { __CLASS__->from_native($native->unary('abs')) }
+    method exp  { __CLASS__->from_native($native->unary('exp')) }
+    method log  { __CLASS__->from_native($native->unary('log')) }
+    method sqrt { __CLASS__->from_native($native->unary('sqrt')) }
 
     # binary
-    method add ($other) { $self->binary_op(\&Tensor::Ops::add, $other) }
-    method sub ($other) { $self->binary_op(\&Tensor::Ops::sub, $other) }
-    method mul ($other) { $self->binary_op(\&Tensor::Ops::mul, $other) }
-    method div ($other) { $self->binary_op(\&Tensor::Ops::div, $other) }
-    method mod ($other) { $self->binary_op(\&Tensor::Ops::mod, $other) }
-    method pow ($other) { $self->binary_op(\&Tensor::Ops::pow, $other) }
+    method add ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'add')) }
+    method sub ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'sub')) }
+    method mul ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'mul')) }
+    method div ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'div')) }
+    method mod ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'mod')) }
+    method pow ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'pow')) }
 
     ## -------------------------------------------------------------------------
     ## Comparison Operations
     ## -------------------------------------------------------------------------
 
     # binary
-    method eq  ($other) { $self->binary_op(\&Tensor::Ops::eq,  $other) }
-    method ne  ($other) { $self->binary_op(\&Tensor::Ops::ne,  $other) }
-    method lt  ($other) { $self->binary_op(\&Tensor::Ops::lt,  $other) }
-    method le  ($other) { $self->binary_op(\&Tensor::Ops::le,  $other) }
-    method gt  ($other) { $self->binary_op(\&Tensor::Ops::gt,  $other) }
-    method ge  ($other) { $self->binary_op(\&Tensor::Ops::ge,  $other) }
-    method cmp ($other) { $self->binary_op(\&Tensor::Ops::cmp, $other) }
+    method eq  ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'eq')) }
+    method ne  ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'ne')) }
+    method lt  ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'lt')) }
+    method le  ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'le')) }
+    method gt  ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'gt')) }
+    method ge  ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'ge')) }
+    method cmp ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'cmp')) }
 
     ## -------------------------------------------------------------------------
     ## Logical Operations
     ## -------------------------------------------------------------------------
 
-    method not { $self->unary_op(\&Tensor::Ops::not) }
-    method and ($other) { $self->binary_op(\&Tensor::Ops::and, $other) }
-    method or  ($other) { $self->binary_op(\&Tensor::Ops::or, $other)  }
+    method not { __CLASS__->from_native($native->unary('not')) }
+    method and ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'and')) }
+    method or  ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'or')) }
 
     ## -------------------------------------------------------------------------
     ## Numerical Operations
     ## -------------------------------------------------------------------------
 
     # unary
-    method trunc { $self->unary_op(\&Tensor::Ops::trunc) }
-    method fract { $self->unary_op(\&Tensor::Ops::fract) }
+    method trunc { __CLASS__->from_native($native->unary('trunc')) }
+    method fract { __CLASS__->from_native($native->unary('fract')) }
 
-    method round_down { $self->unary_op(\&Tensor::Ops::round_down) }
-    method round_up   { $self->unary_op(\&Tensor::Ops::round_up) }
+    method round_down { __CLASS__->from_native($native->unary('floor')) }
+    method round_up   { __CLASS__->from_native($native->unary('ceil')) }
 
     method clamp ($min, $max) {
-        $self->unary_op(sub ($n) { Tensor::Ops::clamp($min, $max, $n) })
+        $self->max($min)->min($max)
     }
 
     # binary
-    method min ($other) { $self->binary_op(\&Tensor::Ops::min, $other) }
-    method max ($other) { $self->binary_op(\&Tensor::Ops::max, $other) }
+    method min ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'min')) }
+    method max ($other) { __CLASS__->from_native($native->binary(native_operand($other), 'max')) }
 
     ## -------------------------------------------------------------------------
     ## Activation Functions

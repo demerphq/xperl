@@ -1,6 +1,7 @@
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
+#include <math.h>
 
 #define TENSOR_MAGIC   ((UV)0x54454e53U) /* "TENS" */
 #define TENSOR_VERSION ((UV)1)
@@ -31,6 +32,36 @@ typedef enum {
     TENSOR_DTYPE_F64,
     TENSOR_DTYPE_NV
 } tensor_dtype;
+
+typedef enum {
+    TENSOR_OP_NEG,
+    TENSOR_OP_ABS,
+    TENSOR_OP_EXP,
+    TENSOR_OP_LOG,
+    TENSOR_OP_SQRT,
+    TENSOR_OP_TRUNC,
+    TENSOR_OP_FRACT,
+    TENSOR_OP_FLOOR,
+    TENSOR_OP_CEIL,
+    TENSOR_OP_NOT,
+    TENSOR_OP_ADD,
+    TENSOR_OP_SUB,
+    TENSOR_OP_MUL,
+    TENSOR_OP_DIV,
+    TENSOR_OP_MOD,
+    TENSOR_OP_POW,
+    TENSOR_OP_EQ,
+    TENSOR_OP_NE,
+    TENSOR_OP_LT,
+    TENSOR_OP_LE,
+    TENSOR_OP_GT,
+    TENSOR_OP_GE,
+    TENSOR_OP_CMP,
+    TENSOR_OP_AND,
+    TENSOR_OP_OR,
+    TENSOR_OP_MIN,
+    TENSOR_OP_MAX
+} tensor_op;
 
 static Size_t
 tensor_dtype_size(tensor_dtype dtype)
@@ -362,6 +393,167 @@ tensor_store(tensor_header *tensor, UV index, SV *value_sv)
     croak("unknown tensor dtype");
 }
 
+static void
+tensor_store_nv(tensor_header *tensor, UV index, NV value)
+{
+    char *data = tensor_data(tensor) + index * tensor_dtype_size((tensor_dtype)tensor->dtype);
+    switch ((tensor_dtype)tensor->dtype) {
+    case TENSOR_DTYPE_U8:   *(U8 *)data = (U8)value; return;
+    case TENSOR_DTYPE_U16:  *(U16 *)data = (U16)value; return;
+    case TENSOR_DTYPE_U32:  *(U32 *)data = (U32)value; return;
+    case TENSOR_DTYPE_U64:  *(U64 *)data = (U64)value; return;
+    case TENSOR_DTYPE_I8:   *(I8 *)data = (I8)value; return;
+    case TENSOR_DTYPE_I16:  *(I16 *)data = (I16)value; return;
+    case TENSOR_DTYPE_I32:  *(I32 *)data = (I32)value; return;
+    case TENSOR_DTYPE_I64:  *(I64 *)data = (I64)value; return;
+    case TENSOR_DTYPE_F32:  *(float *)data = (float)value; return;
+    case TENSOR_DTYPE_F64:  *(double *)data = (double)value; return;
+    case TENSOR_DTYPE_NV:   *(NV *)data = value; return;
+    case TENSOR_DTYPE_F16:  *(U16 *)data = tensor_float_to_f16(value); return;
+    case TENSOR_DTYPE_BF16: *(U16 *)data = tensor_float_to_bf16(value); return;
+    }
+    croak("unknown tensor dtype");
+}
+
+static NV
+tensor_unary_op(tensor_op op, NV value)
+{
+    switch (op) {
+    case TENSOR_OP_NEG:   return -value;
+    case TENSOR_OP_ABS:   return fabs(value);
+    case TENSOR_OP_EXP:   return exp(value);
+    case TENSOR_OP_LOG:   return log(value);
+    case TENSOR_OP_SQRT:  return sqrt(value);
+    case TENSOR_OP_TRUNC: return trunc(value);
+    case TENSOR_OP_FRACT: return trunc(value) - value;
+    case TENSOR_OP_FLOOR: return floor(value);
+    case TENSOR_OP_CEIL:  return ceil(value);
+    case TENSOR_OP_NOT:   return !value;
+    default: croak("invalid unary tensor operation");
+    }
+}
+
+static NV
+tensor_binary_op(tensor_op op, NV left, NV right)
+{
+    switch (op) {
+    case TENSOR_OP_ADD: return left + right;
+    case TENSOR_OP_SUB: return left - right;
+    case TENSOR_OP_MUL: return left * right;
+    case TENSOR_OP_DIV: return left / right;
+    case TENSOR_OP_MOD: return fmod(left, right);
+    case TENSOR_OP_POW: return pow(left, right);
+    case TENSOR_OP_EQ:  return left == right;
+    case TENSOR_OP_NE:  return left != right;
+    case TENSOR_OP_LT:  return left < right;
+    case TENSOR_OP_LE:  return left <= right;
+    case TENSOR_OP_GT:  return left > right;
+    case TENSOR_OP_GE:  return left >= right;
+    case TENSOR_OP_CMP: return left < right ? -1 : left > right ? 1 : 0;
+    case TENSOR_OP_AND: return left && right;
+    case TENSOR_OP_OR:  return left || right;
+    case TENSOR_OP_MIN: return left < right ? left : right;
+    case TENSOR_OP_MAX: return left > right ? left : right;
+    default: croak("invalid binary tensor operation");
+    }
+}
+
+static tensor_op
+tensor_op_from_sv(pTHX_ SV *name, bool unary)
+{
+    const char *op = SvPV_nolen(name);
+#define TENSOR_OP_NAME(name, value) if (strEQ(op, name)) return value
+    if (unary) {
+        TENSOR_OP_NAME("neg", TENSOR_OP_NEG);
+        TENSOR_OP_NAME("abs", TENSOR_OP_ABS);
+        TENSOR_OP_NAME("exp", TENSOR_OP_EXP);
+        TENSOR_OP_NAME("log", TENSOR_OP_LOG);
+        TENSOR_OP_NAME("sqrt", TENSOR_OP_SQRT);
+        TENSOR_OP_NAME("trunc", TENSOR_OP_TRUNC);
+        TENSOR_OP_NAME("fract", TENSOR_OP_FRACT);
+        TENSOR_OP_NAME("floor", TENSOR_OP_FLOOR);
+        TENSOR_OP_NAME("ceil", TENSOR_OP_CEIL);
+        TENSOR_OP_NAME("not", TENSOR_OP_NOT);
+    }
+    else {
+        TENSOR_OP_NAME("add", TENSOR_OP_ADD);
+        TENSOR_OP_NAME("sub", TENSOR_OP_SUB);
+        TENSOR_OP_NAME("mul", TENSOR_OP_MUL);
+        TENSOR_OP_NAME("div", TENSOR_OP_DIV);
+        TENSOR_OP_NAME("mod", TENSOR_OP_MOD);
+        TENSOR_OP_NAME("pow", TENSOR_OP_POW);
+        TENSOR_OP_NAME("eq", TENSOR_OP_EQ);
+        TENSOR_OP_NAME("ne", TENSOR_OP_NE);
+        TENSOR_OP_NAME("lt", TENSOR_OP_LT);
+        TENSOR_OP_NAME("le", TENSOR_OP_LE);
+        TENSOR_OP_NAME("gt", TENSOR_OP_GT);
+        TENSOR_OP_NAME("ge", TENSOR_OP_GE);
+        TENSOR_OP_NAME("cmp", TENSOR_OP_CMP);
+        TENSOR_OP_NAME("and", TENSOR_OP_AND);
+        TENSOR_OP_NAME("or", TENSOR_OP_OR);
+        TENSOR_OP_NAME("min", TENSOR_OP_MIN);
+        TENSOR_OP_NAME("max", TENSOR_OP_MAX);
+    }
+#undef TENSOR_OP_NAME
+    croak("unknown %s tensor operation '%s'", unary ? "unary" : "binary", op);
+}
+
+static SV *
+tensor_new_result(pTHX_ const UV *shape, UV rank, const char *class_name,
+                 tensor_dtype dtype, tensor_header **resultp)
+{
+    UV i;
+    UV size = 1;
+    Size_t bytes;
+    char *storage;
+    tensor_header *tensor;
+    SV *payload;
+    SV *object;
+
+    for (i = 0; i < rank; i++) {
+        if (size > UV_MAX / shape[i])
+            croak("tensor size overflow");
+        size *= shape[i];
+    }
+    if (!tensor_blob_size(rank, size, tensor_dtype_size(dtype), &bytes))
+        croak("tensor blob size overflow");
+    Newxz(storage, bytes, char);
+    tensor = (tensor_header *)storage;
+    tensor->magic = TENSOR_MAGIC;
+    tensor->version = TENSOR_VERSION;
+    tensor->rank = rank;
+    tensor->size = size;
+    tensor->dtype = dtype;
+
+    {
+        UV *shape_out = tensor_shape(tensor);
+        UV *strides_out = tensor_strides(tensor);
+        UV stride = 1;
+        for (i = rank; i-- > 0;) {
+            shape_out[i] = shape[i];
+            strides_out[i] = stride;
+            stride *= shape[i];
+        }
+    }
+    payload = newSV(0);
+    sv_usepvn(payload, storage, bytes);
+    object = newRV_noinc(payload);
+    sv_bless(object, gv_stashpv(class_name, GV_ADD));
+    *resultp = (tensor_header *)SvPV_nolen(payload);
+    return object;
+}
+
+static tensor_header *
+tensor_other(pTHX_ SV *other, bool *is_tensor)
+{
+    if (SvROK(other) && SvPOK(SvRV(other))) {
+        *is_tensor = TRUE;
+        return tensor_from_object(aTHX_ other);
+    }
+    *is_tensor = FALSE;
+    return NULL;
+}
+
 static UV
 tensor_coordinate_index(pTHX_ tensor_header *tensor, SV **coordinates,
                         I32 count)
@@ -679,6 +871,246 @@ data(object)
     result = newAV();
     for (i = 0; i < tensor->size; i++)
         av_push(result, tensor_load_sv(aTHX_ tensor, i));
+    RETVAL = result;
+  OUTPUT:
+    RETVAL
+
+SV *
+unary(object, operation)
+    SV *object
+    SV *operation
+  PREINIT:
+    tensor_header *source;
+    tensor_header *result;
+    SV *result_object;
+    tensor_op op;
+    UV i;
+    UV *shape;
+  CODE:
+    source = tensor_from_object(aTHX_ object);
+    op = tensor_op_from_sv(aTHX_ operation, TRUE);
+    shape = tensor_shape(source);
+    result_object = tensor_new_result(aTHX_ shape, source->rank,
+                                      "Tensor::XS",
+                                      (tensor_dtype)source->dtype,
+                                      &result);
+    result->dtype = source->dtype;
+    for (i = 0; i < source->size; i++)
+        tensor_store_nv(result, i, tensor_unary_op(op, tensor_load(source, i)));
+    RETVAL = result_object;
+  OUTPUT:
+    RETVAL
+
+SV *
+binary(object, other, operation)
+    SV *object
+    SV *other
+    SV *operation
+  PREINIT:
+    tensor_header *source;
+    tensor_header *right;
+    tensor_header *result;
+    SV *result_object;
+    tensor_op op;
+    bool is_tensor;
+    NV right_value;
+    UV i;
+    UV *shape;
+  CODE:
+    source = tensor_from_object(aTHX_ object);
+    right = tensor_other(aTHX_ other, &is_tensor);
+    if (is_tensor && !((right->size == source->size && right->rank == source->rank)
+                       || (source->rank == 2 && right->rank == 1
+                           && right->size == tensor_shape(source)[1])))
+        croak("tensor operands must have compatible shapes");
+    op = tensor_op_from_sv(aTHX_ operation, FALSE);
+    shape = tensor_shape(source);
+    result_object = tensor_new_result(aTHX_ shape, source->rank,
+                                      "Tensor::XS",
+                                      (tensor_dtype)source->dtype,
+                                      &result);
+    result->dtype = source->dtype;
+    for (i = 0; i < source->size; i++) {
+        right_value = is_tensor
+            ? tensor_load(right, right->rank == 1 && source->rank == 2
+                                ? i % tensor_shape(source)[1] : i)
+            : SvNV(other);
+        tensor_store_nv(result, i,
+                        tensor_binary_op(op, tensor_load(source, i),
+                                         right_value));
+    }
+    RETVAL = result_object;
+  OUTPUT:
+    RETVAL
+
+void
+inplace(object, other, operation)
+    SV *object
+    SV *other
+    SV *operation
+  PREINIT:
+    tensor_header *source;
+    tensor_header *right;
+    tensor_op op;
+    bool is_tensor;
+    NV right_value;
+    UV i;
+  CODE:
+    source = tensor_from_object(aTHX_ object);
+    right = tensor_other(aTHX_ other, &is_tensor);
+    if (is_tensor && (right->size != source->size || right->rank != source->rank))
+        croak("tensor operands must have the same shape");
+    op = tensor_op_from_sv(aTHX_ operation, FALSE);
+    for (i = 0; i < source->size; i++) {
+        right_value = is_tensor ? tensor_load(right, i) : SvNV(other);
+        tensor_store_nv(source, i,
+                        tensor_binary_op(op, tensor_load(source, i),
+                                         right_value));
+    }
+
+NV
+reduce(object, operation)
+    SV *object
+    SV *operation
+  PREINIT:
+    tensor_header *tensor;
+    const char *op;
+    NV result;
+    UV i;
+  CODE:
+    tensor = tensor_from_object(aTHX_ object);
+    op = SvPV_nolen(operation);
+    if (!tensor->size) {
+        RETVAL = 0;
+    }
+    else {
+        result = tensor_load(tensor, 0);
+        for (i = 1; i < tensor->size; i++) {
+            NV value = tensor_load(tensor, i);
+            if (strEQ(op, "sum")) result += value;
+            else if (strEQ(op, "min")) result = result < value ? result : value;
+            else if (strEQ(op, "max")) result = result > value ? result : value;
+            else croak("unknown tensor reduction '%s'", op);
+        }
+        RETVAL = result;
+    }
+  OUTPUT:
+    RETVAL
+
+SV *
+transpose(object)
+    SV *object
+  PREINIT:
+    tensor_header *source;
+    tensor_header *result;
+    SV *result_object;
+    UV shape[2];
+    UV row;
+    UV col;
+  CODE:
+    source = tensor_from_object(aTHX_ object);
+    if (source->rank != 2)
+        croak("transpose requires a rank-two tensor");
+    shape[0] = tensor_shape(source)[1];
+    shape[1] = tensor_shape(source)[0];
+    result_object = tensor_new_result(aTHX_ shape, 2, "Tensor::XS",
+                                      (tensor_dtype)source->dtype, &result);
+    result->dtype = source->dtype;
+    for (row = 0; row < shape[1]; row++)
+        for (col = 0; col < shape[0]; col++)
+            tensor_store_nv(result, col * shape[1] + row,
+                            tensor_load(source, row * shape[0] + col));
+    RETVAL = result_object;
+  OUTPUT:
+    RETVAL
+
+SV *
+matrix_multiply(object, other)
+    SV *object
+    SV *other
+  PREINIT:
+    tensor_header *left;
+    tensor_header *right;
+    tensor_header *result;
+    SV *result_object;
+    UV left_rows;
+    UV left_cols;
+    UV right_rows;
+    UV right_cols;
+    UV shape[2];
+    UV i;
+    UV j;
+    UV k;
+    NV sum;
+  CODE:
+    left = tensor_from_object(aTHX_ object);
+    right = tensor_from_object(aTHX_ other);
+    if (!((left->rank == 2 && (right->rank == 1 || right->rank == 2))
+          || (left->rank == 1 && right->rank == 2)))
+        croak("matrix multiplication requires a matrix and vector or matrix");
+    if (left->rank == 1) {
+        left_rows = 1;
+        left_cols = tensor_shape(left)[0];
+        right_rows = tensor_shape(right)[0];
+        right_cols = tensor_shape(right)[1];
+        if (left_cols > right_rows)
+            croak("matrix multiplication dimensions do not agree");
+        shape[0] = right_cols;
+    }
+    else {
+        left_rows = tensor_shape(left)[0];
+        left_cols = tensor_shape(left)[1];
+        right_rows = tensor_shape(right)[0];
+        if (left_cols != right_rows)
+            croak("matrix multiplication dimensions do not agree");
+        right_cols = right->rank == 1 ? 1 : tensor_shape(right)[1];
+        if (right->rank == 2)
+            shape[0] = left_rows, shape[1] = right_cols;
+        else
+            shape[0] = left_rows;
+    }
+    result_object = tensor_new_result(aTHX_ shape,
+                                      left->rank == 1 || right->rank == 1 ? 1 : 2,
+                                      "Tensor::XS", (tensor_dtype)left->dtype,
+                                      &result);
+    result->dtype = left->dtype;
+    if (left->rank == 1) {
+        for (j = 0; j < right_cols; j++) {
+            sum = 0;
+            for (k = 0; k < left_cols; k++)
+                sum += tensor_load(left, k) * tensor_load(right, k * right_cols + j);
+            tensor_store_nv(result, j, sum);
+        }
+    }
+    else for (i = 0; i < left_rows; i++) {
+        for (j = 0; j < right_cols; j++) {
+            sum = 0;
+            for (k = 0; k < left_cols; k++)
+                sum += tensor_load(left, i * left_cols + k)
+                     * tensor_load(right, k * right_cols + j);
+            tensor_store_nv(result, i * right_cols + j, sum);
+        }
+    }
+    RETVAL = result_object;
+  OUTPUT:
+    RETVAL
+
+NV
+dot_product(object, other)
+    SV *object
+    SV *other
+  PREINIT:
+    tensor_header *left;
+    tensor_header *right;
+    UV i;
+    NV result = 0;
+  CODE:
+    left = tensor_from_object(aTHX_ object);
+    right = tensor_from_object(aTHX_ other);
+    if (left->size != right->size)
+        croak("dot product operands must have the same size");
+    for (i = 0; i < left->size; i++)
+        result += tensor_load(left, i) * tensor_load(right, i);
     RETVAL = result;
   OUTPUT:
     RETVAL

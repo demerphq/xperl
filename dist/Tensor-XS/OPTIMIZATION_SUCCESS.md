@@ -1,5 +1,36 @@
 # 🚀 Performance Optimization - SUCCESS!
 
+## Current XS backend
+
+The original results below describe an earlier pure-Perl optimization pass.
+The current implementation moves the numerical kernels into XS and operates
+directly on the contiguous native tensor buffer.  The public Perl classes
+still provide the same API, but normal arithmetic, comparisons, logical
+operations, reductions, in-place updates, transpose, and vector/matrix
+multiplication no longer execute element-by-element arithmetic in Perl.
+
+The focused benchmark from `examples/matrix_bench.pl` was run twice with the
+same DEBUGGING build of Perl.  Pure Perl used `p5-matrix-utils/lib`; XS used
+`dist/Tensor-XS/lib`.  Times below are seconds, and each pair uses the same
+input dimensions and iteration count:
+
+| Case | Pure Perl | XS | XS speedup |
+|------|-----------|----|------------|
+| 10×10 matrix × vector | 0.007 | 0.001 | 7× |
+| 100×50 matrix × vector | 0.020 | 0.001 | 20× |
+| 784×128 matrix × vector | 0.375 | 0.018 | 21× |
+| 128×10 matrix × vector | 0.048 | 0.003 | 16× |
+| 784×128 transpose | 4.565 | 0.213 | 21× |
+| 128×10 transpose | 0.596 | 0.030 | 20× |
+| 1×128 × 128×10 | 0.062 | 0.003 | 21× |
+| 1×784 × 784×128 | 0.468 | 0.018 | 26× |
+
+This is a kernel comparison: `data()` intentionally creates a Perl array
+view of native storage and is therefore slower than returning an existing
+Perl array reference.  The matrix operations do not use that view.
+
+The complete Tensor-XS suite passes with 30 files and 441 tests.
+
 ## Overview
 
 We achieved a **25x speedup** in neural network training through optimized matrix operations, making MNIST training practical in pure Perl!

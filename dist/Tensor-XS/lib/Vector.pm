@@ -33,28 +33,8 @@ class Vector :isa(Tensor) {
     # --------------------------------------------------------------------------
 
     method matrix_multiply ($other) {
-        # OPTIMIZED: Direct array manipulation
-        # Vector (n) × Matrix (n×p) = Vector (p)
-        my $n = $self->size;
-        my $p = $other->cols;
-
-        my $vec_data = $self->data;
-        my $mat_data = $other->data;
-
-        my @result;
-
-        # For each output element (column in matrix)
-        for (my $j = 0; $j < $p; $j++) {
-            my $sum = 0;
-            # Dot product of vector with column j of matrix
-            for (my $i = 0; $i < $n; $i++) {
-                # Matrix is row-major: M[i,j] = mat_data[i * p + j]
-                $sum += $vec_data->[$i] * $mat_data->[$i * $p + $j];
-            }
-            push @result, $sum;
-        }
-
-        return Vector->initialize($p, \@result);
+        my $result = $self->_native->matrix_multiply($other->_native);
+        return __CLASS__->from_native($result);
     }
 
     # --------------------------------------------------------------------------
@@ -65,8 +45,7 @@ class Vector :isa(Tensor) {
     method max_value { $self->reduce_data_array(\&Tensor::Ops::max) }
 
     method dot_product ($other) {
-        my $i = 0;
-        return $self->reduce_data_array(sub ($acc, $x) { $acc + ($x * $other->at($i++)) }, 0)
+        return $self->_native->dot_product($other->_native)
     }
 
     # --------------------------------------------------------------------------
