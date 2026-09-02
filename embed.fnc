@@ -1535,6 +1535,8 @@ Chp	|SV *	|generator_wrap |NN CV *body
 Chp	|void	|generator_yield_values 				\
 				|NN SV **values 			\
 				|SSize_t count
+Chp	|void	|iterator_mark_failed				\
+				|NN CV *cv
 ERXp	|SV *	|get_and_check_backslash_N_name 			\
 				|SPTR const char *s			\
 				|EPTRge const char *e			\

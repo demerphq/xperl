@@ -9,7 +9,7 @@ BEGIN {
 use iterator;
 use generator;
 
-plan tests => 18;
+plan tests => 26;
 
 my @items = qw(one two three);
 my $index = 0;
@@ -45,3 +45,19 @@ is(iterator::state($generator), iterator::RUNNING,
 eval { $generator->set_state(iterator::COMPLETED) };
 like($@, qr/cannot set the state of a generator/,
      'ordinary iterator setter cannot modify a generator');
+
+my $failed = iterator->new(sub { die "iterator failure\n" });
+my $failure_result = eval { $failed->() };
+like($@, qr/iterator failure/, 'iterator exception is rethrown');
+ok(!$failure_result, 'failed iterator call has no result');
+ok($failed->failed, 'escaping exception marks iterator failed');
+ok($failed->exhausted, 'failed iterator is exhausted');
+ok(!$failed->completed, 'failed iterator is not completed');
+
+my $caught = iterator->new(sub {
+    my $caught = eval { die "handled inside iterator\n" };
+    return 42;
+});
+is($caught->(), 42, 'iterator can catch its own exception');
+ok($caught->running, 'caught exception does not fail iterator');
+ok(!$caught->failed, 'iterator remains non-failed after inner eval');
