@@ -208,6 +208,44 @@ Arguments passed to a later call are returned by C<yield>.  In list
 context all of them are returned.  In scalar context the first argument is
 returned.  In void context they are discarded.
 
+=head1 CALLABLE ITERATORS
+
+Generators are one kind of callable iterator.  The more general C<iterator>
+package can attach lifecycle state to an ordinary code reference while
+preserving normal call syntax:
+
+    my $it = iterator->new(sub {
+        state $i = 0;
+        CORE::__SUB__->set_state(iterator::COMPLETED)
+            if $i == $#items;
+        return $items[$i++];
+    });
+
+The code reference itself is the iterator.  C<CORE::__SUB__> therefore refers
+to the same callable that the caller invokes.  The constructor marks it
+C<RUNNING>; the body marks it C<COMPLETED> before returning its final value.
+An empty list or C<undef> is an ordinary return value and is not, by itself,
+evidence that the iterator is exhausted.
+
+The lifecycle predicates are available as methods and as functions in the
+C<iterator::> package.  An iterator is exhausted when it is completed or
+failed:
+
+    $it->running;
+    $it->completed;
+    $it->failed;
+    $it->exhausted;
+
+If an exception escapes an ordinary iterator body, the runtime marks it
+failed and rethrows the original exception.  An exception caught by an
+C<eval> inside the body does not fail the iterator.  C<iterator::set_state>
+changes the lifecycle state of an ordinary iterator; generator continuation
+state is managed by the generator runtime and cannot be changed through this
+setter.
+
+Generators inherit this lifecycle protocol, but their C<NEW>, C<YIELDED>, and
+continuation state remain internal to the generator implementation.
+
 =head2 Generator predicates
 
 The predicates are methods on generator objects, not keywords.  They can also

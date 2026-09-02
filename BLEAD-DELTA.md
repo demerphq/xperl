@@ -54,6 +54,13 @@ resumes the generators. The continuation is delimited by the generator body
 and is one-shot, while the saved process state preserves the Perl execution
 context across each suspension.
 
+The related experimental `iterator` package generalizes the callable
+lifecycle protocol to ordinary blessed code references. It provides
+`RUNNING`, `COMPLETED`, and `FAILED` state, with `EXHAUSTED` derived from the
+two terminal states; generator continuation states remain private to the
+generator runtime. An uncaught exception escaping an iterator body marks the
+iterator failed before rethrowing the original exception.
+
 Related POD: [`pod/perlgenerator.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlgenerator.pod) and [`lib/generator.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/generator.pm) describe the combined pragma and generator interface; [`lib/builtin.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/builtin.pm) documents builtin import behavior.  The dedicated POD covers generators,
 continuations, and cooperative resumable execution. [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod),
 [`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod), [`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlsyn.pod), [`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod), and
