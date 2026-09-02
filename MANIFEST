@@ -5983,6 +5983,7 @@ lib/FileHandle.t			See if FileHandle works
 lib/filetest.pm				For "use filetest"
 lib/filetest.t				See if filetest works
 lib/generator.pm			generator pragma
+lib/iterator.pm			callable iterator protocol
 lib/Getopt/Std.pm			Fetch command options (getopt, getopts)
 lib/Getopt/Std.t			See if Getopt::Std and Getopt::Long work
 lib/h2ph.t				See if h2ph works like it should
@@ -6939,6 +6940,7 @@ t/op/for-many.t				See if n-at-a-time for loops work
 t/op/fork.t				See if fork works
 t/op/fresh_perl_utf8.t			UTF8 tests for pads and gvs
 t/op/generator.t			See if generator blocks work
+t/op/iterator.t			See if callable iterators work
 t/op/getpid.t				See if $$ and getppid work with threads
 t/op/getppid.t				See if getppid works
 t/op/gh13170-die-destroy-recursion.t	Test die/DESTROY/recursion bug
