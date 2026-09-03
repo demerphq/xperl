@@ -6398,6 +6398,7 @@ pod/perlinterp.pod			Overview of the Perl interpreter source and how it works
 pod/perlintro.pod			Perl introduction for beginners
 pod/perliol.pod				C API for Perl's implementation of IO in Layers
 pod/perlipc.pod				Perl interprocess communication
+pod/perliterator.pod			Callable iterators and their lifecycle
 pod/perllexwarn.pod			Perl warnings and their control
 pod/perllocale.pod			Perl locale support
 pod/perllol.pod				Perl data structures: arrays of arrays

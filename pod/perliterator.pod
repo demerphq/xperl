@@ -1,0 +1,115 @@
+=encoding utf8
+
+=head1 NAME
+
+perliterator - callable iterators and their lifecycle in Perl
+
+=head1 DESCRIPTION
+
+An iterator is a callable piece of code that produces a sequence of results.
+The caller invokes it repeatedly.  Each invocation produces the next result,
+until the iterator has finished.
+
+This document describes the general iterator protocol.  It is deliberately
+simple: an iterator is still an ordinary Perl code reference, with a small
+amount of lifecycle information attached to it.  Generators use this same
+protocol, but add their own mechanism for pausing and resuming code.  See
+L<perlgenerator> for generators.
+
+The iterator protocol is experimental and may change in a future release.
+
+=head1 CREATING AN ITERATOR
+
+Use C<iterator-E<gt>new> with a code reference:
+
+    my @items = qw(red green blue);
+    my $it = iterator->new(sub {
+        state $i = 0;
+        return if $i > $#items;
+        CORE::__SUB__->set_state(iterator::COMPLETED)
+            if $i == $#items;
+        return $items[$i++];
+    });
+
+The returned value is a blessed code reference.  It can therefore be called
+in the normal way:
+
+    say $it->();
+
+The constructor marks the iterator C<RUNNING>.  The code reference itself is
+the iterator; it is not a separate wrapper object.
+
+=head1 LIFECYCLE STATES
+
+The C<iterator> package provides these constants:
+
+=over
+
+=item C<iterator::RUNNING>
+
+The iterator may still produce results.
+
+=item C<iterator::COMPLETED>
+
+The iterator has finished normally.  It may still return its final result on
+the call that changes its state to C<COMPLETED>.
+
+=item C<iterator::FAILED>
+
+An exception escaped from the iterator body.  The original exception is
+rethrown, and later calls cannot make the iterator run again.
+
+=back
+
+An ordinary iterator can set its own state through the special
+C<CORE::__SUB__> reference:
+
+    CORE::__SUB__->set_state(iterator::COMPLETED);
+
+This is useful when the body knows that the value it is about to return is the
+last one.  Returning an empty list or C<undef> does not itself change the
+state.  This is important because both are ordinary values an iterator may
+legitimately return.
+
+If an exception escapes the body, Perl marks the iterator as C<FAILED> and
+rethrows that exception.  An exception caught by an C<eval> inside the body
+does not fail the iterator.
+
+=head1 INSPECTING STATE
+
+The lifecycle predicates can be called as methods:
+
+    $it->running;
+    $it->completed;
+    $it->failed;
+    $it->exhausted;
+
+They are also available as functions in the C<iterator::> package:
+
+    iterator::running($it);
+    iterator::completed($it);
+    iterator::failed($it);
+    iterator::exhausted($it);
+
+C<running> is true while the iterator can still run.  C<completed> and
+C<failed> identify the two ways an iterator can stop.  C<exhausted> is true
+for either stopped state, so it is the convenient test when the reason for
+stopping does not matter.
+
+These checks do not call the iterator or move it forward.  They only inspect
+its current state.  They return C<undef> when given a value that is not an
+iterator.
+
+=head1 GENERATORS
+
+A generator is a specialized callable iterator.  It is also a blessed code
+reference and supports the lifecycle predicates, but its continuation and
+state transitions are controlled by the generator runtime.  Calling
+C<set_state> on a generator is not allowed.  See L<perlgenerator> for the
+C<gen> and C<yield> syntax.
+
+=head1 SEE ALSO
+
+L<perlgenerator>, L<perlsub>, L<perlfunc>
+
+=cut

@@ -55,13 +55,15 @@ and is one-shot, while the saved process state preserves the Perl execution
 context across each suspension.
 
 The related experimental `iterator` package generalizes the callable
-lifecycle protocol to ordinary blessed code references. It provides
+lifecycle protocol to ordinary blessed code references. This lets code use a
+closure as an iterator without confusing an ordinary empty return value with
+the end of the sequence. It provides
 `RUNNING`, `COMPLETED`, and `FAILED` state, with `EXHAUSTED` derived from the
 two terminal states; generator continuation states remain private to the
 generator runtime. An uncaught exception escaping an iterator body marks the
 iterator failed before rethrowing the original exception.
 
-Related POD: [`pod/perlgenerator.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlgenerator.pod) and [`lib/generator.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/generator.pm) describe the combined pragma and generator interface; [`lib/builtin.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/builtin.pm) documents builtin import behavior.  The dedicated POD covers generators,
+Related POD: [`pod/perlgenerator.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlgenerator.pod) and [`lib/generator.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/generator.pm) describe the combined pragma and generator interface; [`pod/perliterator.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perliterator.pod) describes the general callable-iterator protocol; [`lib/iterator.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/iterator.pm) documents its package API; and [`lib/builtin.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/builtin.pm) documents builtin import behavior.  The dedicated POD covers generators,
 continuations, and cooperative resumable execution. [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod),
 [`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod), [`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlsyn.pod), [`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod), and
 [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod) cover the experimental status, keywords, syntax,
