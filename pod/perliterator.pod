@@ -26,7 +26,7 @@ Use C<iterator-E<gt>new> with a code reference:
     my $it = iterator->new(sub {
         state $i = 0;
         return if $i > $#items;
-        CORE::__SUB__->set_state(iterator::COMPLETED)
+        __SUB__->set_state(iterator::COMPLETED)
             if $i == $#items;
         return $items[$i++];
     });
@@ -62,9 +62,9 @@ rethrown, and later calls cannot make the iterator run again.
 =back
 
 An ordinary iterator can set its own state through the special
-C<CORE::__SUB__> reference:
+C<__SUB__> reference:
 
-    CORE::__SUB__->set_state(iterator::COMPLETED);
+    __SUB__->set_state(iterator::COMPLETED);
 
 This is useful when the body knows that the value it is about to return is the
 last one.  Returning an empty list or C<undef> does not itself change the

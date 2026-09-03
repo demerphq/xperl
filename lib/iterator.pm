@@ -19,11 +19,11 @@ iterators.  An iterator is a blessed code reference, so it remains callable
 with the normal Perl syntax.
 
 The constructor marks the code reference as C<RUNNING>.  The iterator body can
-    use C<CORE::__SUB__> to set its state before returning its final value:
+    use C<__SUB__> to set its state before returning its final value:
 
     my $it = iterator->new(sub {
         state $i = 0;
-        CORE::__SUB__->set_state(iterator::COMPLETED) if $i == $#items;
+        __SUB__->set_state(iterator::COMPLETED) if $i == $#items;
         return $items[$i++];
     });
 

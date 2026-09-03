@@ -216,12 +216,12 @@ preserving normal call syntax:
 
     my $it = iterator->new(sub {
         state $i = 0;
-        CORE::__SUB__->set_state(iterator::COMPLETED)
+        __SUB__->set_state(iterator::COMPLETED)
             if $i == $#items;
         return $items[$i++];
     });
 
-The code reference itself is the iterator.  C<CORE::__SUB__> therefore refers
+The code reference itself is the iterator.  C<__SUB__> therefore refers
 to the same callable that the caller invokes.  The constructor marks it
 C<RUNNING>; the body marks it C<COMPLETED> before returning its final value.
 An empty list or C<undef> is an ordinary return value and is not, by itself,
