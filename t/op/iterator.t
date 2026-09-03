@@ -9,7 +9,7 @@ BEGIN {
 use iterator;
 use generator;
 
-plan tests => 29;
+plan tests => 32;
 
 my @items = qw(one two three);
 my $index = 0;
@@ -31,6 +31,10 @@ ok($iterator->exhausted, 'completed iterator is exhausted');
 is(iterator::state($iterator), iterator::COMPLETED,
    'state package function works');
 ok(!iterator::running($iterator), 'running package function sees completion');
+ok(!$iterator->restartable, 'ordinary iterators are not restartable by default');
+eval { $iterator->restart };
+like($@, qr/does not support restarting/,
+    'default restart reports unsupported operation');
 
 my $next_val = iterator->new(sub {
     return wantarray ? @_ : $_[0];
@@ -46,6 +50,7 @@ ok($iterator->completed, 'method setter changes iterator state');
 
 my $generator = gen { yield 1 };
 ok($generator->isa('iterator'), 'generator inherits from iterator');
+ok(!$generator->restartable, 'generators are not restartable by default');
 my $method_generator = gen { yield @_ };
 is(join(',', $method_generator->next_val(21, 22)), '21,22',
     'generator inherits next_val');

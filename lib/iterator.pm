@@ -11,6 +11,14 @@ sub next_val {
     return $iterator->(@_);
 }
 
+sub restartable {
+    return;
+}
+
+sub restart {
+    die "iterator does not support restarting\n";
+}
+
 1;
 
 =head1 NAME
@@ -51,5 +59,9 @@ cannot be changed with C<set_state>.
 The usual spelling for the current callable is C<__SUB__>.  Its fully
 qualified spelling, C<CORE::__SUB__>, is also available when the unqualified
 keyword is not enabled.
+
+The default iterator is not restartable.  Classes that can recreate their
+sequence may override C<restartable> and C<restart>; the base C<restart>
+method reports that restarting is unsupported.
 
 =cut
