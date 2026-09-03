@@ -60,9 +60,9 @@ closure as an iterator without confusing an ordinary empty return value with
 the end of the sequence. It provides
 `RUNNING`, `COMPLETED`, and `FAILED` state, with `EXHAUSTED` derived from the
 two terminal states; generator continuation states remain private to the
-generator runtime. An uncaught exception escaping an iterator body marks the
-iterator body is rethrown without changing its state; the iterator
-implementation or caller may explicitly mark it failed.
+generator runtime. An uncaught exception escaping an iterator body is
+rethrown without changing its state; the iterator implementation or caller
+may explicitly mark it failed.
 The iterator contract requires code presenting itself as an iterator to report
 completion accurately, so `exhausted` is reliable even when an empty list is a
 valid ordinary result.

@@ -41,8 +41,9 @@ the iterator; it is not a separate wrapper object.
 
 The central responsibility of an iterator is to report its lifecycle
 correctly.  Code that presents itself as an iterator must set
-C<COMPLETED> when it can produce no more results, or let an escaping exception
-become C<FAILED>.  Consumers can then use C<exhausted> reliably instead of
+C<COMPLETED> when it can produce no more results, or explicitly set C<FAILED>
+when an escaping exception should terminate it.  Consumers can then use
+C<exhausted> reliably instead of
 trying to guess whether an ordinary return value, including an empty list,
 means that the sequence has ended.
 
