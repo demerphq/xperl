@@ -50,7 +50,9 @@ An empty return is therefore not, by itself, evidence of exhaustion.
 An iterator is expected to maintain this state accurately.  In particular, it
 must mark itself C<COMPLETED> when it has no more results to produce.  This is
 what allows callers to distinguish an ordinary empty return from the end of a
-sequence.
+sequence.  Perl does not automatically mark an iterator C<FAILED> when its
+body dies; the iterator implementation or its caller decides whether that is
+the appropriate state.
 
 The C<generator> package is a specialized iterator with additional
 continuation state.  Generator state is managed by the generator runtime and

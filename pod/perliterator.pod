@@ -95,9 +95,11 @@ last one.  Returning an empty list or C<undef> does not itself change the
 state.  This is important because both are ordinary values an iterator may
 legitimately return.
 
-If an exception escapes the body, Perl marks the iterator as C<FAILED> and
-rethrows that exception.  An exception caught by an C<eval> inside the body
-does not fail the iterator.
+If an exception escapes the body, Perl rethrows that exception but does not
+automatically change the iterator's state.  The iterator implementation or
+its caller may set C<FAILED> if that is the desired policy.  An exception
+caught by an C<eval> inside the body likewise does not change the iterator's
+state.
 
 =head1 INSPECTING STATE
 

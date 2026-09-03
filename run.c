@@ -55,23 +55,6 @@ static MGVTBL S_iterator_magic = {
     0, 0, 0
 };
 
-void
-Perl_iterator_mark_failed(pTHX_ CV *cv)
-{
-    MAGIC *mg;
-    PERL_ITERATOR *iterator;
-
-    PERL_ARGS_ASSERT_ITERATOR_MARK_FAILED;
-    if (!cv || SvTYPE(cv) != SVt_PVCV)
-        return;
-    mg = mg_findext(MUTABLE_SV(cv), PERL_MAGIC_ext, &S_iterator_magic);
-    if (!mg)
-        return;
-    iterator = (PERL_ITERATOR *)mg->mg_ptr;
-    if (iterator && iterator->magic == PERL_ITERATOR_MAGIC)
-        iterator->state = PERL_ITERATOR_FAILED;
-}
-
 static PERL_ITERATOR *
 S_iterator_from_sv(pTHX_ SV *sv)
 {

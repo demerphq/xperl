@@ -9,7 +9,7 @@ BEGIN {
 use iterator;
 use generator;
 
-plan tests => 32;
+plan tests => 33;
 
 my @items = qw(one two three);
 my $index = 0;
@@ -65,7 +65,9 @@ my $failed = iterator->new(sub { die "iterator failure\n" });
 my $failure_result = eval { $failed->() };
 like($@, qr/iterator failure/, 'iterator exception is rethrown');
 ok(!$failure_result, 'failed iterator call has no result');
-ok($failed->failed, 'escaping exception marks iterator failed');
+ok(!$failed->failed, 'escaping exception does not choose iterator state');
+$failed->set_state(iterator::FAILED);
+ok($failed->failed, 'caller can mark an iterator failed');
 ok($failed->exhausted, 'failed iterator is exhausted');
 ok(!$failed->completed, 'failed iterator is not completed');
 

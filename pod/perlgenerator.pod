@@ -247,12 +247,12 @@ failed:
     $it->failed;
     $it->exhausted;
 
-If an exception escapes an ordinary iterator body, the runtime marks it
-failed and rethrows the original exception.  An exception caught by an
-C<eval> inside the body does not fail the iterator.  C<iterator::set_state>
-changes the lifecycle state of an ordinary iterator; generator continuation
-state is managed by the generator runtime and cannot be changed through this
-setter.
+If an exception escapes an ordinary iterator body, the runtime rethrows the
+original exception but does not automatically mark the iterator failed.  The
+iterator implementation or its caller can use C<iterator::set_state> to make
+that decision.  An exception caught by an C<eval> inside the body does not
+change the iterator's state.  Generator continuation state is managed by the
+generator runtime and cannot be changed through this setter.
 
 Generators inherit this lifecycle protocol, but their C<NEW>, C<YIELDED>, and
 continuation state remain internal to the generator implementation.

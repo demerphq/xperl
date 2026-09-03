@@ -2177,19 +2177,6 @@ Perl_die_unwind(pTHX_ SV *msv)
             JMPENV *restartjmpenv;
             OP *restartop;
 
-            /* An iterator's lifecycle follows exceptions that escape its
-             * subroutine, but not exceptions caught by an eval inside it. */
-            {
-                I32 iterator_cxix;
-                for (iterator_cxix = cxstack_ix;
-                     iterator_cxix > cxix; iterator_cxix--) {
-                    PERL_CONTEXT *iterator_cx = &cxstack[iterator_cxix];
-                    if (CxTYPE(iterator_cx) == CXt_SUB
-                        && !(iterator_cx->cx_type & CXp_SUB_RE_FAKE))
-                        iterator_mark_failed(iterator_cx->blk_sub.cv);
-                }
-            }
-
             if (cxix < cxstack_ix)
                 dounwind(cxix);
 

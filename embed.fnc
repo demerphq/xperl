@@ -2064,8 +2064,6 @@ ARTdip	|bool	|is_utf8_valid_partial_char_flags			\
 				|SPTR const U8 * const s0		\
 				|EPTRgt const U8 * const e		\
 				|const U32 flags
-Chp	|void	|iterator_mark_failed					\
-				|NN CV *cv
 
 : Used in perly.y
 p	|OP *	|jmaybe 	|NN OP *o
