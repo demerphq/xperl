@@ -39,6 +39,11 @@ in the normal way:
 The constructor marks the iterator C<RUNNING>.  The code reference itself is
 the iterator; it is not a separate wrapper object.
 
+C<__SUB__> is the usual spelling when the feature providing that keyword is
+enabled.  The fully qualified C<CORE::__SUB__> spelling refers to the same
+callable and can be used explicitly when the unqualified keyword is not
+enabled.
+
 =head1 LIFECYCLE STATES
 
 The C<iterator> package provides these constants:

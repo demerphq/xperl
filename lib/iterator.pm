@@ -35,4 +35,8 @@ The C<generator> package is a specialized iterator with additional
 continuation state.  Generator state is managed by the generator runtime and
 cannot be changed with C<set_state>.
 
+The usual spelling for the current callable is C<__SUB__>.  Its fully
+qualified spelling, C<CORE::__SUB__>, is also available when the unqualified
+keyword is not enabled.
+
 =cut
