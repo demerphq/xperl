@@ -39,6 +39,11 @@ The state describes whether another call may produce a value.  A completed
 iterator may still return its final value on the call that marks it completed.
 An empty return is therefore not, by itself, evidence of exhaustion.
 
+An iterator is expected to maintain this state accurately.  In particular, it
+must mark itself C<COMPLETED> when it has no more results to produce.  This is
+what allows callers to distinguish an ordinary empty return from the end of a
+sequence.
+
 The C<generator> package is a specialized iterator with additional
 continuation state.  Generator state is managed by the generator runtime and
 cannot be changed with C<set_state>.

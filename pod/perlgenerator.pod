@@ -233,6 +233,11 @@ C<RUNNING>; the body marks it C<COMPLETED> before returning its final value.
 An empty list or C<undef> is an ordinary return value and is not, by itself,
 evidence that the iterator is exhausted.
 
+This lifecycle reporting is the point of the iterator protocol.  Anything
+that presents itself as an iterator is expected to mark itself completed when
+it has no more results, so callers can use C<exhausted> without guessing what
+an ordinary return value means.
+
 The lifecycle predicates are available as methods and as functions in the
 C<iterator::> package.  An iterator is exhausted when it is completed or
 failed:
