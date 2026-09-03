@@ -6,6 +6,11 @@ sub RUNNING   () { 1 }
 sub COMPLETED () { 2 }
 sub FAILED    () { 3 }
 
+sub next_val {
+    my $iterator = shift;
+    return $iterator->(@_);
+}
+
 1;
 
 =head1 NAME
@@ -17,6 +22,9 @@ iterator - lifecycle protocol for callable iterators
 The C<iterator> package provides the lifecycle protocol used by callable
 iterators.  An iterator is a blessed code reference, so it remains callable
 with the normal Perl syntax.
+
+The C<next_val> method is a convenience spelling for calling that code
+reference.  It forwards all arguments and preserves the caller's context.
 
 The constructor marks the code reference as C<RUNNING>.  The iterator body can
     use C<__SUB__> to set its state before returning its final value:

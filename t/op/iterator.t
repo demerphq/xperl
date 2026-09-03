@@ -9,7 +9,7 @@ BEGIN {
 use iterator;
 use generator;
 
-plan tests => 26;
+plan tests => 29;
 
 my @items = qw(one two three);
 my $index = 0;
@@ -32,6 +32,13 @@ is(iterator::state($iterator), iterator::COMPLETED,
    'state package function works');
 ok(!iterator::running($iterator), 'running package function sees completion');
 
+my $next_val = iterator->new(sub {
+    return wantarray ? @_ : $_[0];
+});
+is($next_val->next_val(11), 11, 'next_val forwards scalar calls');
+is(join(',', $next_val->next_val(12, 13)), '12,13',
+    'next_val preserves list context');
+
 iterator::set_state($iterator, iterator::RUNNING);
 ok($iterator->running, 'package setter changes iterator state');
 $iterator->set_state(iterator::COMPLETED);
@@ -39,6 +46,9 @@ ok($iterator->completed, 'method setter changes iterator state');
 
 my $generator = gen { yield 1 };
 ok($generator->isa('iterator'), 'generator inherits from iterator');
+my $method_generator = gen { yield @_ };
+is(join(',', $method_generator->next_val(21, 22)), '21,22',
+    'generator inherits next_val');
 ok(iterator::running($generator), 'iterator predicate accepts generators');
 is(iterator::state($generator), iterator::RUNNING,
    'iterator state maps generator suspension state');

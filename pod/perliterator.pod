@@ -39,6 +39,18 @@ in the normal way:
 The constructor marks the iterator C<RUNNING>.  The code reference itself is
 the iterator; it is not a separate wrapper object.
 
+=head1 CALLING AN ITERATOR
+
+An iterator can be called directly, or through the C<next_val> convenience
+method:
+
+    my $value = $it->next_val;
+
+C<next_val> forwards its arguments to the underlying code reference and
+preserves scalar, list, and void context.  It is therefore equivalent to
+calling C<$it-E<gt>()>; it does not change the iterator's lifecycle state by
+itself.
+
 C<__SUB__> is the usual spelling when the feature providing that keyword is
 enabled.  The fully qualified C<CORE::__SUB__> spelling refers to the same
 callable and can be used explicitly when the unqualified keyword is not

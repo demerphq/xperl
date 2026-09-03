@@ -56,6 +56,12 @@ The generator remembers where it stopped.  This saved point is sometimes
 called a continuation; here it simply means “the rest of the generator that
 has not run yet”.
 
+Generators also inherit the C<next_val> convenience method from the
+C<iterator> package.  It is a method spelling of calling the generator and
+preserves the arguments and context of the call:
+
+    my $value = $counter->next_val;
+
 =head1 GENERATOR KEYWORDS
 
 =head2 gen BLOCK
