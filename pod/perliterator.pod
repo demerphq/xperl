@@ -140,15 +140,12 @@ The default implementation returns false.  The default C<restart> method
 throws an exception saying that the iterator does not support restarting.
 This makes restart behavior explicit: a class that can recreate its sequence
 may override both methods, while callers can inspect C<restartable> before
-requesting a restart.  Generators use the default non-restartable behavior.
+requesting a restart.
 
-=head1 GENERATORS
+=head1 GENERATOR SUBCLASS
 
-A generator is a specialized callable iterator.  It is also a blessed code
-reference and supports the lifecycle predicates, but its continuation and
-state transitions are controlled by the generator runtime.  Calling
-C<set_state> on a generator is not allowed.  See L<perlgenerator> for the
-C<gen> and C<yield> syntax.
+A generator is a specialized iterator with its own continuation mechanism.
+See L<perlgenerator> for its interface and behavior.
 
 =head1 SEE ALSO
 

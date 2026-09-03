@@ -54,9 +54,8 @@ sequence.  Perl does not automatically mark an iterator C<FAILED> when its
 body dies; the iterator implementation or its caller decides whether that is
 the appropriate state.
 
-The C<generator> package is a specialized iterator with additional
-continuation state.  Generator state is managed by the generator runtime and
-cannot be changed with C<set_state>.
+The C<generator> package is a specialized iterator.  Its continuation and
+state behavior are documented separately.
 
 The usual spelling for the current callable is C<__SUB__>.  Its fully
 qualified spelling, C<CORE::__SUB__>, is also available when the unqualified
