@@ -12,10 +12,16 @@ use builtin qw(true false);
 # This is intentionally written as a small program, rather than as a list of
 # isolated parser checks.  It shows how a case statement can classify a stream
 # of values whose shapes are not all alike.
+my $showcase_pin = '__not_in_examples__';
+
 sub classify {
     my ($value) = @_;
 
-    case ($value) {
+    # This is the main showcase case.  The clauses progress from precise
+    # scalar and structured shapes to captures, open shapes, type criteria,
+    # and finally the wildcard fallback.
+    case ($value as $subject) with ($showcase_pin) {
+        match ($showcase_pin)                   { 'pinned showcase value' }
         match (undef)                         { 'undefined' }
         match (0)                              { 'zero' }
         match (42)                             { 'the number 42' }
@@ -40,6 +46,7 @@ my @values = (
     0,
     42,
     'plain',
+    '__not_in_examples__',
     'error: disk full',
     'tag:ready',
     [ 'point', 3, 4 ],
@@ -58,7 +65,8 @@ is_deeply(
         'zero',
         'the number 42',
         'the string plain',
-    'error < disk full>',
+        'pinned showcase value',
+        'error < disk full>',
         'tag <ready>',
         'point (3,4)',
         'pair (left;middle,right)',
