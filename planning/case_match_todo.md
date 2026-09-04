@@ -1,7 +1,7 @@
 # `case`/`match` follow-up work
 
 This document records the remaining work for the experimental
-`case_match` feature on the `yves/pattern_match` branch.  It is intentionally
+`case_match` feature on the `xperl/case_match` branch.  It is intentionally
 implementation-focused: the broader language proposal remains in
 [`perl-pattern-matching.md`](perl-pattern-matching.md).
 
@@ -33,52 +33,18 @@ The branch currently provides:
   and floating-point values;
 - documentation in `pod/perlcasematch.pod`, `pod/perlsyn.pod`, and
   `BLEAD-DELTA.md`;
-- focused compiler/runtime coverage in `t/comp/case_match.t`.
+- focused compiler/runtime coverage in `t/comp/case_match.t`;
+- a single readable feature showcase in `t/comp/case_match_examples.t`.
 
-The current implementation still uses parts of the existing `given`/`when`
-control-flow machinery internally.  That is an implementation detail, but it
-is also the main area where the current runtime does not yet match the clean
-long-term design.
+The case/match implementation now has dedicated case and clause operations.
+It does not construct case clauses through the legacy given/when block builder,
+and its runtime dispatch is separate from given/when semantics.  The remaining
+work below is therefore hardening and extension, not a replacement of the
+basic control-flow representation.
 
 ## Priority 1: make the basic implementation correct and maintainable
 
-### 1. Give case/match independent control-flow implementation
-
-The current optree contains case-specific entry/leave operations layered onto
-the older `given`/`when` machinery.  This must be replaced: `case`/`match`
-and `given`/`when` are alternatives at the language level, but they must not
-share non-trivial implementation machinery.  In particular, removing one
-feature should not change the other, and case/match must not inherit switch
-fall-through, smartmatch, or other legacy control-flow behavior.
-
-The preferred target is a case-specific structure equivalent to:
-
-```text
-entercase
-    casedispatch or ordered clause tests
-        clause body
-leavecase
-```
-
-Requirements:
-
-- no implicit fall-through;
-- exactly one clause runs;
-- the case behaves as a labelled block;
-- `last LABEL` exits the case;
-- `next LABEL` leaves the current case execution and enters the next labelled
-  iteration when the surrounding construct gives it loop semantics;
-- `redo LABEL` restarts the labelled case subject evaluation and clause search;
-- nested cases do not corrupt the outer case context;
-- legacy `given`/`when` behavior remains unchanged.
-
-Introduce dedicated case operations and runtime context handling, and remove
-the unnecessary given/when layers from case/match.  Small, genuinely generic
-helpers may remain shared only when they have no feature-specific semantics;
-the case and given/when operation trees, context types, and dispatch paths
-must otherwise be independently maintainable.
-
-### 2. Make pattern compilation ownership explicit
+### 1. Make pattern compilation ownership explicit
 
 The pattern auxiliary tree must have clear ownership rules for every retained
 `OP`, `SV`, and auxiliary array.  In particular:
@@ -96,7 +62,7 @@ the normal multiconcat optimizer leaves their structure intact.  This should
 be reviewed against future optimizer changes and covered by an explicit
 ownership/regression test.
 
-### 3. Clarify and enforce duplicate rules
+### 2. Clarify and enforce duplicate rules
 
 For pure constant cases, duplicate values cannot select different clauses: only
 the earliest source clause is reachable.  The implementation currently retains
@@ -114,7 +80,7 @@ both source locations.
 
 ## Priority 2: finish constant dispatch
 
-### 4. Complete the optimized representations
+### 3. Audit optimized representations and cloning
 
 Keep the array and HV strategies distinct:
 
@@ -137,7 +103,7 @@ Absent domains must not be represented by ambiguous zero values.  IV and UV
   bounds must use scalar lengths without constructing unnecessary temporary
   strings.
 
-### 5. Improve dispatch selection
+### 4. Improve dispatch selection
 
 The current automatic policy is provisional: linear probing below 16 clauses and
 binary search at 16 clauses or above.  Benchmark and tune the crossover by:
@@ -165,7 +131,7 @@ compiler, CPU, and exact benchmark command.  Keep benchmark scripts and
 results under `planning/scripts/`; they are developer tools, not language
 interfaces.
 
-### 6. Add conditional-tree lowering
+### 5. Add conditional-tree lowering
 
 For small pure constant cases with no guards, generate an ordinary conditional
 optree when it is faster than the generic case machinery.  The generated
@@ -190,7 +156,7 @@ for comparison tests.
 
 ## Priority 3: complete pattern semantics
 
-### 7. Composite scalar patterns
+### 6. Composite scalar patterns
 
 The current implementation supports one unpinned scalar capture surrounded by
 literal concatenation fragments.  Define and test the next boundary before
@@ -209,12 +175,11 @@ Do not silently evaluate arbitrary calls or arithmetic as pattern syntax.
 If a richer pattern expression is eventually allowed, specify exactly which
 operators are structural and how bindings are obtained.
 
-### 8. Regex patterns
+### 7. Regex-pattern hardening
 
-The current runtime supports regex data shapes.  A successful regular
-expression updates the usual Perl capture variables, and each named capture
-also binds a clause-local scalar.  A named capture that did not participate is
-bound to `undef`.  Remaining work includes:
+Regex data shapes, ordinary captures, named clause-local bindings, and
+`undef` for nonparticipating named captures are implemented.  Remaining
+hardening includes:
 
 - behavior for duplicate named captures;
 - evaluation of subject and regex exactly once;
@@ -223,7 +188,7 @@ bound to `undef`.  Remaining work includes:
 - preservation of `$1`, `$2`, `%+`, and related legacy behavior outside the
   pattern-binding interface.
 
-### 9. Object and class patterns
+### 8. Object and class patterns
 
 Add object/class destructuring only through an explicit, documented protocol.
 Pattern matching must not call constructors or arbitrary methods merely to
@@ -239,7 +204,7 @@ Define behavior for:
 - failed field reads and exceptions;
 - aliases and reference identity.
 
-### 10. Additional pattern forms
+### 9. Additional pattern forms
 
 These remain deliberately deferred until the current foundation is stable:
 
@@ -256,7 +221,7 @@ rules before implementation.
 
 ## Priority 4: context, exceptions, and compatibility
 
-### 11. Context and result behavior
+### 10. Context and result behavior
 
 Test every supported pattern and clause form in scalar, list, and void context.
 Confirm that:
@@ -270,7 +235,7 @@ Confirm that:
 - subject evaluation and pattern evaluation do not accidentally change
   context.
 
-### 12. Exception and cleanup behavior
+### 11. Exception and cleanup behavior
 
 Verify nested and outer `eval`, `die` in subjects, patterns, guards, and clause
 bodies, plus exceptions during cleanup and destruction.  Confirm:
@@ -281,7 +246,7 @@ bodies, plus exceptions during cleanup and destruction.  Confirm:
 - nested cases restore their parent state;
 - fatal interpreter-wide failures remain interpreter-wide.
 
-### 13. Magic, aliases, and mutation
+### 12. Magic, aliases, and mutation
 
 Expand tests for:
 
@@ -296,7 +261,7 @@ Expand tests for:
 The case subject should be fetched once for matching, while the clause body must
 still be able to modify the original lvalue.
 
-### 14. Threaded and cloning support
+### 13. Threaded and cloning support
 
 Run the complete focused suite under threaded and non-threaded builds.  Add
 tests for cloning compiled pattern representations, values, pads, and case
@@ -304,9 +269,10 @@ contexts.  Then exercise DEBUGGING, ASAN, and LSan configurations.  Leak runs
 must use `PERL_DESTRUCT_LEVEL=2`; reports from ptrace-restricted processes are
 not valid LSan evidence.
 
-## Priority 5: tooling and documentation
+## Documentation maintenance
 
-Update together whenever semantics change:
+The main documentation for the currently implemented feature is in place.
+Whenever semantics change, update the related documents together:
 
 - `pod/perlcasematch.pod` in a beginner-friendly, CS-101 style;
 - `pod/perlsyn.pod` for syntax and precise semantics;
@@ -322,17 +288,15 @@ Every parser or opcode change must be followed by the appropriate regeneration
 using the system Perl, and the grammar must remain conflict-free.  Focused
 tests should be runnable from both the repository root and the `t/` directory.
 
-## Suggested execution order
+## Suggested execution order for the remaining work
 
-1. Add duplicate-pattern diagnostics and close ownership/cleanup gaps.
-2. Audit and, if justified, replace the remaining given/when control-flow
-   layers.
-3. Finish benchmark coverage and tune constant dispatch.
-4. Implement small-case conditional-tree lowering.
-5. Add regex named bindings and then object/class patterns.
-6. Expand context, exception, magic, mutation, cloning, and sanitizer tests.
-7. Synchronize all documentation and generated files.
-8. Run focused suites, porting checks, `make regen`, and finally `make_test`.
+1. Close ownership, cleanup, and duplicate-pattern gaps.
+2. Finish benchmark coverage and tune constant dispatch.
+3. Implement and validate small-case conditional-tree lowering.
+4. Harden regex behavior and add object/class patterns.
+5. Expand context, exception, magic, mutation, cloning, and sanitizer tests.
+6. Synchronize documentation and generated files as semantics change.
+7. Run focused suites, porting checks, `make regen`, and finally `make_test`.
 
 Do not mark the feature complete until the implementation, optimizer behavior,
 exception/cleanup paths, documentation, and the full relevant test matrix all
