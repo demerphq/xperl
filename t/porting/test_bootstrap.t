@@ -23,6 +23,7 @@ my %exceptions = (
  parser_run => "require './test.pl'",
  proto => 'use strict',
  namespaces => qr/^\s*use (?:feature 'namespaces'|Carp as C);/m,
+ case_match => qr/^\s*use (?:v5\.45\.3|strict|warnings|feature (?:'case_match'|qw\(case_match namespaces\))|builtin qw\(true false\));/m,
  );
 
 while (my $file = <$fh>) {
