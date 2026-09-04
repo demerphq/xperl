@@ -1014,6 +1014,8 @@ Perl_parser_free(pTHX_  const yy_parser *parser)
     SvREFCNT_dec(parser->rsfp_filters);
     SvREFCNT_dec(parser->lex_stuff);
     SvREFCNT_dec(parser->lex_sub_repl);
+    SvREFCNT_dec(parser->case_pattern_vars);
+    SvREFCNT_dec(parser->case_pattern_pins);
 
     Safefree(parser->lex_brackstack);
     Safefree(parser->lex_casestack);
@@ -7278,6 +7280,21 @@ yyl_snail(pTHX_ char *s)
         POSTDEREF(PERLY_SNAIL);
     PL_tokenbuf[0] = '@';
     s = scan_ident(s, PL_tokenbuf + 1, C_ARRAY_END(PL_tokenbuf), 0);
+    PL_parser->case_slurp_min = 0;
+    if (PL_parser->in_case_pattern && PL_tokenbuf[1] && *s == ':') {
+        char *p = skipspace(s + 1);
+        if (isDIGIT(*p)) {
+            UV min = 0;
+            do {
+                min = min * 10 + (*p - '0');
+                if (min > 255)
+                    Perl_croak(aTHX_ "array slurp minimum must be between 0 and 255");
+                p++;
+            } while (isDIGIT(*p));
+            PL_parser->case_slurp_min = (U32)min;
+            s = p;
+        }
+    }
     S_warn_expect_operator(aTHX_ "Array", s, POP_OLDBUFPTR);
     pl_yylval.ival = 0;
     if (!PL_tokenbuf[1]) {
@@ -8280,6 +8297,12 @@ yyl_just_a_word(pTHX_ char *s, STRLEN len, I32 orig_keyword, struct code c)
        called.  intuit_method returns 0 or > 255.  */
     int key = 1;
 
+    /* The contents of match(...) are pattern syntax.  In particular, the
+     * wildcard is not an ordinary Perl bareword and must remain available
+     * when strict subs is enabled by a version declaration. */
+    if (PL_parser->in_case_pattern && len == 1 && PL_tokenbuf[0] == '_')
+        return yyl_fatcomma(aTHX_ s, len);
+
     if (PL_expect == XOPERATOR) {
         if (PL_bufptr == PL_linestart) {
             CopLINE_dec(PL_curcop);
@@ -8650,6 +8673,15 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
     case KEY_catch:
         PREBLOCK(KW_CATCH);
 
+    case KEY_case:
+        pl_yylval.ival = CopLINE(PL_curcop);
+        OPERATOR(KW_CASE);
+
+    case KEY_FloatVal:
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_FloatVal);
+
     case KEY_chop:
         UNI(OP_CHOP);
 
@@ -8988,6 +9020,25 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
     case KEY_int:
         UNI(OP_INT);
 
+    case KEY_IntVal:
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_IntVal);
+
+    case KEY_RefVal:
+        if (!PL_parser->in_case_pattern)
+            return yyl_just_a_word(aTHX_ s, len, orig_keyword, c);
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_RefVal);
+
+    case KEY_ScalarVal:
+        if (!PL_parser->in_case_pattern)
+            return yyl_just_a_word(aTHX_ s, len, orig_keyword, c);
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_ScalarVal);
+
     case KEY_ioctl:
         LOP(OP_IOCTL,XTERM);
 
@@ -9052,6 +9103,16 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
 
     case KEY_map:
         LOP(OP_MAPSTART, XREF);
+
+    case KEY_match:
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_MATCH);
+
+    case KEY_with:
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_WITH);
 
     case KEY_mkdir:
         LOP(OP_MKDIR,XTERM);
@@ -9385,6 +9446,18 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
         PL_expect = XTERM;
         s = force_word(s, BAREWORD, CHECK_KEYWORD | ALLOW_PACKAGE);
         LOP(OP_SORT,XREF);
+
+    case KEY_StrVal:
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_StrVal);
+
+    case KEY_ObjectVal:
+        if (!PL_parser->in_case_pattern)
+            return yyl_just_a_word(aTHX_ s, len, orig_keyword, c);
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_ObjectVal);
 
     case KEY_split:
         LOP(OP_SPLIT,XTERM);
@@ -9779,7 +9852,8 @@ yyl_keylookup(pTHX_ char *s, GV *gv)
 
     /* Check for built-in keyword */
     key = keyword(PL_tokenbuf, len, 0);
-    if ((!key || key == -KEY_as) && FEATURE_NAMESPACES_IS_ENABLED
+    if ((!key || key == -KEY_as)
+        && (FEATURE_NAMESPACES_IS_ENABLED || PL_parser->in_case_header)
         && memEQs(PL_tokenbuf, len, "as"))
         key = KEY_as;
 
@@ -9912,8 +9986,7 @@ yyl_try(pTHX_ char *s)
             }
             if (PL_minus_E)
                 sv_catpvs(PL_linestr,
-                          "use feature ':" STRINGIFY(PERL_REVISION) "." STRINGIFY(PERL_VERSION) "'; "
-                          "use builtin ':" STRINGIFY(PERL_REVISION) "." STRINGIFY(PERL_VERSION) "';");
+                          "use feature ':all'; use builtin ':all';");
             if (PL_minus_n || PL_minus_p) {
                 sv_catpvs(PL_linestr, "LINE: while (<>) {"/*}*/);
                 if (PL_minus_l)
@@ -10180,6 +10253,10 @@ yyl_try(pTHX_ char *s)
             PL_expect = XSTATE;
             /* formbrack==2 means dot seen where arguments expected */
             return yyl_rightcurly(aTHX_ s, 2);
+        }
+        if (PL_parser->in_case_pattern && s[1] == '.' && s[2] == '.') {
+            s += 3;
+            TOKEN(CASE_ELLIPSIS);
         }
         if (PL_expect == XSTATE && s[1] == '.' && s[2] == '.') {
             s += 3;
@@ -10690,6 +10767,41 @@ S_pending_ident(pTHX)
           "### Pending identifier '%s'\n", PL_tokenbuf); });
     assert(tokenbuf_len >= 2);
 
+    /* A scalar or array name in a case pattern is a pattern binding, not an access to
+     * an ordinary Perl lexical.  The surrounding match clause already supplies
+     * the lexical scope.  Keep a small parser-local name map so repeated
+     * occurrences of a binding refer to the same pad entry, while using
+     * padadd_NO_DUP_CHECK to make a clause-local binding quiet when it shadows
+     * a lexical in the surrounding scope. */
+    if (PL_parser->in_case_pattern
+        && !has_colon
+        && (PL_tokenbuf[0] == '$' || PL_tokenbuf[0] == '@'))
+    {
+        const PADOFFSET existing = pad_findmy_pvn(PL_tokenbuf,
+                                                  tokenbuf_len, 0);
+        SV **const found = hv_fetch(PL_parser->case_pattern_vars,
+                                    PL_tokenbuf, tokenbuf_len, FALSE);
+        PADOFFSET off;
+
+        if (!(existing != NOT_IN_PAD
+              && PL_parser->case_pattern_pins
+              && hv_exists(PL_parser->case_pattern_pins,
+                           (const char *)&existing, sizeof(existing)))) {
+            if (found)
+                off = (PADOFFSET)SvUV(*found);
+            else {
+                off = pad_add_name_pvn(PL_tokenbuf, tokenbuf_len,
+                                       padadd_NO_DUP_CHECK, NULL, NULL);
+                (void)hv_store(PL_parser->case_pattern_vars,
+                               PL_tokenbuf, tokenbuf_len, newSVuv((UV)off), 0);
+            }
+
+            pl_yylval.opval = newOP(OP_PADANY, 0);
+            pl_yylval.opval->op_targ = off;
+            return PRIVATEREF;
+        }
+    }
+
     /* if we're in a my(), we can't allow dynamics here.
        $foo'bar has already been turned into $foo::bar, so
        just check for colons.
@@ -10804,6 +10916,33 @@ S_pending_ident(pTHX)
                       : (PL_tokenbuf[0] == '@') ? SVt_PVAV
                       : SVt_PVHV));
     return BAREWORD;
+}
+
+static void
+S_case_pattern_note_pin_ops(pTHX_ const OP *op)
+{
+    const OP *kid;
+
+    if (!op)
+        return;
+    if (op->op_type == OP_PADSV || op->op_type == OP_PADSV_STORE) {
+        const PADOFFSET off = op->op_targ;
+        if (!PL_parser->case_pattern_pins)
+            PL_parser->case_pattern_pins = newHV();
+        (void)hv_store(PL_parser->case_pattern_pins,
+                       (const char *)&off, sizeof(off), newSViv(1), 0);
+        return;
+    }
+    if (op->op_flags & OPf_KIDS)
+        for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid))
+            S_case_pattern_note_pin_ops(aTHX_ kid);
+}
+
+void
+Perl_case_pattern_note_pins(pTHX_ const OP *pins)
+{
+    PERL_ARGS_ASSERT_CASE_PATTERN_NOTE_PINS;
+    S_case_pattern_note_pin_ops(aTHX_ pins);
 }
 
 static void

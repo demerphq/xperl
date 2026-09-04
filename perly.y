@@ -69,6 +69,8 @@
 %token <ival> KW_IF KW_ELSE KW_ELSIF KW_UNLESS
 %token <ival> KW_FOR KW_UNTIL KW_WHILE KW_CONTINUE
 %token <ival> KW_GIVEN KW_WHEN KW_DEFAULT
+%token <ival> KW_CASE KW_MATCH KW_WITH KW_IntVal KW_FloatVal KW_StrVal
+%token <ival> KW_RefVal KW_ScalarVal KW_ObjectVal
 %token <ival> KW_TRY KW_CATCH KW_FINALLY KW_DEFER KW_GEN KW_YIELD
 %token <ival> KW_REQUIRE KW_DO
 
@@ -85,7 +87,7 @@
 %token <opval> FUNC0OP FUNC0SUB UNIOPSUB LSTOPSUB
 %token <opval> PLUGEXPR PLUGSTMT
 %token <opval> LABEL PROTOTYPE
-%token <ival> LOOPEX DOTDOT YADAYADA
+%token <ival> LOOPEX DOTDOT YADAYADA CASE_ELLIPSIS
 %token <ival> FUNC0 FUNC1 FUNC UNIOP LSTOP BLKLSTOP
 %token <ival> POWOP MULOP ADDOP
 %token <ival> DOLSHARP HASHBRACK NOAMP
@@ -96,6 +98,10 @@
 %type <ival> grammar remember mremember
 
 %type <opval> bare_statement_block
+%type <opval> bare_statement_case bare_statement_match case_subject_alias
+%type <opval> case_subject_pins case_subject_pin_expr case_local_scalar
+%type <opval> case_mblock case_match_stmtseq case_match_guard case_pattern_target
+%type <ival> case_pattern_start case_pattern_end case_subject_type
 %type <opval> bare_statement_class_declaration
 %type <opval> bare_statement_class_definition
 %type <opval> bare_statement_role_declaration
@@ -281,6 +287,253 @@ bare_statement_block
 			$$ = new_block_statement ($block, $cont);
 		}
 	;
+
+bare_statement_case
+	: KW_CASE
+		{ parser->in_case_header = TRUE; }
+		PERLY_PAREN_OPEN
+		remember
+		case_subject_type
+		mexpr
+		case_subject_alias
+		PERLY_PAREN_CLOSE
+		case_subject_pins
+		case_mblock
+		{
+			OP *subject = $mexpr;
+			if ($case_subject_type) {
+				subject = newUNOP(OP_CASECOERCE, 0, subject);
+				subject->op_targ = $case_subject_type;
+			}
+			OP *body = $case_mblock;
+			UNOP_AUX_item *dispatch = case_dispatch_compile(body);
+			if (dispatch)
+				body = op_prepend_elem(OP_LINESEQ,
+					newUNOP_AUX(OP_CASEDISPATCH, 0, NULL, dispatch), body);
+			if ($case_subject_alias)
+				subject = newASSIGNOP(0, $case_subject_alias, 0, subject);
+			if ($case_subject_pins)
+				body = op_prepend_elem(OP_LINESEQ,
+					newLISTOP(OP_CASEWITH, OPf_WANT_LIST,
+						$case_subject_pins, NULL), body);
+			OP *scoped_body = op_scope(body);
+			OP *caseop = newCASEOP(subject, scoped_body);
+			if (dispatch && (scoped_body->op_type == OP_LINESEQ
+			                 || scoped_body->op_type == OP_SCOPE)) {
+				OP *scope_kid;
+				for (scope_kid = cLISTOPx(scoped_body)->op_first;
+				     scope_kid; scope_kid = OpSIBLING(scope_kid))
+					if (scope_kid->op_type == OP_LEAVE) {
+						((struct case_dispatch_aux *)dispatch)->miss_target = scope_kid;
+						break;
+					}
+			}
+			if (dispatch && !((struct case_dispatch_aux *)dispatch)->miss_target) {
+				OP *scope_op = scoped_body;
+				U32 scope_steps = 0;
+				while (scope_op && scope_steps++ < 4096) {
+					if (scope_op->op_type == OP_LEAVE
+					    && scope_op->op_next == caseop) {
+						((struct case_dispatch_aux *)dispatch)->miss_target = scope_op;
+						break;
+					}
+					scope_op = scope_op->op_next;
+				}
+			}
+			/* Mark the existing topicalizer skeleton as a case so that its
+			 * subject is snapshotted rather than aliased into $_. */
+			cUNOPx(caseop)->op_first->op_targ = 1;
+			$$ = block_end($remember,
+				caseop);
+			parser->copline = (line_t)$KW_CASE;
+		}
+;
+
+case_subject_type
+	: %empty
+		{ $$ = 0; }
+	| KW_IntVal
+		{ $$ = 1; }
+	| KW_FloatVal
+		{ $$ = 2; }
+	| KW_StrVal
+		{ $$ = 3; }
+;
+
+case_subject_pins
+	: %empty
+		{ parser->in_case_header = FALSE;
+		  $$ = NULL; }
+	| KW_WITH
+		PERLY_PAREN_OPEN
+		case_subject_pin_expr
+		PERLY_PAREN_CLOSE
+		{ parser->in_case_header = FALSE;
+		  case_pattern_note_pins($case_subject_pin_expr);
+		  $$ = $case_subject_pin_expr; }
+;
+
+case_subject_pin_expr
+	: mexpr
+		{ $$ = $mexpr; }
+	| mexpr
+		case_local_scalar[alias]
+		PERLY_COMMA
+		case_subject_pin_expr[rest]
+		{
+			OP *pin = newASSIGNOP(0, scalar($alias), 0,
+				scalar($mexpr));
+			$$ = op_append_elem(OP_LIST, pin, $rest);
+		}
+	| mexpr
+		case_local_scalar
+		{
+			/* Use the ordinary lexical-store optree so that EXPR is
+			 * evaluated once and the case-local pin retains normal pad
+			 * ownership and lifetime. */
+			$$ = newASSIGNOP(0, scalar($case_local_scalar), 0,
+				scalar($mexpr));
+		}
+	;
+
+case_subject_alias
+	: %empty
+		{ $$ = NULL; }
+	| case_local_scalar
+		{ $$ = $case_local_scalar; }
+	;
+
+case_local_scalar
+	: KW_AS { parser->in_my = KEY_my; }
+		scalar
+		{ $$ = my($scalar); intro_my(); }
+;
+
+bare_statement_match
+	: KW_MATCH
+		PERLY_PAREN_OPEN
+		case_pattern_start
+		remember
+		mexpr
+		case_pattern_end
+		case_match_guard
+		PERLY_PAREN_CLOSE
+		mblock
+		{
+			if (!parser->in_case_match_stmtseq) {
+				yyerror("match clauses are only allowed directly in a case");
+				YYERROR;
+			}
+			OP *pattern = $mexpr;
+			case_pattern_preserve_concat(pattern);
+			UNOP_AUX_item *pattern_aux = case_pattern_compile(pattern);
+			/* The pattern is a data-shape description.  Keep its optree in
+			 * the auxiliary representation, but execute only an undef
+			 * placeholder so no part of the pattern is evaluated as Perl. */
+			OP *matchop = newUNOP_AUX(OP_CASEMATCH, 0, newOP(OP_UNDEF, 0),
+				pattern_aux);
+			OP *condition = matchop;
+			if ($case_match_guard)
+				condition = newLOGOP(OP_AND, 0, matchop,
+					scalar($case_match_guard));
+			if (pattern->op_type == OP_CONST
+				&& (pattern->op_private & OPpCONST_BARE)
+				&& SvPV_nolen_const(cSVOPx_sv(pattern))[0] == '_'
+				&& SvPV_nolen_const(cSVOPx_sv(pattern))[1] == '\0')
+				matchop->op_targ = 2;
+			else if (pattern->op_type == OP_CONST
+				&& SvIOK(cSVOPx_sv(pattern)))
+				pattern->op_flags |= OPf_SPECIAL;
+			$$ = block_end($remember,
+				newCASEMATCHOP(condition,
+					op_scope($mblock)));
+		}
+;
+
+case_pattern_start
+	: %empty
+		{ parser->in_case_pattern = TRUE;
+		  parser->case_pattern_vars = newHV();
+		  $$ = 0; }
+	;
+
+case_pattern_end
+	: %empty
+		{ parser->in_case_pattern = FALSE;
+		  intro_my();
+		  SvREFCNT_dec(parser->case_pattern_vars);
+		  parser->case_pattern_vars = NULL;
+		  SvREFCNT_dec(parser->case_pattern_pins);
+		  parser->case_pattern_pins = NULL;
+		  $$ = 0; }
+	;
+
+case_pattern_target
+	: scalar
+		{
+		    if (parser->case_pattern_pins
+			&& hv_exists(parser->case_pattern_pins,
+			    (const char *)&$scalar->op_targ,
+			    sizeof($scalar->op_targ)))
+			    Perl_croak(aTHX_
+				"typed pattern target cannot be pinned with a case with clause");
+		    $$ = $scalar;
+		}
+	;
+
+case_match_guard
+	: %empty
+		{ $$ = NULL; }
+	| KW_IF condition
+		{ $$ = $condition; }
+;
+
+case_mblock
+	: PERLY_BRACE_OPEN mremember
+		{
+			$<ival>$ = parser->in_case_match_stmtseq;
+			parser->in_case_match_stmtseq = TRUE;
+		}
+		case_match_stmtseq
+		{
+			parser->in_case_match_stmtseq = $<ival>3;
+		}
+		PERLY_BRACE_CLOSE
+		{
+			bool invalid = FALSE;
+			OP *kid;
+			if (parser->copline > (line_t)$PERLY_BRACE_OPEN)
+				parser->copline = (line_t)$PERLY_BRACE_OPEN;
+			$$ = block_end($mremember, $case_match_stmtseq);
+			if ($$ && $$->op_type == OP_LINESEQ) {
+				for (kid = cLISTOPx($$)->op_first; kid;
+					kid = OpSIBLING(kid)) {
+					if (!OP_TYPE_IS_COP_NN(kid)
+						&& kid->op_type != OP_LEAVECASEMATCH) {
+						invalid = TRUE;
+						break;
+					}
+				}
+			}
+			if (invalid) {
+				yyerror("only match clauses are allowed directly in a case");
+				YYERROR;
+			}
+		}
+;
+
+case_match_stmtseq
+	: %empty
+		{ $$ = NULL; }
+	| case_match_stmtseq[list] fullstmt[match]
+		{
+			$$ = op_append_list(OP_LINESEQ, $list, $match);
+			PL_pad_reset_pending = TRUE;
+			if ($list)
+				PL_hints |= HINT_BLOCK_SCOPE;
+		}
+;
+
 
 bare_statement_class_declaration
 	:	KW_CLASS
@@ -1000,6 +1253,8 @@ labfullstmt:	LABEL barestmt
 barestmt
 	:	PLUGSTMT
 	|	bare_statement_block
+	|	bare_statement_case
+	|	bare_statement_match
 	|	bare_statement_class_declaration
 	|	bare_statement_class_definition
 	|	bare_statement_role_declaration
@@ -1786,6 +2041,9 @@ term[product]	:	termbinop
 			}
 	|	THING	%prec PERLY_PAREN_OPEN
 			{ $$ = $THING; }
+	|       CASE_ELLIPSIS
+			{ $$ = newSVOP(OP_CONST, OPpCONST_BARE | OPf_SPECIAL,
+				newSVpvs("...")); }
 	|	amper                                /* &foo; */
 			{ $$ = newUNOP(OP_ENTERSUB, 0, scalar($amper)); }
 	|	amper PERLY_PAREN_OPEN PERLY_PAREN_CLOSE                 /* &foo() or foo() */
@@ -1841,6 +2099,18 @@ term[product]	:	termbinop
 			{ $$ = $FUNC0OP; }
 	|	FUNC0OP PERLY_PAREN_OPEN PERLY_PAREN_CLOSE
 			{ $$ = $FUNC0OP; }
+	|	KW_RefVal PERLY_PAREN_OPEN PERLY_PAREN_CLOSE
+			{ $$ = newUNOP(OP_CASECOERCE, 0, NULL); cUNOPx($$)->op_first = NULL; $$->op_flags &= ~OPf_KIDS; $$->op_private = 4; }
+	|	KW_RefVal PERLY_PAREN_OPEN case_pattern_target PERLY_PAREN_CLOSE
+			{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_target); $$->op_private = 4; }
+	|	KW_ScalarVal PERLY_PAREN_OPEN PERLY_PAREN_CLOSE
+			{ $$ = newUNOP(OP_CASECOERCE, 0, NULL); cUNOPx($$)->op_first = NULL; $$->op_flags &= ~OPf_KIDS; $$->op_private = 5; }
+	|	KW_ScalarVal PERLY_PAREN_OPEN case_pattern_target PERLY_PAREN_CLOSE
+			{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_target); $$->op_private = 5; }
+	|	KW_ObjectVal PERLY_PAREN_OPEN PERLY_PAREN_CLOSE
+			{ $$ = newUNOP(OP_CASECOERCE, 0, NULL); cUNOPx($$)->op_first = NULL; $$->op_flags &= ~OPf_KIDS; $$->op_private = 6; }
+	|	KW_ObjectVal PERLY_PAREN_OPEN case_pattern_target PERLY_PAREN_CLOSE
+			{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_target); $$->op_private = 6; }
 	|	FUNC0SUB                             /* Sub treated as nullop */
 			{ $$ = newUNOP(OP_ENTERSUB, OPf_STACKED, scalar($FUNC0SUB)); }
 	|	FUNC1 PERLY_PAREN_OPEN PERLY_PAREN_CLOSE                        /* not () */
@@ -2002,7 +2272,15 @@ scalar	:	PERLY_DOLLAR indirob
 
 ary	:	PERLY_SNAIL indirob
 			{ $$ = newAVREF($indirob);
-			  if ($$) $$->op_private |= $PERLY_SNAIL;
+			  if ($$) {
+			      $$->op_private |= $PERLY_SNAIL;
+			      if (parser->in_case_pattern) {
+				  OP *slurp = newUNOP(OP_CASECOERCE, 0, $$);
+				  slurp->op_private = (U8)parser->case_slurp_min;
+				  $$ = slurp;
+				  parser->case_slurp_min = 0;
+			      }
+			  }
 			}
 	;
 

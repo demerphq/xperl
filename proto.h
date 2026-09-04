@@ -639,6 +639,52 @@ Perl_cando(pTHX_ Mode_t mode, bool effective, const Stat_t *statbufp)
 #define PERL_ARGS_ASSERT_CANDO                  \
     STMT_START { Perl_assert_aTHX; assert(statbufp); } STMT_END
 
+PERL_CALLCONV UNOP_AUX_item *
+Perl_case_dispatch_compile(pTHX_ OP *body)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_CASE_DISPATCH_COMPILE  \
+    STMT_START { Perl_assert_aTHX; assert(body); } STMT_END
+
+PERL_CALLCONV void
+Perl_case_dispatch_free(pTHX_ UNOP_AUX_item *aux)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_CASE_DISPATCH_FREE     \
+    STMT_START { Perl_assert_aTHX; } STMT_END
+
+PERL_CALLCONV UNOP_AUX_item *
+Perl_case_pattern_compile(pTHX_ const OP *pattern)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_CASE_PATTERN_COMPILE   \
+    STMT_START { Perl_assert_aTHX; assert(pattern); } STMT_END
+
+PERL_CALLCONV void
+Perl_case_pattern_free(pTHX_ UNOP_AUX_item *aux)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_CASE_PATTERN_FREE      \
+    STMT_START { Perl_assert_aTHX; } STMT_END
+
+PERL_CALLCONV void
+Perl_case_pattern_note_pins(pTHX_ const OP *pins)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_CASE_PATTERN_NOTE_PINS \
+    STMT_START { Perl_assert_aTHX; assert(pins); } STMT_END
+
+PERL_CALLCONV void
+Perl_case_pattern_preserve_concat(pTHX_ OP *pattern)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_CASE_PATTERN_PRESERVE_CONCAT \
+    STMT_START { Perl_assert_aTHX; assert(pattern); } STMT_END
+
 PERL_CALLCONV I32
 Perl_cast_i32(NV f)
         __attribute__warn_unused_result__;
@@ -3160,6 +3206,15 @@ Perl_isinfnansv(pTHX_ SV *sv)
 #define PERL_ARGS_ASSERT_ISINFNANSV             \
     STMT_START { Perl_assert_aTHX; assert(sv); } STMT_END
 
+PERL_CALLCONV void
+Perl_iterator_mark_failed(pTHX_ CV *cv)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_ITERATOR_MARK_FAILED   \
+    STMT_START { Perl_assert_aTHX; assert(cv);                              \
+                 assert(SvTYPE(cv) == SVt_PVCV || SvTYPE(cv) == SVt_PVFM);  \
+    } STMT_END
+
 PERL_CALLCONV OP *
 Perl_jmaybe(pTHX_ OP *o)
         Perl_attribute_nonnull_aTHX
@@ -4514,6 +4569,24 @@ Perl_newBINOP(pTHX_ I32 type, I32 flags, OP *first, OP *last)
     STMT_START { Perl_assert_aTHX; } STMT_END
 
 PERL_CALLCONV OP *
+Perl_newCASEMATCHOP(pTHX_ OP *cond, OP *block)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2)
+        __attribute__warn_unused_result__;
+#define PERL_ARGS_ASSERT_NEWCASEMATCHOP         \
+    STMT_START { Perl_assert_aTHX; assert(cond); assert(block); } STMT_END
+
+PERL_CALLCONV OP *
+Perl_newCASEOP(pTHX_ OP *cond, OP *block)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2)
+        __attribute__warn_unused_result__;
+#define PERL_ARGS_ASSERT_NEWCASEOP              \
+    STMT_START { Perl_assert_aTHX; assert(cond); assert(block); } STMT_END
+
+PERL_CALLCONV OP *
 Perl_newCONDOP(pTHX_ I32 flags, OP *first, OP *trueop, OP *falseop)
         Perl_attribute_nonnull_aTHX
         Perl_attribute_nonnull(pTHX_2)
@@ -5748,13 +5821,6 @@ Perl_process_state_capture(pTHX_ PERL_PROCESS_STATE *state)
         Perl_attribute_nonnull(pTHX_1);
 #define PERL_ARGS_ASSERT_PROCESS_STATE_CAPTURE  \
     STMT_START { Perl_assert_aTHX; assert(state); } STMT_END
-
-PERL_CALLCONV void
-Perl_process_state_capture(pTHX_ PERL_PROCESS_STATE *state)
-        Perl_attribute_nonnull_aTHX
-        Perl_attribute_nonnull(pTHX_1);
-#define PERL_ARGS_ASSERT_PROCESS_STATE_CAPTURE  \
-        Perl_assert_aTHX; assert(state)
 
 PERL_CALLCONV void
 Perl_process_state_restore(pTHX_ const PERL_PROCESS_STATE *state)
@@ -11824,10 +11890,10 @@ S_move_proto_attr(pTHX_ OP **proto, OP **attrs, const GV *name, bool curstash)
     } STMT_END
 
 static OP *
-S_newGIVWHENOP(pTHX_ OP *cond, OP *block, I32 enter_opcode, I32 leave_opcode, PADOFFSET entertarg)
+S_newBLOCKOP(pTHX_ OP *cond, OP *block, I32 enter_opcode, I32 leave_opcode, PADOFFSET entertarg)
         Perl_attribute_nonnull_aTHX
         Perl_attribute_nonnull(pTHX_2);
-# define PERL_ARGS_ASSERT_NEWGIVWHENOP          \
+# define PERL_ARGS_ASSERT_NEWBLOCKOP            \
      STMT_START { Perl_assert_aTHX; assert(block); } STMT_END
 
 static OP *
@@ -16100,6 +16166,20 @@ Perl_cx_popblock(pTHX_ PERL_CONTEXT *cx)
      STMT_START { Perl_assert_aTHX; assert(cx); } STMT_END
 
 PERL_STATIC_INLINE void
+Perl_cx_popcase(pTHX_ PERL_CONTEXT *cx)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+# define PERL_ARGS_ASSERT_CX_POPCASE            \
+     STMT_START { Perl_assert_aTHX; assert(cx); } STMT_END
+
+PERL_STATIC_INLINE void
+Perl_cx_popcasematch(pTHX_ PERL_CONTEXT *cx)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+# define PERL_ARGS_ASSERT_CX_POPCASEMATCH       \
+     STMT_START { Perl_assert_aTHX; assert(cx); } STMT_END
+
+PERL_STATIC_INLINE void
 Perl_cx_popeval(pTHX_ PERL_CONTEXT *cx)
         Perl_attribute_nonnull_aTHX
         Perl_attribute_nonnull(pTHX_1);
@@ -16161,6 +16241,20 @@ Perl_cx_pushblock(pTHX_ U8 type, U8 gimme, SV **sp, I32 saveix)
         Perl_attribute_nonnull(pTHX_3);
 # define PERL_ARGS_ASSERT_CX_PUSHBLOCK          \
      STMT_START { Perl_assert_aTHX; assert(sp); } STMT_END
+
+PERL_STATIC_INLINE void
+Perl_cx_pushcase(pTHX_ PERL_CONTEXT *cx, SV *orig_defsv)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+# define PERL_ARGS_ASSERT_CX_PUSHCASE           \
+     STMT_START { Perl_assert_aTHX; assert(cx); } STMT_END
+
+PERL_STATIC_INLINE void
+Perl_cx_pushcasematch(pTHX_ PERL_CONTEXT *cx)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+# define PERL_ARGS_ASSERT_CX_PUSHCASEMATCH      \
+     STMT_START { Perl_assert_aTHX; assert(cx); } STMT_END
 
 PERL_STATIC_INLINE void
 Perl_cx_pusheval(pTHX_ PERL_CONTEXT *cx, OP *retop, SV *namesv)

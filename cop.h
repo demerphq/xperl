@@ -1023,6 +1023,29 @@ struct block_loop {
 struct block_givwhen {
         OP *leave_op;
         SV *defsv_save; /* the original $_ */
+        bool is_case;
+        bool case_dispatch_active;
+        U32 case_dispatch_clause;
+        AV *case_bindings; /* old pad values for tentative bindings */
+        AV *case_pins;     /* pad indexes and values pinned by with */
+};
+
+/* case/match context.  Unlike block_givwhen, this context has no
+ * fall-through or topicalizer semantics. */
+struct block_case {
+        OP *leave_op;
+        SV *defsv_save;
+        bool case_dispatch_active;
+        U32 case_dispatch_clause;
+        AV *case_bindings;
+        AV *case_pins;
+        OP *redo_op;
+};
+
+/* case/match clause context.  This is deliberately separate from the
+ * given/when clause context. */
+struct block_casematch {
+        OP *leave_op;
 };
 
 
@@ -1047,6 +1070,8 @@ struct block {
         struct block_eval	blku_eval;
         struct block_loop	blku_loop;
         struct block_givwhen	blku_givwhen;
+        struct block_case	blku_case;
+        struct block_casematch	blku_casematch;
     } blk_u;
 };
 #define blk_oldsp	cx_u.cx_blk.blku_oldsp
@@ -1063,6 +1088,8 @@ struct block {
 #define blk_eval	cx_u.cx_blk.blk_u.blku_eval
 #define blk_loop	cx_u.cx_blk.blk_u.blku_loop
 #define blk_givwhen	cx_u.cx_blk.blk_u.blku_givwhen
+#define blk_case	cx_u.cx_blk.blk_u.blku_case
+#define blk_casematch	cx_u.cx_blk.blk_u.blku_casematch
 
 #define CX_DEBUG(cx, action)						\
     DEBUG_l(								\
@@ -1178,6 +1205,8 @@ struct context {
 #define CXt_EVAL       11 /* eval'', eval{}, try{} */
 #define CXt_SUBST      12
 #define CXt_DEFER      13
+#define CXt_CASE       14
+#define CXt_CASEMATCH  15
 /* SUBST doesn't feature in all switch statements.  */
 
 /* private flags for CXt_SUB and CXt_FORMAT */

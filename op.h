@@ -235,6 +235,83 @@ struct unop_aux {
     UNOP_AUX_item *op_aux;
 };
 
+/* Structural data compiled for an OP_CASEMATCH.  The optree continues to
+ * own the expression ops; these nodes own only the pattern representation. */
+struct case_pattern_node {
+    const OP *op;
+    struct case_pattern_node **child;
+    U32 nchild;
+};
+
+struct case_dispatch_aux;
+
+struct case_pattern_aux {
+    U32 magic;
+    U8 kind;
+    OP *pattern; /* retained pattern tree; it is not executed by CASEMATCH */
+    struct case_pattern_node *root;
+    struct case_dispatch_aux *dispatch;
+    U32 dispatch_clause;
+};
+
+#define CASE_PATTERN_AUX_MAGIC ((U32)0x43504154) /* "CPAT" */
+enum {
+    CASE_PATTERN_INVALID,
+    CASE_PATTERN_SIMPLE_UNDEF,
+    CASE_PATTERN_SIMPLE_BOOL,
+    CASE_PATTERN_SIMPLE_NUM,
+    CASE_PATTERN_SIMPLE_STR,
+    CASE_PATTERN_COMPLEX
+};
+
+
+#define CASE_DISPATCH_AUX_MAGIC ((U32)0x43444953) /* "CDIS" */
+#define CASE_DISPATCH_NO_CLAUSE ((U32)-1)
+enum {
+    CASE_DISPATCH_NONE,
+    CASE_DISPATCH_ARRAY_LINEAR,
+    CASE_DISPATCH_ARRAY_BINARY,
+    CASE_DISPATCH_HV
+};
+
+/* The arrays are parallel: the value at an index selects the clause at the
+ * same index.  The arrays themselves are ordinary Perl AVs so their values
+ * remain visible to the normal ownership and cloning machinery. */
+struct case_dispatch_aux {
+    U32 magic;
+    U32 refcnt;
+    U8 strategy;
+    U32 undef_clause;
+    U32 bool_clause[2];
+    U32 default_clause;
+    U32 clause_count;
+    OP **clause_targets;
+    OP *miss_target;
+    bool default_noop;
+    bool iv_has_bounds;
+    bool iv_min_is_uv;
+    bool iv_max_is_uv;
+    IV iv_min_iv;
+    IV iv_max_iv;
+    UV iv_min_uv;
+    UV iv_max_uv;
+    bool nv_has_bounds;
+    NV nv_min;
+    NV nv_max;
+    AV *iv_values;
+    AV *iv_clauses;
+    AV *nv_values;
+    AV *nv_clauses;
+    AV *pv_values;
+    AV *pv_clauses;
+    HV *iv_table;
+    HV *nv_table;
+    HV *pv_table;
+    bool pv_has_bounds;
+    STRLEN pv_minlen;
+    STRLEN pv_maxlen;
+};
+
 struct binop {
     BASEOP
     OP *	op_first;
@@ -251,6 +328,7 @@ struct logop {
      * To find the structural subtree root (what could be called
      * ->op_otherroot), use OpSIBLING of ->op_first  */
     OP *	op_other;
+    OP *	op_redoop; /* case redo entry point, when present */
 };
 
 struct listop {

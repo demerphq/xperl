@@ -1421,6 +1421,14 @@ Perl_op_clear(pTHX_ OP *o)
             PerlMemShared_free(aux);
         }
         break;
+
+    case OP_CASEMATCH:
+        Perl_case_pattern_free(aTHX_ cUNOP_AUXo->op_aux);
+        break;
+
+    case OP_CASEDISPATCH:
+        Perl_case_dispatch_free(aTHX_ cUNOP_AUXo->op_aux);
+        break;
     }
 
     if (o->op_targ > 0) {
@@ -1803,6 +1811,7 @@ Perl_alloc_LOGOP(pTHX_ I32 type, OP *first, OP* other)
     OpTYPE_set(logop, type);
     logop->op_first = first;
     logop->op_other = other;
+    logop->op_redoop = NULL;
     if (first)
         logop->op_flags = OPf_KIDS;
     while (kid && OpHAS_SIBLING(kid))
@@ -2136,7 +2145,8 @@ Perl_scalar(pTHX_ OP *o)
                     next_kid = kid;
                     goto do_next;
                 }
-                else if (kid->op_type == OP_LEAVEWHEN)
+                else if (kid->op_type == OP_LEAVEWHEN
+                         || kid->op_type == OP_LEAVECASEMATCH)
                     scalar(kid);
                 else
                     scalarvoid(kid);
@@ -2226,7 +2236,9 @@ Perl_scalarvoid(pTHX_ OP *arg)
         want = o->op_flags & OPf_WANT;
         if ((want && want != OPf_WANT_SCALAR)
             || (PL_parser && PL_parser->error_count)
-            || o->op_type == OP_RETURN || o->op_type == OP_REQUIRE || o->op_type == OP_LEAVEWHEN)
+            || o->op_type == OP_RETURN || o->op_type == OP_REQUIRE
+            || o->op_type == OP_LEAVEWHEN
+            || o->op_type == OP_LEAVECASEMATCH)
         {
             goto get_next_op;
         }
@@ -2507,6 +2519,7 @@ Perl_scalarvoid(pTHX_ OP *arg)
         case OP_COND_EXPR:
         case OP_ENTERGIVEN:
         case OP_ENTERWHEN:
+        case OP_ENTERCASEMATCH:
             next_kid = OpSIBLING(cUNOPo->op_first);
         break;
 
@@ -2528,6 +2541,7 @@ Perl_scalarvoid(pTHX_ OP *arg)
         case OP_LINESEQ:
         case OP_LEAVEGIVEN:
         case OP_LEAVEWHEN:
+        case OP_LEAVECASEMATCH:
         case OP_ONCE:
         kids:
             next_kid = cLISTOPo->op_first;
@@ -2721,7 +2735,8 @@ Perl_list(pTHX_ OP *o)
                     next_kid = kid;
                     goto do_next;
                 }
-                else if (kid->op_type == OP_LEAVEWHEN)
+                else if (kid->op_type == OP_LEAVEWHEN
+                         || kid->op_type == OP_LEAVECASEMATCH)
                     list(kid);
                 else
                     scalarvoid(kid);
@@ -9784,6 +9799,12 @@ Perl_newSTATEOP(pTHX_ I32 flags, char *label, OP *o)
         }
     }
 
+    if (o && o->op_type == OP_LEAVECASE && (o->op_flags & OPf_KIDS)) {
+        OP * const enterop = cUNOPx(o)->op_first;
+        if (enterop && enterop->op_type == OP_ENTERCASE)
+            cLOGOPx(enterop)->op_redoop = (OP *)cop;
+    }
+
     if (flags & OPf_SPECIAL)
         op_null((OP*)cop);
     return op_prepend_elem(OP_LINESEQ, (OP*)cop, o);
@@ -10169,7 +10190,7 @@ Perl_newCONDOP(pTHX_ I32 flags, OP *first, OP *trueop, OP *falseop)
     }
 
     if ((cstop = search_const(first))) {
-        /* Left or right arm of the conditional?  */
+        /* Left or right clause of the conditional?  */
         const bool left = SvTRUE(cSVOPx(cstop)->op_sv);
         OP *live = left ? trueop : falseop;
         OP *const dead = left ? falseop : trueop;
@@ -11056,22 +11077,21 @@ S_ref_array_or_hash(pTHX_ OP *cond)
         return cond;
 }
 
-/* These construct the optree fragments representing given()
-   and when() blocks.
+/* Construct generic enter/body/leave optree wiring for block-like
+   constructs.  The opcode-specific runtime semantics belong to the
+   callers; this helper only links the tree.
 
-   entergiven and enterwhen are LOGOPs; the op_other pointer
+   The op_other pointer
    points up to the associated leave op. We need this so we
-   can put it in the context and make break/continue work.
-   (Also, of course, pp_enterwhen will jump straight to
-   op_other if the match fails.)
+   can put it in the context.
  */
 
 static OP *
-S_newGIVWHENOP(pTHX_ OP *cond, OP *block,
+S_newBLOCKOP(pTHX_ OP *cond, OP *block,
                    I32 enter_opcode, I32 leave_opcode,
                    PADOFFSET entertarg)
 {
-    PERL_ARGS_ASSERT_NEWGIVWHENOP;
+    PERL_ARGS_ASSERT_NEWBLOCKOP;
 
     LOGOP *enterop;
     OP *o;
@@ -11081,6 +11101,7 @@ S_newGIVWHENOP(pTHX_ OP *cond, OP *block,
     enterop = alloc_LOGOP(enter_opcode, block, NULL);
     enterop->op_targ = 0;
     enterop->op_private = 0;
+    enterop->op_redoop = NULL;
 
     o = newUNOP(leave_opcode, 0, (OP *) enterop);
 
@@ -11102,6 +11123,42 @@ S_newGIVWHENOP(pTHX_ OP *cond, OP *block,
     CHECKOP(enter_opcode, enterop); /* Currently does nothing, since
                                        entergiven and enterwhen both
                                        use ck_null() */
+
+    enterop->op_next = LINKLIST(block);
+    block->op_next = enterop->op_other = o;
+
+    return o;
+}
+
+/* Construct a case/match clause without routing its construction through the
+ * legacy given/when block builder.  Keep this mechanically similar to the
+ * generic builder above, but deliberately independent: case/match owns its
+ * optree shape and can evolve without changing switch semantics. */
+static OP *
+S_newCASEMATCHBLOCKOP(pTHX_ OP *cond, OP *block)
+{
+    LOGOP *enterop;
+    OP *o;
+
+    enterop = alloc_LOGOP(OP_ENTERCASEMATCH, block, NULL);
+    enterop->op_targ = 0;
+    enterop->op_private = 0;
+    enterop->op_redoop = NULL;
+
+    o = newUNOP(OP_LEAVECASEMATCH, 0, (OP *) enterop);
+
+    if (cond) {
+        op_sibling_splice((OP *)enterop, NULL, 0, scalar(cond));
+        o->op_next = LINKLIST(cond);
+        cond->op_next = (OP *)enterop;
+    }
+    else {
+        enterop->op_flags |= OPf_SPECIAL;
+        o->op_flags |= OPf_SPECIAL;
+        o->op_next = (OP *)enterop;
+    }
+
+    CHECKOP(OP_ENTERCASEMATCH, enterop);
 
     enterop->op_next = LINKLIST(block);
     block->op_next = enterop->op_other = o;
@@ -11163,6 +11220,8 @@ S_looks_like_bool(pTHX_ const OP *o)
 
         case OP_SMARTMATCH:
 
+        case OP_CASEMATCH:
+
         case OP_FTRREAD:  case OP_FTRWRITE: case OP_FTREXEC:
         case OP_FTEREAD:  case OP_FTEWRITE: case OP_FTEEXEC:
         case OP_FTIS:     case OP_FTEOWNED: case OP_FTROWNED:
@@ -11220,11 +11279,50 @@ Perl_newGIVENOP(pTHX_ OP *cond, OP *block, PADOFFSET defsv_off)
     PERL_UNUSED_ARG(defsv_off);
 
     assert(!defsv_off);
-    return newGIVWHENOP(
+    return S_newBLOCKOP(aTHX_
         ref_array_or_hash(cond),
         block,
         OP_ENTERGIVEN, OP_LEAVEGIVEN,
         0);
+}
+
+/*
+=for apidoc newCASEOP
+
+Constructs and returns an op tree expressing an experimental C<case>
+statement.  C<cond> supplies the subject expression and C<block> supplies
+the case body; both are consumed by this function and become part of the
+constructed op tree.  The resulting tree uses the dedicated case execution
+context and has no given/when fall-through semantics.
+
+=cut
+*/
+
+OP *
+Perl_newCASEOP(pTHX_ OP *cond, OP *block)
+{
+    PERL_ARGS_ASSERT_NEWCASEOP;
+
+    return S_newBLOCKOP(aTHX_ cond, block, OP_ENTERCASE, OP_LEAVECASE, 0);
+}
+
+/*
+=for apidoc newCASEMATCHOP
+
+Constructs and returns an op tree expressing a C<case> match clause.  C<cond>
+supplies the already-compiled data-shape test and C<block> supplies the clause
+body; both are consumed by this function.  The resulting tree has dedicated
+case/match clause operations and does not apply given/when semantics.
+
+=cut
+*/
+
+OP *
+Perl_newCASEMATCHOP(pTHX_ OP *cond, OP *block)
+{
+    PERL_ARGS_ASSERT_NEWCASEMATCHOP;
+
+    return S_newCASEMATCHBLOCKOP(aTHX_ cond, block);
 }
 
 /*
@@ -11256,7 +11354,7 @@ Perl_newWHENOP(pTHX_ OP *cond, OP *block)
                 scalar(ref_array_or_hash(cond)));
     }
 
-    return newGIVWHENOP(cond_op, block, OP_ENTERWHEN, OP_LEAVEWHEN, 0);
+    return S_newBLOCKOP(aTHX_ cond_op, block, OP_ENTERWHEN, OP_LEAVEWHEN, 0);
 }
 
 /*
