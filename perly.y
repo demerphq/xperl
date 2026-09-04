@@ -415,6 +415,7 @@ bare_statement_match
 		case_pattern_start
 		remember
 		mexpr
+		{ case_pattern_note_regex($mexpr); }
 		case_pattern_end
 		case_match_guard
 		PERLY_PAREN_CLOSE
@@ -452,7 +453,8 @@ bare_statement_match
 
 case_pattern_start
 	: %empty
-		{ parser->in_case_pattern = TRUE;
+		{ SvREFCNT_dec(parser->case_pattern_vars);
+		  parser->in_case_pattern = TRUE;
 		  parser->case_pattern_vars = newHV();
 		  $$ = 0; }
 	;
@@ -461,8 +463,6 @@ case_pattern_end
 	: %empty
 		{ parser->in_case_pattern = FALSE;
 		  intro_my();
-		  SvREFCNT_dec(parser->case_pattern_vars);
-		  parser->case_pattern_vars = NULL;
 		  SvREFCNT_dec(parser->case_pattern_pins);
 		  parser->case_pattern_pins = NULL;
 		  $$ = 0; }

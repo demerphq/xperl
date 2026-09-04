@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-print "1..68\n";
+print "1..72\n";
 
 my $ran = 0;
 $_ = 'outside';
@@ -912,3 +912,58 @@ my $reference_pinned = eval q{
 print !$@ && $reference_pinned
     ? "ok 68 - reference shapes compare pinned referents\n"
     : "not ok 68 - reference shapes compare pinned referents\n";
+
+my ($regex_capture, $regex_named);
+my $regex_captures = eval q{
+    use feature 'case_match';
+    case ('user: Ada') {
+        match (/^user: (?'name'\w+)$/) {
+            $regex_capture = $1;
+            $regex_named = $+{name};
+        }
+    }
+    1;
+};
+print !$@ && $regex_captures && $regex_capture eq 'Ada'
+    && $regex_named eq 'Ada'
+    ? "ok 69 - regex captures are available in the clause\n"
+    : "not ok 69 - regex captures are available in the clause\n";
+
+my $regex_runtime = eval q{
+    my $subject = 'value: 42';
+    use feature 'case_match';
+    case ($subject) {
+        match (/^value: (\d+)$/) { 1 }
+    }
+};
+print !$@ && $regex_runtime
+    ? "ok 70 - regex patterns match runtime subjects\n"
+    : "not ok 70 - regex patterns match runtime subjects\n";
+
+my $regex_implicit;
+my $regex_implicit_ok = eval q{
+    use feature 'case_match';
+    case ('user: Grace') {
+        match (/^user: (?<user>\w+)$/) {
+            $regex_implicit = $user;
+        }
+    }
+    1;
+};
+print !$@ && $regex_implicit_ok && $regex_implicit eq 'Grace'
+    ? "ok 71 - named regex captures bind clause lexicals\n"
+    : "not ok 71 - named regex captures bind clause lexicals\n";
+
+my $regex_unmatched;
+my $regex_unmatched_ok = eval q{
+    use feature 'case_match';
+    case ('plain') {
+        match (/^(?<prefix>extra:)?plain$/) {
+            $regex_unmatched = !defined($prefix);
+        }
+    }
+    1;
+};
+print !$@ && $regex_unmatched_ok && $regex_unmatched
+    ? "ok 72 - nonparticipating named captures bind undef\n"
+    : "not ok 72 - nonparticipating named captures bind undef\n";

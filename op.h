@@ -252,6 +252,8 @@ struct case_pattern_aux {
     struct case_pattern_node *root;
     struct case_dispatch_aux *dispatch;
     U32 dispatch_clause;
+    AV *regex_names; /* named captures and their clause-local bindings */
+    AV *regex_padixes;
 };
 
 #define CASE_PATTERN_AUX_MAGIC ((U32)0x43504154) /* "CPAT" */

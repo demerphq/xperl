@@ -1056,6 +1056,7 @@
 #   define case_pattern_compile(a)              Perl_case_pattern_compile(aTHX_ a)
 #   define case_pattern_free(a)                 Perl_case_pattern_free(aTHX_ a)
 #   define case_pattern_note_pins(a)            Perl_case_pattern_note_pins(aTHX_ a)
+#   define case_pattern_note_regex(a)           Perl_case_pattern_note_regex(aTHX_ a)
 #   define case_pattern_preserve_concat(a)      Perl_case_pattern_preserve_concat(aTHX_ a)
 #   define check_utf8_print(a,b)                Perl_check_utf8_print(aTHX_ a,b)
 #   define closest_cop(a,b,c,d)                 Perl_closest_cop(aTHX_ a,b,c,d)

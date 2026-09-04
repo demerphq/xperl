@@ -1077,6 +1077,8 @@ p	|void	|case_pattern_free					\
 				|NULLOK UNOP_AUX_item *aux
 p	|void	|case_pattern_note_pins 				\
 				|NN const OP *pins
+p	|void	|case_pattern_note_regex				\
+				|NN const OP *pattern
 p	|void	|case_pattern_preserve_concat				\
 				|NN OP *pattern
 CRTp	|I32	|cast_i32	|NV f
