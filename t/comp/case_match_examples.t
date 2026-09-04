@@ -2,72 +2,86 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    require './test.pl';
+    set_up_inc( qw(. ../lib) );
 }
 
-use Test::More tests => 4;
-use feature 'case_match';
-use builtin qw(true false);
+plan(4);
 
 # This is one small program, rather than a collection of isolated parser
 # checks.  One case classifies a mixed stream whose values have different
 # shapes.  More-specific clauses come before broader open shapes.
-my $showcase_pin = '__not_in_examples__';
-my ($showcase_status, $showcase_code) = ('ok', 200);
-
-sub classify {
-    my ($value) = @_;
-
-    case ($value as $subject) with ($showcase_pin, $showcase_status, $showcase_code) {
-        # Scalar shapes and scalar concatenation.
-        match ($showcase_pin)                 { 'pinned value' }
-        match (undef)                         { 'undefined' }
-        match (0)                             { 'zero' }
-        match (42 if $subject > 40)           { 'guard accepted 42' }
-        match (42)                            { 'the number 42' }
-        match ('guarded' if $subject eq 'not guarded')
-                                              { 'guard should not pass' }
-        match ('guarded')                     { 'guard fell through' }
-        match ('plain')                       { 'the string plain' }
-        match (/^user: (?<regex_user>\w+)$/)  { "regex <$regex_user/$1/$+{regex_user}>" }
-        match ('prefix_' . $inner . '_suffix'){ "inside <$inner>" }
-        match ('prefix_' . $suffix)           { "suffix <$suffix>" }
-        match ($prefix . '_suffix')           { "prefix <$prefix>" }
-
-        # Nested arrays, open arrays, and array slurps.
-        match ([ 'point', $x, $y ])           { "point ($x,$y)" }
-        match ([ { name => $first },
-                 { name => $second } ])       { "nested <$first/$second>" }
-        match ([ ..., 'foo_' . $inside . '_bar', ... ])
-                                              { "floating <$inside>" }
-        match ([ 'pair', $head, @tail:1 ])    { "pair <$head;" . join(',', @tail) . '>' }
-        match ([ { kind => 'point', x => $x, y => $y }, ... ])
-                                              { "point record ($x,$y)" }
-        match ([ 0, ... ])
-                                              { 'array starts with <0>' }
-        match ([ ..., $last ])                { "ends <\$last=$last>" }
-
-        # Hash shapes, including pinned and open hashes.
-        match ({ kind => 'point',
-                 x => $x, y => $y })          { "point hash ($x,$y)" }
-        match ({ status => $showcase_status,
-                 code => $showcase_code })    { 'pinned status' }
-        match ({ status => 'ok',
-                 code => $code, ... })        { "open status <$code>" }
-        match ({ status => $status, ... })    { "any status <$status>" }
-        match ({ kind => 'user',
-                 name => $name, ... })        { "user <$name>" }
-
-        # Type criteria, guards, references, and the wildcard default.
-        match (ObjectVal($object))            { 'object ' . ref($object) }
-        match (RefVal($reference))            { 'reference ' . ref($reference) }
-        match (ScalarVal($scalar)
-               if $scalar eq 'plain scalar')  { 'plain scalar' }
-        match (_)                             { "unknown <$subject>" }
+sub same_array {
+    my ($got, $expected) = @_;
+    return 0 unless @$got == @$expected;
+    for my $i (0 .. $#$got) {
+        return 0 unless defined($got->[$i]) && defined($expected->[$i])
+            ? $got->[$i] eq $expected->[$i]
+            : !defined($got->[$i]) && !defined($expected->[$i]);
     }
+    return 1;
 }
 
-my @values = (
+my ($showcase_ok, $showcase_error) = (0, '');
+my $showcase_ran = eval q{
+    use feature 'case_match';
+    use builtin qw(true false);
+
+    my $showcase_pin = '__not_in_examples__';
+    my ($showcase_status, $showcase_code) = ('ok', 200);
+
+    sub classify {
+        my ($value) = @_;
+
+        case ($value as $subject) with ($showcase_pin, $showcase_status, $showcase_code) {
+            # Scalar shapes and scalar concatenation.
+            match ($showcase_pin)                 { 'pinned value' }
+            match (undef)                         { 'undefined' }
+            match (0)                             { 'zero' }
+            match (42 if $subject > 40)           { 'guard accepted 42' }
+            match (42)                            { 'the number 42' }
+            match ('guarded' if $subject eq 'not guarded')
+                                                  { 'guard should not pass' }
+            match ('guarded')                     { 'guard fell through' }
+            match ('plain')                       { 'the string plain' }
+            match (/^user: (?<regex_user>\w+)$/)  { "regex <$regex_user/$1/$+{regex_user}>" }
+            match ('prefix_' . $inner . '_suffix'){ "inside <$inner>" }
+            match ('prefix_' . $suffix)           { "suffix <$suffix>" }
+            match ($prefix . '_suffix')           { "prefix <$prefix>" }
+
+            # Nested arrays, open arrays, and array slurps.
+            match ([ 'point', $x, $y ])           { "point ($x,$y)" }
+            match ([ { name => $first },
+                     { name => $second } ])       { "nested <$first/$second>" }
+            match ([ ..., 'foo_' . $inside . '_bar', ... ])
+                                                  { "floating <$inside>" }
+            match ([ 'pair', $head, @tail:1 ])    { "pair <$head;" . join(',', @tail) . '>' }
+            match ([ { kind => 'point', x => $x, y => $y }, ... ])
+                                                  { "point record ($x,$y)" }
+            match ([ 0, ... ])                    { 'array starts with <0>' }
+            match ([ ..., $last ])                { "ends <\$last=$last>" }
+
+            # Hash shapes, including pinned and open hashes.
+            match ({ kind => 'point',
+                     x => $x, y => $y })          { "point hash ($x,$y)" }
+            match ({ status => $showcase_status,
+                     code => $showcase_code })    { 'pinned status' }
+            match ({ status => 'ok',
+                     code => $code, ... })        { "open status <$code>" }
+            match ({ status => $status, ... })    { "any status <$status>" }
+            match ({ kind => 'user',
+                     name => $name, ... })        { "user <$name>" }
+
+            # Type criteria, guards, references, and the wildcard default.
+            match (ObjectVal($object))            { 'object ' . ref($object) }
+            match (RefVal($reference))            { 'reference ' . ref($reference) }
+            match (ScalarVal($scalar)
+                   if $scalar eq 'plain scalar')  { 'plain scalar' }
+            match (_)                             { "unknown <$subject>" }
+        }
+    }
+
+    my @values = (
     undef,
     0,
     42,
@@ -93,12 +107,11 @@ my @values = (
     bless({}, 'Example::Widget'),
     \ 'an ordinary scalar reference',
     'plain scalar',
-    'something else',
-);
+        'something else',
+    );
 
-is_deeply(
-    [ map { classify($_) } @values ],
-    [
+    my @got = map { classify($_) } @values;
+    my @expected = (
         'undefined',
         'zero',
         'guard accepted 42',
@@ -125,28 +138,58 @@ is_deeply(
         'reference SCALAR',
         'plain scalar',
         'unknown <something else>',
-    ],
-    'one case classifies a mixed stream of scalar and structured values',
-);
+    );
+    $showcase_ok = same_array(\@got, \@expected);
+    1;
+};
+$showcase_error = $@ unless $showcase_ran;
+diag $showcase_error unless $showcase_ran;
+ok($showcase_ran && $showcase_ok,
+    'one case classifies a mixed stream of scalar and structured values');
 
-is_deeply(
-    [
-        do { case (1) { match (true) { 'true' } match (false) { 'false' } } },
-        do { case (0) { match (true) { 'true' } match (false) { 'false' } } },
-    ],
-    [ 'true', 'false' ],
-    'true and false use Perl truth-value semantics',
-);
+my ($boolean_ok, $boolean_error) = (0, '');
+my $boolean_ran = eval q{
+    use feature 'case_match';
+    use builtin qw(true false);
+    $boolean_ok = same_array(
+        [
+            do { case (1) { match (true) { 'true' } match (false) { 'false' } } },
+            do { case (0) { match (true) { 'true' } match (false) { 'false' } } },
+        ],
+        [ 'true', 'false' ],
+    );
+    1;
+};
+$boolean_error = $@ unless $boolean_ran;
+diag $boolean_error unless $boolean_ran;
+ok($boolean_ran && $boolean_ok,
+    'true and false use Perl truth-value semantics');
 
-is_deeply(
-    [
-        do { case (IntVal '12')    { match (12)   { 'integer' } } },
-        do { case (FloatVal '2.5') { match (2.5)  { 'float' } } },
-        do { case (StrVal 12)      { match ('12') { 'string' } } },
-    ],
-    [ 'integer', 'float', 'string' ],
-    'IntVal, FloatVal, and StrVal coerce the subject before matching',
-);
+my ($typed_ok, $typed_error) = (0, '');
+my $typed_ran = eval q{
+    use feature 'case_match';
+    $typed_ok = same_array(
+        [
+            do { case (IntVal '12')    { match (12)   { 'integer' } } },
+            do { case (FloatVal '2.5') { match (2.5)  { 'float' } } },
+            do { case (StrVal 12)      { match ('12') { 'string' } } },
+        ],
+        [ 'integer', 'float', 'string' ],
+    );
+    1;
+};
+$typed_error = $@ unless $typed_ran;
+diag $typed_error unless $typed_ran;
+ok($typed_ran && $typed_ok,
+    'IntVal, FloatVal, and StrVal coerce the subject before matching');
 
-ok(!defined(do { case ('not listed') { match (1) { 'wrong' } } }),
+my ($empty_ok, $empty_error) = (0, '');
+my $empty_ran = eval q{
+    use feature 'case_match';
+    $empty_ok = !defined(do { case ('not listed') { match (1) { 'wrong' } } });
+    1;
+};
+$empty_error = $@ unless $empty_ran;
+diag $empty_error unless $empty_ran;
+ok($empty_ran && $empty_ok,
     'a case with no matching clause returns undef');

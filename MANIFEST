@@ -6632,7 +6632,7 @@ t/cmd/subval.t				See if subroutine values work
 t/cmd/switch.t				See if switch optimizations work
 t/comp/bproto.t				See if builtins conform to their prototypes
 t/comp/case_match.t			See if case/match syntax works
-t/comp/case_match_examples.t	Demonstrate case/match data-shape matching
+t/comp/case_match_examples.t		Demonstrate case/match data-shape matching
 t/comp/cmdopt.t				See if command optimization works
 t/comp/colon.t				See if colons are parsed correctly
 t/comp/decl.t				See if declarations work
