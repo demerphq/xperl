@@ -7059,12 +7059,34 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                       SV *pattern_value,
                       struct case_binding *bindings, size_t *nbindings)
 {
-    const OP *pattern = node->op;
+    const OP *pattern;
     const OP *kid;
 
+    node = S_case_pattern_unwrap(node);
+    pattern = node->op;
 
     if (pattern->op_type == OP_UNDEF)
         return !SvOK(value);
+
+    if (pattern->op_type == OP_REFGEN || pattern->op_type == OP_SREFGEN) {
+        const struct case_pattern_node *referent_pattern =
+            node->nchild ? node->child[0] : NULL;
+
+        /* A reference constructor in a data shape describes the reference
+         * itself.  Descend through nested REFGENs so that \$x matches a
+         * SCALAR reference and \\$x matches a reference to one.  A scalar
+         * target binds the referent, not the outer reference. */
+        if (!referent_pattern || !SvROK(value))
+            return FALSE;
+        if (pattern->op_type == OP_SREFGEN
+            && referent_pattern->op->op_type == OP_PADSV
+            && (SvTYPE(SvRV(value)) == SVt_PVAV
+                || SvTYPE(SvRV(value)) == SVt_PVHV))
+            return FALSE;
+        return S_case_pattern_match(aTHX_
+            referent_pattern, SvRV(value),
+            NULL, bindings, nbindings);
+    }
 
     if (pattern->op_type == OP_CASECOERCE
         && !S_case_pattern_is_slurp(pattern)

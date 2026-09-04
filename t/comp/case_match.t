@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-print "1..65\n";
+print "1..68\n";
 
 my $ran = 0;
 $_ = 'outside';
@@ -871,3 +871,44 @@ my $typed_pattern_empty = eval q{
 print !$@ && $typed_pattern_empty
     ? "ok 65 - typed criteria remain usable without targets\n"
     : "not ok 65 - typed criteria remain usable without targets\n";
+
+my ($scalar_ref_value, $nested_ref_value);
+my $reference_shapes = eval q{
+    use feature 'case_match';
+    my $scalar = 7;
+    my $scalar_ref = \$scalar;
+    my $nested_ref = \\$scalar;
+    case ($scalar_ref) {
+        match (\$captured) { $scalar_ref_value = $captured }
+    }
+    case ($nested_ref) {
+        match (\\$nested_captured) { $nested_ref_value = $nested_captured }
+    }
+    1;
+};
+print !$@ && $reference_shapes && $scalar_ref_value == 7
+    && $nested_ref_value == 7
+    ? "ok 66 - scalar and nested reference shapes bind referents\n"
+    : "not ok 66 - scalar and nested reference shapes bind referents\n";
+
+my $reference_mismatch = eval q{
+    use feature 'case_match';
+    case ([ 7 ]) {
+        match (\$captured) { 1 }
+    }
+};
+print !$@ && !defined($reference_mismatch)
+    ? "ok 67 - reference shapes reject non-references\n"
+    : "not ok 67 - reference shapes reject non-references\n";
+
+my $reference_pinned = eval q{
+    use feature 'case_match';
+    my $expected = 7;
+    my $actual = \$expected;
+    case ($actual) with ($expected) {
+        match (\$expected) { 1 }
+    }
+};
+print !$@ && $reference_pinned
+    ? "ok 68 - reference shapes compare pinned referents\n"
+    : "not ok 68 - reference shapes compare pinned referents\n";
