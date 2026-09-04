@@ -152,6 +152,29 @@ elsewhere in a data shape.  It must not be one of the values pinned by the
 C<with> clause.  A criterion without an argument performs the type check
 without binding a value.
 
+=head2 Regular-expression data shapes
+
+A regular expression can be used as a data shape.  It is applied to the case
+subject, and the ordinary regular-expression capture variables are available
+in the clause:
+
+    case ($text) {
+        match (/^user: (?<name>\w+)$/) {
+            say "user is $name";
+        }
+    }
+
+Named captures become clause-local scalar bindings.  They are copies of the
+values selected by the regular expression, so the clause can use C<$name>
+directly.  The normal regular-expression variables, such as C<$1> and
+C<$+{name}>, are also updated and remain available.  A named capture that did
+not participate in a successful match is bound to C<undef>.
+
+The regular expression is still a regular Perl regular expression.  Its
+ordinary matching behavior, including its capture rules, applies.  Regex
+code blocks and using a regular expression as one fragment of a larger string
+data shape are not yet specified by this feature.
+
 =head2 Concatenated string data shapes
 
 A string data shape can combine literal text with one unpinned scalar name.  The
@@ -338,9 +361,10 @@ This example classifies a small message represented by an array reference:
 =head1 WHAT WORKS NOW
 
 The current experimental implementation supports scalar data shapes, lexical
-bindings and pins, wildcards, regular-expression predicate shapes, nested
-array and hash references, open composite shapes, guards, and explicit scalar
-subject conversion.  Constant-only cases without guards also have optimized
+bindings and pins, wildcards, regular-expression data shapes with ordinary and
+named captures, nested array and hash references, open composite shapes,
+guards, and explicit scalar subject conversion.  Constant-only cases without
+guards also have optimized
 dispatch paths.  The selected dispatch strategy is an implementation detail;
 the first matching clause in source order still wins.
 
@@ -361,8 +385,9 @@ Alternatives, optional fields, ranges, and other richer data-shape forms.
 
 =item *
 
-Capturing named values from regular expressions, or using regular expressions
-as part of a larger string data shape.
+Using regular expressions as part of a larger string data shape remains
+unsupported.  More elaborate capture protocols, including multiple matching
+captures with the same name, may receive more precise rules later.
 
 =item *
 

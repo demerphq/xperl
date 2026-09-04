@@ -19,7 +19,8 @@ The branch currently provides:
 - tentative lexical bindings with commit/rollback behavior;
 - exact and open nested array/hash-reference patterns using edge `...`
   markers, including leftmost subsequence matching;
-- regex predicate patterns;
+- regex data-shape patterns, including ordinary captures and clause-local
+  bindings for named captures;
 - simple string concatenation patterns with one scalar capture, including
   prefix, suffix, sandwich, pinned, and empty captures;
 - scalar and nested scalar-reference patterns, such as `\$value` and
@@ -210,11 +211,12 @@ operators are structural and how bindings are obtained.
 
 ### 8. Regex patterns
 
-The current runtime supports regex predicates.  Remaining work includes:
+The current runtime supports regex data shapes.  A successful regular
+expression updates the usual Perl capture variables, and each named capture
+also binds a clause-local scalar.  A named capture that did not participate is
+bound to `undef`.  Remaining work includes:
 
-- named-capture bindings committed transactionally;
 - behavior for duplicate named captures;
-- behavior for captures that did not participate;
 - evaluation of subject and regex exactly once;
 - Unicode, byte, magic, and tied-subject behavior;
 - rejection or explicit handling of `(?{ ... })` and `(??{ ... })` code blocks;
