@@ -1,0 +1,370 @@
+=encoding utf8
+
+=head1 NAME
+
+perlcasematch - a gentle introduction to experimental case and data-shape matching
+
+=head1 DESCRIPTION
+
+This document introduces Perl's experimental data-shape matching feature.  It
+assumes that you know a little Perl, but not that you have used this kind of
+matching in another language.
+
+Data-shape matching asks two questions at once: does a value have the shape we
+want, and which parts of it should receive names?  It combines structural
+matching with destructuring.  We use the shorter term C<data-shape matching>
+to distinguish this feature from Perl's long-established regular-expression
+pattern matching.
+
+The feature is enabled with:
+
+    use feature 'case_match';
+
+It is experimental, so its spelling and behaviour may change.
+
+=head1 THE BASIC IDEA
+
+A C<case> examines one subject and tries its C<match> clauses from top to
+bottom.  The first matching clause runs.  Clauses do not fall through.  The outer
+case block may contain only direct C<match> clauses; an ordinary statement or a
+nested C<case> is not allowed there.  Each clause's attached block is an
+ordinary Perl block and may contain normal Perl statements, loops, and nested
+cases.
+
+    use feature 'case_match';
+
+    case ($value) {
+        match (1) { say "one" }
+        match (2) { say "two" }
+        match (_) { say "something else" }
+    }
+
+The underscore is a wildcard.  It matches any value and does not create a
+binding, so it is useful as a final default clause.
+
+If no clause matches, the C<case> expression returns C<undef> in scalar context
+and an empty list in list context.  A wildcard clause is the usual way to give
+the case a default action.
+
+=head1 BINDING VALUES
+
+A scalar variable in a data-shape description is an implicit lexical name to
+be filled in when the data shape matches.  You do not write a separate C<my>
+declaration for it:
+
+    case ($message) {
+        match ({ name => $name, age => $age, ... }) {
+            say "$name is $age years old";
+        }
+    }
+
+Bindings are tentative.  Perl does not change the variables while it is
+deciding whether the complete data shape matches.  If a later part fails,
+earlier bindings are discarded.  The names become available only after the
+complete data shape, and its guard if any, succeeds.
+
+Data-shape variables are lexical to the block attached to that C<match>.  They
+are not accesses to a same-named variable in the surrounding scope, and they
+do not become variables there.  A name listed by the case's C<with> clause is
+the exception: it is pinned and is looked up as the existing lexical.
+
+The part inside C<match (...)> is a data-shape description, not an ordinary
+Perl expression.  It has Perl-like punctuation and names, but its job is to
+describe the shape of the subject and introduce bindings.  It is not executed
+to produce a temporary Perl value.  The optional part after C<if> is
+different: it is an ordinary Perl expression, evaluated as a guard after the
+data shape has matched and its bindings have been tentatively established.
+
+Within the currently supported data shapes, repeating an unpinned scalar name
+refers to the same binding.  This both binds the value and requires later
+occurrences to have the same value.  Whole-array or whole-hash bindings such
+as C<@values> are not currently supported; bindings are scalar names.
+
+=head1 SCALAR PATTERNS
+
+Literal numbers and literal strings are different data shapes:
+
+    case ($value) {
+        match (1)   { say "the number one" }
+        match ("1") { say "the string one" }
+    }
+
+The number data shape is intended for a numeric scalar and the string data
+shape for a string scalar.  This is deliberately more explicit than ordinary Perl
+comparison, where conversion may happen during the comparison.
+
+An undefined value can be matched directly:
+
+    case ($value) {
+        match (undef) { say "no value" }
+        match (_)     { say "some value" }
+    }
+
+The boolean data shapes C<true> and C<false> use Perl's ordinary truth-value
+rules.  They match the subject according to C<SvTRUE>, rather than requiring
+the subject to be one of the internal boolean scalar objects.  For example,
+C<match (true)> also matches the number C<1>, while C<match (false)> matches
+C<0>.  Use C<match (undef)> when the distinction between an undefined value
+and a defined false value matters.
+
+=head2 Value-kind criteria
+
+Sometimes the shape you want is about the kind of value, rather than its
+contents.  The following criteria are available inside C<match (...)>:
+
+=over
+
+=item C<RefVal()>
+
+Matches any reference, including an unblessed array or hash reference and a
+blessed object.
+
+=item C<ScalarVal()>
+
+Matches any non-reference scalar.  This includes C<undef>, numbers, strings,
+and scalar values with Perl's usual dual nature.
+
+=item C<ObjectVal()>
+
+Matches a blessed reference.  It is therefore a narrower test than
+C<RefVal()>: an unblessed reference matches C<RefVal()> but not
+C<ObjectVal()>.
+
+=back
+
+These criteria describe the subject's value kind.  They do not dereference a
+reference, call a method, or inspect an object's class.  Within a C<match>
+description these spellings are criteria, not ordinary function calls.  The
+names retain ordinary Perl subroutine semantics elsewhere, so a program may
+define or call a function named C<RefVal>, C<ScalarVal>, or C<ObjectVal>.
+
+Each criterion may also take one scalar pattern target.  The target is bound
+to the value after the type check succeeds:
+
+        case ($value) {
+            match (RefVal($reference)) { use_reference($reference) }
+            match (ObjectVal($object)) { use_object($object) }
+            match (ScalarVal($scalar)) { use_scalar($scalar) }
+        }
+
+The target is an implicit, clause-local binding, just like a scalar name used
+elsewhere in a data shape.  It must not be one of the values pinned by the
+C<with> clause.  A criterion without an argument performs the type check
+without binding a value.
+
+=head2 Concatenated string data shapes
+
+A string data shape can combine literal text with one unpinned scalar name.  The
+name receives the part of the subject between the literal pieces:
+
+    case ($text) {
+        match ("x" . $middle . "z") {
+            say "middle is $middle";
+        }
+    }
+
+This matches C<xmiddlez> and binds C<$middle> to C<middle>.  A literal may
+appear on only one side as well, as in C<"x" . $suffix> or C<$prefix . "z">.
+An empty part is valid, so C<xz> matches the first example with an empty
+C<$middle>.
+
+The concatenation is interpreted as a data shape, not as an ordinary Perl
+expression.  A scalar named in a C<with> clause is pinned and contributes its
+existing value instead of capturing text:
+
+    case ($text) with ($wanted) {
+        match ("x" . $wanted) { say "it matched" }
+    }
+
+Multiple unpinned names and more general expression operands are not part of
+the current data-shape language.  In particular, a function call or an
+arithmetic expression inside C<match (...)> is not a general way to compute a
+data shape.  Use the guard after C<if> for ordinary Perl computation.
+
+=head1 ARRAY AND HASH PATTERNS
+
+An array data shape matches an array reference.  Without an ellipsis, it must
+have exactly the listed number of elements:
+
+    case ($point) {
+        match ([ $x, $y ]) { say "point: $x, $y" }
+    }
+
+A hash data shape lists keys which must be present.  A trailing C<...> allows
+additional keys:
+
+    case ($record) {
+        match ({ status => "ok", value => $value, ... }) {
+            use_value($value);
+        }
+    }
+
+For arrays, C<...> can be used at the beginning, at the end, or at both ends:
+
+    match ([ $first, ... ])
+    match ([ ..., $last ])
+    match ([ ..., "start", $middle, "end", ... ])
+
+The last form searches from the left and binds the first matching subsequence.
+Array and hash data shapes can be nested in one another.  An ellipsis may be
+used only at the supported open-shape positions shown above; it is not a
+general wildcard for arbitrary positions.
+
+An array data shape can capture its remaining tail with an array binding.  The
+binding is allowed to contain zero or more elements:
+
+    case ($values) {
+        match ([1, 2, @rest]) { say "the rest is @rest" }
+    }
+
+The binding must be the final pattern element.  Add C<:N> to require at least
+C<N> remaining elements while still capturing the complete tail:
+
+    match ([1, 2, @rest:3]) { say "three or more: @rest" }
+
+The initial implementation permits one final slurp and a minimum from 0
+through 255.  A slurp cannot be combined with an ellipsis or with another
+slurp.  Like scalar bindings, the array binding is tentative until the whole
+data shape and its guard have succeeded.
+
+=head1 GUARDS
+
+A guard is an ordinary Perl expression checked after the data shape has
+matched structurally:
+
+    case ($value) {
+    match ([ $number ] if $number > 0) {
+            say "positive: $number";
+        }
+        match (_) { say "not a positive one-element array" }
+    }
+
+The C<if> and everything after it belong to ordinary Perl.  Guards are
+unrestricted Perl expressions.  They may have side effects or
+throw exceptions.  If a guard is false, that clause's tentative bindings are
+discarded and the next clause is considered.  If a guard throws, the exception
+is propagated in the usual way; the tentative bindings are still discarded.
+
+=head1 NAMING AND PINNING
+
+The subject can be given a case-local name with C<as>:
+
+    case (read_record() as $record) {
+        match ({ type => "ok", ... }) { use_record($record) }
+    }
+
+This evaluates the subject once and does not assign to an outer variable.
+
+A C<with> clause pins an existing value.  A pinned variable is checked rather
+than filled in by the data shape:
+
+    my $wanted = "ok";
+    case ($record) with ($wanted) {
+        match ({ type => $wanted, ... }) { use_record($record) }
+    }
+
+The C<with> clause can pin more than one value.  Separate the values with
+commas:
+
+    my ($wanted_type, $wanted_version) = ("ok", 3);
+    case ($record) with ($wanted_type, $wanted_version) {
+        match ({ type => $wanted_type,
+                 version => $wanted_version, ... }) {
+            use_record($record);
+        }
+    }
+
+An expression can be evaluated once and made into a case-local pin:
+
+    case ($record) with (expected_type() as $wanted) {
+        match ({ type => $wanted, ... }) { use_record($record) }
+    }
+
+The C<as> spelling in a C<case> subject or C<with> clause belongs to this
+feature.  It is available whenever C<case_match> is enabled; it does not
+require the separate C<namespaces> feature.  The C<as> used by namespace
+declarations and C<use> statements remains a separate feature-gated syntax.
+Each value in a C<with> list may use C<as> independently.
+
+=head1 EXPLICIT SUBJECT CONVERSION
+
+The grammar provides three explicit subject conversions:
+
+    case (IntVal  $value) { ... }
+    case (FloatVal $value) { ... }
+    case (StrVal   $value) { ... }
+
+The subject is evaluated once and converted before any clause is tested.  An
+undefined value remains undefined, and references pass through unchanged.
+
+=head1 A COMPLETE EXAMPLE
+
+This example classifies a small message represented by an array reference:
+
+    use feature 'case_match';
+
+    my $value = [ "ok", 42 ];
+
+    case ($value) {
+        match ([ "ok", $number ]) { say "received $number" }
+        match ([ "error", $message ]) { warn $message }
+        match (_) { say "unrecognised value" }
+    }
+
+=head1 WHAT WORKS NOW
+
+The current experimental implementation supports scalar data shapes, lexical
+bindings and pins, wildcards, regular-expression predicate shapes, nested
+array and hash references, open composite shapes, guards, and explicit scalar
+subject conversion.  Constant-only cases without guards also have optimized
+dispatch paths.  The selected dispatch strategy is an implementation detail;
+the first matching clause in source order still wins.
+
+=head1 WHAT IS LEFT TO DO
+
+This is an experimental first implementation.  The following features are
+not part of the language yet:
+
+=over
+
+=item *
+
+Destructuring objects or class instances.
+
+=item *
+
+Alternatives, optional fields, ranges, and other richer data-shape forms.
+
+=item *
+
+Capturing named values from regular expressions, or using regular expressions
+as part of a larger string data shape.
+
+=item *
+
+A user-defined data-shape protocol.
+
+=item *
+
+Richer data-shape forms, additional binding forms, and further dispatch
+optimizations remain under consideration.  Constant-only dispatch currently
+accepts duplicate clauses; the earliest matching clause wins, just as it does
+in the ordinary clause walk.  This behavior may be tightened in a future
+experimental version.
+
+=item *
+
+More precise diagnostics that identify the source location of a particular
+data shape or clause when compilation fails.
+
+=back
+
+These are future design and implementation work, not promises about the
+final feature.  Because the feature is experimental, its syntax and behavior
+may change before it is released.
+
+=head1 SEE ALSO
+
+L<perlsyn/Experimental Data-Shape Matching>, L<perlfunc>, L<perldelta>
+
+=cut

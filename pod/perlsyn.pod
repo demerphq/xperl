@@ -875,6 +875,84 @@ C<defer>.
         }
     }
 
+=head2 Experimental Data-Shape Matching
+
+The experimental C<case_match> feature provides a data-shape matching
+alternative to the older C<given>/C<when> construct.  It is enabled with
+
+    use feature 'case_match';
+
+A C<case> evaluates its subject once and tries its C<match> clauses in source
+order.  The first matching clause runs; there is no fall-through.  The wildcard
+data shape C<_> matches any value and is useful as a final clause:
+
+    case ($value) {
+        match ([$first, $second]) { use_pair($first, $second) }
+        match (_)                 { use_other($value) }
+    }
+
+The subject may be explicitly coerced before matching with C<IntVal>,
+C<FloatVal>, or C<StrVal>:
+
+    case (IntVal $value) {
+        match (1) { say "integer one" }
+    }
+
+These forms apply integer, floating-point, or string conversion to the
+subject once, before any clause is tested.  The type word is part of the case
+syntax, not a call to a user-defined function.  It applies to the complete
+subject expression, so these two forms are equivalent:
+
+    case (StrVal $x + 1 as $p) { ... }
+    case (StrVal($x + 1) as $p) { ... }
+
+An undefined subject remains undefined, and references, including blessed
+references, pass through unchanged.  Without an explicit coercion, numeric
+and string literals remain distinct data-shape kinds.
+
+String data shapes may contain literal fragments and one unpinned scalar
+capture.  For example:
+
+    case ($text) {
+        match ("x" . $middle . "z") { say $middle }
+    }
+
+This matches a string beginning with C<x> and ending with C<z>, binding the
+text between them to C<$middle>.  Prefix-only and suffix-only forms such as
+C<"x" . $suffix> and C<$prefix . "z"> are also supported, including empty
+captures.  The concatenation is data-shape syntax; it is not evaluated as an
+ordinary Perl concatenation before matching.  A name pinned by C<with>
+contributes its existing value instead of capturing.  Multiple captures and
+general expression operands are not currently supported.
+
+Array and hash-reference data shapes may contain nested data shapes.  A
+trailing C<...> makes an array or hash data shape open; without it, the data
+shape is exact.  Data-shape bindings are tentative and are visible only after
+the complete data shape and its optional guard succeed.  A guard is written inside the
+C<match> parentheses:
+
+    case ($value) {
+        match ([$number] if $number > 0) { use_positive($number) }
+    }
+
+The C<with> clause snapshots existing scalar lexical values and makes those
+names pinned for the case:
+
+    case ($record) with ($wanted_key) {
+        match ({ key => $wanted_key, ... }) { use_record($record) }
+    }
+
+An expression may be evaluated once and assigned to a fresh case-local pin
+with C<as>:
+
+    case ($record) with (key_for($record) as $wanted_key) {
+        match ({ key => $wanted_key, ... }) { use_record($record) }
+    }
+
+The expression is evaluated before matching begins.  The named scalar is
+available to data shapes as a pinned value; it is not an assignment to an outer
+variable.  This syntax is experimental and may change.
+
 =head2 Switch Statements
 
 X<switch> X<case> X<given> X<when> X<default>

@@ -1071,6 +1071,16 @@ but then $foo no longer contains a glob.
 (F) You called C<continue>, but you're not inside a C<when>
 or C<default> block.
 
+=item case/match clause outside a case
+
+(F) A case/match clause was executed without an enclosing C<case> block.
+
+=item match clauses are only allowed directly in a case
+
+(F) A C<match> clause appeared outside the direct contents of a C<case>
+block.
+
+
 =item can't convert empty path
 
 (F) On Cygwin, you called a path conversion function with an empty path.
@@ -1655,6 +1665,63 @@ is not allowed.
 
 (F) The return statement was executed in mainline code, that is, where
 there was no subroutine call to return out of.  See L<perlsub>.
+
+=item case with clause outside case
+
+(F) A C<with> clause was encountered outside a C<case> statement.
+
+=item case with values must be scalar lexicals (got %s)
+
+(F) A C<case> C<with> clause currently accepts only scalar lexical
+variables, but received a value of the indicated kind.
+
+=item typed pattern target cannot be pinned with a case with clause
+
+(F) A typed pattern target cannot also be listed among the values pinned by
+the enclosing C<case> C<with> clause.
+
+=item array pattern has invalid ellipsis placement
+
+(F) An array pattern contained too many ellipses for the supported pattern
+form.
+
+=item array pattern may contain only one slurp
+
+(F) An array pattern contained more than one slurpy target.
+
+=item array pattern ellipsis must be at an edge
+
+(F) An array pattern used an ellipsis anywhere other than at its beginning or
+end.
+
+=item array slurp must be the final pattern element and cannot use an ellipsis
+
+(F) An array slurpy target must be the final element of its pattern and cannot
+be combined with an ellipsis.
+
+=item array slurp minimum must be between 0 and 255
+
+(F) The minimum length requested for an array slurpy target was outside the
+supported range of 0 through 255.
+
+=item hash pattern may contain only one ellipsis
+
+(F) A hash pattern contained more than one ellipsis.
+
+=item hash pattern ellipsis must be last
+
+(F) A hash pattern used an ellipsis anywhere other than at its end.
+
+=item missing compiled case pattern
+
+(P) The case matcher was executed without the compiled pattern representation
+created by the compiler.  This indicates an internal error.
+
+=item only match clauses are allowed directly in a case
+
+(F) A C<case> body contained a statement other than a direct C<match>
+clause.  Ordinary Perl statements are allowed inside the body of a match
+clause, but not directly in the case body.
 
 =item Can't return %s to lvalue scalar context
 
@@ -7640,6 +7707,11 @@ is to be written, but is not complete, similar to the following:
 
 If C<not_done_yet()> is called, Perl will die with an C<Unimplemented> error
 at the line containing C<...>.
+
+=item unknown case subject coercion
+
+(F) The internal typed-subject operation received an unsupported coercion
+kind.  This indicates a compiler or interpreter bug.
 
 =item Unknown charname '%s'
 
