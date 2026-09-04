@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-use Test::More tests => 8;
+use Test::More tests => 11;
 use feature 'case_match';
 use builtin qw(true false);
 
@@ -69,6 +69,89 @@ is_deeply(
         'other scalar',
     ],
     'one case classifies a mixed stream of scalar and structured values',
+);
+
+sub classify_text {
+    my ($text) = @_;
+
+    case ($text) {
+        # Put the most specific shape first: the prefix-only shape would also
+        # accept this value and would capture "middle_suffix".
+        match ('prefix_' . $inner . '_suffix') { "inside <$inner>" }
+        match ('prefix_' . $suffix)             { "suffix <$suffix>" }
+        match ($prefix . '_suffix')             { "prefix <$prefix>" }
+        match (_)                               { 'not a shaped string' }
+    }
+}
+
+is_deeply(
+    [
+        classify_text('prefix_middle_suffix'),
+        classify_text('prefix_tail'),
+        classify_text('head_suffix'),
+    ],
+    [
+        'inside <middle>',
+        'suffix <tail>',
+        'prefix <head>',
+    ],
+    'concatenated shapes support prefix, suffix, and sandwich captures',
+);
+
+sub classify_array {
+    my ($array) = @_;
+
+    case ($array) {
+        match ([ $x, $y ])                         { "exact <$x,$y>" }
+        match ([ ..., 'foo', $middle, 'bar', ... ]) { "between <$middle>" }
+        match ([ ..., 'foo_' . $inside . '_bar', ... ])
+                                                    { "floating <$inside>" }
+        match ([ 1, @rest:2 ])                    { 'slurp <' . join(',', @rest) . '>' }
+        match ([ ..., $last ])                    { "last <$last>" }
+        match ([ 0, ... ])                         { 'starts <0>' }
+        match (_)                                  { 'not an array shape' }
+    }
+}
+
+is_deeply(
+    [
+        classify_array([ 1, 2 ]),
+        classify_array([ 1, 2, 3, 4 ]),
+        classify_array([ 0, 'foo', 7, 'bar', 9 ]),
+        classify_array([ 'before', 'foo_middle_bar', 'after' ]),
+        classify_array([ 0, 1, 2 ]),
+        classify_array([ 'tail', 8, 9 ]),
+    ],
+    [
+        'exact <1,2>',
+        'slurp <2,3,4>',
+        'between <7>',
+        'floating <middle>',
+        'last <2>',
+        'last <9>',
+    ],
+    'array shapes build from exact, slurped, open, and subsequence forms',
+);
+
+sub classify_hash {
+    my ($hash) = @_;
+
+    case ($hash) {
+        match ({ kind => 'point', x => $x, y => $y }) { "point <$x,$y>" }
+        match ({ kind => 'user', name => $name, ... }) { "user <$name>" }
+        match ({ status => $status, ... })            { "status <$status>" }
+        match (_)                                     { 'not a hash shape' }
+    }
+}
+
+is_deeply(
+    [
+        classify_hash({ kind => 'point', x => 3, y => 4 }),
+        classify_hash({ kind => 'user', name => 'Ada', active => true }),
+        classify_hash({ status => 'queued', id => 10 }),
+    ],
+    [ 'point <3,4>', 'user <Ada>', 'status <queued>' ],
+    'hash shapes build from exact and open key sets',
 );
 
 sub boolean_label {
