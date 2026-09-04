@@ -183,6 +183,30 @@ data shape.  Use the guard after C<if> for ordinary Perl computation.
 
 =head1 ARRAY AND HASH PATTERNS
 
+=head2 Reference shapes
+
+A backslash can describe a reference shape.  C<\$name> matches a reference to
+a scalar and binds the scalar that it refers to:
+
+    my $number = 42;
+    my $reference = \$number;
+
+    case ($reference) {
+        match (\$value) { say "the referenced value is $value" }
+    }
+
+Reference shapes can be nested.  C<\\$name> matches a reference whose referent
+is itself a scalar reference, and binds the innermost scalar value.  A
+reference shape is structural: it does not evaluate the pattern as an
+ordinary reference constructor.  The binding is tentative and is committed
+only when the complete clause, including its guard, succeeds.
+
+C<RefVal($name)> is different.  It checks for any reference and binds the
+outer reference itself, while C<\$name> binds the value reached through a
+scalar reference.  The current reference-shape implementation covers scalar
+and nested scalar references; array and hash reference constructors remain
+ordinary composite data shapes.
+
 An array data shape matches an array reference.  Without an ellipsis, it must
 have exactly the listed number of elements:
 

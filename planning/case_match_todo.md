@@ -22,6 +22,8 @@ The branch currently provides:
 - regex predicate patterns;
 - simple string concatenation patterns with one scalar capture, including
   prefix, suffix, sandwich, pinned, and empty captures;
+- scalar and nested scalar-reference patterns, such as `\$value` and
+  `\\$value`, which bind the referent rather than the outer reference;
 - unrestricted ordinary Perl guards inside `match (...)`;
 - labels and ordinary block control flow in clause bodies;
 - constant-only dispatch using linear arrays, binary search, or an HV lookup,

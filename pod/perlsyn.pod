@@ -910,6 +910,11 @@ An undefined subject remains undefined, and references, including blessed
 references, pass through unchanged.  Without an explicit coercion, numeric
 and string literals remain distinct data-shape kinds.
 
+A backslash can describe a scalar reference shape.  For example,
+C<match(\$value)> matches a reference to a scalar and binds the referred-to
+value; C<match(\\$value)> describes one additional reference layer.  This is
+different from C<RefVal($value)>, which binds the outer reference itself.
+
 String data shapes may contain literal fragments and one unpinned scalar
 capture.  For example:
 
