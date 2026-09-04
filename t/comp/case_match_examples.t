@@ -38,6 +38,11 @@ sub classify {
         match ([ ..., $last ])                    { "ends <$last>" }
         match ({ kind => 'point', x => $x, y => $y })
                                                     { "point hash ($x,$y)" }
+        match ({ status => 'ok', code => $code })
+                                                    { "exact status <$code>" }
+        match ({ status => 'ok', code => $code, ... })
+                                                    { "open status <$code>" }
+        match ({ status => $status, ... })            { "any status <$status>" }
         match ({ kind => 'user', name => $name, ... })
                                                     { "user <$name>" }
         match (ObjectVal($object))                { 'object ' . ref($object) }
@@ -64,8 +69,11 @@ my @values = (
     [ 0, 8, 9 ],
     [ 'tail', 8, 9 ],
     [ { kind => 'point', x => 8, y => 13 }, { extra => 1 } ],
-    { kind => 'point', x => 3, y => 4 },
-    { kind => 'user', name => 'Ada', active => true },
+        { kind => 'point', x => 3, y => 4 },
+        { status => 'ok', code => 200 },
+        { status => 'ok', code => 201, detail => 'created' },
+        { status => 'queued', id => 10 },
+        { kind => 'user', name => 'Ada', active => true },
     bless({}, 'Example::Widget'),
     \ 'an ordinary scalar reference',
     'plain scalar',
@@ -91,6 +99,9 @@ is_deeply(
         'ends <9>',
         'point record (8,13)',
         'point hash (3,4)',
+        'exact status <200>',
+        'open status <201>',
+        'any status <queued>',
         'user <Ada>',
         'object Example::Widget',
         'reference SCALAR',
