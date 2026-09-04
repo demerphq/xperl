@@ -13,11 +13,12 @@ use builtin qw(true false);
 # checks.  One case classifies a mixed stream whose values have different
 # shapes.  More-specific clauses come before broader open shapes.
 my $showcase_pin = '__not_in_examples__';
+my ($showcase_status, $showcase_code) = ('ok', 200);
 
 sub classify {
     my ($value) = @_;
 
-    case ($value as $subject) with ($showcase_pin) {
+    case ($value as $subject) with ($showcase_pin, $showcase_status, $showcase_code) {
         match ($showcase_pin)                   { 'pinned value' }
         match (undef)                            { 'undefined' }
         match (0)                                { 'zero' }
@@ -38,8 +39,8 @@ sub classify {
         match ([ ..., $last ])                    { "ends <$last>" }
         match ({ kind => 'point', x => $x, y => $y })
                                                     { "point hash ($x,$y)" }
-        match ({ status => 'ok', code => $code })
-                                                    { "exact status <$code>" }
+        match ({ status => $showcase_status, code => $showcase_code })
+                                                    { 'pinned status' }
         match ({ status => 'ok', code => $code, ... })
                                                     { "open status <$code>" }
         match ({ status => $status, ... })            { "any status <$status>" }
@@ -69,9 +70,9 @@ my @values = (
     [ 0, 8, 9 ],
     [ 'tail', 8, 9 ],
     [ { kind => 'point', x => 8, y => 13 }, { extra => 1 } ],
-        { kind => 'point', x => 3, y => 4 },
-        { status => 'ok', code => 200 },
-        { status => 'ok', code => 201, detail => 'created' },
+    { kind => 'point', x => 3, y => 4 },
+    { status => 'ok', code => 200 },
+    { status => 'ok', code => 201, detail => 'created' },
         { status => 'queued', id => 10 },
         { kind => 'user', name => 'Ada', active => true },
     bless({}, 'Example::Widget'),
@@ -99,7 +100,7 @@ is_deeply(
         'ends <9>',
         'point record (8,13)',
         'point hash (3,4)',
-        'exact status <200>',
+        'pinned status',
         'open status <201>',
         'any status <queued>',
         'user <Ada>',
