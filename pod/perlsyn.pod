@@ -930,6 +930,11 @@ ordinary Perl concatenation before matching.  A name pinned by C<with>
 contributes its existing value instead of capturing.  Multiple captures and
 general expression operands are not currently supported.
 
+A regular expression can also be used as a data shape.  Its ordinary capture
+variables remain available, and a named capture such as C<(?<name>...)> also
+creates the clause-local scalar C<$name>.  A named capture that does not
+participate in the successful match is bound to C<undef>.
+
 Array and hash-reference data shapes may contain nested data shapes.  A
 trailing C<...> makes an array or hash data shape open; without it, the data
 shape is exact.  Data-shape bindings are tentative and are visible only after

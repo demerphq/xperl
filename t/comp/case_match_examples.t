@@ -24,6 +24,7 @@ sub classify {
         match (0)                                { 'zero' }
         match (42)                               { 'the number 42' }
         match ('plain')                          { 'the string plain' }
+        match (/^user: (?<regex_user>\w+)$/)     { "regex <$regex_user/$1/$+{regex_user}>" }
         match ('prefix_' . $inner . '_suffix')  { "inside <$inner>" }
         match ('prefix_' . $suffix)              { "suffix <$suffix>" }
         match ($prefix . '_suffix')              { "prefix <$prefix>" }
@@ -59,6 +60,7 @@ my @values = (
     0,
     42,
     'plain',
+    'user: Ada',
     '__not_in_examples__',
     'prefix_middle_suffix',
     'prefix_tail',
@@ -88,6 +90,7 @@ is_deeply(
         'zero',
         'the number 42',
         'the string plain',
+        'regex <Ada/Ada/Ada>',
         'pinned value',
         'inside <middle>',
         'suffix <tail>',
