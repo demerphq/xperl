@@ -27,6 +27,24 @@ here, but most should go in the L</Performance Enhancements> section.
 
 [ List each enhancement as a =head2 entry ]
 
+=head2 Experimental data-shape matching
+
+The experimental C<case_match> feature adds a C<case> statement with ordered
+C<match> clauses.  Data shapes can match scalar values, nested array and hash
+references, regular expressions, wildcards, and pinned lexical values.  A
+  case subject may also use the grammar-level C<IntVal>, C<FloatVal>, or
+  C<StrVal> forms to request one explicit coercion before matching.  See
+  L<perlcasematch> and L<perlsyn/Experimental Data-Shape Matching> for the
+  current experimental design and limitations.  The C<with> clause accepts a
+  comma-separated list of pins, and its case-local C<as> syntax does not require
+  the separate C<namespaces> feature.
+
+Array data shapes may capture a final tail with C<@name>, or require a minimum
+tail length with C<@name:N>.  The typed criteria C<RefVal>, C<ScalarVal>, and
+C<ObjectVal> may each take one scalar target, such as C<RefVal($reference)>,
+which is bound after the type check succeeds.  Such a target cannot also be
+pinned by C<with>.
+
 =head2 Lexical namespaces
 
 The experimental C<namespaces> feature provides lexical namespace prefixes,
@@ -83,6 +101,13 @@ an uncaught exception escaping its body is rethrown without automatically
 changing its state; the implementation or caller may explicitly mark it
 failed.  Generators inherit this protocol while continuing to manage their
 continuation state internally.  See L<perlgenerator/CALLABLE ITERATORS>.
+
+=head2 Complete experimental APIs with C<-E>
+
+The C<-E> command-line switch now enables the complete experimental feature
+set and imports the complete builtin set, including the generator syntax and
+its supporting builtins.  This is an XPerl extension to the traditional
+version-bundle behaviour of C<-E>.
 
 =head2 Data::Dumper supports class objects
 
