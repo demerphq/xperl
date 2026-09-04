@@ -20,53 +20,50 @@ sub classify {
 
     case ($value as $subject) with ($showcase_pin, $showcase_status, $showcase_code) {
         # Scalar shapes and scalar concatenation.
-        match ($showcase_pin)                { 'pinned value' }
+        match ($showcase_pin)                 { 'pinned value' }
         match (undef)                         { 'undefined' }
         match (0)                             { 'zero' }
+        match (42 if $subject > 40)           { 'guard accepted 42' }
         match (42)                            { 'the number 42' }
+        match ('guarded' if $subject eq 'not guarded')
+                                              { 'guard should not pass' }
+        match ('guarded')                     { 'guard fell through' }
         match ('plain')                       { 'the string plain' }
         match (/^user: (?<regex_user>\w+)$/)  { "regex <$regex_user/$1/$+{regex_user}>" }
-        match ('prefix_' . $inner . '_suffix') { "inside <$inner>" }
+        match ('prefix_' . $inner . '_suffix'){ "inside <$inner>" }
         match ('prefix_' . $suffix)           { "suffix <$suffix>" }
         match ($prefix . '_suffix')           { "prefix <$prefix>" }
 
         # Nested arrays, open arrays, and array slurps.
-        match ([ 'point', $x, $y ])
-            { "point ($x,$y)" }
-        match ([ { name => $first }, { name => $second } ])
-            { "nested <$first/$second>" }
+        match ([ 'point', $x, $y ])           { "point ($x,$y)" }
+        match ([ { name => $first },
+                 { name => $second } ])       { "nested <$first/$second>" }
         match ([ ..., 'foo_' . $inside . '_bar', ... ])
-            { "floating <$inside>" }
-        match ([ 'pair', $head, @tail:1 ])
-            { "pair <$head;" . join(',', @tail) . '>' }
+                                              { "floating <$inside>" }
+        match ([ 'pair', $head, @tail:1 ])    { "pair <$head;" . join(',', @tail) . '>' }
         match ([ { kind => 'point', x => $x, y => $y }, ... ])
-            { "point record ($x,$y)" }
+                                              { "point record ($x,$y)" }
         match ([ 0, ... ])
-            { 'starts <0>' }
-        match ([ ..., $last ])
-            { "ends <$last>" }
+                                              { 'array starts with <0>' }
+        match ([ ..., $last ])                { "ends <\$last=$last>" }
 
         # Hash shapes, including pinned and open hashes.
-        match ({ kind => 'point', x => $x, y => $y })
-            { "point hash ($x,$y)" }
-        match ({ status => $showcase_status, code => $showcase_code })
-            { 'pinned status' }
-        match ({ status => 'ok', code => $code, ... })
-            { "open status <$code>" }
-        match ({ status => $status, ... })
-            { "any status <$status>" }
-        match ({ kind => 'user', name => $name, ... })
-            { "user <$name>" }
+        match ({ kind => 'point',
+                 x => $x, y => $y })          { "point hash ($x,$y)" }
+        match ({ status => $showcase_status,
+                 code => $showcase_code })    { 'pinned status' }
+        match ({ status => 'ok',
+                 code => $code, ... })        { "open status <$code>" }
+        match ({ status => $status, ... })    { "any status <$status>" }
+        match ({ kind => 'user',
+                 name => $name, ... })        { "user <$name>" }
 
         # Type criteria, guards, references, and the wildcard default.
-        match (ObjectVal($object))
-            { 'object ' . ref($object) }
-        match (RefVal($reference))
-            { 'reference ' . ref($reference) }
-        match (ScalarVal($scalar) if $scalar eq 'plain scalar')
-            { 'plain scalar' }
-        match (_)
-            { "unknown <$subject>" }
+        match (ObjectVal($object))            { 'object ' . ref($object) }
+        match (RefVal($reference))            { 'reference ' . ref($reference) }
+        match (ScalarVal($scalar)
+               if $scalar eq 'plain scalar')  { 'plain scalar' }
+        match (_)                             { "unknown <$subject>" }
     }
 }
 
@@ -74,6 +71,7 @@ my @values = (
     undef,
     0,
     42,
+    'guarded',
     'plain',
     'user: Ada',
     '__not_in_examples__',
@@ -103,7 +101,8 @@ is_deeply(
     [
         'undefined',
         'zero',
-        'the number 42',
+        'guard accepted 42',
+        'guard fell through',
         'the string plain',
         'regex <Ada/Ada/Ada>',
         'pinned value',
@@ -114,8 +113,8 @@ is_deeply(
         'nested <first/second>',
         'floating <middle>',
         'pair <left;middle,right>',
-        'starts <0>',
-        'ends <9>',
+        'array starts with <0>',
+        'ends <$last=9>',
         'point record (8,13)',
         'point hash (3,4)',
         'pinned status',
