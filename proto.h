@@ -683,7 +683,7 @@ Perl_case_pattern_note_regex(pTHX_ const OP *pattern)
         Perl_attribute_nonnull(pTHX_1)
         __attribute__visibility__("hidden");
 #define PERL_ARGS_ASSERT_CASE_PATTERN_NOTE_REGEX \
-        Perl_assert_aTHX; assert(pattern)
+    STMT_START { Perl_assert_aTHX; assert(pattern); } STMT_END
 
 PERL_CALLCONV void
 Perl_case_pattern_preserve_concat(pTHX_ OP *pattern)
