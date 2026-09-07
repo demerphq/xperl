@@ -20,6 +20,7 @@ use B;
 my %unsupported = map +($_=>1), qw (
  __DATA__ __END__ ADJUST AUTOLOAD BEGIN UNITCHECK CORE DESTROY END INIT CHECK
  ToFloat ToInteger ToString ObjectVal RefVal ScalarVal
+ IntStr FloatStr Num NumStr Strict NumEq
  case match with
  __NAMESPACE__ as namespace
   all and any catch class cmp default defer do implements dump else elsif eq equ eval

@@ -377,11 +377,17 @@ my %not_tested = map { $_ => 1} qw(
     elsif
     field
     ToFloat
+    FloatStr
+    IntStr
+    Num
+    NumEq
+    NumStr
     gen
     ToInteger
     ObjectVal
     RefVal
     ScalarVal
+    Strict
     implements
     finally
     for

@@ -5120,6 +5120,11 @@ and you mentioned a variable that starts with 0 that has more than one
 digit. You probably want to remove the leading 0, or if the intent was
 to express a variable name in octal you should convert to decimal.
 
+=item NumEq() requires a literal argument in a match pattern
+
+(F) The C<NumEq> data-shape criterion currently accepts only a literal
+argument.  Use a numeric literal or C<undef>.
+
 =item Octal number > 037777777777 non-portable
 
 (W portable) The octal number you specified is larger than 2**32-1
@@ -6770,6 +6775,12 @@ die().  This is almost always an error, because exec() never returns
 unless there was a failure.  You probably wanted to use system()
 instead, which does return.  To suppress this warning, put the exec() in
 a block by itself.
+
+=item Strict() is only valid with IntStr(), FloatStr(), or NumStr() in a match pattern
+
+(F) The C<Strict> data-shape modifier applies only to the string-bearing
+numeric criteria C<IntStr>, C<FloatStr>, and C<NumStr>.  It cannot be applied
+to C<Num> or C<NumEq>.
 
 =item "state" subroutine %s can't be in a package
 

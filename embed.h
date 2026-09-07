@@ -32,8 +32,6 @@
 #   undef CASE_DISPATCH_AUX_MAGIC
 #   undef CASE_DISPATCH_NO_CLAUSE
 #   undef CASE_PATTERN_AUX_MAGIC
-#   undef CASE_PATTERN_CRITERION_MASK
-#   undef CASE_PATTERN_CRITERION_STRICT
 #   undef CC_MAGICAL_
 #   undef CC_UNDERSCORE_
 #   undef compose_origins
