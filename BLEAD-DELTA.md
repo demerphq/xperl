@@ -141,6 +141,11 @@ a value.  A name such as `$number` is a new scalar binding local to the
 clause's block.  Bindings are tentative: they become visible only after the
 whole data shape and its optional guard succeed.
 
+Zero-argument function and method calls may supply scalar values in a data
+shape.  They are called in scalar context when their clause is tried.  Calls
+with arguments remain unsupported; ordinary Perl computation belongs in a
+guard after `if`.
+
 Scalar shapes include `undef`, literal strings, literal numbers, `true`, and
 `false`.  Strings and numbers are deliberately distinct, so `match (1)` and
 `match ("1")` express different cases.  Boolean shapes use Perl's normal

@@ -108,6 +108,27 @@ C<match (true)> also matches the number C<1>, while C<match (false)> matches
 C<0>.  Use C<match (undef)> when the distinction between an undefined value
 and a defined false value matters.
 
+=head2 Zero-argument constant calls
+
+A zero-argument function or method call may be used when a data shape needs a
+value supplied by Perl code rather than a literal.  The call is made in
+scalar context when the clause is tried, and its result is compared with the
+subject using the same typed rules as a literal value:
+
+    sub current_version { 3 }
+
+    case ($version) {
+        match (current_version()) { say "current" }
+        match (Version->number()) { say "known version" }
+    }
+
+This is a deliberate, small exception to the general rule that the left side
+of C<match> is a data-shape description rather than ordinary Perl code.  Only
+calls with no arguments are supported.  A call such as
+C<current_version($kind)> is rejected; use a guard after C<if> when ordinary
+Perl computation or arguments are needed.  Calls can have side effects, so
+they should be used only when that behavior is intended.
+
 =head2 Value-kind criteria
 
 Sometimes the shape you want is about the kind of value, rather than its

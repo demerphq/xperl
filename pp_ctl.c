@@ -6718,11 +6718,95 @@ S_case_pattern_numeric_match(pTHX_ SV *value, U8 criterion)
 }
 
 static void
+S_case_pattern_scan_call(pTHX_ const OP *op, const OP **target,
+                         const OP **invocant, U32 *nargs)
+{
+    for (; op; op = OpHAS_SIBLING(op) ? OpSIBLING(op) : NULL) {
+        if (op->op_type == OP_PUSHMARK)
+            continue;
+        if (op->op_type == OP_NULL && op->op_targ == OP_RV2CV) {
+            if (*target)
+                Perl_croak(aTHX_ "case pattern calls must have no arguments");
+            *target = op;
+            continue;
+        }
+        if (op->op_type == OP_NULL || op->op_type == OP_LIST) {
+            S_case_pattern_scan_call(aTHX_ cUNOPx(op)->op_first,
+                                     target, invocant, nargs);
+            continue;
+        }
+        if (op->op_type == OP_RV2CV
+            || op->op_type == OP_METHOD_NAMED
+            || op->op_type == OP_METHOD) {
+            if (*target)
+                Perl_croak(aTHX_ "case pattern calls must have no arguments");
+            *target = op;
+            continue;
+        }
+        *invocant = op;
+        (*nargs)++;
+    }
+}
+
+static CV *
+S_case_pattern_call_cv(pTHX_ const OP *target)
+{
+    if (target->op_type == OP_RV2CV)
+        return rv2cv_op_cv((OP *)target, RV2CVOPCV_RETURN_STUB);
+    if (target->op_type == OP_NULL && target->op_targ == OP_RV2CV) {
+        const OP *rvop = cUNOPx(target)->op_first;
+        while (rvop && rvop->op_type == OP_NULL)
+            rvop = cUNOPx(rvop)->op_first;
+        if (!rvop)
+            return NULL;
+        if (rvop->op_type == OP_GV) {
+            GV *gv = cGVOPx_gv(rvop);
+            if (isGV(gv))
+                return GvCVu(gv);
+            if (SvROK((SV *)gv) && SvTYPE(SvRV((SV *)gv)) == SVt_PVCV)
+                return MUTABLE_CV(SvRV((SV *)gv));
+            else {
+                STRLEN len;
+                const char *name = SvPV_const((SV *)gv, len);
+                GV *realgv = gv_fetchpvn_flags(name, len,
+                    GV_ADD, SVt_PVCV);
+                if (realgv && isGV(realgv) && GvCVu(realgv))
+                    return GvCVu(realgv);
+                return NULL;
+            }
+        }
+        if (rvop->op_type == OP_CONST && SvROK(cSVOPx_sv(rvop)))
+            return MUTABLE_CV(SvRV(cSVOPx_sv(rvop)));
+    }
+    return NULL;
+}
+
+static void
 S_case_pattern_validate(pTHX_ const OP *op)
 {
     const OP *kid;
     if (!op)
         return;
+
+    if (op->op_type == OP_ENTERSUB) {
+        const OP *call_target = NULL;
+        const OP *call_invocant = NULL;
+        U32 nargs = 0;
+
+        S_case_pattern_scan_call(aTHX_ cUNOPx(op)->op_first,
+                                 &call_target, &call_invocant, &nargs);
+        if (!call_target
+            || ((call_target->op_type == OP_RV2CV
+                 || (call_target->op_type == OP_NULL
+                     && call_target->op_targ == OP_RV2CV)) && nargs)
+            || (call_target->op_type != OP_RV2CV
+                && !(call_target->op_type == OP_NULL
+                     && call_target->op_targ == OP_RV2CV)
+                && nargs != 1))
+            Perl_croak(aTHX_ "unsupported case pattern call");
+        PERL_UNUSED_VAR(call_invocant);
+        return;
+    }
     if (op->op_type == OP_CASECOERCE
         && (op->op_private & CASE_PATTERN_CRITERION_MASK)
             == CASE_PATTERN_CRITERION_NUMEQ) {
@@ -6806,6 +6890,78 @@ S_case_pattern_validate(pTHX_ const OP *op)
     if (op->op_flags & OPf_KIDS)
         for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid))
             S_case_pattern_validate(aTHX_ kid);
+}
+
+/* Return the value of a zero-argument function or class-method call used as
+ * a data-shape constant.  The parser leaves these calls as ordinary
+ * OP_ENTERSUB trees; keeping the call here means that their Perl dispatch
+ * semantics remain unchanged while the rest of the pattern remains inert. */
+static SV *
+S_case_pattern_call(pTHX_ const OP *op)
+{
+    const OP *target = NULL;
+    const OP *invocant = NULL;
+    U32 nargs = 0;
+    SV *result;
+
+    S_case_pattern_scan_call(aTHX_ cUNOPx(op)->op_first,
+                             &target, &invocant, &nargs);
+
+    if (!target
+        || ((target->op_type == OP_RV2CV
+             || (target->op_type == OP_NULL && target->op_targ == OP_RV2CV))
+            && nargs)
+        || (target->op_type != OP_RV2CV
+            && !(target->op_type == OP_NULL && target->op_targ == OP_RV2CV)
+            && nargs != 1))
+        Perl_croak(aTHX_ "case pattern calls must have no arguments");
+
+    if (target->op_type == OP_RV2CV
+        || (target->op_type == OP_NULL && target->op_targ == OP_RV2CV)) {
+        CV *cv = S_case_pattern_call_cv(aTHX_ target);
+        if (!cv)
+            Perl_croak(aTHX_ "case pattern call has no callable target");
+        result = newSVsv(&PL_sv_undef);
+        {
+            dSP;
+            I32 count;
+            ENTER;
+            SAVETMPS;
+            PUSHMARK(SP);
+            PUTBACK;
+            count = call_sv(MUTABLE_SV(cv), G_SCALAR);
+            SPAGAIN;
+            if (count)
+                sv_setsv(result, TOPs);
+            PUTBACK;
+            FREETMPS;
+            LEAVE;
+        }
+    }
+    else {
+        if (!invocant || invocant->op_type != OP_CONST
+            || target->op_type != OP_METHOD_NAMED)
+            Perl_croak(aTHX_ "unsupported case pattern method call");
+        result = newSVsv(&PL_sv_undef);
+        {
+            dSP;
+            I32 count;
+            ENTER;
+            SAVETMPS;
+            PUSHMARK(SP);
+            XPUSHs(cSVOPx_sv(invocant));
+            PUTBACK;
+            count = call_method(SvPV_nolen_const(cSVOPx_sv(target)), G_SCALAR);
+            SPAGAIN;
+            if (count)
+                sv_setsv(result, TOPs);
+            PUTBACK;
+            FREETMPS;
+            LEAVE;
+        }
+    }
+
+    return result;
 }
 
 static void
@@ -7377,6 +7533,21 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
         return S_case_pattern_match(aTHX_
             referent_pattern, SvRV(value),
             NULL, bindings, nbindings);
+    }
+
+    if (pattern->op_type == OP_ENTERSUB) {
+        SV *called = S_case_pattern_call(aTHX_ pattern);
+        bool matched;
+
+        if (!SvOK(called))
+            matched = !SvOK(value);
+        else if (SvIOK(called) || SvNOK(called))
+            matched = (SvIOK(value) || SvNOK(value))
+                && do_ncmp(value, called) == 0;
+        else
+            matched = SvPOK(value) && sv_eq(value, called);
+        SvREFCNT_dec_NN(called);
+        return matched;
     }
 
     if (pattern->op_type == OP_CASECOERCE

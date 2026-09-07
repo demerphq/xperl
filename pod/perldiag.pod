@@ -1080,6 +1080,25 @@ or C<default> block.
 (F) A C<match> clause appeared outside the direct contents of a C<case>
 block.
 
+=item case pattern calls must have no arguments
+
+(F) A function or method call used as a case data-shape value had arguments.
+Only zero-argument calls are supported in this position.
+
+=item case pattern call has no callable target
+
+(F) A case data-shape call did not resolve to a callable function or method.
+
+=item unsupported case pattern call
+
+(F) A case data-shape call used a form that is not supported.  Use a
+zero-argument function call, or put ordinary Perl computation in a guard.
+
+=item unsupported case pattern method call
+
+(F) A case data-shape method call used a form that is not supported.  Only
+statically named, zero-argument class-method calls are currently accepted.
+
 
 =item can't convert empty path
 

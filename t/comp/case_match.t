@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-print "1..88\n";
+print "1..91\n";
 
 my $ran = 0;
 $_ = 'outside';
@@ -1190,3 +1190,46 @@ my $unbound_pin = eval q{
 print $@ =~ /pinned pattern value must be an existing scalar lexical/
     ? "ok 88 - caret requires an existing lexical\n"
     : "not ok 88 - caret requires an existing lexical\n";
+
+my ($constant_call_hit, $method_call_hit);
+my $zero_arg_calls = eval q{
+    use strict;
+    use feature 'case_match';
+    sub case_pattern_value { 7 }
+    {
+        package CasePatternCallTest;
+        sub value { 7 }
+    }
+    case (7) {
+        match (case_pattern_value()) { $constant_call_hit = 1 }
+    }
+    case (7) {
+        match (CasePatternCallTest->value()) { $method_call_hit = 1 }
+    }
+    1;
+};
+print !$@ && $zero_arg_calls && $constant_call_hit && $method_call_hit
+    ? "ok 89 - zero-argument pattern calls\n"
+    : "not ok 89 - zero-argument pattern calls\n";
+
+my $pattern_call_args = eval q{
+    use feature 'case_match';
+    sub case_pattern_value { 7 }
+    case (7) { match (case_pattern_value(7)) { 1 } }
+    1;
+};
+print $@ =~ /unsupported case pattern call/
+    ? "ok 90 - pattern calls reject arguments\n"
+    : "not ok 90 - pattern calls reject arguments\n";
+
+my $call_inside_shape = eval q{
+    use feature 'case_match';
+    sub case_pattern_value { 7 }
+    case ([ 1, 7 ]) {
+        match ([ 1, case_pattern_value() ]) { 1 }
+    }
+    1;
+};
+print !$@ && $call_inside_shape
+    ? "ok 91 - zero-argument calls work inside shapes\n"
+    : "not ok 91 - zero-argument calls work inside shapes\n";

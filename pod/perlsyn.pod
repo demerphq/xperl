@@ -935,6 +935,19 @@ not create a destructuring binding.  Consequently,
 C<NumEq(0)> matches strings such as C<"0000"> and C<"0.0">, while a value such
 as C<"A"> is treated as zero with Perl's usual numeric warning.
 
+Zero-argument function and method calls may also supply a scalar data-shape
+value.  They are called in scalar context when their clause is tried:
+
+    sub current_version { 3 }
+    case ($version) {
+        match (current_version()) { say "current" }
+        match (Version->number()) { say "known version" }
+    }
+
+This is a limited exception to the rule that the left side of C<match> is a
+data-shape description rather than ordinary Perl code.  Calls with arguments
+are rejected; use a guard after C<if> for ordinary Perl computation.
+
 A backslash can describe a scalar reference shape.  For example,
 C<match(\$value)> matches a reference to a scalar and binds the referred-to
 value; C<match(\\$value)> describes one additional reference layer.  This is

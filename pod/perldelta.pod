@@ -42,6 +42,10 @@ design and limitations.  The C<with> clause accepts a comma-separated list of
 pins, and its case-local C<as> syntax does not require the separate
 C<namespaces> feature.
 
+Data shapes may also use zero-argument function and method calls as scalar
+values.  Calls are made in scalar context when their clause is tried; calls
+with arguments remain unsupported.
+
 Array data shapes may capture a final tail with C<@name>, or require a minimum
 tail length with C<@name:N>.  The typed criteria C<RefVal>, C<ScalarVal>, and
 C<ObjectVal> may each take one scalar target, such as C<RefVal($reference)>,

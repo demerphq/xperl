@@ -176,9 +176,12 @@ implementing it:
 - empty literal fragments;
 - whether any additional simple operators are admitted.
 
-Do not silently evaluate arbitrary calls or arithmetic as pattern syntax.
-If a richer pattern expression is eventually allowed, specify exactly which
-operators are structural and how bindings are obtained.
+Zero-argument function and method calls are now the one deliberate exception:
+they are evaluated in scalar context when their clause is tried.  Do not
+silently evaluate calls with arguments, arithmetic, or other arbitrary Perl
+expressions as pattern syntax.  If richer pattern expressions are eventually
+allowed, specify exactly which operators are structural and how bindings are
+obtained.
 
 ### 7. Regex-pattern hardening
 
