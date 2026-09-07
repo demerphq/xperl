@@ -30,14 +30,15 @@ state.
 
 When `${^RNG}` is assigned a blessed object, its magic performs this setup:
 
-1. Ask the object whether its class can provide
-   `get_rand_u64_XS_func_addr`.
-2. Verify that the returned method CV is an XSUB. A Perl subroutine with this
-   name is not allowed to provide an address and causes the normal fallback.
-3. If the method is unavailable or is not an XSUB, clear the cached callback.
-4. Call that exact XSUB CV on the selected object.
-5. Treat `undef` or zero as “no fast callback”.
-6. Treat a non-zero integer as a callback address.
+1. Ask the object whether its class can provide both
+   `get_rand_u64_XS_func_addr` and `get_rand_u64_XS_state_addr`.
+2. Verify that each returned method CV is an XSUB. Perl subroutines with
+   these names are not allowed to provide addresses and cause the normal
+   fallback.
+3. If either method is unavailable or is not an XSUB, disable the fast path.
+4. Call both exact XSUBs on the selected object.
+5. Treat `undef` or zero from either getter as “no fast path”.
+6. Treat non-zero integers as the callback and state addresses.
 7. Reject all other return values with an exception.
 
 The method is deliberately called only when the selected `${^RNG}` value
@@ -56,15 +57,17 @@ shape of the returned Perl value and perform the platform's pointer
 conversion, but it cannot prove that an arbitrary non-zero address returned by
 trusted XS code points to a callable function with the correct signature.
 
-The callback is discovered through an XSUB named
-`get_rand_u64_XS_func_addr` and has this ABI:
+The callback and its state are discovered through XSUBs named
+`get_rand_u64_XS_func_addr` and `get_rand_u64_XS_state_addr`. The callback has
+this ABI:
 
 ```c
-typedef U64 (*Perl_rng_u64_func)(pTHX_ SV *provider);
+typedef U64 (*Perl_rng_u64_func)(pTHX_ void *state);
 ```
 
 It returns the next 64-bit random word directly. `rand()` prefers this
-callback and otherwise uses the Perl-level `rand_bytes` protocol.
+callback with its raw state pointer and otherwise uses the Perl-level
+`rand_bytes` protocol.
 
 ## Current implementation
 
@@ -74,23 +77,22 @@ The implementation is split between `gv.c`, `mg.c`, and `pp.c`:
   `${^RNG}` GV is created;
 - the standard magic setter calls `rng_refresh()` for assignments and for
   save-stack localization/restoration;
-- `S_rng_refresh()` validates the assigned provider and checks for the fast
-  getter method, invokes an eligible XSUB, validates its result, and stores
-  the callback in `PL_rng_u64`;
+- `S_rng_refresh()` validates the assigned provider and checks for both fast
+  getter methods, invokes eligible XSUBs, validates their results, and stores
+  the callback in `PL_rng_u64` and its raw state address in `PL_rng_u64_state`;
 - `S_rng_provider()` performs only the initial refresh when the RNG GV is
   first fetched;
 - `S_rng_u64()` uses the Perl-level `rand_bytes` protocol;
 - The private `S_call_rand()` helper chooses the direct word path when the
-  cached callback is set; `pp_rand` uses that helper directly so the hot path
+  cached state address is set; `pp_rand` uses that helper directly so the hot path
   can be inlined, while the public `Perl_call_rand()` API remains available to
   other core and XS callers;
 - `Perl_call_srand()` and `pp_srand()` continue using the existing Perl-level
   seed protocol.
 
-The bundled `RNG::PCG` XS implementation exposes
-`get_rand_u64_XS_func_addr()` and returns the address of its native-word
-callback. Its ordinary `rand_bytes` method remains available for direct calls
-and fallback use.
+The bundled `RNG::PCG` XS implementation exposes both fast getters and returns
+the address of its native-word callback and state. Its ordinary `rand_bytes`
+method remains available for direct calls and fallback use.
 
 ## Multiple providers and localization
 
@@ -98,8 +100,8 @@ Each provider object retains its own state. The cached callback is only for
 the object currently stored in `${^RNG}`:
 
 ```text
-${^RNG} = $rng1  -> cache rng1's callback, or NULL
-${^RNG} = $rng2  -> replace it with rng2's callback, or NULL
+${^RNG} = $rng1  -> cache rng1's callback and state, or disable fast path
+${^RNG} = $rng2  -> replace both cached values, or disable fast path
 local ${^RNG} = $rng3
                 -> use rng3's callback, or NULL
 scope exit      -> normal magical restoration selects the previous callback
@@ -108,6 +110,12 @@ scope exit      -> normal magical restoration selects the previous callback
 The cache does not own or copy RNG state. `local ${^RNG}` changes which
 provider is selected; it does not rewind or clone that provider's algorithm
 state.
+
+The callback address is code and may be copied when an interpreter is cloned.
+The cached state address is provider-instance state and is cleared in the
+clone. The clone refreshes it from its cloned `${^RNG}` value before using the
+fast path. The fast path tests only the state address: a non-NULL state means
+that a valid callback has already been installed.
 
 The normal save stack remains responsible for localization. The standard RNG
 magic setter derives the cached callback from the visible value after both
@@ -121,8 +129,8 @@ The intended hot path is:
 ```c
 SV *provider = S_rng_provider(aTHX_);
 
-if (PL_rng_u64) {
-    value = PL_rng_u64(aTHX_ PL_rng_sv);
+if (PL_rng_u64_state) {
+    value = PL_rng_u64(aTHX_ PL_rng_u64_state);
 }
 else {
     value = S_rng_u64_via_perl(aTHX_ provider);
@@ -138,9 +146,9 @@ the Perl-level path retains the existing canonical byte-string protocol.
 
 ## Ownership and safety
 
-The callback address is process-level code; the provider argument is the
-current interpreter-owned object containing mutable RNG state. The callback
-must remain valid for as long as an object can select it. Unloadable XS
+The callback address is process-level code; the state address points into the
+current provider object containing mutable RNG state. The callback must remain
+valid for as long as an object can select it. Unloadable XS
 modules and callback replacement need an explicit lifetime policy before this
 becomes a general public ABI.
 

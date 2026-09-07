@@ -45,7 +45,8 @@ C<rand_bytes> method combines successive 32-bit PCG outputs into a canonical
 big-endian byte string, so the provider interface is independent of Perl's
 native integer width. The object can be used directly as a provider for
 Perl's C<${^RNG}> variable. Its XS implementation provides
-C<get_rand_u64_XS_func_addr>, so Perl can discover a direct callback when the
+C<get_rand_u64_XS_func_addr> and C<get_rand_u64_XS_state_addr> methods, so Perl
+can discover a direct callback and its native state when the
 object is selected. After that setup,
 C<rand> can obtain words without calling the Perl C<rand_bytes> method or
 constructing a temporary byte buffer for every request.
@@ -80,7 +81,7 @@ Return a callback which calls C<rand01> on this generator. The callback can
 be assigned to C<$List::Util::RAND> to reproduce the same sequence as using
 the generator through C<${^RNG}>.
 
-=head2 get_rand_u64_XS_func_addr
+=head2 get_rand_u64_XS_func_addr and get_rand_u64_XS_state_addr
 
 This is the optional XS integration method used by the core for the fastest
 C<rand> path. It returns the address of the native 64-bit callback. Applications

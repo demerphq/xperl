@@ -74,10 +74,9 @@ drand48_fill_bytes(rng_drand48_data *state, STRLEN length, U8 *bytes)
 }
 
 static U64
-drand48_u64_fast(pTHX_ SV *self)
+drand48_u64_fast(pTHX_ void *state)
 {
-    PERL_UNUSED_CONTEXT;
-    return drand48_next(drand48_state_fast(self)) << 16;
+    return drand48_next((rng_drand48_data *)state) << 16;
 }
 
 /*
@@ -176,9 +175,9 @@ pcg_rng_bytes(pTHX_ SV *self, STRLEN length, U8 *bytes)
 }
 
 static U64
-pcg_rng_u64_fast(pTHX_ SV *self)
+pcg_rng_u64_fast(pTHX_ void *state)
 {
-    return pcg_next_u64(pcg_state_fast(self));
+    return pcg_next_u64((pcg_data *)state);
 }
 
 static void
@@ -314,9 +313,9 @@ wyrand_fill_bytes(wyrand_data *state, STRLEN length, U8 *bytes)
 }
 
 static U64
-wyrand_u64_fast(pTHX_ SV *self)
+wyrand_u64_fast(pTHX_ void *state)
 {
-    return wyrand_next(wyrand_state_fast(self));
+    return wyrand_next((wyrand_data *)state);
 }
 
 typedef struct {
@@ -417,9 +416,9 @@ xoshiro_fill_bytes(xoshiro_data *state, STRLEN length, U8 *bytes)
 }
 
 static U64
-xoshiro_u64_fast(pTHX_ SV *self)
+xoshiro_u64_fast(pTHX_ void *state)
 {
-    return xoshiro_next(xoshiro_state_fast(self));
+    return xoshiro_next((xoshiro_data *)state);
 }
 
 /* A compact SHA-256 implementation used only by RNG::HMAC_DRBG.  The
@@ -804,9 +803,9 @@ hmac_drbg_generate(hmac_drbg_data *state, U8 *output, STRLEN length,
 }
 
 static U64
-hmac_drbg_u64_fast(pTHX_ SV *self)
+hmac_drbg_u64_fast(pTHX_ void *raw_state)
 {
-    hmac_drbg_data *state = hmac_drbg_state_fast(self);
+    hmac_drbg_data *state = (hmac_drbg_data *)raw_state;
     U8 output[8];
     U64 value = 0;
     unsigned int i;
@@ -826,6 +825,14 @@ get_rand_u64_XS_func_addr(self)
 CODE:
     PERL_UNUSED_ARG(self);
     RETVAL = PTR2UV(drand48_u64_fast);
+OUTPUT:
+    RETVAL
+
+UV
+get_rand_u64_XS_state_addr(self)
+    SV *self
+CODE:
+    RETVAL = PTR2UV(drand48_state_fast(self));
 OUTPUT:
     RETVAL
 
@@ -908,6 +915,14 @@ get_rand_u64_XS_func_addr(self)
 CODE:
     PERL_UNUSED_ARG(self);
     RETVAL = PTR2UV(pcg_rng_u64_fast);
+OUTPUT:
+    RETVAL
+
+UV
+get_rand_u64_XS_state_addr(self)
+    SV *self
+CODE:
+    RETVAL = PTR2UV(pcg_state_fast(self));
 OUTPUT:
     RETVAL
 
@@ -997,6 +1012,14 @@ CODE:
 OUTPUT:
     RETVAL
 
+UV
+get_rand_u64_XS_state_addr(self)
+    SV *self
+CODE:
+    RETVAL = PTR2UV(hmac_drbg_state_fast(self));
+OUTPUT:
+    RETVAL
+
 SV *
 new(class_name, seed = 0)
     const char *class_name
@@ -1080,7 +1103,7 @@ rand01(self)
 PREINIT:
     U64 random;
 CODE:
-    random = hmac_drbg_u64_fast(aTHX_ self);
+    random = hmac_drbg_u64_fast(aTHX_ hmac_drbg_state(aTHX_ self));
     RETVAL = (NV)random / ((NV)UINT64_C(0xffffffffffffffff) + 1.0);
 OUTPUT:
     RETVAL
@@ -1096,7 +1119,7 @@ CODE:
     value = (items < 2 || !SvOK(limit)) ? 1.0 : SvNV(limit);
     if (value == 0.0)
         value = 1.0;
-    random = hmac_drbg_u64_fast(aTHX_ self);
+    random = hmac_drbg_u64_fast(aTHX_ hmac_drbg_state(aTHX_ self));
     RETVAL = value * ((NV)random
                       / ((NV)UINT64_C(0xffffffffffffffff) + 1.0));
 OUTPUT:
@@ -1209,6 +1232,14 @@ CODE:
 OUTPUT:
     RETVAL
 
+UV
+get_rand_u64_XS_state_addr(self)
+    SV *self
+CODE:
+    RETVAL = PTR2UV(wyrand_state_fast(self));
+OUTPUT:
+    RETVAL
+
 SV *
 new(class_name, seed = 0)
     const char *class_name
@@ -1288,6 +1319,14 @@ get_rand_u64_XS_func_addr(self)
 CODE:
     PERL_UNUSED_ARG(self);
     RETVAL = PTR2UV(xoshiro_u64_fast);
+OUTPUT:
+    RETVAL
+
+UV
+get_rand_u64_XS_state_addr(self)
+    SV *self
+CODE:
+    RETVAL = PTR2UV(xoshiro_state_fast(self));
 OUTPUT:
     RETVAL
 

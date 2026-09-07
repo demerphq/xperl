@@ -3568,15 +3568,18 @@ PP(pp_sin)
  */
 
 static Perl_rng_u64_func S_rng_fast_u64(pTHX_ SV *provider);
+static void *S_rng_fast_state(pTHX_ SV *provider);
 static void S_rng_require_method(pTHX_ SV *provider, const char *method);
 
 static void
 S_rng_refresh(pTHX_ SV *provider, GV *gv)
 {
     Perl_rng_u64_func u64 = NULL;
+    void *state = NULL;
 
     PL_rng_gv = gv;
-    PL_rng_sv = provider;
+    /* Clear the state first.  A non-NULL state is the fast-path invariant. */
+    PL_rng_u64_state = NULL;
 
     if (!SvOK(provider)) {
         PL_rng_u64 = NULL;
@@ -3591,6 +3594,11 @@ S_rng_refresh(pTHX_ SV *provider, GV *gv)
     }
     u64 = S_rng_fast_u64(aTHX_ provider);
     PL_rng_u64 = u64;
+    if (u64) {
+        state = S_rng_fast_state(aTHX_ provider);
+        if (state)
+            PL_rng_u64_state = state;
+    }
 }
 
 void
@@ -3715,6 +3723,13 @@ S_rng_fast_u64(pTHX_ SV *provider)
         S_rng_fast_address(aTHX_ provider, "get_rand_u64_XS_func_addr"));
 }
 
+static void *
+S_rng_fast_state(pTHX_ SV *provider)
+{
+    return INT2PTR(void *,
+        S_rng_fast_address(aTHX_ provider, "get_rand_u64_XS_state_addr"));
+}
+
 static U64
 S_rng_u64(pTHX_ SV *provider)
 {
@@ -3747,11 +3762,10 @@ S_call_rand(pTHX)
      * the cached callback path before the generic provider checks so a fast
      * XS provider does not pay for repeated GV/provider discovery on every
      * rand() call. */
-    if (PL_rng_u64) {
-        /* S_rng_refresh() installs the provider and callback as one cache
-         * update.  A non-NULL callback therefore always has a provider. */
-        provider = PL_rng_sv;
-        return (NV)PL_rng_u64(aTHX_ provider)
+    if (PL_rng_u64_state) {
+        /* A non-NULL state means that the callback and its state were both
+         * installed by S_rng_refresh(). */
+        return (NV)PL_rng_u64(aTHX_ PL_rng_u64_state)
             / ((NV)UINT64_C(0xffffffffffffffff) + 1.0);
     }
 

@@ -6404,7 +6404,7 @@ typedef void(*Perl_cpeep_t)(pTHX_ OP *, OP *);
 
 typedef void(*globhook_t)(pTHX);
 
-typedef U64 (*Perl_rng_u64_func)(pTHX_ SV *provider);
+typedef U64 (*Perl_rng_u64_func)(pTHX_ void *state);
 
 #define KEYWORD_PLUGIN_DECLINE 0
 #define KEYWORD_PLUGIN_STMT    1

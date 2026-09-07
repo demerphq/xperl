@@ -1133,8 +1133,8 @@ PERLVAR(I, execution_context, PERL_EXECUTION_CONTEXT *)
 
 /* Fast callback selected by the magical ${^RNG} provider variable. */
 PERLVARI(I, rng_gv, GV *, NULL)
-PERLVARI(I, rng_sv, SV *, NULL)
 PERLVARI(I, rng_u64, Perl_rng_u64_func, NULL)
+PERLVARI(I, rng_u64_state, void *, NULL)
 
 /* If you are adding a U8 or U16, check to see if there are 'Space' comments
  * above on where there are gaps which currently will be structure padding.  */

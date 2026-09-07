@@ -40,7 +40,8 @@ other non-cryptographic uses where a high-quality general-purpose generator
 is useful.
 
 The state is stored in a blessed scalar reference.  The XS implementation
-provides C<get_rand_u64_XS_func_addr>, allowing Perl's core C<rand> to call the
+provides C<get_rand_u64_XS_func_addr> and C<get_rand_u64_XS_state_addr>,
+allowing Perl's core C<rand> to call the
 generator directly without Perl method dispatch or a temporary byte buffer.
 The ordinary C<rand_bytes> method remains available as the portable provider
 interface.
@@ -71,7 +72,7 @@ zero and one.
 
 Return a callback which calls C<rand01> on this generator.
 
-=head2 get_rand_u64_XS_func_addr
+=head2 get_rand_u64_XS_func_addr and get_rand_u64_XS_state_addr
 
 This optional XS integration method returns the address of the native 64-bit
 callback used by the core's fast C<rand> path.  Applications should not

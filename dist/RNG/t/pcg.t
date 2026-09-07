@@ -31,6 +31,10 @@ BEGIN {
 my $rng = RNG::PCG->new(42);
 isa_ok($rng, 'RNG::PCG');
 is(ref($$rng), '', 'the state is a scalar');
+ok($rng->get_rand_u64_XS_func_addr > 0,
+   'the XS provider publishes a callback address');
+ok($rng->get_rand_u64_XS_state_addr > 0,
+   'the XS provider publishes a state address');
 
 my @expected = qw(
     59a325388164c81b

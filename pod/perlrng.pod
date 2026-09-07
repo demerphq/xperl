@@ -108,22 +108,24 @@ raises an exception immediately.
 =head1 XS FAST PATH
 
 An XS provider can avoid Perl method dispatch on every C<rand> call by
-implementing this method as an XSUB:
+implementing these methods as XSUBs:
 
     get_rand_u64_XS_func_addr()
+    get_rand_u64_XS_state_addr()
 
-When an object is assigned to C<${^RNG}>, Perl asks the object whether this
-method is available. The method is eligible only when the discovered CV is an
-XSUB. A Perl subroutine with this name is ignored and the ordinary provider
-protocol is used.
+When an object is assigned to C<${^RNG}>, Perl asks the object whether these
+methods are available. Each method is eligible only when the discovered CV is
+an XSUB. Perl subroutines with these names are ignored and the ordinary
+provider protocol is used.
 
-The getter takes no arguments other than its invocant. It returns the address
-of a callback belonging to the XS provider's implementation. The provider
-owns the layout of the object passed to that callback, so the callback can
-recover and update the provider's state without copying it through Perl.
+The getters take no arguments other than their invocant. The first returns the
+address of a callback belonging to the XS provider's implementation. The
+second returns the address of the provider's native state. The provider owns
+the layout of that state, so the callback can update it directly without
+dereferencing or copying an C<SV> on every call.
 
-If the XSUB is eligible, Perl calls it once for the selected object. It may
-return:
+If the XSUBs are eligible, Perl calls each once for the selected object. Each
+may return:
 
 =over 4
 
@@ -144,11 +146,12 @@ an invalid value, which raises an exception.
 The callback address uses Perl's established XS pointer-address convention.
 The callback has this C signature:
 
-    typedef U64 (*Perl_rng_u64_func)(pTHX_ SV *provider);
+    typedef U64 (*Perl_rng_u64_func)(pTHX_ void *state);
 
-When present, C<rand> uses this callback directly and avoids calling the Perl
-C<rand_bytes> method or constructing and decoding an eight-byte temporary
-buffer. This optimization applies to the core C<rand> path only;
+When both getters are present, C<rand> passes the cached native state directly
+to this callback. It avoids calling the Perl C<rand_bytes> method,
+dereferencing the provider C<SV>, or constructing and decoding an eight-byte
+temporary buffer. This optimization applies to the core C<rand> path only;
 C<rand_bytes> continues to use the ordinary byte-oriented provider protocol.
 
 The callback is cached in interpreter state. Once selected, C<rand> performs

@@ -51,7 +51,8 @@ C<BCryptGenRandom> system-preferred provider.  On Unix-like builds it uses
 C<getentropy> when available, otherwise C</dev/urandom>.
 
 The state is stored in a blessed scalar reference and the implementation is
-in XS.  The module provides C<get_rand_u64_XS_func_addr>, allowing the core's
+in XS.  The module provides C<get_rand_u64_XS_func_addr> and
+C<get_rand_u64_XS_state_addr>, allowing the core's
 C<rand> path to obtain words without Perl method dispatch or a temporary byte
 buffer.
 
@@ -125,7 +126,7 @@ Read or set prediction resistance.  Enabling it requires a secure-mode
 provider and causes fresh operating-system entropy to be obtained before each
 generation request.
 
-=head2 get_rand_u64_XS_func_addr
+=head2 get_rand_u64_XS_func_addr and get_rand_u64_XS_state_addr
 
 Return the callback address used by the core's fast C<rand> path.  Applications
 should not normally call this method directly.

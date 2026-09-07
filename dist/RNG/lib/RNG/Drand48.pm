@@ -39,8 +39,9 @@ default random-number implementation as an object satisfying the C<RNG>
 provider interface.  It is primarily useful for comparison and compatibility
 testing.  It is not suitable for cryptography or security-sensitive uses.
 
-The XS implementation provides C<get_rand_u64_XS_func_addr>, so the core can
-call the provider directly through the fast C<${^RNG}> callback path.  The
+The XS implementation provides C<get_rand_u64_XS_func_addr> and
+C<get_rand_u64_XS_state_addr>, so the core can call the provider directly
+through the fast C<${^RNG}> callback path.  The
 provider returns the same normalized sequence as the built-in C<drand48>
 implementation when initialized with the same numeric seed.
 
@@ -48,7 +49,7 @@ implementation when initialized with the same numeric seed.
 
 See L<RNG> for the provider interface used by C<${^RNG}>.  The module provides
 C<new>, C<rand>, C<rand01>, C<rand01_callback>, C<rand_bytes>, C<srand>, and
-C<get_rand_u64_XS_func_addr>.
+C<get_rand_u64_XS_func_addr> and C<get_rand_u64_XS_state_addr>.
 
 =head1 SEE ALSO
 
