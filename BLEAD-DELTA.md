@@ -70,11 +70,24 @@ The protocol also defines `restartable` and `restart`; the default is
 non-restartable, and the default `restart` method reports that restarting is
 unsupported.
 
-Related POD: [`pod/perlgenerator.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlgenerator.pod) and [`lib/generator.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/generator.pm) describe the combined pragma and generator interface; [`pod/perliterator.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perliterator.pod) describes the general callable-iterator protocol; [`lib/iterator.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/iterator.pm) documents its package API; and [`lib/builtin.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/builtin.pm) documents builtin import behavior.  The dedicated POD covers generators,
-continuations, and cooperative resumable execution. [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod),
-[`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod), [`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlsyn.pod), [`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod), and
-[`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod) cover the experimental status, keywords, syntax,
-diagnostics, and release notes.
+Related POD:
+[`pod/perlgenerator.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlgenerator.pod) and
+[`lib/generator.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/generator.pm)
+    describe the combined pragma and generator interface;
+[`pod/perliterator.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perliterator.pod)
+    describes the general callable-iterator protocol;
+[`lib/iterator.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/iterator.pm)
+    documents its package API; and
+[`lib/builtin.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/builtin.pm)
+    documents builtin import behavior.  The dedicated POD covers generators, continuations,
+    and cooperative resumable execution.
+[`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod),
+[`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod),
+[`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlsyn.pod),
+[`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod), and
+[`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod)
+    cover the experimental status, keywords, syntax,
+    diagnostics, and release notes.
 
 ### Lexical namespaces
 
@@ -85,10 +98,15 @@ diagnostics, deparser tests, generated headers, and documentation were
 updated. `CORE` receives special handling because it is the implementation
 namespace for Perl's builtins and operators.
 
-Related POD: [`pod/perlnamespace.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlnamespace.pod) is the dedicated namespace reference;
-[`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlsyn.pod), [`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod), [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod),
-[`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod), and [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod) cover syntax, builtins,
-experimental status, diagnostics, and release notes.
+Related POD:
+[`pod/perlnamespace.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlnamespace.pod)
+    is the dedicated namespace reference;
+[`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlsyn.pod),
+[`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod),
+[`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod),
+[`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod), and
+[`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod) cover syntax, builtins,
+    experimental status, diagnostics, and release notes.
 
 ### Classes and roles
 
@@ -104,10 +122,14 @@ The branch includes substantial class and role work, including:
 - cloning of role metadata in threaded stashes;
 - corresponding parser, opcode, diagnostics, documentation, and tests.
 
-Related POD: [`pod/perlclass.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlclass.pod) is the primary class and role reference;
-[`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod), [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod), [`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod), and
-[`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod) cover the builtins, experimental status, diagnostics, and
-release notes.
+Related POD:
+[`pod/perlclass.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlclass.pod)
+    is the primary class and role reference;
+[`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod),
+[`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod),
+[`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod), and
+[`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod)
+    cover the builtins, experimental status, diagnostics, and release notes.
 
 ### Class objects and Data::Dumper
 
@@ -117,10 +139,14 @@ were updated in [`dist/Data-Dumper`](https://github.com/demerphq/perl5/tree/xper
 the distribution on older Perl versions. The class-object support is
 documented and tested.
 
-Related POD: [`pod/perlclass.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlclass.pod), [`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod), and [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod)
-describe the class-object APIs and their user-visible integration.
-Distribution-specific history is in [`dist/Data-Dumper/Changes`](https://github.com/demerphq/perl5/blob/xperl/main/dist/Data-Dumper/Changes); no separate
-Data::Dumper POD document was added for this change.
+Related POD:
+[`pod/perlclass.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlclass.pod),
+[`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod), and
+[`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod)
+    describe the class-object APIs and their user-visible integration.
+Distribution-specific history is in
+[`dist/Data-Dumper/Changes`](https://github.com/demerphq/perl5/blob/xperl/main/dist/Data-Dumper/Changes);
+    no separate Data::Dumper POD document was added for this change.
 
 ## Bundled distribution changes
 
