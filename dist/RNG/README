@@ -5,6 +5,8 @@ provider interface used by Perl's C<${^RNG}> variable. The generators are
 intended for
 simulations, testing, and other non-cryptographic uses. RNG::PCG is a small
 XS implementation of Melissa O'Neill's two-dimensional PCG-XSH-RR generator.
+RNG::Drand48 exposes Perl's built-in drand48-compatible generator through the
+same interface, primarily for comparison and compatibility testing.
 RNG::SHA is a deliberately simple, proof-of-concept pure-Perl SHA-256 based
 generator using Digest::SHA. It is slow and is not suitable for cryptography;
 see its module documentation for the full warning. RNG::Wyrand and

@@ -92,7 +92,7 @@ number generator.
 =head1 SEE ALSO
 
 L<perlvar/${^RNG}>, L<perlfunc/rand EXPR>, L<perlfunc/srand EXPR>,
-L<RNG::HMAC_DRBG>, L<RNG::PCG>, L<RNG::SHA>, L<RNG::Wyrand>, and
+L<RNG::Drand48>, L<RNG::HMAC_DRBG>, L<RNG::PCG>, L<RNG::SHA>, L<RNG::Wyrand>, and
 L<RNG::Xoshiro>.
 
 =cut

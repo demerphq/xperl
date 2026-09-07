@@ -3,11 +3,13 @@ Makefile.PL
 README
 RNG.xs
 lib/RNG.pm
+lib/RNG/Drand48.pm
 lib/RNG/HMAC_DRBG.pm
 lib/RNG/PCG.pm
 lib/RNG/SHA.pm
 lib/RNG/Wyrand.pm
 lib/RNG/Xoshiro.pm
+t/drand48.t
 t/hmac_drbg.t
 t/pcg.t
 t/sha.t

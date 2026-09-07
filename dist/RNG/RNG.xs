@@ -11,6 +11,75 @@
 #  include <bcrypt.h>
 #endif
 
+/* The same 48-bit linear-congruential generator used by Perl's default
+ * drand48 implementation.  Keeping the state in a scalar reference makes
+ * this provider obey the same object-level protocol as the other bundled
+ * providers while allowing its native-word callback to be benchmarked. */
+typedef struct {
+    U64 state;
+} rng_drand48_data;
+
+#define DRAND48_MULT UINT64_C(0x5deece66d)
+#define DRAND48_ADD  UINT64_C(0xb)
+#define DRAND48_MASK UINT64_C(0xffffffffffff)
+#define DRAND48_SEED_0 UINT64_C(0x330e)
+
+static const char drand48_zero_state[sizeof(rng_drand48_data)] = { 0 };
+
+static rng_drand48_data *
+drand48_state(pTHX_ SV *self)
+{
+    SV *state;
+
+    if (!SvROK(self) || !SvPOK(state = SvRV(self)))
+        croak("RNG::Drand48 object does not contain a valid state");
+    if (SvCUR(state) != sizeof(rng_drand48_data))
+        croak("RNG::Drand48 object does not contain a valid state");
+    return (rng_drand48_data *)SvPVX(state);
+}
+
+static rng_drand48_data *
+drand48_state_fast(SV *self)
+{
+    return (rng_drand48_data *)SvPVX(SvRV(self));
+}
+
+static U64
+drand48_next(rng_drand48_data *value)
+{
+    value->state = (value->state * DRAND48_MULT + DRAND48_ADD)
+                 & DRAND48_MASK;
+    return value->state;
+}
+
+static void
+drand48_seed(rng_drand48_data *value, SV *seed)
+{
+    const U64 numeric = seed && SvOK(seed) ? (U64)SvUV(seed) : 0;
+    value->state = DRAND48_SEED_0 + (numeric << 16);
+}
+
+static void
+drand48_fill_bytes(rng_drand48_data *state, STRLEN length, U8 *bytes)
+{
+    U64 word;
+    STRLEN offset;
+    unsigned int i;
+
+    for (offset = 0; offset < length; ) {
+        word = drand48_next(state) << 16;
+        for (i = 0; i < 8 && offset < length; i++)
+            bytes[offset++] = (U8)(word >> (56 - 8 * i));
+    }
+}
+
+static U64
+drand48_u64_fast(pTHX_ SV *self)
+{
+    PERL_UNUSED_CONTEXT;
+    return drand48_next(drand48_state_fast(self)) << 16;
+}
+
 /*
  * This is the two-dimensional PCG-XSH-RR construction.  The base
  * generator has 64 bits of state and produces 32-bit values.  Two extra
@@ -748,6 +817,88 @@ hmac_drbg_u64_fast(pTHX_ SV *self)
         value = (value << 8) | output[i];
     return value;
 }
+
+MODULE = RNG         PACKAGE = RNG::Drand48
+
+UV
+get_rand_u64_XS_func_addr(self)
+    SV *self
+CODE:
+    PERL_UNUSED_ARG(self);
+    RETVAL = PTR2UV(drand48_u64_fast);
+OUTPUT:
+    RETVAL
+
+SV *
+new(class_name, seed = 0)
+    const char *class_name
+    SV *seed
+PREINIT:
+    SV *state;
+CODE:
+    state = newSVpvn(drand48_zero_state, sizeof(drand48_zero_state));
+    RETVAL = newRV_noinc(state);
+    sv_bless(RETVAL, gv_stashpv(class_name, GV_ADD));
+    drand48_seed((rng_drand48_data *)SvPVX(state), seed);
+OUTPUT:
+    RETVAL
+
+SV *
+rand_bytes(self, length)
+    SV *self
+    UV length
+CODE:
+    RETVAL = newSVpvn("", 0);
+    SvGROW(RETVAL, length + 1);
+    drand48_fill_bytes(drand48_state(aTHX_ self), length,
+                       (U8 *)SvPVX(RETVAL));
+    ((U8 *)SvPVX(RETVAL))[length] = '\0';
+    SvCUR_set(RETVAL, length);
+    SvPOK_on(RETVAL);
+OUTPUT:
+    RETVAL
+
+NV
+rand01(self)
+    SV *self
+PREINIT:
+    U64 random;
+CODE:
+    random = drand48_next(drand48_state(aTHX_ self));
+    RETVAL = (NV)random / ((NV)UINT64_C(0x1000000000000));
+OUTPUT:
+    RETVAL
+
+NV
+rand(self, limit = NULL)
+    SV *self
+    SV *limit
+PREINIT:
+    NV value;
+    U64 random;
+CODE:
+    value = (items < 2 || !SvOK(limit)) ? 1.0 : SvNV(limit);
+    if (value == 0.0)
+        value = 1.0;
+    random = drand48_next(drand48_state(aTHX_ self));
+    RETVAL = value * ((NV)random / ((NV)UINT64_C(0x1000000000000)));
+OUTPUT:
+    RETVAL
+
+UV
+srand(self, seed = NULL)
+    SV *self
+    SV *seed
+PREINIT:
+    UV value;
+CODE:
+    value = (items < 2 || !SvOK(seed)
+          || (SvPOKp(seed) && !SvIOKp(seed) && !SvNOKp(seed)))
+          ? 0 : SvUV(seed);
+    drand48_seed(drand48_state(aTHX_ self), seed);
+    RETVAL = value;
+OUTPUT:
+    RETVAL
 
 MODULE = RNG         PACKAGE = RNG::PCG
 

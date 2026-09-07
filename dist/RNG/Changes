@@ -1,6 +1,8 @@
 Revision history for RNG.
 
 [Unreleased]
+    - Add the XS RNG::Drand48 provider for comparison with Perl's built-in
+      drand48-based generator and the ${^RNG} interface.
     - Add the XS RNG::HMAC_DRBG provider, with deterministic and secure
       operating-system-seeded modes and an optional prediction-resistance
       policy.
