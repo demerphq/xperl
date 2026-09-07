@@ -3,6 +3,18 @@
 This file collects possible future work that is not currently part of an
 active implementation plan.
 
+## Zero-argument constants in case/match patterns
+
+Allow a data-shape in a `case`/`match` statement to contain zero-argument
+constant forms such as `Foo::BAR`, `DEBUG`, and `Foo::Bar::Baz()`. These
+forms should contribute their returned value to the data-shape; they must
+not become implicit bindings merely because they look like bare words.
+
+Argument-bearing calls such as `Foo($x + 1)` are deliberately deferred. If
+they are supported later, parentheses will be mandatory and their contents
+will use ordinary Perl expression rules. Before adding that extension, define
+its evaluation timing, context, side effects, and interaction with dispatch.
+
 ## AI-oriented benchmark and comparison tools
 
 Develop developer-facing tools for AI-assisted Perl work that can turn
