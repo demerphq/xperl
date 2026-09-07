@@ -65,8 +65,9 @@ complete data shape, and its guard if any, succeeds.
 
 Data-shape variables are lexical to the block attached to that C<match>.  They
 are not accesses to a same-named variable in the surrounding scope, and they
-do not become variables there.  A name listed by the case's C<with> clause is
-the exception: it is pinned and is looked up as the existing lexical.
+do not become variables there.  A name listed by the case's C<with> clause, or
+prefixed with C<^> in the data shape, is the exception: it is pinned and is
+looked up as the existing lexical.
 
 The part inside C<match (...)> is a data-shape description, not an ordinary
 Perl expression.  It has Perl-like punctuation and names, but its job is to
@@ -248,8 +249,8 @@ An empty part is valid, so C<xz> matches the first example with an empty
 C<$middle>.
 
 The concatenation is interpreted as a data shape, not as an ordinary Perl
-expression.  A scalar named in a C<with> clause is pinned and contributes its
-existing value instead of capturing text:
+expression.  A scalar named in a C<with> clause, or prefixed with C<^>, is
+pinned and contributes its existing value instead of capturing text:
 
     case ($text) with ($wanted) {
         match ("x" . $wanted) { say "it matched" }

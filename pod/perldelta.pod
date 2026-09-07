@@ -48,6 +48,11 @@ C<ObjectVal> may each take one scalar target, such as C<RefVal($reference)>,
 which is bound after the type check succeeds.  Such a target cannot also be
 pinned by C<with>.
 
+An existing scalar can also be pinned directly in a data shape with the
+pattern-only C<^$name> form.  Its value is snapshotted when the surrounding
+C<case> begins, and ordinary caret operators retain their normal meaning
+outside C<match> data shapes.
+
 =head2 Lexical namespaces
 
 The experimental C<namespaces> feature provides lexical namespace prefixes,

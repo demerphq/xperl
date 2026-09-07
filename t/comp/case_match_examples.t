@@ -61,11 +61,11 @@ my $showcase_ran = eval q{
             match ([ 0, ... ])                    { 'array starts with <0>' }
             match ([ ..., $last ])                { "ends <\$last=$last>" }
 
-            # Hash shapes, including pinned and open hashes.
+            # Hash shapes, including caret-pinned and open hashes.
             match ({ kind => 'point',
                      x => $x, y => $y })          { "point hash ($x,$y)" }
-            match ({ status => $showcase_status,
-                     code => $showcase_code })    { 'pinned status' }
+            match ({ status => ^$showcase_status,
+                     code => ^$showcase_code })   { 'pinned status' }
             match ({ status => 'ok',
                      code => $code, ... })        { "open status <$code>" }
             match ({ status => $status, ... })    { "any status <$status>" }
