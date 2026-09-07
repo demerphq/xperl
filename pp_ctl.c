@@ -6575,12 +6575,86 @@ S_case_pattern_is_slurp(const OP *op)
         && cUNOPx(op)->op_first->op_type == OP_PADAV;
 }
 
+static bool
+S_case_pattern_canonical_number(const char *start, const char *end)
+{
+    const char *digits;
+
+    if (start < end && (*start == '+' || *start == '-'))
+        start++;
+    digits = start;
+    while (digits < end && isDIGIT((U8)*digits))
+        digits++;
+    return digits - start <= 1 || *start != '0';
+}
+
+static bool
+S_case_pattern_numeric_match(pTHX_ SV *value, U8 criterion)
+{
+    const bool strict = (criterion & CASE_PATTERN_CRITERION_STRICT) != 0;
+    const U8 kind = criterion & CASE_PATTERN_CRITERION_MASK;
+    const char *start;
+    const char *end;
+    STRLEN len;
+    UV integer_value;
+    int number_type;
+    bool integer_string;
+    bool float_string;
+
+    if (kind == CASE_PATTERN_CRITERION_NUM)
+        return SvIOK(value) || SvNOK(value);
+
+    if (SvIOK(value) || SvNOK(value)) {
+        if (kind == CASE_PATTERN_CRITERION_INTSTR)
+            return SvIOK(value);
+        if (kind == CASE_PATTERN_CRITERION_FLOATSTR)
+            return SvNOK(value);
+        return TRUE;
+    }
+    if (!SvPOK(value) || SvROK(value))
+        return FALSE;
+
+    start = SvPV_nomg_const(value, len);
+    end = start + len;
+    while (start < end && isSPACE((U8)*start))
+        start++;
+    while (end > start && isSPACE((U8)end[-1]))
+        end--;
+    if (start == end || (strict && (start != SvPVX_const(value)
+                                    || end != SvPVX_const(value) + SvCUR(value))))
+        return FALSE;
+
+    number_type = grok_number(start, end - start, &integer_value);
+    if (!number_type || (number_type & IS_NUMBER_TRAILING))
+        return FALSE;
+    integer_string = !(number_type & IS_NUMBER_NOT_INT);
+    float_string = !integer_string;
+    if (strict && !S_case_pattern_canonical_number(start, end))
+        return FALSE;
+
+    if (kind == CASE_PATTERN_CRITERION_INTSTR) {
+        return integer_string;
+    }
+    if (kind == CASE_PATTERN_CRITERION_FLOATSTR) {
+        return float_string;
+    }
+    return integer_string || float_string;
+}
+
 static void
 S_case_pattern_validate(pTHX_ const OP *op)
 {
     const OP *kid;
     if (!op)
         return;
+    if (op->op_type == OP_CASECOERCE
+        && (op->op_private & CASE_PATTERN_CRITERION_MASK)
+            == CASE_PATTERN_CRITERION_NUMEQ) {
+        const OP *arg = (op->op_flags & OPf_KIDS)
+            ? cUNOPx(op)->op_first : NULL;
+        if (!arg || (arg->op_type != OP_CONST && arg->op_type != OP_UNDEF))
+            Perl_croak(aTHX_ "NumEq() requires a literal argument in a match pattern");
+    }
     if (op->op_type == OP_NULL && (op->op_flags & OPf_KIDS)) {
         S_case_pattern_validate(aTHX_ cUNOPx(op)->op_first);
         return;
@@ -7232,9 +7306,25 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
         bool matched;
         const OP *target = (pattern->op_flags & OPf_KIDS)
             ? cUNOPx(pattern)->op_first : NULL;
-        if (pattern->op_private == 4)
+        const U8 criterion = pattern->op_private & CASE_PATTERN_CRITERION_MASK;
+        if (criterion == CASE_PATTERN_CRITERION_INTSTR
+            || criterion == CASE_PATTERN_CRITERION_FLOATSTR
+            || criterion == CASE_PATTERN_CRITERION_NUM
+            || criterion == CASE_PATTERN_CRITERION_NUMSTR) {
+            matched = S_case_pattern_numeric_match(aTHX_ value, pattern->op_private);
+        }
+        else if (criterion == CASE_PATTERN_CRITERION_NUMEQ) {
+            const OP *arg = target;
+            if (!arg || (arg->op_type != OP_CONST && arg->op_type != OP_UNDEF))
+                Perl_croak(aTHX_ "NumEq() requires a literal argument in a match pattern");
+            matched = do_ncmp(value,
+                              arg->op_type == OP_CONST
+                              ? cSVOPx_sv(arg) : &PL_sv_undef) == 0;
+            return matched;
+        }
+        else if (criterion == CASE_PATTERN_CRITERION_REFVAL)
             matched = SvROK(value);
-        else if (pattern->op_private == 5)
+        else if (criterion == CASE_PATTERN_CRITERION_SCALARVAL)
             matched = !SvROK(value);
         else
             matched = SvROK(value) && SvOBJECT(SvRV(value));

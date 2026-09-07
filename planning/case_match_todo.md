@@ -15,6 +15,9 @@ The branch currently provides:
   `with` pins, including `with (EXPR as $name)`;
 - scalar patterns for `undef`, booleans, numeric literals, string literals,
   and the wildcard `_`;
+- numeric criteria `IntStr`, `FloatStr`, `Num`, and `NumStr`, with optional
+  `Strict` canonical-spelling checks, plus matching-only `NumEq` using Perl's
+  numeric equality semantics;
 - explicit `ToInteger`, `ToFloat`, and `ToString` subject coercions;
 - tentative lexical bindings with commit/rollback behavior;
 - exact and open nested array/hash-reference patterns using edge `...`

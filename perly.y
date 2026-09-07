@@ -71,6 +71,7 @@
 %token <ival> KW_GIVEN KW_WHEN KW_DEFAULT
 %token <ival> KW_CASE KW_MATCH KW_WITH KW_ToInteger KW_ToFloat KW_ToString
 %token <ival> KW_RefVal KW_ScalarVal KW_ObjectVal
+%token <ival> KW_IntStr KW_FloatStr KW_Num KW_NumStr KW_Strict KW_NumEq
 %token <ival> KW_TRY KW_CATCH KW_FINALLY KW_DEFER KW_GEN KW_YIELD
 %token <ival> KW_REQUIRE KW_DO
 
@@ -101,6 +102,8 @@
 %type <opval> bare_statement_case bare_statement_match case_subject_alias
 %type <opval> case_subject_pins case_subject_pin_expr case_local_scalar
 %type <opval> case_mblock case_match_stmtseq case_match_guard case_pattern_target
+%type <opval> case_pattern_numeric case_pattern_numeric_base
+%type <opval> case_pattern_numeric_args
 %type <ival> case_pattern_start case_pattern_end case_subject_type
 %type <opval> bare_statement_class_declaration
 %type <opval> bare_statement_class_definition
@@ -478,6 +481,65 @@ case_pattern_target
 			    Perl_croak(aTHX_
 				"typed pattern target cannot be pinned with a case with clause");
 		    $$ = $scalar;
+		}
+		;
+
+case_pattern_numeric_args
+	: PERLY_PAREN_OPEN PERLY_PAREN_CLOSE
+		{ $$ = NULL; }
+	| PERLY_PAREN_OPEN case_pattern_target PERLY_PAREN_CLOSE
+		{ $$ = $case_pattern_target; }
+	;
+
+case_pattern_numeric_base
+	: KW_IntStr case_pattern_numeric_args
+		{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_numeric_args);
+		  $$->op_private = CASE_PATTERN_CRITERION_INTSTR;
+		  if (!$case_pattern_numeric_args) {
+		      cUNOPx($$)->op_first = NULL;
+		      $$->op_flags &= ~OPf_KIDS;
+		  } }
+	| KW_FloatStr case_pattern_numeric_args
+		{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_numeric_args);
+		  $$->op_private = CASE_PATTERN_CRITERION_FLOATSTR;
+		  if (!$case_pattern_numeric_args) {
+		      cUNOPx($$)->op_first = NULL;
+		      $$->op_flags &= ~OPf_KIDS;
+		  } }
+	| KW_Num case_pattern_numeric_args
+		{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_numeric_args);
+		  $$->op_private = CASE_PATTERN_CRITERION_NUM;
+		  if (!$case_pattern_numeric_args) {
+		      cUNOPx($$)->op_first = NULL;
+		      $$->op_flags &= ~OPf_KIDS;
+		  } }
+	| KW_NumStr case_pattern_numeric_args
+		{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_numeric_args);
+		  $$->op_private = CASE_PATTERN_CRITERION_NUMSTR;
+		  if (!$case_pattern_numeric_args) {
+		      cUNOPx($$)->op_first = NULL;
+		      $$->op_flags &= ~OPf_KIDS;
+		  } }
+	| KW_NumEq PERLY_PAREN_OPEN mexpr PERLY_PAREN_CLOSE
+		{ $$ = newUNOP(OP_CASECOERCE, 0, $mexpr);
+		  $$->op_private = CASE_PATTERN_CRITERION_NUMEQ; }
+	;
+
+case_pattern_numeric
+	: case_pattern_numeric_base
+		{ $$ = $case_pattern_numeric_base; }
+	| KW_Strict PERLY_PAREN_OPEN case_pattern_numeric_base PERLY_PAREN_CLOSE
+		{
+		    U8 criterion = $case_pattern_numeric_base->op_private
+			& CASE_PATTERN_CRITERION_MASK;
+		    if (criterion != CASE_PATTERN_CRITERION_INTSTR
+			&& criterion != CASE_PATTERN_CRITERION_FLOATSTR
+			&& criterion != CASE_PATTERN_CRITERION_NUMSTR)
+			Perl_croak(aTHX_
+			    "Strict() is only valid with IntStr(), FloatStr(), or NumStr() in a match pattern");
+		    $case_pattern_numeric_base->op_private |=
+			CASE_PATTERN_CRITERION_STRICT;
+		    $$ = $case_pattern_numeric_base;
 		}
 	;
 
@@ -2100,17 +2162,19 @@ term[product]	:	termbinop
 	|	FUNC0OP PERLY_PAREN_OPEN PERLY_PAREN_CLOSE
 			{ $$ = $FUNC0OP; }
 	|	KW_RefVal PERLY_PAREN_OPEN PERLY_PAREN_CLOSE
-			{ $$ = newUNOP(OP_CASECOERCE, 0, NULL); cUNOPx($$)->op_first = NULL; $$->op_flags &= ~OPf_KIDS; $$->op_private = 4; }
+			{ $$ = newUNOP(OP_CASECOERCE, 0, NULL); cUNOPx($$)->op_first = NULL; $$->op_flags &= ~OPf_KIDS; $$->op_private = CASE_PATTERN_CRITERION_REFVAL; }
 	|	KW_RefVal PERLY_PAREN_OPEN case_pattern_target PERLY_PAREN_CLOSE
-			{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_target); $$->op_private = 4; }
+			{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_target); $$->op_private = CASE_PATTERN_CRITERION_REFVAL; }
 	|	KW_ScalarVal PERLY_PAREN_OPEN PERLY_PAREN_CLOSE
-			{ $$ = newUNOP(OP_CASECOERCE, 0, NULL); cUNOPx($$)->op_first = NULL; $$->op_flags &= ~OPf_KIDS; $$->op_private = 5; }
+			{ $$ = newUNOP(OP_CASECOERCE, 0, NULL); cUNOPx($$)->op_first = NULL; $$->op_flags &= ~OPf_KIDS; $$->op_private = CASE_PATTERN_CRITERION_SCALARVAL; }
 	|	KW_ScalarVal PERLY_PAREN_OPEN case_pattern_target PERLY_PAREN_CLOSE
-			{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_target); $$->op_private = 5; }
+			{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_target); $$->op_private = CASE_PATTERN_CRITERION_SCALARVAL; }
 	|	KW_ObjectVal PERLY_PAREN_OPEN PERLY_PAREN_CLOSE
-			{ $$ = newUNOP(OP_CASECOERCE, 0, NULL); cUNOPx($$)->op_first = NULL; $$->op_flags &= ~OPf_KIDS; $$->op_private = 6; }
+			{ $$ = newUNOP(OP_CASECOERCE, 0, NULL); cUNOPx($$)->op_first = NULL; $$->op_flags &= ~OPf_KIDS; $$->op_private = CASE_PATTERN_CRITERION_OBJECTVAL; }
 	|	KW_ObjectVal PERLY_PAREN_OPEN case_pattern_target PERLY_PAREN_CLOSE
-			{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_target); $$->op_private = 6; }
+			{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_target); $$->op_private = CASE_PATTERN_CRITERION_OBJECTVAL; }
+	|	case_pattern_numeric
+			{ $$ = $case_pattern_numeric; }
 	|	FUNC0SUB                             /* Sub treated as nullop */
 			{ $$ = newUNOP(OP_ENTERSUB, OPf_STACKED, scalar($FUNC0SUB)); }
 	|	FUNC1 PERLY_PAREN_OPEN PERLY_PAREN_CLOSE                        /* not () */

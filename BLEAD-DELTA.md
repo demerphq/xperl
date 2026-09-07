@@ -150,6 +150,17 @@ and make named captures available as clause-local scalar bindings.  For
 example, `match (/^user: (?<name>[[:word:]]+)$/) { say $name }` binds `$name`
 when the subject matches; a named capture that does not participate is bound
 to `undef`.
+
+Numeric criteria add a controlled distinction between native numbers and
+numeric-looking strings.  `IntStr`, `FloatStr`, and `NumStr` can both match and
+bind values; they accept surrounding whitespace and leading-zero padding by
+default.  `Num` matches only native numeric values.  `Strict(...)` can wrap the
+string-bearing criteria to reject whitespace and non-canonical padding.  It is
+not valid around `Num` or `NumEq`.  `NumEq(EXPR)` is a matching-only comparison
+using Perl's `==` rules, including its normal numeric warnings; for example,
+`NumEq(0)` matches `"0000"`, `"0.0"`, and `"0000.0"`, and treats `"A"` as zero
+with a warning.
+
 The special criteria `RefVal()`, `ScalarVal()`, and `ObjectVal()`
 test, respectively, for any reference, any non-reference scalar, and a
 blessed reference.  They can each take one binding target, such as

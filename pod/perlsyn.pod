@@ -910,6 +910,31 @@ An undefined subject remains undefined, and references, including blessed
 references, pass through unchanged.  Without an explicit coercion, numeric
 and string literals remain distinct data-shape kinds.
 
+Numeric criteria can distinguish native numbers from numeric-looking strings:
+
+    case ($value) {
+        match (IntStr($integer)) { ... }
+        match (FloatStr($real))  { ... }
+        match (Num($number))     { ... }
+        match (NumStr($numeric)) { ... }
+    }
+
+C<IntStr()> and C<FloatStr()> accept their corresponding native values and
+numeric strings, including surrounding whitespace and leading-zero padding.
+C<Num()> accepts only native integer or floating-point values.  C<NumStr()> is
+the union of the two string-bearing forms.  A target receives the original
+value; matching C<"0007"> does not turn the binding into C<7>.
+
+C<Strict(...)> can wrap C<IntStr()>, C<FloatStr()>, or C<NumStr()> to reject
+surrounding whitespace and non-canonical leading-zero padding.  Applying
+C<Strict()> to C<Num()> or C<NumEq(...)> is a compile-time error.
+
+C<NumEq(EXPR)> is a matching-only criterion.  For now, C<EXPR> must be a
+literal value.  It compares using Perl's normal numeric C<==> rules and does
+not create a destructuring binding.  Consequently,
+C<NumEq(0)> matches strings such as C<"0000"> and C<"0.0">, while a value such
+as C<"A"> is treated as zero with Perl's usual numeric warning.
+
 A backslash can describe a scalar reference shape.  For example,
 C<match(\$value)> matches a reference to a scalar and binds the referred-to
 value; C<match(\\$value)> describes one additional reference layer.  This is

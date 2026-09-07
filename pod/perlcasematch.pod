@@ -152,6 +152,62 @@ elsewhere in a data shape.  It must not be one of the values pinned by the
 C<with> clause.  A criterion without an argument performs the type check
 without binding a value.
 
+=head2 Numeric value criteria
+
+Numeric data shapes distinguish native numeric values from numeric-looking
+strings:
+
+=over
+
+=item C<IntStr()>
+
+Matches an integer value or a string containing an integer.  Surrounding
+whitespace and leading-zero padding are accepted.
+
+=item C<FloatStr()>
+
+Matches a floating-point value or a string containing a floating-point number.
+Exponent notation is accepted.  Surrounding whitespace and leading-zero
+padding are accepted.
+
+=item C<Num()>
+
+Matches a native integer or floating-point value.  A string is not converted
+just to make it fit this shape.
+
+=item C<NumStr()>
+
+Matches anything accepted by C<IntStr()> or C<FloatStr()>.
+
+=back
+
+These criteria can also bind their matching value.  The binding receives the
+original value; matching C<"0007"> does not turn the binding into C<7>:
+
+    case ($value) {
+        match (IntStr($integer_text)) { use_integer($integer_text) }
+        match (FloatStr($float_text)) { use_float($float_text) }
+    }
+
+C<Strict(...)> may wrap C<IntStr()>, C<FloatStr()>, or C<NumStr()> when a
+canonical spelling is required.  Strict numeric string criteria reject
+surrounding whitespace and non-canonical leading-zero padding.  C<Strict(Num())>
+and C<Strict(NumEq(...))> are compile-time errors: C<Num()> already requires a
+native number, and C<NumEq()> is not a destructuring criterion.
+
+C<NumEq(EXPR)> is different from these criteria.  It is a matching-only
+comparison using Perl's ordinary numeric C<==> semantics.  It cannot bind a
+value.  For now, C<EXPR> must be a literal value.  Non-numeric input produces
+the usual Perl numeric warning:
+
+    case ($value) {
+        match (NumEq(0)) { say "numerically zero" }
+    }
+
+Thus C<NumEq(0)> matches C<"0000">, C<"0.0">, and C<"0000.0">.  It also
+matches C<"A"> as zero when Perl's numeric conversion rules say it does, and
+issues Perl's usual warning.
+
 =head2 Regular-expression data shapes
 
 A regular expression can be used as a data shape.  It is applied to the case

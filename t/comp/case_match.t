@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-print "1..72\n";
+print "1..83\n";
 
 my $ran = 0;
 $_ = 'outside';
@@ -967,3 +967,164 @@ my $regex_unmatched_ok = eval q{
 print !$@ && $regex_unmatched_ok && $regex_unmatched
     ? "ok 72 - nonparticipating named captures bind undef\n"
     : "not ok 72 - nonparticipating named captures bind undef\n";
+
+my @numeric_shapes;
+my $numeric_shapes_ok = eval q{
+    use feature 'case_match';
+    for my $value (0, 0.0, '0000', '0.0', '0000.0', ' 0000 ', 'A') {
+        case ($value) {
+            match (IntStr())   { push @numeric_shapes, 'I' }
+            match (FloatStr()) { push @numeric_shapes, 'F' }
+            match (NumStr())   { push @numeric_shapes, 'N' }
+            match (_)           { push @numeric_shapes, '-' }
+        }
+    }
+    1;
+};
+print !$@ && $numeric_shapes_ok && join('', @numeric_shapes) eq 'IFIFFI-'
+    ? "ok 73 - numeric string criteria distinguish integer and float shapes\n"
+    : "not ok 73 - numeric string criteria distinguish integer and float shapes\n";
+
+my ($intstr_value, $floatstr_value, $numstr_value);
+my ($intstr_result, $floatstr_result, $numstr_result);
+my $numeric_bindings = eval q{
+    use feature 'case_match';
+    case (' 0007 ') {
+        match (IntStr($intstr_value)) { $intstr_result = $intstr_value }
+    }
+    case ('0007.0') {
+        match (FloatStr($floatstr_value)) { $floatstr_result = $floatstr_value }
+    }
+    case ('0007.0') {
+        match (NumStr($numstr_value)) { $numstr_result = $numstr_value }
+    }
+    1;
+};
+print !$@ && $numeric_bindings && $intstr_result eq ' 0007 '
+    && $floatstr_result eq '0007.0' && $numstr_result eq '0007.0'
+    ? "ok 74 - numeric criteria bind the original matching value\n"
+    : "not ok 74 - numeric criteria bind the original matching value\n";
+
+my ($strict_int, $strict_float, $strict_num);
+my $strict_numeric = eval q{
+    use feature 'case_match';
+    case ('0007') {
+        match (Strict(IntStr($strict_int_value))) { $strict_int = 'wrong' }
+        match (_) { $strict_int = 'rejected' }
+    }
+    case ('7') {
+        match (Strict(IntStr($strict_int_value))) { $strict_int = 'accepted' }
+    }
+    case ('0007.0') {
+        match (Strict(FloatStr($strict_float_value))) { $strict_float = 'wrong' }
+        match (_) { $strict_float = 'rejected' }
+    }
+    case ('0.0') {
+        match (Strict(NumStr($strict_num_value))) { $strict_num = $strict_num_value }
+    }
+    1;
+};
+print !$@ && $strict_numeric && $strict_int eq 'accepted'
+    && $strict_float eq 'rejected' && $strict_num eq '0.0'
+    ? "ok 75 - Strict rejects whitespace and noncanonical padding\n"
+    : "not ok 75 - Strict rejects whitespace and noncanonical padding\n";
+
+my ($native_num, $string_num);
+my $native_numeric = eval q{
+    use feature 'case_match';
+    case (12) {
+        match (Num($native_num_value)) { $native_num = $native_num_value }
+    }
+    case ('12') {
+        match (Num()) { $string_num = 'wrong' }
+        match (_) { $string_num = 'rejected' }
+    }
+    1;
+};
+print !$@ && $native_numeric && $native_num == 12
+    && $string_num eq 'rejected'
+    ? "ok 76 - Num matches native numeric values only\n"
+    : "not ok 76 - Num matches native numeric values only\n";
+
+my @num_eq_warnings;
+my @num_eq_results;
+my $num_eq_ok;
+{
+    local $SIG{__WARN__} = sub { push @num_eq_warnings, @_ };
+    $num_eq_ok = eval q{
+        use warnings;
+        use feature 'case_match';
+        for my $value (0, 0.0, '0000', '0.0', '0000.0', 'A') {
+            case ($value) {
+                match (NumEq(0)) { push @num_eq_results, 1 }
+                match (_) { push @num_eq_results, 0 }
+            }
+        }
+        1;
+    };
+}
+print !$@ && $num_eq_ok && join('', @num_eq_results) eq '111111'
+    && @num_eq_warnings == 1 && $num_eq_warnings[0] =~ /A.*numeric/
+    ? "ok 77 - NumEq uses Perl numeric equality and warnings\n"
+    : "not ok 77 - NumEq uses Perl numeric equality and warnings\n";
+
+my $strict_num_error = eval q{
+    use feature 'case_match';
+    case (0) { match (Strict(Num())) { 1 } }
+    1;
+};
+print $@ =~ /Strict\(\).*only valid with IntStr\(\), FloatStr\(\), or NumStr\(\)/
+    ? "ok 78 - Strict rejects Num\n"
+    : "not ok 78 - Strict rejects Num\n";
+
+my $strict_eq_error = eval q{
+    use feature 'case_match';
+    case (0) { match (Strict(NumEq(0))) { 1 } }
+    1;
+};
+print $@ =~ /Strict\(\).*only valid with IntStr\(\), FloatStr\(\), or NumStr\(\)/
+    ? "ok 79 - Strict rejects NumEq\n"
+    : "not ok 79 - Strict rejects NumEq\n";
+
+my $num_eq_target_error = eval q{
+    use feature 'case_match';
+    case (0) { match (NumEq($target)) { 1 } }
+    1;
+};
+print $@ =~ /NumEq\(\) requires a literal argument/
+    ? "ok 80 - NumEq does not provide destructuring targets\n"
+    : "not ok 80 - NumEq does not provide destructuring targets\n";
+
+my ($ordinary_intstr, $ordinary_strict, $ordinary_num_eq);
+my $ordinary_numeric_names = eval q{
+    use feature 'case_match';
+    sub IntStr { 1 }
+    sub Strict { 2 }
+    sub NumEq { 3 }
+    $ordinary_intstr = IntStr();
+    $ordinary_strict = Strict();
+    $ordinary_num_eq = NumEq();
+    1;
+};
+print !$@ && $ordinary_numeric_names && $ordinary_intstr == 1
+    && $ordinary_strict == 2 && $ordinary_num_eq == 3
+    ? "ok 81 - numeric criteria names remain ordinary outside patterns\n"
+    : "not ok 81 - numeric criteria names remain ordinary outside patterns\n";
+
+my $strict_whitespace_hit;
+my $strict_whitespace_error = eval q{
+    use feature 'case_match';
+    case (' 7 ') { match (Strict(IntStr())) { $strict_whitespace_hit = 1 } }
+    1;
+};
+print !$@ && $strict_whitespace_error && !defined($strict_whitespace_hit)
+    ? "ok 82 - Strict rejects surrounding whitespace\n"
+    : "not ok 82 - Strict rejects surrounding whitespace\n";
+
+my $numstr_padded = eval q{
+    use feature 'case_match';
+    case ('0007.0') { match (NumStr()) { 1 } }
+};
+print !$@ && $numstr_padded
+    ? "ok 83 - NumStr accepts padded numeric strings\n"
+    : "not ok 83 - NumStr accepts padded numeric strings\n";

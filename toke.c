@@ -9025,6 +9025,48 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
         PL_bufptr = s;
         return REPORT(KW_ToInteger);
 
+    case KEY_IntStr:
+        if (!PL_parser->in_case_pattern)
+            return yyl_just_a_word(aTHX_ s, len, orig_keyword, c);
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_IntStr);
+
+    case KEY_FloatStr:
+        if (!PL_parser->in_case_pattern)
+            return yyl_just_a_word(aTHX_ s, len, orig_keyword, c);
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_FloatStr);
+
+    case KEY_Num:
+        if (!PL_parser->in_case_pattern)
+            return yyl_just_a_word(aTHX_ s, len, orig_keyword, c);
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_Num);
+
+    case KEY_NumEq:
+        if (!PL_parser->in_case_pattern)
+            return yyl_just_a_word(aTHX_ s, len, orig_keyword, c);
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_NumEq);
+
+    case KEY_NumStr:
+        if (!PL_parser->in_case_pattern)
+            return yyl_just_a_word(aTHX_ s, len, orig_keyword, c);
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_NumStr);
+
+    case KEY_Strict:
+        if (!PL_parser->in_case_pattern)
+            return yyl_just_a_word(aTHX_ s, len, orig_keyword, c);
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_Strict);
+
     case KEY_RefVal:
         if (!PL_parser->in_case_pattern)
             return yyl_just_a_word(aTHX_ s, len, orig_keyword, c);
