@@ -1,0 +1,180 @@
+=head1 NAME
+
+perlrng - Perl random-number providers
+
+=head1 DESCRIPTION
+
+Perl normally uses its built-in pseudorandom number generator. The special
+variable C<${^RNG}> lets a program select a different provider for C<rand> and
+C<srand>.
+
+The value of C<${^RNG}> is dynamically scoped and can be localized:
+
+    {
+        local ${^RNG} = $rng;
+        my $value = rand(100);
+    }
+
+Leaving the scope restores the previous provider. Localization selects a
+different provider; it does not copy, rewind, or otherwise alter the state
+stored in either provider object.
+
+=head1 WHY USE A PROVIDER?
+
+Programs often use random numbers without caring which pseudorandom number
+generator produces them.  Tests may need a repeatable sequence, simulations
+may need a particular algorithm, and an application may need to replace the
+default generator with one that has different state or seeding properties.
+Those programs should not have to be rewritten merely because their source of
+randomness changes.
+
+C<${^RNG}> provides one standard point at which the source of randomness can
+be selected.  A program can use ordinary C<rand> and C<srand> calls, while a
+caller, test harness, or dynamically scoped part of the program can install a
+different provider with C<local>.  The code using randomness therefore does
+not need to accept an RNG object in every API, and libraries do not need to
+invent separate provider interfaces for their own functions.
+
+This also gives different parts of the Perl ecosystem a common protocol.
+Modules such as C<List::Util> and other CPAN distributions should be able to
+use the same provider rather than each defining a slightly different way to
+inject or replace an RNG.  Existing module-specific APIs may still be useful
+for module-specific operations, but they need not be the only way to control
+the randomness used by a program.
+
+The provider protocol is deliberately small and flexible.  A pure-Perl
+provider can implement the object or code-reference interface directly.  An
+XS provider may take additional care to expose the optional fast callback and
+avoid Perl method dispatch in the hot C<rand> path.  This keeps the ordinary
+case simple while allowing a provider that needs near-built-in performance to
+achieve it without every algorithm being compiled into the Perl core.
+
+=head1 WHY ARE THERE SEVERAL RNG METHODS?
+
+The methods exposed by an RNG module do not all represent separate provider
+protocols.  They serve different layers and, in some cases, preserve
+interfaces that existing modules already use.
+
+The canonical exchange format for the C<${^RNG}> provider protocol is a byte
+string.  C<rand_bytes> can preserve all the bits produced by a provider and
+does not depend on the size or precision of Perl's native numeric types.  The
+optional XS U64 callback is the efficient internal form used by the core when
+an XS provider supplies one.
+
+Methods such as C<rand> and C<rand01> are convenience interfaces.  They are
+useful when a caller wants a bounded floating-point result, or when an
+existing module already expects a zero-to-one RNG method.  C<rand01_callback>
+is another compatibility adapter for APIs that expect a code reference.  They
+are not the preferred exchange format for the core provider protocol.
+
+In particular, converting a random word to an C<NV> is lossy on ordinary Perl
+builds: an IEEE floating-point value normally has fewer significant bits than
+a 64-bit random word.  Using a floating-point value as the internal exchange
+currency can therefore discard entropy and can introduce quantization or bias
+when the consumer converts it again.  The core consequently obtains bytes or
+a native 64-bit word and performs the final conversion itself.  The
+floating-point convenience methods remain available because compatibility with
+existing callers is important, even though they are not used for the core's
+internal provider exchange.
+
+=head1 PROVIDER PROTOCOL
+
+An object provider must implement both of these methods:
+
+    $rng->rand_bytes($length)
+    $rng->srand($seed)
+
+C<rand_bytes> must return a binary string containing exactly the requested
+number of bytes. C<srand> resets the provider's state and returns the provider's
+normal seed result.
+
+An undefined provider selects Perl's built-in generator. An object that does
+not provide both required methods is rejected when it is assigned to
+C<${^RNG}>; it does not silently fall back to the built-in generator.
+
+An unblessed code reference is called with the requested byte count for random
+bytes, and with the seed argument for explicit C<srand>. The code reference
+must return the required binary string.
+
+When a non-undef value is assigned to C<${^RNG}>, or selected by localization,
+Perl validates its kind and, for an object, verifies that both required methods
+are available. This validation happens when the selected value changes. The
+provider is not repeatedly revalidated by each call to C<rand>.
+
+The only legal values are C<undef>, an object, or an unblessed C<CODE>
+reference. Assigning any other scalar value, including through C<local>,
+raises an exception immediately.
+
+=head1 XS FAST PATH
+
+An XS provider can avoid Perl method dispatch on every C<rand> call by
+implementing this method as an XSUB:
+
+    get_rand_u64_XS_func_addr()
+
+When an object is assigned to C<${^RNG}>, Perl asks the object whether this
+method is available. The method is eligible only when the discovered CV is an
+XSUB. A Perl subroutine with this name is ignored and the ordinary provider
+protocol is used.
+
+The getter takes no arguments other than its invocant. It returns the address
+of a callback belonging to the XS provider's implementation. The provider
+owns the layout of the object passed to that callback, so the callback can
+recover and update the provider's state without copying it through Perl.
+
+If the XSUB is eligible, Perl calls it once for the selected object. It may
+return:
+
+=over 4
+
+=item *
+
+C<undef> or zero, meaning that the normal Perl-level path should be used;
+
+=item *
+
+a non-zero integer containing a callback address; or
+
+=item *
+
+an invalid value, which raises an exception.
+
+=back
+
+The callback address uses Perl's established XS pointer-address convention.
+The callback has this C signature:
+
+    typedef U64 (*Perl_rng_u64_func)(pTHX_ SV *provider);
+
+When present, C<rand> uses this callback directly and avoids calling the Perl
+C<rand_bytes> method or constructing and decoding an eight-byte temporary
+buffer. This optimization applies to the core C<rand> path only;
+C<rand_bytes> continues to use the ordinary byte-oriented provider protocol.
+
+The callback is cached in interpreter state. Once selected, C<rand> performs
+no C<can> lookup, Perl method lookup, Perl method dispatch, or provider-shape
+validation for the request. Those operations happen only when C<${^RNG}>
+changes or is restored by localization.
+
+The callback is trusted XS code. Perl can validate that the returned value has
+the required integer representation, but it cannot prove that an arbitrary
+non-zero address points to a function with the correct signature.
+
+=head1 MULTIPLE PROVIDERS
+
+Each provider object owns its own random state. The cached function pointer
+belongs only to the provider currently selected by C<${^RNG}>:
+
+    ${^RNG} = $rng1;       # discover and cache rng1's callback
+    ${^RNG} = $rng2;       # replace it with rng2's callback
+
+Different objects may use different callback functions, and objects of the
+same class may share one callback implementation while retaining independent
+state.
+
+=head1 SEE ALSO
+
+L<perlfunc/rand EXPR>, L<perlvar/${^RNG}>, L<RNG>, L<RNG::PCG>,
+L<RNG::HMAC_DRBG>, L<RNG::Wyrand>, and L<RNG::Xoshiro>.
+
+=cut

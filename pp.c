@@ -3567,11 +3567,44 @@ PP(pp_sin)
    --Jarkko Hietaniemi	27 September 1998
  */
 
+static Perl_rng_u64_func S_rng_fast_u64(pTHX_ SV *provider);
+static void S_rng_require_method(pTHX_ SV *provider, const char *method);
+
+static void
+S_rng_refresh(pTHX_ SV *provider, GV *gv)
+{
+    Perl_rng_u64_func u64 = NULL;
+
+    PL_rng_gv = gv;
+
+    if (!SvOK(provider)) {
+        PL_rng_u64 = NULL;
+        return;
+    }
+    if (!sv_isobject(provider)
+        && (!SvROK(provider) || SvTYPE(SvRV(provider)) != SVt_PVCV))
+        croak("${^RNG} must be an object, a CODE reference, or undef");
+    if (sv_isobject(provider)) {
+        S_rng_require_method(aTHX_ provider, "rand_bytes");
+        S_rng_require_method(aTHX_ provider, "srand");
+    }
+    u64 = S_rng_fast_u64(aTHX_ provider);
+    PL_rng_u64 = u64;
+}
+
+void
+Perl_rng_refresh(pTHX_ SV *provider, GV *gv)
+{
+    PERL_ARGS_ASSERT_RNG_REFRESH;
+    S_rng_refresh(aTHX_ provider, gv);
+}
+
 /* Call the provider installed in ${^RNG}.  This deliberately tests for an
  * object before testing for a CODE reference: a blessed CODE reference is an
  * object provider, not a callback provider. */
 static SV *
-S_rng_call(pTHX_ SV *provider, const char *method, SV *arg, bool has_arg)
+S_rng_call_sv(pTHX_ SV *provider, SV *callable, const char *method,
+              SV *arg, bool has_arg)
 {
     I32 count;
     SV *ret;
@@ -3588,7 +3621,8 @@ S_rng_call(pTHX_ SV *provider, const char *method, SV *arg, bool has_arg)
         rpp_push_1(call_provider);
         if (has_arg)
             rpp_push_1(arg);
-        count = call_method(method, G_SCALAR);
+        count = callable ? call_sv(callable, G_SCALAR)
+                         : call_method(method, G_SCALAR);
     }
     else {
         if (has_arg)
@@ -3607,11 +3641,77 @@ S_rng_call(pTHX_ SV *provider, const char *method, SV *arg, bool has_arg)
 }
 
 static SV *
+S_rng_call(pTHX_ SV *provider, const char *method, SV *arg, bool has_arg)
+{
+    return S_rng_call_sv(aTHX_ provider, NULL, method, arg, has_arg);
+}
+
+static void
+S_rng_require_method(pTHX_ SV *provider, const char *method)
+{
+    SV * const method_name = sv_2mortal(newSVpv(method, 0));
+    SV * const callable = S_rng_call(aTHX_ provider, "can", method_name, TRUE);
+    const bool available = SvROK(callable)
+        && SvTYPE(SvRV(callable)) == SVt_PVCV;
+
+    SvREFCNT_dec_NN(callable);
+    if (!available)
+        croak("${^RNG} object must provide %s()", method);
+}
+
+static SV *
 S_rng_provider(pTHX)
 {
-    SV * const provider = get_sv("\022NG", GV_ADD);
-    SvGETMAGIC(provider);
+    GV *gv = PL_rng_gv;
+
+    if (!gv) {
+        gv = PL_rng_gv = gv_fetchpvs("\022NG", GV_ADD, SVt_PV);
+        S_rng_refresh(aTHX_ GvSV(gv), gv);
+    }
+
+    SV * const provider = GvSV(gv);
     return provider;
+}
+
+static UV
+S_rng_fast_address(pTHX_ SV *provider, const char *method)
+{
+    SV * const method_name = sv_2mortal(newSVpv(method, 0));
+    SV *can;
+    SV *address;
+    UV value;
+
+    if (!sv_isobject(provider))
+        return 0;
+
+    can = S_rng_call(aTHX_ provider, "can", method_name, TRUE);
+    if (!SvROK(can) || SvTYPE(SvRV(can)) != SVt_PVCV
+        || !CvISXSUB((CV *)SvRV(can))) {
+        SvREFCNT_dec_NN(can);
+        return 0;
+    }
+
+    address = S_rng_call_sv(aTHX_ provider, can, method, NULL, FALSE);
+    SvREFCNT_dec_NN(can);
+    SvGETMAGIC(address);
+    if (!SvOK(address)) {
+        SvREFCNT_dec_NN(address);
+        return 0;
+    }
+    if (!SvIOK(address) || SvNOK(address) || SvPOK(address)
+        || (SvIOK_notUV(address) && SvIV(address) < 0))
+        croak("RNG fast provider callback address must be an integer");
+
+    value = SvUV(address);
+    SvREFCNT_dec_NN(address);
+    return value;
+}
+
+static Perl_rng_u64_func
+S_rng_fast_u64(pTHX_ SV *provider)
+{
+    return INT2PTR(Perl_rng_u64_func,
+        S_rng_fast_address(aTHX_ provider, "get_rand_u64_XS_func_addr"));
 }
 
 static U64
@@ -3643,9 +3743,9 @@ Perl_call_rand(pTHX)
     SV * const provider = S_rng_provider(aTHX);
 
     if (SvOK(provider)) {
-        if (!sv_isobject(provider)
-            && (!SvROK(provider) || SvTYPE(SvRV(provider)) != SVt_PVCV))
-            croak("${^RNG} must be an object, a CODE reference, or undef");
+        if (PL_rng_u64)
+            return (NV)PL_rng_u64(aTHX_ provider)
+                / ((NV)UINT64_C(0xffffffffffffffff) + 1.0);
         return (NV)S_rng_u64(aTHX_ provider)
             / ((NV)UINT64_C(0xffffffffffffffff) + 1.0);
     }
@@ -3673,10 +3773,6 @@ Perl_call_srand(pTHX_ Rand_seed_t seed_value)
     SV * const provider = S_rng_provider(aTHX);
 
     if (SvOK(provider)) {
-        if (!sv_isobject(provider)
-            && (!SvROK(provider) || SvTYPE(SvRV(provider)) != SVt_PVCV))
-            croak("${^RNG} must be an object, a CODE reference, or undef");
-
         /* seedDrand01() is also used by older XS code to initialize the
          * default generator before its first Drand01() call.  With a custom
          * provider, leave the provider alone.  Explicit Perl srand()
@@ -3734,10 +3830,6 @@ PP_wrapped(pp_srand, MAXARG, 0)
 
     if (SvOK(provider)) {
         SV *result;
-
-        if (!sv_isobject(provider)
-            && (!SvROK(provider) || SvTYPE(SvRV(provider)) != SVt_PVCV))
-            croak("${^RNG} must be an object, a CODE reference, or undef");
 
         /* Custom providers see an explicit undef for srand(), making it
          * equivalent to srand(undef).  Explicit arguments are passed through

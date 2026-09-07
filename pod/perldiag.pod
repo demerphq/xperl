@@ -6052,6 +6052,12 @@ are outside the range which can be represented by integers internally.
 One possible workaround is to force Perl to use magical string increment
 by prepending "0" to your numbers.
 
+=item RNG fast provider callback address must be an integer
+
+(F) C<get_rand_u64_XS_func_addr> returned something other than C<undef>, zero,
+or an integer callback address.  An XS provider must return a callback address
+using Perl's established XS pointer-address convention.
+
 =item RNG provider did not return exactly one value
 
 (F) The custom random number generator installed in C<${^RNG}> returned more
@@ -6072,6 +6078,11 @@ installed in C<${^RNG}> did not return exactly the number of bytes requested.
 
 (F) The value assigned to C<${^RNG}> was neither an object, an unblessed CODE
 reference, nor C<undef>.
+
+=item ${^RNG} object must provide %s()
+
+(F) The object assigned to C<${^RNG}> did not provide the required C<rand_bytes>
+or C<srand> method.
 
 =item Ranges of ASCII printables should be some subset of "0-9", "A-Z", or
 "a-z" in regex; marked by S<<-- HERE> in m/%s/

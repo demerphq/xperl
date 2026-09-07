@@ -1,4 +1,11 @@
 Revision history for RNG.
 
+[Unreleased]
+    - Add the XS RNG::HMAC_DRBG provider, with deterministic and secure
+      operating-system-seeded modes and an optional prediction-resistance
+      policy.
+    - Add the XS RNG::Wyrand and RNG::Xoshiro providers, including the
+      optional U64 callbacks used by the core fast path.
+
 0.01  2026-08-16
     - Initial version.

@@ -603,13 +603,13 @@ PERL_CALLCONV NV
 Perl_call_rand(pTHX)
         Perl_attribute_nonnull_aTHX;
 #define PERL_ARGS_ASSERT_CALL_RAND              \
-        Perl_assert_aTHX
+    STMT_START { Perl_assert_aTHX; } STMT_END
 
 PERL_CALLCONV void
 Perl_call_srand(pTHX_ Rand_seed_t seed)
         Perl_attribute_nonnull_aTHX;
 #define PERL_ARGS_ASSERT_CALL_SRAND             \
-        Perl_assert_aTHX
+    STMT_START { Perl_assert_aTHX; } STMT_END
 
 PERL_CALLCONV SSize_t
 Perl_call_sv(pTHX_ SV *sv, I32 flags)
@@ -11561,6 +11561,14 @@ S_unwind_handler_stack(pTHX_ void *p)
 
 #endif /* defined(PERL_IN_MG_C) */
 #if defined(PERL_IN_MG_C) || defined(PERL_IN_PP_C)
+PERL_CALLCONV void
+Perl_rng_refresh(pTHX_ SV *provider, GV *gv)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2);
+# define PERL_ARGS_ASSERT_RNG_REFRESH           \
+     STMT_START { Perl_assert_aTHX; assert(provider); assert(gv); } STMT_END
+
 PERL_CALLCONV bool
 Perl_translate_substr_offsets(STRLEN curlen, IV pos1_iv, bool pos1_is_uv, IV len_iv, bool len_is_uv, STRLEN *posp, STRLEN *lenp)
         Perl_attribute_nonnull(6)
@@ -11569,7 +11577,7 @@ Perl_translate_substr_offsets(STRLEN curlen, IV pos1_iv, bool pos1_is_uv, IV len
 # define PERL_ARGS_ASSERT_TRANSLATE_SUBSTR_OFFSETS \
      STMT_START { assert(posp); assert(lenp); } STMT_END
 
-#endif
+#endif /* defined(PERL_IN_MG_C) || defined(PERL_IN_PP_C) */
 #if defined(PERL_IN_MG_C) || defined(PERL_IN_SV_C)
 PERL_CALLCONV void
 Perl_mg_free_struct(pTHX_ SV *sv, MAGIC *mg)

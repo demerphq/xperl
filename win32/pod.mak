@@ -183,6 +183,7 @@ POD = perl.pod	\
 	perlrequick.pod	\
 	perlreref.pod	\
 	perlretut.pod	\
+	perlrng.pod	\
 	perlrun.pod	\
 	perlsec.pod	\
 	perlsecpolicy.pod	\
@@ -378,6 +379,7 @@ MAN = perl.man	\
 	perlrequick.man	\
 	perlreref.man	\
 	perlretut.man	\
+	perlrng.man	\
 	perlrun.man	\
 	perlsec.man	\
 	perlsecpolicy.man	\
@@ -573,6 +575,7 @@ HTML = perl.html	\
 	perlrequick.html	\
 	perlreref.html	\
 	perlretut.html	\
+	perlrng.html	\
 	perlrun.html	\
 	perlsec.html	\
 	perlsecpolicy.html	\
@@ -768,6 +771,7 @@ TEX = perl.tex	\
 	perlrequick.tex	\
 	perlreref.tex	\
 	perlretut.tex	\
+	perlrng.tex	\
 	perlrun.tex	\
 	perlsec.tex	\
 	perlsecpolicy.tex	\

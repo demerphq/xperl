@@ -1545,6 +1545,18 @@ string containing exactly the requested number of bytes.  The provider is
 responsible for maintaining its own state; localizing this variable does not
 copy or restore that state.
 
+An object assigned to this variable must provide both C<rand_bytes> and
+C<srand>; an object that lacks either method is rejected at assignment time.
+An XS object may additionally provide the optional
+C<get_rand_u64_XS_func_addr> method described in L<perlrng>.
+
+The only legal values are C<undef>, an object, or an unblessed C<CODE>
+reference. Assigning any other scalar value raises an exception, including
+when the assignment is made by C<local>.
+
+See L<perlrng> for the provider protocol, the optional XS callback selected by
+the magic on this variable, and the interaction with localization.
+
 This variable was added in Perl v5.45.1.
 
 =item ${^RE_COMPILE_RECURSION_LIMIT}

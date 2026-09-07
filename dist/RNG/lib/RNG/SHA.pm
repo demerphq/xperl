@@ -74,8 +74,20 @@ the pure-Perl C<Digest::SHA> interface. Each block is the SHA-256 digest of
 the seed concatenated with a counter. Each digest supplies four 64-bit values
 before the next digest is computed.
 
-The generator is suitable for repeatable simulations and tests, but is not
-intended for cryptographic use.
+This is a proof-of-concept and reference implementation. It is intentionally
+simple and useful for demonstrating the C<${^RNG}> provider protocol, but the
+pure-Perl SHA implementation makes it much too slow for many real workloads.
+Use an optimized generator, such as an appropriate XS implementation, when
+performance matters.
+
+This generator must not be used for cryptography, passwords, authentication
+tokens, keys, or other security-sensitive purposes. SHA-256 is a standardized
+hash function, but this particular counter-mode generator is not a vetted or
+approved cryptographic random-bit generator. It has not received the
+independent cryptographic review, analysis, or validation that would be
+required before relying on it for such work. Demonstrating a serious flaw in
+it might be an interesting research result, but until that work has been done
+the safe assumption is that it is unsuitable for cryptography.
 
 See L<RNG> for the provider interface used by C<${^RNG}>.
 

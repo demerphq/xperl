@@ -1545,6 +1545,7 @@
 #     define unwind_handler_stack(a)            S_unwind_handler_stack(aTHX_ a)
 #   endif
 #   if defined(PERL_IN_MG_C) || defined(PERL_IN_PP_C)
+#     define rng_refresh(a,b)                   Perl_rng_refresh(aTHX_ a,b)
 #     define translate_substr_offsets           Perl_translate_substr_offsets
 #   endif
 #   if defined(PERL_IN_MG_C) || defined(PERL_IN_SV_C)

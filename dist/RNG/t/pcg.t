@@ -8,6 +8,26 @@ BEGIN {
         unless eval { require RNG::PCG; 1 };
 }
 
+{
+    package RNG::PCG::MethodOverride;
+    our @ISA = qw(RNG::PCG);
+    sub rand_bytes { die 'the Perl rand_bytes fallback was used' }
+}
+
+{
+    package RNG::PCG::PurePerl;
+    sub new { bless {}, shift }
+    sub rand_bytes { return "\0" x $_[1] }
+    sub srand { return 0 }
+}
+
+{
+    package RNG::PCG::FakeGetter;
+    our @ISA = qw(RNG::PCG);
+    sub get_rand_u64_XS_func_addr { return 1 }
+    sub rand_bytes { return "\0" x $_[1] }
+}
+
 my $rng = RNG::PCG->new(42);
 isa_ok($rng, 'RNG::PCG');
 is(ref($$rng), '', 'the state is a scalar');
@@ -96,6 +116,22 @@ cmp_ok($unit01, '<', 1, 'rand01() is below one');
     ok((grep { $_ >= 0 && $_ < 100 } @core) == @core,
        'the core receives values in range');
 
+    my $fast = RNG::PCG::MethodOverride->new(42);
+    my $expected = RNG::PCG->new(42)->rand(100);
+    local ${^RNG} = $fast;
+    is(rand(100), $expected,
+       'the core uses the discovered XS callback without Perl method dispatch');
+
+    my $fallback = RNG::PCG::PurePerl->new;
+    local ${^RNG} = $fallback;
+    is(rand(1), 0,
+       'an object without the XS callback uses the Perl-level protocol');
+
+    my $fake = RNG::PCG::FakeGetter->new(42);
+    local ${^RNG} = $fake;
+    is(rand(1), 0,
+       'a Perl getter returning an address cannot select the XS fast path');
+
     my $string_direct = RNG::PCG->new('core string seed');
     local ${^RNG} = RNG::PCG->new(0);
     my $core_string_seed = srand('core string seed');
@@ -106,6 +142,13 @@ cmp_ok($unit01, '<', 1, 'rand01() is below one');
         [ map { int $string_direct->rand(100) } 1 .. 4 ],
         'the core and RNG::PCG agree for string seeds',
     );
+}
+
+{
+    local $@;
+    my $ok = eval { local ${^RNG} = 42; 1 };
+    ok(!$ok && $@ =~ /must be an object, a CODE reference, or undef/,
+       'an invalid localized ${^RNG} value is rejected during assignment');
 }
 
 SKIP: {

@@ -5235,6 +5235,8 @@ S	|void	|unwind_handler_stack					\
 				|NULLOK void *p
 #endif
 #if defined(PERL_IN_MG_C) || defined(PERL_IN_PP_C)
+ep	|void	|rng_refresh	|NN SV *provider			\
+				|NN GV *gv
 Tp	|bool	|translate_substr_offsets				\
 				|STRLEN curlen				\
 				|IV pos1_iv				\

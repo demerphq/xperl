@@ -63,7 +63,13 @@ C<rand01_callback> methods as convenience interfaces. C<rand> accepts an
 optional limit and returns a floating-point value in the corresponding range;
 C<rand01> returns a value between zero and one; and C<rand01_callback> returns
 a code reference which calls C<rand01> on the provider. These are ordinary
-module methods; Perl's built-in C<rand> uses C<rand_bytes> directly.
+module methods retained for convenience and compatibility with existing
+callers. They are not the core exchange protocol: a floating-point result can
+discard entropy when a random word is converted to an C<NV>. Perl's built-in
+C<rand> uses C<rand_bytes> directly unless an XS provider implements
+C<get_rand_u64_XS_func_addr> and returns a usable native-word callback
+address. The callback is an implementation detail of the XS provider and does
+not replace the object-level method interface.
 
 =head2 Code-reference providers
 
@@ -86,6 +92,7 @@ number generator.
 =head1 SEE ALSO
 
 L<perlvar/${^RNG}>, L<perlfunc/rand EXPR>, L<perlfunc/srand EXPR>,
-L<RNG::PCG>, and L<RNG::SHA>.
+L<RNG::HMAC_DRBG>, L<RNG::PCG>, L<RNG::SHA>, L<RNG::Wyrand>, and
+L<RNG::Xoshiro>.
 
 =cut

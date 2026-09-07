@@ -10,7 +10,7 @@ BEGIN {
 
 use strict;
 
-plan(tests => 32);
+plan(tests => 34);
 
 # Generate a load of random numbers.
 # int() avoids possible floating point error.
@@ -118,7 +118,7 @@ cmp_ok( $seed, '==', 0, "numeric 0 return value for srand(0)");
 }
 
 {
-    package RNG::TestObject;
+package RNG::TestObject;
     sub new { bless { calls => 0, length => 0, seeds => [] }, shift }
     sub rand_bytes {
         $_[0]{calls}++;
@@ -126,6 +126,16 @@ cmp_ok( $seed, '==', 0, "numeric 0 return value for srand(0)");
         "\x80" . "\0" x ($_[1] - 1)
     }
     sub srand { push @{$_[0]{seeds}}, [@_[1 .. $#_]]; "object result" }
+}
+
+{
+    package RNG::MissingRandBytes;
+    sub srand { }
+}
+
+{
+    package RNG::MissingSrand;
+    sub rand_bytes { "\0" x $_[1] }
 }
 
 package main;
@@ -171,10 +181,20 @@ package main;
 }
 
 {
-    local ${^RNG} = 42;
-    like(eval { rand(); 1 } ? "" : $@,
+    like(eval { local ${^RNG} = 42; 1 } ? "" : $@,
          qr/\$\{\^RNG\} must be an object, a CODE reference, or undef/,
          "invalid RNG provider is rejected");
+}
+
+{
+    like(eval { local ${^RNG} = bless({}, "RNG::MissingRandBytes"); 1 }
+             ? "" : $@,
+         qr/\$\{\^RNG\} object must provide rand_bytes\(\)/,
+         "object providers must provide rand_bytes at assignment");
+    like(eval { local ${^RNG} = bless({}, "RNG::MissingSrand"); 1 }
+             ? "" : $@,
+         qr/\$\{\^RNG\} object must provide srand\(\)/,
+         "object providers must provide srand at assignment");
 }
 
 {

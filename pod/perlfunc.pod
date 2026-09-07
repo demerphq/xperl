@@ -6812,16 +6812,8 @@ It is sufficient for games, generating test data or cases where repeatability is
 
 =item *
 
-If C<${^RNG}> is defined, C<rand> obtains eight random bytes from its
-provider and scales them in the same way as the default generator.  If the
-provider is an object, C<rand> calls its C<rand_bytes> method with C<8> as
-its argument.  If the provider is an unblessed code reference, C<rand> calls
-it with C<8>.  The provider must return a binary string containing exactly
-eight bytes.  The provider is not implicitly seeded by C<rand>.
-
-The provider's state is separate from the state of Perl's default generator.
-Localizing C<${^RNG}> changes which provider is used, but does not copy or
-restore the state maintained by that provider.
+Assigning an alternative RNG to C<${^RNG}> can change the source of entropy
+used by C<rand>.  See L<perlrng> for details.
 
 =back
 
