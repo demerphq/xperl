@@ -192,6 +192,11 @@ The built-in provider used 804,019,846 cycles, or 80.4 cycles per call.
 
 =item *
 
+C<RNG::Drand48> used 1,018,709,200 cycles, or 101.9 cycles per call (1.27
+times the built-in path).
+
+=item *
+
 C<RNG::PCG> used 1,057,311,272 cycles, or 105.7 cycles per call (1.32 times
 the built-in path).
 
@@ -224,8 +229,8 @@ C<can> lookups or Perl method dispatch: the XS callback is discovered when
 C<${^RNG}> changes and called directly from the inlined C<rand> opcode path
 thereafter.  The provider-specific callback and generator logic account for
 the additional work.  The HMAC_DRBG profile is dominated by its SHA-256
-compression function,
-while the SHA provider's cost is distributed across Perl-level hashing,
+compression function, while the SHA provider's cost is distributed across
+Perl-level hashing,
 scalar, hash, and magic operations.
 
 These measurements describe one optimized, non-threaded build and one call
@@ -239,14 +244,18 @@ the following rounded time per iteration when each process performed
 1,000,000 C<rand()> calls.  The benchmark used C<--no-dry-run> because dry-run
 subtraction is inappropriate for this short-process workload.  These times
 include process startup, module loading, provider construction, and the calls.
-The run covered the built-in provider and the three fast XS providers; the
+The run covered the built-in provider and the four fast XS providers; the
 slower SHA and HMAC_DRBG providers were intentionally omitted:
 
 =over 4
 
 =item *
 
-Built-in provider: 19.57 ms.
+Built-in provider: 19.79 ms.
+
+=item *
+
+C<RNG::Drand48>: 26.49 ms.
 
 =item *
 
@@ -264,7 +273,7 @@ program performs many random operations.
 
 =head1 SEE ALSO
 
-L<perlfunc/rand EXPR>, L<perlvar/${^RNG}>, L<RNG>, L<RNG::PCG>,
+L<perlfunc/rand EXPR>, L<perlvar/${^RNG}>, L<RNG>, L<RNG::Drand48>, L<RNG::PCG>,
 L<RNG::HMAC_DRBG>, L<RNG::Wyrand>, and L<RNG::Xoshiro>.
 
 =cut

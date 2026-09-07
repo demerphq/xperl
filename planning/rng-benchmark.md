@@ -20,12 +20,13 @@ All runs measure `cycles` and `instructions`.
 | Provider | Calls | Cycles | Instructions | Cycles/call | Relative cycles |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | built-in | 10,000,000 | 804,019,846 | 3,345,567,192 | 80.4 | 1.000x |
+| RNG::Drand48 | 10,000,000 | 1,018,709,200 | 2,802,296,371 | 101.9 | 1.267x |
 | RNG::PCG | 10,000,000 | 1,057,311,272 | 3,092,266,892 | 105.7 | 1.315x |
 | RNG::Wyrand | 10,000,000 | 1,048,888,382 | 3,022,238,990 | 104.9 | 1.304x |
 | RNG::Xoshiro | 10,000,000 | 1,016,472,564 | 2,932,034,477 | 101.6 | 1.264x |
 
-The three XS providers are within about one-third of the built-in path in
-this production build, with Xoshiro the fastest of the three in this run. The
+The four XS providers are within about one-third of the built-in path in
+this production build, with Xoshiro the fastest of the four in this run. The
 remaining cost is not Perl method dispatch: the callback is called directly
 from the inlined `rand` opcode path from the core. It is primarily the cost of
 the algorithm, plus common `rand` opcode and numeric conversion work.
@@ -52,6 +53,7 @@ collected from the same production build as the timing table.
 | Provider | Profile observations |
 | --- | --- |
 | built-in | Shared `pp_rand`, iteration, numeric conversion, and result handling dominate. |
+| RNG::Drand48 | Shared `rand` work remains dominant; the compatible LCG callback is visible in the callback path. |
 | RNG::PCG | Shared `rand` work remains dominant; `pcg_rng_u64_fast` is visible in the callback path. |
 | RNG::Wyrand | Shared `rand` work remains dominant; the mixing function is largely optimized into the callback. |
 | RNG::Xoshiro | Shared `rand` work remains dominant; `xoshiro_u64_fast` is visible in the callback path. |
@@ -82,12 +84,13 @@ This second measurement uses the built xperl executable to perform 1,000,000
 default dry-run subtraction is inappropriate for this short-process workload.
 The result includes process startup, module loading, provider construction,
 and the calls.  Values are the rounded time per iteration reported by
-`dumbbench`.  This run covers the built-in provider and the three fast XS
+`dumbbench`.  This run covers the built-in provider and the four fast XS
 providers; the slower SHA and HMAC_DRBG providers were intentionally omitted.
 
 | Provider | Time per iteration | Relative to built-in |
 | --- | ---: | ---: |
-| built-in | 19.57 ms | 1.00x |
+| built-in | 19.79 ms | 1.00x |
+| RNG::Drand48 | 26.49 ms | 1.34x |
 | RNG::PCG | 27.91 ms | 1.43x |
 | RNG::Wyrand | 27.205 ms | 1.39x |
 | RNG::Xoshiro | 26.60 ms | 1.36x |
