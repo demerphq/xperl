@@ -891,10 +891,10 @@ data shape C<_> matches any value and is useful as a final clause:
         match (_)                 { use_other($value) }
     }
 
-The subject may be explicitly coerced before matching with C<IntVal>,
-C<FloatVal>, or C<StrVal>:
+The subject may be explicitly coerced before matching with C<ToInteger>,
+C<ToFloat>, or C<ToString>:
 
-    case (IntVal $value) {
+    case (ToInteger $value) {
         match (1) { say "integer one" }
     }
 
@@ -903,8 +903,8 @@ subject once, before any clause is tested.  The type word is part of the case
 syntax, not a call to a user-defined function.  It applies to the complete
 subject expression, so these two forms are equivalent:
 
-    case (StrVal $x + 1 as $p) { ... }
-    case (StrVal($x + 1) as $p) { ... }
+    case (ToString $x + 1 as $p) { ... }
+    case (ToString($x + 1) as $p) { ... }
 
 An undefined subject remains undefined, and references, including blessed
 references, pass through unchanged.  Without an explicit coercion, numeric

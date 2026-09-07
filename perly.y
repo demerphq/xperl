@@ -69,7 +69,7 @@
 %token <ival> KW_IF KW_ELSE KW_ELSIF KW_UNLESS
 %token <ival> KW_FOR KW_UNTIL KW_WHILE KW_CONTINUE
 %token <ival> KW_GIVEN KW_WHEN KW_DEFAULT
-%token <ival> KW_CASE KW_MATCH KW_WITH KW_IntVal KW_FloatVal KW_StrVal
+%token <ival> KW_CASE KW_MATCH KW_WITH KW_ToInteger KW_ToFloat KW_ToString
 %token <ival> KW_RefVal KW_ScalarVal KW_ObjectVal
 %token <ival> KW_TRY KW_CATCH KW_FINALLY KW_DEFER KW_GEN KW_YIELD
 %token <ival> KW_REQUIRE KW_DO
@@ -352,11 +352,11 @@ bare_statement_case
 case_subject_type
 	: %empty
 		{ $$ = 0; }
-	| KW_IntVal
+	| KW_ToInteger
 		{ $$ = 1; }
-	| KW_FloatVal
+	| KW_ToFloat
 		{ $$ = 2; }
-	| KW_StrVal
+	| KW_ToString
 		{ $$ = 3; }
 ;
 

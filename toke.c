@@ -8677,10 +8677,10 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
         pl_yylval.ival = CopLINE(PL_curcop);
         OPERATOR(KW_CASE);
 
-    case KEY_FloatVal:
+    case KEY_ToFloat:
         PL_expect = XTERM;
         PL_bufptr = s;
-        return REPORT(KW_FloatVal);
+        return REPORT(KW_ToFloat);
 
     case KEY_chop:
         UNI(OP_CHOP);
@@ -9020,10 +9020,10 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
     case KEY_int:
         UNI(OP_INT);
 
-    case KEY_IntVal:
+    case KEY_ToInteger:
         PL_expect = XTERM;
         PL_bufptr = s;
-        return REPORT(KW_IntVal);
+        return REPORT(KW_ToInteger);
 
     case KEY_RefVal:
         if (!PL_parser->in_case_pattern)
@@ -9447,10 +9447,10 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
         s = force_word(s, BAREWORD, CHECK_KEYWORD | ALLOW_PACKAGE);
         LOP(OP_SORT,XREF);
 
-    case KEY_StrVal:
+    case KEY_ToString:
         PL_expect = XTERM;
         PL_bufptr = s;
-        return REPORT(KW_StrVal);
+        return REPORT(KW_ToString);
 
     case KEY_ObjectVal:
         if (!PL_parser->in_case_pattern)

@@ -19,7 +19,7 @@ use B;
 
 my %unsupported = map +($_=>1), qw (
  __DATA__ __END__ ADJUST AUTOLOAD BEGIN UNITCHECK CORE DESTROY END INIT CHECK
- FloatVal IntVal StrVal ObjectVal RefVal ScalarVal
+ ToFloat ToInteger ToString ObjectVal RefVal ScalarVal
  case match with
  __NAMESPACE__ as namespace
   all and any catch class cmp default defer do implements dump else elsif eq equ eval
@@ -58,7 +58,7 @@ while(<$kh>) {
     chomp(my $word = $');
     # These names are parser-only tokens, not CORE subs.  Asking the
     # CORE-sub compiler about them would try to build an opcode-less call.
-    next if $word =~ /^(?:case|match|with|FloatVal|IntVal|StrVal|ObjectVal|RefVal|ScalarVal|
+    next if $word =~ /^(?:case|match|with|ToFloat|ToInteger|ToString|ObjectVal|RefVal|ScalarVal|
                          as|namespace|implements|equ|neu|
                          gen|yield)$/x;
     if($unsupported{$word}) {

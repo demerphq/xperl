@@ -60,10 +60,8 @@
 #   undef KEY_as
 #   undef KEY_case
 #   undef KEY_equ
-#   undef KEY_FloatVal
 #   undef KEY_gen
 #   undef KEY_implements
-#   undef KEY_IntVal
 #   undef KEY_match
 #   undef KEY_namespace
 #   undef KEY_neu
@@ -71,7 +69,9 @@
 #   undef KEY_RefVal
 #   undef KEY_role
 #   undef KEY_ScalarVal
-#   undef KEY_StrVal
+#   undef KEY_ToFloat
+#   undef KEY_ToInteger
+#   undef KEY_ToString
 #   undef KEY_with
 #   undef KEY_yield
 #   undef MGv2f_SCALARVALUE_AUTOPROPAGATE

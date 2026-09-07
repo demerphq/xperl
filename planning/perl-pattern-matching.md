@@ -18,9 +18,9 @@ original lvalue. Numeric and string literals now require the subject to have
 the corresponding scalar kind rather than silently coercing between kinds. A
 case subject may also be named with `as $name`; that name is case-local and is
 evaluated by the existing scalar assignment machinery.
-The `IntVal`, `FloatVal`, and `StrVal` subject forms explicitly coerce the
+The `ToInteger`, `ToFloat`, and `ToString` subject forms explicitly coerce the
 subject once before matching. They apply to the complete subject expression
-(so `StrVal $x + 1 as $p` is equivalent to `StrVal($x + 1) as $p`), preserve
+(so `ToString $x + 1 as $p` is equivalent to `ToString($x + 1) as $p`), preserve
 `undef`, and pass references through unchanged, including blessed references.
 Dynamic scalar expressions nested inside array and hash patterns are compared
 using their own evaluated values. The outer case body now accepts only direct
@@ -233,8 +233,8 @@ clause contains a dynamic expression or other non-constant pattern, the
 implementation must evaluate the clauses in source order.
 
 The subject may optionally receive a case-local name or an explicit scalar
-coercion. The provisional coercion spellings are `IntVal`, `FloatVal`, and
-`StrVal`:
+coercion. The coercion spellings are `ToInteger`, `ToFloat`, and
+`ToString`:
 
 ```perl
 case (fetch_message() as $message) {
@@ -243,11 +243,11 @@ case (fetch_message() as $message) {
     }
 }
 
-case (IntVal $value) {
+case (ToInteger $value) {
     match(1) { print "integer one"; }
 }
 
-case (StrVal $value) {
+case (ToString $value) {
     match("1") { print "string one"; }
 }
 ```
@@ -259,8 +259,8 @@ the value being matched, while the latter supplies existing values that
 patterns must compare against.
 
 `case (TYPE EXPR)` evaluates `EXPR` once and coerces the resulting scalar to
-the requested representation before any clause is tested. `IntVal` requests an
-integer value, `FloatVal` a floating-point value, and `StrVal` a string value.
+the requested representation before any clause is tested. `ToInteger` requests an
+integer value, `ToFloat` a floating-point value, and `ToString` a string value.
 The exact keyword spellings remain provisional and must be checked against
 existing names and the keyword/feature machinery. The coercion is explicit:
 the matcher must not silently convert a pattern literal from one scalar kind
@@ -708,7 +708,7 @@ An implementation will likely need:
    remain tied to the existing lexical compiler checks.**
 5. Runtime matching operations for scalar, array, hash, and object shapes.
 6. A temporary binding frame with commit/rollback behavior.
-7. Explicit subject coercion for `IntVal`, `FloatVal`, and `StrVal`, together
+7. Explicit subject coercion for `ToInteger`, `ToFloat`, and `ToString`, together
    with scalar-kind-aware literal matching. **Implemented.**
 8. Defined guard evaluation order and context. Guards are unrestricted,
    ordinary Perl expressions and may have side effects; the implementation
@@ -768,8 +768,8 @@ Before implementation, tests should be written for the intended semantics:
 The project should settle these questions before committing to public syntax:
 
 1. What exact grammar introduces a new clause-local binding?
-2. What are the final spellings and semantics of `IntVal`, `FloatVal`, and
-   `StrVal`?
+2. What are the final spellings and semantics of `ToInteger`, `ToFloat`, and
+   `ToString`?
 3. How are dual-valued and magical scalars classified for typed matching?
 4. What comparison semantics apply to values named by a `with` clause?
 5. Are patterns matching values, references, object fields, or all three?

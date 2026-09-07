@@ -213,19 +213,19 @@ case 2: /* @1: %empty  */
 
     break;
 
-  case 20: /* case_subject_type: KW_IntVal  */
+  case 20: /* case_subject_type: KW_ToInteger  */
 #line 356 "perly.y"
                 { (yyval.ival) = 1; }
 
     break;
 
-  case 21: /* case_subject_type: KW_FloatVal  */
+  case 21: /* case_subject_type: KW_ToFloat  */
 #line 358 "perly.y"
                 { (yyval.ival) = 2; }
 
     break;
 
-  case 22: /* case_subject_type: KW_StrVal  */
+  case 22: /* case_subject_type: KW_ToString  */
 #line 360 "perly.y"
                 { (yyval.ival) = 3; }
 
@@ -2805,6 +2805,6 @@ case 2: /* @1: %empty  */
     
 
 /* Generated from:
- * 71c4ff1e3b59715a784e1cc5b25302004327c2a79050e9b5533aa61919de0edf perly.y
+ * bd8ad51156ea2973759489b07aaf49a72cfb2a2dfbc0fc31f8ba9de01f3e27f9 perly.y
  * 1a4cfc5b32006b09aba17cc80cd31ade3503ab1e829681adfe337d9c26e19fe0 regen_perly.pl
  * ex: set ro ft=c: */

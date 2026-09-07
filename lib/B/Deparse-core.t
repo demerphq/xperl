@@ -376,9 +376,9 @@ my %not_tested = map { $_ => 1} qw(
     else
     elsif
     field
-    FloatVal
+    ToFloat
     gen
-    IntVal
+    ToInteger
     ObjectVal
     RefVal
     ScalarVal
@@ -404,7 +404,7 @@ my %not_tested = map { $_ => 1} qw(
     qx
     require
     s
-    StrVal
+    ToString
     tr
     try
     unless

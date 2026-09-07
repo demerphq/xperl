@@ -1190,7 +1190,7 @@ like $@, qr'^Undefined format "STDOUT" called',
     );
   my %nottest_words = map { $_ => 1 } qw(
     ADJUST AUTOLOAD BEGIN CHECK CORE DESTROY END INIT UNITCHECK
-    FloatVal IntVal StrVal ObjectVal RefVal ScalarVal
+ ToFloat ToInteger ToString ObjectVal RefVal ScalarVal
     __DATA__ __END__
     case match with
     __NAMESPACE__ as namespace

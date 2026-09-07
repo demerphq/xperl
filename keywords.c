@@ -1635,7 +1635,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           goto unknown;
       }
 
-    case 6: /* 38 tokens of length 6 */
+    case 6: /* 36 tokens of length 6 */
       switch (name[0])
       {
         case 'A':
@@ -1650,18 +1650,6 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
           goto unknown;
 
-        case 'I':
-          if (name[1] == 'n' &&
-              name[2] == 't' &&
-              name[3] == 'V' &&
-              name[4] == 'a' &&
-              name[5] == 'l')
-          {                                       /* IntVal           */
-            return (all_keywords || FEATURE_CASE_MATCH_IS_ENABLED ? -KEY_IntVal : 0);
-          }
-
-          goto unknown;
-
         case 'R':
           if (name[1] == 'e' &&
               name[2] == 'f' &&
@@ -1670,18 +1658,6 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[5] == 'l')
           {                                       /* RefVal           */
             return (all_keywords || FEATURE_CASE_MATCH_IS_ENABLED ? -KEY_RefVal : 0);
-          }
-
-          goto unknown;
-
-        case 'S':
-          if (name[1] == 't' &&
-              name[2] == 'r' &&
-              name[3] == 'V' &&
-              name[4] == 'a' &&
-              name[5] == 'l')
-          {                                       /* StrVal           */
-            return (all_keywords || FEATURE_CASE_MATCH_IS_ENABLED ? -KEY_StrVal : 0);
           }
 
           goto unknown;
@@ -2158,7 +2134,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           goto unknown;
       }
 
-    case 7: /* 31 tokens of length 7 */
+    case 7: /* 32 tokens of length 7 */
       switch (name[0])
       {
         case 'D':
@@ -2170,6 +2146,19 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[6] == 'Y')
           {                                       /* DESTROY          */
             return KEY_DESTROY;
+          }
+
+          goto unknown;
+
+        case 'T':
+          if (name[1] == 'o' &&
+              name[2] == 'F' &&
+              name[3] == 'l' &&
+              name[4] == 'o' &&
+              name[5] == 'a' &&
+              name[6] == 't')
+          {                                       /* ToFloat          */
+            return (all_keywords || FEATURE_CASE_MATCH_IS_ENABLED ? -KEY_ToFloat : 0);
           }
 
           goto unknown;
@@ -2635,16 +2624,16 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
 
           goto unknown;
 
-        case 'F':
-          if (name[1] == 'l' &&
-              name[2] == 'o' &&
-              name[3] == 'a' &&
-              name[4] == 't' &&
-              name[5] == 'V' &&
-              name[6] == 'a' &&
-              name[7] == 'l')
-          {                                       /* FloatVal         */
-            return (all_keywords || FEATURE_CASE_MATCH_IS_ENABLED ? -KEY_FloatVal : 0);
+        case 'T':
+          if (name[1] == 'o' &&
+              name[2] == 'S' &&
+              name[3] == 't' &&
+              name[4] == 'r' &&
+              name[5] == 'i' &&
+              name[6] == 'n' &&
+              name[7] == 'g')
+          {                                       /* ToString         */
+            return (all_keywords || FEATURE_CASE_MATCH_IS_ENABLED ? -KEY_ToString : 0);
           }
 
           goto unknown;
@@ -3045,7 +3034,7 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
           goto unknown;
       }
 
-    case 9: /* 14 tokens of length 9 */
+    case 9: /* 15 tokens of length 9 */
       switch (name[0])
       {
         case 'O':
@@ -3074,6 +3063,21 @@ Perl_keyword (pTHX_ const char *name, I32 len, bool all_keywords)
               name[8] == 'l')
           {                                       /* ScalarVal        */
             return (all_keywords || FEATURE_CASE_MATCH_IS_ENABLED ? -KEY_ScalarVal : 0);
+          }
+
+          goto unknown;
+
+        case 'T':
+          if (name[1] == 'o' &&
+              name[2] == 'I' &&
+              name[3] == 'n' &&
+              name[4] == 't' &&
+              name[5] == 'e' &&
+              name[6] == 'g' &&
+              name[7] == 'e' &&
+              name[8] == 'r')
+          {                                       /* ToInteger        */
+            return (all_keywords || FEATURE_CASE_MATCH_IS_ENABLED ? -KEY_ToInteger : 0);
           }
 
           goto unknown;
@@ -3825,5 +3829,5 @@ unknown:
 }
 
 /* Generated from:
- * 3b35c39ae9d30a669152e585890e1b38d39e8d5565e7a08bbccfec4113605eed regen/keywords.pl
+ * 240bd79a921da79957a3827f3c72431691c1125ec43709f00d9f44ae45b0c17e regen/keywords.pl
  * ex: set ro ft=c: */

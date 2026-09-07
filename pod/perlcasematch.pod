@@ -337,9 +337,9 @@ Each value in a C<with> list may use C<as> independently.
 
 The grammar provides three explicit subject conversions:
 
-    case (IntVal  $value) { ... }
-    case (FloatVal $value) { ... }
-    case (StrVal   $value) { ... }
+    case (ToInteger $value) { ... }
+    case (ToFloat   $value) { ... }
+    case (ToString  $value) { ... }
 
 The subject is evaluated once and converted before any clause is tested.  An
 undefined value remains undefined, and references pass through unchanged.

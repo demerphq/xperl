@@ -15,7 +15,7 @@ The branch currently provides:
   `with` pins, including `with (EXPR as $name)`;
 - scalar patterns for `undef`, booleans, numeric literals, string literals,
   and the wildcard `_`;
-- explicit `IntVal`, `FloatVal`, and `StrVal` subject coercions;
+- explicit `ToInteger`, `ToFloat`, and `ToString` subject coercions;
 - tentative lexical bindings with commit/rollback behavior;
 - exact and open nested array/hash-reference patterns using edge `...`
   markers, including leftmost subsequence matching;

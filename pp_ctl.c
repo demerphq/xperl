@@ -7853,7 +7853,7 @@ PP(pp_casecoerce)
     SV *targ;
 
     /* Typed case subjects preserve undefined values and references.  In
-     * particular, do not stringify a reference merely because StrVal was
+     * particular, do not stringify a reference merely because ToString was
      * requested; that could invoke an object's overload methods. */
     if (!SvOK(sv) || SvROK(sv))
         return NORMAL;

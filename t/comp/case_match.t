@@ -405,20 +405,20 @@ my ($coerced_int, $coerced_float, $coerced_string) = (0, 0, 0);
 my ($coerced_undef, $coerced_ref) = (0, 0);
 my $typed_subjects = eval q{
     use feature 'case_match';
-    case (IntVal '12') {
+    case (ToInteger '12') {
         match (12) { $coerced_int = 1 }
     }
-    case (FloatVal '2.5') {
+    case (ToFloat '2.5') {
         match (2.5) { $coerced_float = 1 }
     }
-    case (StrVal 12) {
+    case (ToString 12) {
         match ('12') { $coerced_string = 1 }
     }
-    case (StrVal undef) {
+    case (ToString undef) {
         match (undef) { $coerced_undef = 1 }
     }
     my $ref = [];
-    case (IntVal $ref) {
+    case (ToInteger $ref) {
         match (_) { $coerced_ref = ref($ref) eq 'ARRAY' }
     }
     1;
@@ -441,7 +441,7 @@ print !$@ && defined($undef_pattern) && $undef_pattern == 1
 my $typed_reference = [];
 my $typed_reference_result = eval q{
     use feature 'case_match';
-    case (StrVal $typed_reference) {
+    case (ToString $typed_reference) {
         match ($typed_reference) { 1 }
     }
 };
@@ -453,10 +453,10 @@ my ($typed_expression, $typed_parenthesized) = (undef, undef);
 my $typed_expression_result = eval q{
     use feature qw(case_match namespaces);
     my $x = 1;
-    case (StrVal $x + 1 as $bound) {
+    case (ToString $x + 1 as $bound) {
         match ('2') { $typed_expression = $bound }
     }
-    case (StrVal($x + 1) as $bound) {
+    case (ToString($x + 1) as $bound) {
         match ('2') { $typed_parenthesized = $bound }
     }
     1;

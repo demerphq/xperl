@@ -107,9 +107,9 @@ extern int yydebug;
     KW_CASE = 301,                 /* KW_CASE  */
     KW_MATCH = 302,                /* KW_MATCH  */
     KW_WITH = 303,                 /* KW_WITH  */
-    KW_IntVal = 304,               /* KW_IntVal  */
-    KW_FloatVal = 305,             /* KW_FloatVal  */
-    KW_StrVal = 306,               /* KW_StrVal  */
+    KW_ToInteger = 304,            /* KW_ToInteger  */
+    KW_ToFloat = 305,              /* KW_ToFloat  */
+    KW_ToString = 306,             /* KW_ToString  */
     KW_RefVal = 307,               /* KW_RefVal  */
     KW_ScalarVal = 308,            /* KW_ScalarVal  */
     KW_ObjectVal = 309,            /* KW_ObjectVal  */
@@ -263,6 +263,6 @@ int yyparse (void);
 
 
 /* Generated from:
- * 71c4ff1e3b59715a784e1cc5b25302004327c2a79050e9b5533aa61919de0edf perly.y
+ * bd8ad51156ea2973759489b07aaf49a72cfb2a2dfbc0fc31f8ba9de01f3e27f9 perly.y
  * 1a4cfc5b32006b09aba17cc80cd31ade3503ab1e829681adfe337d9c26e19fe0 regen_perly.pl
  * ex: set ro ft=c: */

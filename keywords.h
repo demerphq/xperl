@@ -28,13 +28,13 @@
 #define KEY_CHECK		12
 #define KEY_DESTROY		13
 #define KEY_END			14
-#define KEY_FloatVal		15
+#define KEY_ToFloat		15
 #define KEY_ObjectVal		16
 #define KEY_INIT		17
-#define KEY_IntVal		18
+#define KEY_ToInteger		18
 #define KEY_RefVal		19
 #define KEY_ScalarVal		20
-#define KEY_StrVal		21
+#define KEY_ToString		21
 #define KEY_UNITCHECK		22
 #define KEY_abs			23
 #define KEY_accept		24
@@ -300,5 +300,5 @@
 #define KEY_y			284
 
 /* Generated from:
- * 3b35c39ae9d30a669152e585890e1b38d39e8d5565e7a08bbccfec4113605eed regen/keywords.pl
+ * 240bd79a921da79957a3827f3c72431691c1125ec43709f00d9f44ae45b0c17e regen/keywords.pl
  * ex: set ro ft=c: */

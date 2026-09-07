@@ -170,9 +170,9 @@ my $typed_ran = eval q{
     use feature 'case_match';
     $typed_ok = same_array(
         [
-            do { case (IntVal '12')    { match (12)   { 'integer' } } },
-            do { case (FloatVal '2.5') { match (2.5)  { 'float' } } },
-            do { case (StrVal 12)      { match ('12') { 'string' } } },
+            do { case (ToInteger '12') { match (12)   { 'integer' } } },
+            do { case (ToFloat '2.5')   { match (2.5)  { 'float' } } },
+            do { case (ToString 12)     { match ('12') { 'string' } } },
         ],
         [ 'integer', 'float', 'string' ],
     );
@@ -181,7 +181,7 @@ my $typed_ran = eval q{
 $typed_error = $@ unless $typed_ran;
 diag $typed_error unless $typed_ran;
 ok($typed_ran && $typed_ok,
-    'IntVal, FloatVal, and StrVal coerce the subject before matching');
+    'ToInteger, ToFloat, and ToString coerce the subject before matching');
 
 my ($empty_ok, $empty_error) = (0, '');
 my $empty_ran = eval q{

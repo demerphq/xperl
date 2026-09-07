@@ -32,8 +32,8 @@ here, but most should go in the L</Performance Enhancements> section.
 The experimental C<case_match> feature adds a C<case> statement with ordered
 C<match> clauses.  Data shapes can match scalar values, nested array and hash
 references, regular expressions, wildcards, and pinned lexical values.  A
-  case subject may also use the grammar-level C<IntVal>, C<FloatVal>, or
-  C<StrVal> forms to request one explicit coercion before matching.  See
+  case subject may also use the grammar-level C<ToInteger>, C<ToFloat>, or
+  C<ToString> forms to request one explicit coercion before matching.  See
   L<perlcasematch> and L<perlsyn/Experimental Data-Shape Matching> for the
   current experimental design and limitations.  The C<with> clause accepts a
   comma-separated list of pins, and its case-local C<as> syntax does not require
