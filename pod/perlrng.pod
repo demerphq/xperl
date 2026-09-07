@@ -172,6 +172,65 @@ Different objects may use different callback functions, and objects of the
 same class may share one callback implementation while retaining independent
 state.
 
+=head1 PERFORMANCE AND PROFILING
+
+The following figures are an example of the relative cost of the bundled
+providers.  They were measured on 2026-09-07 with the local xperl build
+configured with C<-O3>, without C<DEBUGGING>, and without threads.  Each fast
+provider measurement performed 10 million C<rand()> calls.  The HMAC_DRBG and
+SHA measurements performed 1 million calls because they are substantially more
+expensive.  The figures are the mean of three C<perf stat> runs measuring CPU
+cycles and retired instructions on one particular machine; they are not
+portable throughput guarantees.
+
+=over 4
+
+=item *
+
+The built-in provider used 722,497,060 cycles, or 72.2 cycles per call.
+
+=item *
+
+C<RNG::PCG> used 1,075,015,690 cycles, or 107.5 cycles per call (1.49 times
+the built-in path).
+
+=item *
+
+C<RNG::Wyrand> used 1,068,132,447 cycles, or 106.8 cycles per call (1.48
+times the built-in path).
+
+=item *
+
+C<RNG::Xoshiro> used 1,016,685,325 cycles, or 101.7 cycles per call (1.41
+times the built-in path).
+
+=item *
+
+C<RNG::HMAC_DRBG> used 15,369,067,931 cycles for its one-million-call run,
+approximately 213 times the built-in per-call cost.
+
+=item *
+
+C<RNG::SHA> used 3,339,176,537 cycles for its one-million-call run,
+approximately 46 times the built-in per-call cost.  This is consistent with
+its status as a pure-Perl proof of concept rather than a performance target.
+
+=back
+
+The fast-provider profiles show the expected common cost in C<pp_rand>,
+C<call_rand>, numeric conversion, and scalar result handling.  They do not
+show repeated C<can> lookups or Perl method dispatch: the XS callback is
+discovered when C<${^RNG}> changes and called directly thereafter.  The
+provider-specific callback and generator logic account for the additional
+work.  The HMAC_DRBG profile is dominated by its SHA-256 compression function,
+while the SHA provider's cost is distributed across Perl-level hashing,
+scalar, hash, and magic operations.
+
+These measurements describe one optimized, non-threaded build and one call
+shape.  They should be repeated on the target platform and with the intended
+workload before choosing a provider on performance grounds.  They also say
+nothing about statistical quality or cryptographic suitability.
+
 =head1 SEE ALSO
 
 L<perlfunc/rand EXPR>, L<perlvar/${^RNG}>, L<RNG>, L<RNG::PCG>,

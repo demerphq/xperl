@@ -5,59 +5,57 @@ Date: 2026-09-07
 ## Scope
 
 This compares the core `rand()` path using the built-in generator and the
-bundled XS providers.  The provider cases install an object in `${^RNG}` and
-therefore exercise the same cached U64 callback path used by normal callers.
+bundled providers. Provider cases install an object in `${^RNG}` and exercise
+the same cached U64 callback path used by normal callers.
 
-The SHA provider is measured separately because it is a pure-Perl proof of
-concept and is not intended to be a serious performance target.
-
-The Perl executable used for this run was the current local xperl build.  The
-build included debugging support, so these numbers should be treated as a
-relative comparison rather than production throughput figures.  Each result
-uses ten million `rand()` calls and is the mean of three `perf stat` runs with
-`cycles` and `instructions` selected.
+The Perl executable was the current local xperl production build, configured
+with `-O3`, without `DEBUGGING`, and without threads. Fast-provider results
+use ten million `rand()` calls. HMAC_DRBG and SHA use one million calls
+because they are substantially slower. Each result is the mean of three
+`perf stat` runs measuring `cycles` and `instructions`.
 
 ## Core `rand()` results
 
-| Provider | Calls | Cycles | Instructions | Elapsed seconds | Cycles/call | Relative cycles |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| built-in | 10,000,000 | 5,384,635,681 | 16,626,693,480 | 1.17897 | 538.5 | 1.000x |
-| RNG::PCG | 10,000,000 | 5,938,156,980 | 17,746,692,032 | 1.28568 | 593.8 | 1.103x |
-| RNG::Wyrand | 10,000,000 | 5,984,423,698 | 17,537,023,049 | 1.31446 | 598.4 | 1.111x |
-| RNG::Xoshiro | 10,000,000 | 5,910,219,102 | 17,586,683,327 | 1.31419 | 591.0 | 1.098x |
-
-The three XS providers are within about eleven percent of the built-in path.
-The remaining cost is not Perl method dispatch: the callback is called
-directly from the core.  It is primarily the cost of running each algorithm,
-plus the common `rand` opcode and numeric conversion work.
-
-## SHA reference-provider result
-
-`RNG::SHA` was measured with one million calls:
-
-| Provider | Calls | Cycles | Instructions | Elapsed seconds | Approx. cycles/call |
+| Provider | Calls | Cycles | Instructions | Cycles/call | Relative cycles |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| RNG::SHA | 1,000,000 | 14,919,831,433 | 29,171,936,550 | 3.50209 | 14,919.8 |
+| built-in | 10,000,000 | 722,497,060 | 3,065,511,422 | 72.2 | 1.000x |
+| RNG::PCG | 10,000,000 | 1,075,015,690 | 2,946,403,901 | 107.5 | 1.488x |
+| RNG::Wyrand | 10,000,000 | 1,068,132,447 | 2,876,542,169 | 106.8 | 1.478x |
+| RNG::Xoshiro | 10,000,000 | 1,016,685,325 | 2,786,295,390 | 101.7 | 1.407x |
 
-At approximately 27.7 times the built-in cycles per call, this confirms that
-the pure-Perl SHA implementation is an illustrative provider rather than a
-competitive implementation.  The use of SHA-256 does not by itself make this
-construction a reviewed cryptographic DRBG.  A future serious cryptographic
-provider should use a reviewed construction, such as an AES-CTR or hash-based
-DRBG specified by an applicable standard, with appropriate entropy and
-reseed handling.
+The three XS providers are within about fifty percent of the built-in path in
+this production build, with Xoshiro the fastest of the three in this run. The
+remaining cost is not Perl method dispatch: the callback is called directly
+from the core. It is primarily the cost of the algorithm, plus common `rand`
+opcode and numeric conversion work.
+
+## Slow/reference providers
+
+| Provider | Calls | Cycles | Instructions | Cycles/call | Relative to built-in |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| RNG::HMAC_DRBG | 1,000,000 | 15,369,067,931 | 56,902,807,144 | 15,369.1 | 212.7x |
+| RNG::SHA | 1,000,000 | 3,339,176,537 | 9,850,618,607 | 3,339.2 | 46.2x |
+
+HMAC_DRBG is substantially slower than the small non-cryptographic generators
+because each request performs HMAC-SHA-256 state evolution. The pure-Perl
+SHA implementation remains an illustrative provider rather than a competitive
+implementation. The use of SHA-256 does not by itself make that construction
+a reviewed cryptographic DRBG.
 
 ## Profile summary
 
-The profile used twenty million calls per provider with `perf record -F 997
--g`.  Samples were not lost.
+Profiles used `perf record -F 997 -g`. Fast providers used ten million calls;
+HMAC_DRBG and SHA used one million. Samples were not lost. The profiles were
+collected from the same production build as the timing table.
 
-| Provider | `pp_rand` children | `call_rand` children | Provider callback | Generator body |
-| --- | ---: | ---: | ---: | ---: |
-| built-in | not comparable as a provider callback | not applicable | not applicable | default PRNG path |
-| RNG::PCG | 33.37% | 17.70% | 9.63% | `pcg_next_u64` 5.43% |
-| RNG::Wyrand | 32.03% | 16.88% | 9.04% | `wyrand_next` 4.89% |
-| RNG::Xoshiro | 27.39% | 12.87% | 7.28% | `xoshiro_next` 4.02% |
+| Provider | Profile observations |
+| --- | --- |
+| built-in | Shared `pp_rand`, iteration, numeric conversion, and result handling dominate. |
+| RNG::PCG | Shared `rand` work remains dominant; `pcg_rng_u64_fast` is visible in the callback path. |
+| RNG::Wyrand | Shared `rand` work remains dominant; the mixing function is largely optimized into the callback. |
+| RNG::Xoshiro | Shared `rand` work remains dominant; `xoshiro_u64_fast` is visible in the callback path. |
+| RNG::HMAC_DRBG | `hmac_sha256_transform` accounts for about 81% of samples. |
+| RNG::SHA | Cost is spread across `shafinish`, `sha256`, and Perl scalar/hash/magic operations. |
 
 The profile confirms that callback lookup is not occurring in the hot path.
 The provider callback and algorithm body account for the expected additional
@@ -67,11 +65,11 @@ work, while the rest is shared Perl execution and conversion overhead.
 
 The fast-provider design is meeting its main goal: an XS provider can be
 selected dynamically without paying for Perl method dispatch on every random
-value.  The current algorithms are close enough to the built-in path that the
-provider choice is dominated by algorithm quality and state requirements,
-rather than by the provider interface.
+value. The provider interface adds a measurable but modest cost relative to
+the built-in path, while algorithm and result-conversion costs dominate.
 
-The current results do not establish that one generator is statistically or
-cryptographically superior to another.  They measure only this call shape on
-this debug build and should be repeated on a non-debugging build before making
-claims about production throughput.
+These results do not establish that one generator is statistically or
+cryptographically superior to another. They measure one call shape on one
+optimized, non-threaded build and should be repeated on the target platform
+and with the intended workload before making provider choices on performance
+grounds.
