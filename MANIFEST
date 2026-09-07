@@ -4917,8 +4917,8 @@ dist/RNG/lib/RNG.pm			RNG provider interface
 dist/RNG/lib/RNG/HMAC_DRBG.pm		RNG::HMAC_DRBG Perl interface
 dist/RNG/lib/RNG/PCG.pm			RNG::PCG Perl interface
 dist/RNG/lib/RNG/SHA.pm			RNG::SHA Perl interface
-dist/RNG/lib/RNG/Wyrand.pm			RNG::Wyrand Perl interface
-dist/RNG/lib/RNG/Xoshiro.pm			RNG::Xoshiro Perl interface
+dist/RNG/lib/RNG/Wyrand.pm		RNG::Wyrand Perl interface
+dist/RNG/lib/RNG/Xoshiro.pm		RNG::Xoshiro Perl interface
 dist/RNG/Makefile.PL			Build RNG
 dist/RNG/MANIFEST			RNG distribution
 dist/RNG/README				RNG distribution
