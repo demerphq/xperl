@@ -233,32 +233,26 @@ nothing about statistical quality or cryptographic suitability.
 
 For a short-lived command, startup and provider setup can be more important
 than the steady-state cost.  As one practical example, C<dumbbench> measured
-the following rounded time per iteration when each process performed 25,000
-C<rand()> calls.  The benchmark used C<--no-dry-run> because dry-run
-subtraction overwhelmed the very short built-in case.  These times include
-process startup, module loading, provider construction, and the calls:
+the following rounded time per iteration when each process performed
+1,000,000 C<rand()> calls.  The benchmark used C<--no-dry-run> because dry-run
+subtraction is inappropriate for this short-process workload.  These times
+include process startup, module loading, provider construction, and the calls.
+The run covered the built-in provider and the three fast XS providers; the
+slower SHA and HMAC_DRBG providers were intentionally omitted:
 
 =over 4
 
 =item *
 
-Built-in provider: 1.637 ms.
+Built-in provider: 17.69 ms.
 
 =item *
 
-C<RNG::PCG>: 3.973 ms; C<RNG::Wyrand>: 3.895 ms.
+C<RNG::PCG>: 26.652 ms; C<RNG::Wyrand>: 27.45 ms.
 
 =item *
 
-C<RNG::Xoshiro>: 3.582 ms.
-
-=item *
-
-C<RNG::HMAC_DRBG>: 86.69 ms.
-
-=item *
-
-C<RNG::SHA>: 29.88 ms.
+C<RNG::Xoshiro>: 26.088 ms.
 
 =back
 
