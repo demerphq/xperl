@@ -17204,6 +17204,7 @@ Perl_core_prototype(pTHX_ SV *sv, const char *name, const int code,
     case KEY_values:  retsetpvs("\\[%@]", OP_VALUES);
     case KEY_each:    retsetpvs("\\[%@]", OP_EACH);
     case KEY_pos:     retsetpvs(";\\[$*]", OP_POS);
+    case KEY___SUB__: retsetpvs("", OP_RUNCV);
     case KEY___FILE__: case KEY___LINE__: case KEY___PACKAGE__:
         /* special case:
            0 means "no actual op, but can be emulated using caller()"
