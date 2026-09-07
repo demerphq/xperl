@@ -73,3 +73,26 @@ cryptographically superior to another. They measure one call shape on one
 optimized, non-threaded build and should be repeated on the target platform
 and with the intended workload before making provider choices on performance
 grounds.
+
+## Practical `dumbbench` results
+
+This second measurement uses the built xperl executable to perform 25,000
+`rand()` calls per process.  It uses `dumbbench --no-dry-run`, because the
+default dry-run subtraction is larger than the built-in workload.  The result
+therefore includes process startup, module loading, provider construction, and
+the 25,000 calls.  Values are the rounded time per iteration reported by
+`dumbbench`.
+
+| Provider | Time per iteration | Relative to built-in |
+| --- | ---: | ---: |
+| built-in | 1.637 ms | 1.00x |
+| RNG::PCG | 3.973 ms | 2.43x |
+| RNG::Wyrand | 3.895 ms | 2.38x |
+| RNG::Xoshiro | 3.582 ms | 2.19x |
+| RNG::HMAC_DRBG | 86.69 ms | 52.96x |
+| RNG::SHA | 29.88 ms | 18.25x |
+
+These practical figures show the fixed startup and setup costs that are mostly
+absent from the long-running `perf` loop.  They are useful for short-lived
+programs, while the production `perf` table above is the better comparison for
+long-running code that has already selected its provider.

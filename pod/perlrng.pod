@@ -231,6 +231,41 @@ shape.  They should be repeated on the target platform and with the intended
 workload before choosing a provider on performance grounds.  They also say
 nothing about statistical quality or cryptographic suitability.
 
+For a short-lived command, startup and provider setup can be more important
+than the steady-state cost.  As one practical example, C<dumbbench> measured
+the following rounded time per iteration when each process performed 25,000
+C<rand()> calls.  The benchmark used C<--no-dry-run> because dry-run
+subtraction overwhelmed the very short built-in case.  These times include
+process startup, module loading, provider construction, and the calls:
+
+=over 4
+
+=item *
+
+Built-in provider: 1.637 ms.
+
+=item *
+
+C<RNG::PCG>: 3.973 ms; C<RNG::Wyrand>: 3.895 ms.
+
+=item *
+
+C<RNG::Xoshiro>: 3.582 ms.
+
+=item *
+
+C<RNG::HMAC_DRBG>: 86.69 ms.
+
+=item *
+
+C<RNG::SHA>: 29.88 ms.
+
+=back
+
+These are practical short-process measurements, not steady-state provider
+throughput figures.  The provider should be selected once and reused when a
+program performs many random operations.
+
 =head1 SEE ALSO
 
 L<perlfunc/rand EXPR>, L<perlvar/${^RNG}>, L<RNG>, L<RNG::PCG>,
