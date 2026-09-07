@@ -19,14 +19,15 @@ All runs measure `cycles` and `instructions`.
 
 | Provider | Calls | Cycles | Instructions | Cycles/call | Relative cycles |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| built-in | 10,000,000 | 804,019,846 | 3,345,567,192 | 80.4 | 1.000x |
-| RNG::Drand48 | 10,000,000 | 1,018,709,200 | 2,802,296,371 | 101.9 | 1.267x |
-| RNG::PCG | 10,000,000 | 1,057,311,272 | 3,092,266,892 | 105.7 | 1.315x |
-| RNG::Wyrand | 10,000,000 | 1,048,888,382 | 3,022,238,990 | 104.9 | 1.304x |
-| RNG::Xoshiro | 10,000,000 | 1,016,472,564 | 2,932,034,477 | 101.6 | 1.264x |
+| built-in | 10,000,000 | 801,841,196 | 3,343,642,864 | 80.2 | 1.000x |
+| RNG::Drand48 | 10,000,000 | 922,271,617 | 2,772,913,205 | 92.2 | 1.150x |
+| RNG::Xoshiro | 10,000,000 | 946,430,677 | 2,900,834,347 | 94.6 | 1.180x |
+| RNG::Wyrand | 10,000,000 | 984,341,480 | 2,990,203,967 | 98.4 | 1.227x |
+| RNG::PCG | 10,000,000 | 988,605,770 | 3,059,892,494 | 98.9 | 1.233x |
 
-The four XS providers are within about one-third of the built-in path in
-this production build, with Xoshiro the fastest of the four in this run. The
+The four XS providers are within about one-quarter of the built-in path in
+this production build, with Drand48 and Xoshiro the fastest of the four in
+this run. The
 remaining cost is not Perl method dispatch: the callback is called directly
 from the inlined `rand` opcode path from the core. It is primarily the cost of
 the algorithm, plus common `rand` opcode and numeric conversion work.
@@ -89,11 +90,11 @@ providers; the slower SHA and HMAC_DRBG providers were intentionally omitted.
 
 | Provider | Time per iteration | Relative to built-in |
 | --- | ---: | ---: |
-| built-in | 19.79 ms | 1.00x |
-| RNG::Drand48 | 26.49 ms | 1.34x |
-| RNG::PCG | 27.91 ms | 1.43x |
-| RNG::Wyrand | 27.205 ms | 1.39x |
-| RNG::Xoshiro | 26.60 ms | 1.36x |
+| built-in | 19.81 ms | 1.00x |
+| RNG::Drand48 | 24.746 ms | 1.25x |
+| RNG::Xoshiro | 24.67 ms | 1.25x |
+| RNG::PCG | 25.744 ms | 1.30x |
+| RNG::Wyrand | 26.26 ms | 1.33x |
 
 These practical figures show the fixed startup and setup costs alongside a
 substantial number of calls.  They are useful for short-lived programs, while

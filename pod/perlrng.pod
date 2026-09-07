@@ -191,27 +191,27 @@ portable throughput guarantees.
 
 =item *
 
-The built-in provider used 804,019,846 cycles, or 80.4 cycles per call.
+The built-in provider used 801,841,196 cycles, or 80.2 cycles per call.
 
 =item *
 
-C<RNG::Drand48> used 1,018,709,200 cycles, or 101.9 cycles per call (1.27
-times the built-in path).
-
-=item *
-
-C<RNG::PCG> used 1,057,311,272 cycles, or 105.7 cycles per call (1.32 times
+C<RNG::Drand48> used 922,271,617 cycles, or 92.2 cycles per call (1.15 times
 the built-in path).
 
 =item *
 
-C<RNG::Wyrand> used 1,048,888,382 cycles, or 104.9 cycles per call (1.30
-times the built-in path).
+C<RNG::Xoshiro> used 946,430,677 cycles, or 94.6 cycles per call (1.18 times
+the built-in path).
 
 =item *
 
-C<RNG::Xoshiro> used 1,016,472,564 cycles, or 101.6 cycles per call (1.26
-times the built-in path).
+C<RNG::Wyrand> used 984,341,480 cycles, or 98.4 cycles per call (1.23 times
+the built-in path).
+
+=item *
+
+C<RNG::PCG> used 988,605,770 cycles, or 98.9 cycles per call (1.23 times the
+built-in path).
 
 =item *
 
@@ -254,19 +254,19 @@ slower SHA and HMAC_DRBG providers were intentionally omitted:
 
 =item *
 
-Built-in provider: 19.79 ms.
+Built-in provider: 19.81 ms.
 
 =item *
 
-C<RNG::Drand48>: 26.49 ms.
+C<RNG::Drand48>: 24.746 ms.
 
 =item *
 
-C<RNG::PCG>: 27.91 ms; C<RNG::Wyrand>: 27.205 ms.
+C<RNG::Xoshiro>: 24.67 ms; C<RNG::PCG>: 25.744 ms.
 
 =item *
 
-C<RNG::Xoshiro>: 26.60 ms.
+C<RNG::Wyrand>: 26.26 ms.
 
 =back
 
