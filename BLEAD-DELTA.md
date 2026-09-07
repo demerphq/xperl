@@ -171,7 +171,7 @@ test-harness behavior for saved timing data, including a very high default
 weight for files without timing information so new tests are scheduled early.
 
 Agent-oriented repository guidance and subsystem skills were added under
-[`.agent/`](https://github.com/demerphq/perl5/tree/xperl/main/.agent/), with related
+[`.agents/`](https://github.com/demerphq/perl5/tree/xperl/main/.agents/), with related
 root instructions. Development plans are kept under
 [`planning/`](https://github.com/demerphq/perl5/tree/xperl/main/planning/) and
 excluded from generated distribution manifests while remaining tracked source
@@ -183,7 +183,7 @@ checks, experimental warning handling, and bundled-distribution layout.
 Related POD: no dedicated POD document was added for the test-harness and
 agent-workflow changes. Their operational documentation is in
 [`AGENTS.md`](https://github.com/demerphq/perl5/blob/xperl/main/AGENTS.md),
-[`.agent/skills/`](https://github.com/demerphq/perl5/tree/xperl/main/.agent/skills/), and the tracked materials under
+[`.agents/skills/`](https://github.com/demerphq/perl5/tree/xperl/main/.agents/skills/), and the tracked materials under
 [`planning/`](https://github.com/demerphq/perl5/tree/xperl/main/planning/).
 
 ## Generated and platform integration
