@@ -11,30 +11,31 @@ the same cached U64 callback path used by normal callers.
 The Perl executable was the current local xperl production build, configured
 with `-O3`, without `DEBUGGING`, and without threads. Fast-provider results
 use ten million `rand()` calls. HMAC_DRBG and SHA use one million calls
-because they are substantially slower. Each result is the mean of three
-`perf stat` runs measuring `cycles` and `instructions`.
+because they are substantially slower. Fast-provider results are the mean of
+five `perf stat` runs; HMAC_DRBG and SHA results are the mean of three runs.
+All runs measure `cycles` and `instructions`.
 
 ## Core `rand()` results
 
 | Provider | Calls | Cycles | Instructions | Cycles/call | Relative cycles |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| built-in | 10,000,000 | 722,497,060 | 3,065,511,422 | 72.2 | 1.000x |
-| RNG::PCG | 10,000,000 | 1,075,015,690 | 2,946,403,901 | 107.5 | 1.488x |
-| RNG::Wyrand | 10,000,000 | 1,068,132,447 | 2,876,542,169 | 106.8 | 1.478x |
-| RNG::Xoshiro | 10,000,000 | 1,016,685,325 | 2,786,295,390 | 101.7 | 1.407x |
+| built-in | 10,000,000 | 804,019,846 | 3,345,567,192 | 80.4 | 1.000x |
+| RNG::PCG | 10,000,000 | 1,057,311,272 | 3,092,266,892 | 105.7 | 1.315x |
+| RNG::Wyrand | 10,000,000 | 1,048,888,382 | 3,022,238,990 | 104.9 | 1.304x |
+| RNG::Xoshiro | 10,000,000 | 1,016,472,564 | 2,932,034,477 | 101.6 | 1.264x |
 
-The three XS providers are within about fifty percent of the built-in path in
+The three XS providers are within about one-third of the built-in path in
 this production build, with Xoshiro the fastest of the three in this run. The
 remaining cost is not Perl method dispatch: the callback is called directly
-from the core. It is primarily the cost of the algorithm, plus common `rand`
-opcode and numeric conversion work.
+from the inlined `rand` opcode path from the core. It is primarily the cost of
+the algorithm, plus common `rand` opcode and numeric conversion work.
 
 ## Slow/reference providers
 
 | Provider | Calls | Cycles | Instructions | Cycles/call | Relative to built-in |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| RNG::HMAC_DRBG | 1,000,000 | 15,369,067,931 | 56,902,807,144 | 15,369.1 | 212.7x |
-| RNG::SHA | 1,000,000 | 3,339,176,537 | 9,850,618,607 | 3,339.2 | 46.2x |
+| RNG::HMAC_DRBG | 1,000,000 | 15,325,403,668 | 56,919,986,757 | 15,325.4 | 190.6x |
+| RNG::SHA | 1,000,000 | 3,297,815,767 | 9,892,153,184 | 3,297.8 | 41.0x |
 
 HMAC_DRBG is substantially slower than the small non-cryptographic generators
 because each request performs HMAC-SHA-256 state evolution. The pure-Perl
@@ -86,10 +87,10 @@ providers; the slower SHA and HMAC_DRBG providers were intentionally omitted.
 
 | Provider | Time per iteration | Relative to built-in |
 | --- | ---: | ---: |
-| built-in | 17.69 ms | 1.00x |
-| RNG::PCG | 26.652 ms | 1.51x |
-| RNG::Wyrand | 27.45 ms | 1.55x |
-| RNG::Xoshiro | 26.088 ms | 1.48x |
+| built-in | 19.57 ms | 1.00x |
+| RNG::PCG | 27.91 ms | 1.43x |
+| RNG::Wyrand | 27.205 ms | 1.39x |
+| RNG::Xoshiro | 26.60 ms | 1.36x |
 
 These practical figures show the fixed startup and setup costs alongside a
 substantial number of calls.  They are useful for short-lived programs, while

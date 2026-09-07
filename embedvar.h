@@ -260,6 +260,7 @@
 # define PL_restartjmpenv                       (vTHX->Irestartjmpenv)
 # define PL_restartop                           (vTHX->Iexecution_context->Irestartop)
 # define PL_rng_gv                              (vTHX->Irng_gv)
+# define PL_rng_sv                              (vTHX->Irng_sv)
 # define PL_rng_u64                             (vTHX->Irng_u64)
 # define PL_rpeepp                              (vTHX->Irpeepp)
 # define PL_rs                                  (vTHX->Irs)

@@ -80,8 +80,10 @@ The implementation is split between `gv.c`, `mg.c`, and `pp.c`:
 - `S_rng_provider()` performs only the initial refresh when the RNG GV is
   first fetched;
 - `S_rng_u64()` uses the Perl-level `rand_bytes` protocol;
-- `Perl_call_rand()` chooses the direct word path when the cached callback is
-  set;
+- The private `S_call_rand()` helper chooses the direct word path when the
+  cached callback is set; `pp_rand` uses that helper directly so the hot path
+  can be inlined, while the public `Perl_call_rand()` API remains available to
+  other core and XS callers;
 - `Perl_call_srand()` and `pp_srand()` continue using the existing Perl-level
   seed protocol.
 
@@ -120,7 +122,7 @@ The intended hot path is:
 SV *provider = S_rng_provider(aTHX_);
 
 if (PL_rng_u64) {
-    value = PL_rng_u64(aTHX_ provider);
+    value = PL_rng_u64(aTHX_ PL_rng_sv);
 }
 else {
     value = S_rng_u64_via_perl(aTHX_ provider);
@@ -129,7 +131,9 @@ else {
 
 The fast path performs no `can`, method lookup, method dispatch, provider
 validation, callback discovery, or registration work. Those costs occur only
-when `${^RNG}` changes. The word path avoids byte ordering and conversion;
+when `${^RNG}` changes. The cached provider and callback are installed
+together, so the hot path does not need a defensive provider lookup. The word
+path avoids byte ordering and conversion;
 the Perl-level path retains the existing canonical byte-string protocol.
 
 ## Ownership and safety

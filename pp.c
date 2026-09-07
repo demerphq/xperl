@@ -3576,6 +3576,7 @@ S_rng_refresh(pTHX_ SV *provider, GV *gv)
     Perl_rng_u64_func u64 = NULL;
 
     PL_rng_gv = gv;
+    PL_rng_sv = provider;
 
     if (!SvOK(provider)) {
         PL_rng_u64 = NULL;
@@ -3736,16 +3737,27 @@ S_rng_u64(pTHX_ SV *provider)
     return value;
 }
 
-NV
-Perl_call_rand(pTHX)
+PERL_STATIC_INLINE NV
+S_call_rand(pTHX)
 {
     PERL_ARGS_ASSERT_CALL_RAND;
-    SV * const provider = S_rng_provider(aTHX);
+    SV *provider;
+
+    /* The callback and GV are refreshed together when ${^RNG} changes.  Take
+     * the cached callback path before the generic provider checks so a fast
+     * XS provider does not pay for repeated GV/provider discovery on every
+     * rand() call. */
+    if (PL_rng_u64) {
+        /* S_rng_refresh() installs the provider and callback as one cache
+         * update.  A non-NULL callback therefore always has a provider. */
+        provider = PL_rng_sv;
+        return (NV)PL_rng_u64(aTHX_ provider)
+            / ((NV)UINT64_C(0xffffffffffffffff) + 1.0);
+    }
+
+    provider = S_rng_provider(aTHX);
 
     if (SvOK(provider)) {
-        if (PL_rng_u64)
-            return (NV)PL_rng_u64(aTHX_ provider)
-                / ((NV)UINT64_C(0xffffffffffffffff) + 1.0);
         return (NV)S_rng_u64(aTHX_ provider)
             / ((NV)UINT64_C(0xffffffffffffffff) + 1.0);
     }
@@ -3764,6 +3776,12 @@ Perl_call_rand(pTHX)
     }
 
     return Perl_drand48_r(&PL_random_state);
+}
+
+NV
+Perl_call_rand(pTHX)
+{
+    return S_call_rand(aTHX);
 }
 
 void
@@ -3786,7 +3804,7 @@ Perl_call_srand(pTHX_ Rand_seed_t seed_value)
 
 PP_wrapped(pp_rand, MAXARG, 0)
 {
-    const NV random_value = Perl_call_rand(aTHX);
+    const NV random_value = S_call_rand(aTHX);
     {
         dSP;
         NV value;
