@@ -393,7 +393,6 @@
 # define is_utf8_string_loclen_flags            Perl_is_utf8_string_loclen_flags
 # define is_utf8_valid_partial_char_flags       Perl_is_utf8_valid_partial_char_flags
 # define isinfnan                               Perl_isinfnan
-# define iterator_mark_failed(a)                Perl_iterator_mark_failed(aTHX_ a)
 # define leave_adjust_stacks(a,b,c,d)           Perl_leave_adjust_stacks(aTHX_ a,b,c,d)
 # define leave_scope(a)                         Perl_leave_scope(aTHX_ a)
 # define lex_bufutf8()                          Perl_lex_bufutf8(aTHX)
