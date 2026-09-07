@@ -6670,6 +6670,15 @@ static int
 yyl_caret(pTHX_ char *s)
 {
     char *d = s;
+
+    /* A leading caret has pattern-only pinning semantics in a case/match
+     * data-shape.  Outside that grammar, retain the ordinary XOR syntax. */
+    if (PL_parser->in_case_pattern && PL_expect == XTERM) {
+        s++;
+        PL_expect = XTERM;
+        TOKEN(CASE_PIN);
+    }
+
     const bool bof = cBOOL(FEATURE_BITWISE_IS_ENABLED);
     if (s[1] == '^') {
         s += 2;
@@ -10821,6 +10830,16 @@ S_pending_ident(pTHX)
     {
         const PADOFFSET existing = pad_findmy_pvn(PL_tokenbuf,
                                                   tokenbuf_len, 0);
+
+        if (PL_parser->in_case_pattern_pin) {
+            if (PL_tokenbuf[0] != '$' || existing == NOT_IN_PAD)
+                Perl_croak(aTHX_
+                    "pinned pattern value must be an existing scalar lexical");
+            pl_yylval.opval = newOP(OP_PADANY, 0);
+            pl_yylval.opval->op_targ = existing;
+            return PRIVATEREF;
+        }
+
         SV **const found = hv_fetch(PL_parser->case_pattern_vars,
                                     PL_tokenbuf, tokenbuf_len, FALSE);
         PADOFFSET off;

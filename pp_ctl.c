@@ -6424,6 +6424,82 @@ S_case_pattern_compile_node(pTHX_ const OP *op)
     return node;
 }
 
+static void
+S_case_pattern_note_static_pins(pTHX_ const OP *op, AV *pins)
+{
+    const OP *kid;
+
+    if (!op)
+        return;
+    if (op->op_type == OP_CASECOERCE
+        && (op->op_private & CASE_PATTERN_CRITERION_MASK)
+            == CASE_PATTERN_CRITERION_PIN) {
+        const OP *target = (op->op_flags & OPf_KIDS)
+            ? cUNOPx(op)->op_first : NULL;
+        if (target && target->op_type == OP_PADSV)
+            av_push(pins, newSVuv((UV)target->op_targ));
+        return;
+    }
+    if (!(op->op_flags & OPf_KIDS))
+        return;
+    for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid))
+        S_case_pattern_note_static_pins(aTHX_ kid, pins);
+}
+
+static struct case_pattern_aux *
+S_case_pattern_find_aux(const OP *op)
+{
+    const OP *kid;
+
+    if (!op || op->op_type == OP_ENTERCASE)
+        return NULL;
+    if (op->op_type == OP_CASEMATCH)
+        return (struct case_pattern_aux *)cUNOP_AUXx(op)->op_aux;
+    if (!(op->op_flags & OPf_KIDS))
+        return NULL;
+    for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid)) {
+        struct case_pattern_aux *aux = S_case_pattern_find_aux(kid);
+        if (aux)
+            return aux;
+    }
+    return NULL;
+}
+
+OP *
+Perl_case_pattern_static_pins(pTHX_ OP *body)
+{
+    OP *list = NULL;
+    const OP *kid;
+
+    PERL_ARGS_ASSERT_CASE_PATTERN_STATIC_PINS;
+
+    if (body && body->op_type == OP_SCOPE
+        && (body->op_flags & OPf_KIDS))
+        body = cUNOPx(body)->op_first;
+    if (body && (body->op_type == OP_LINESEQ
+                 || body->op_type == OP_LIST)) {
+        for (kid = cLISTOPx(body)->op_first; kid; kid = OpSIBLING(kid)) {
+            struct case_pattern_aux *aux = NULL;
+            AV *pins;
+            SSize_t i;
+            aux = S_case_pattern_find_aux(kid);
+            if (!aux || aux->magic != CASE_PATTERN_AUX_MAGIC
+                || !aux->static_pins)
+                continue;
+            pins = aux->static_pins;
+            for (i = 0; i <= av_len(pins); i++) {
+                SV **padix = av_fetch(pins, i, FALSE);
+                if (padix) {
+                    OP *pin = newOP(OP_PADSV, 0);
+                    pin->op_targ = (PADOFFSET)SvUV(*padix);
+                    list = op_append_elem(OP_LIST, list, pin);
+                }
+            }
+        }
+    }
+    return list;
+}
+
 static const OP *
 S_case_pattern_find_match(const struct case_pattern_node *node)
 {
@@ -6758,6 +6834,8 @@ Perl_case_pattern_compile(pTHX_ const OP *pattern)
     aux->magic = CASE_PATTERN_AUX_MAGIC;
     aux->pattern = (OP *)pattern;
     aux->root = S_case_pattern_compile_node(aTHX_ pattern);
+    aux->static_pins = newAV();
+    S_case_pattern_note_static_pins(aTHX_ pattern, aux->static_pins);
     S_case_pattern_compile_regex(aTHX_ aux);
     aux->kind = CASE_PATTERN_COMPLEX;
     if (pattern->op_type == OP_UNDEF)
@@ -6785,6 +6863,7 @@ Perl_case_pattern_free(pTHX_ UNOP_AUX_item *items)
     if (aux && aux->magic == CASE_PATTERN_AUX_MAGIC) {
         S_case_pattern_free_node(aux->root);
         op_free(aux->pattern);
+        SvREFCNT_dec((SV *)aux->static_pins);
         SvREFCNT_dec((SV *)aux->regex_names);
         SvREFCNT_dec((SV *)aux->regex_padixes);
         if (aux->dispatch)
@@ -7307,6 +7386,11 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
         const OP *target = (pattern->op_flags & OPf_KIDS)
             ? cUNOPx(pattern)->op_first : NULL;
         const U8 criterion = pattern->op_private & CASE_PATTERN_CRITERION_MASK;
+        if (criterion == CASE_PATTERN_CRITERION_PIN) {
+            SV *pinvalue = target && target->op_type == OP_PADSV
+                ? S_case_pattern_pin_value(aTHX_ target->op_targ) : NULL;
+            return pinvalue && sv_eq(pinvalue, value);
+        }
         if (criterion == CASE_PATTERN_CRITERION_INTSTR
             || criterion == CASE_PATTERN_CRITERION_FLOATSTR
             || criterion == CASE_PATTERN_CRITERION_NUM

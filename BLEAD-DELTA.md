@@ -199,6 +199,23 @@ The `as` and `with` forms shown here belong to `case_match`; they do not enable
 the separate namespace `as` syntax.  `with` accepts a list of existing scalar
 lexicals, and each item may independently use `as` to create a case-local pin.
 
+An existing scalar can also be pinned directly in a data shape by prefixing
+it with `^`:
+
+```perl
+my $wanted = "ok";
+
+case ($record) {
+    match ({ type => ^$wanted, ... }) { use_record($record) }
+}
+```
+
+Here `^$wanted` compares with the value of the existing lexical instead of
+creating a clause-local binding.  The value is captured when the surrounding
+`case` begins, and the same snapshot is used by every clause.  This caret
+meaning exists only inside a `match (...)` data shape; ordinary Perl caret
+operators retain their normal behavior elsewhere, including in guards.
+
 For a case made entirely from simple constants and no guards, the compiler can
 select a specialized dispatch representation.  The current implementations
 include linear, binary-search, and hash-based constant lookup.  These are

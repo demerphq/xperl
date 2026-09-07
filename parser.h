@@ -101,6 +101,7 @@ typedef struct yy_parser {
     line_t	copline;
     U16		in_my;		/* we're compiling a "my"/"our" declaration */
     bool        in_case_pattern; /* parsing a case pattern expression */
+    bool        in_case_pattern_pin; /* parsing a ^-pinned pattern scalar */
     bool        in_case_match_stmtseq; /* parsing direct case/match clauses */
     bool        in_case_header; /* parsing a case subject or with clause */
     U32         case_slurp_min; /* minimum for the pending array slurp */

@@ -13,6 +13,8 @@ The branch currently provides:
   `case (EXPR) { match (PATTERN) { ... } }`;
 - one-time subject evaluation, case-local subject names with `as`, and
   `with` pins, including `with (EXPR as $name)`;
+- direct pattern pinning with `^$name`, using an existing scalar lexical and a
+  case-entry snapshot shared by all clauses;
 - scalar patterns for `undef`, booleans, numeric literals, string literals,
   and the wildcard `_`;
 - numeric criteria `IntStr`, `FloatStr`, `Num`, and `NumStr`, with optional

@@ -1081,6 +1081,8 @@ p	|void	|case_pattern_note_regex				\
 				|NN const OP *pattern
 p	|void	|case_pattern_preserve_concat				\
 				|NN OP *pattern
+p	|OP *	|case_pattern_static_pins				\
+				|NN OP *body
 CRTp	|I32	|cast_i32	|NV f
 CRTp	|IV	|cast_iv	|NV f
 CRTp	|U32	|cast_ulong	|NV f

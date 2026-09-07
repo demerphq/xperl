@@ -693,6 +693,14 @@ Perl_case_pattern_preserve_concat(pTHX_ OP *pattern)
 #define PERL_ARGS_ASSERT_CASE_PATTERN_PRESERVE_CONCAT \
     STMT_START { Perl_assert_aTHX; assert(pattern); } STMT_END
 
+PERL_CALLCONV OP *
+Perl_case_pattern_static_pins(pTHX_ OP *body)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_CASE_PATTERN_STATIC_PINS \
+    STMT_START { Perl_assert_aTHX; assert(body); } STMT_END
+
 PERL_CALLCONV I32
 Perl_cast_i32(NV f)
         __attribute__warn_unused_result__;

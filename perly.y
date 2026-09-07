@@ -88,7 +88,7 @@
 %token <opval> FUNC0OP FUNC0SUB UNIOPSUB LSTOPSUB
 %token <opval> PLUGEXPR PLUGSTMT
 %token <opval> LABEL PROTOTYPE
-%token <ival> LOOPEX DOTDOT YADAYADA CASE_ELLIPSIS
+%token <ival> LOOPEX DOTDOT YADAYADA CASE_ELLIPSIS CASE_PIN
 %token <ival> FUNC0 FUNC1 FUNC UNIOP LSTOP BLKLSTOP
 %token <ival> POWOP MULOP ADDOP
 %token <ival> DOLSHARP HASHBRACK NOAMP
@@ -315,10 +315,16 @@ bare_statement_case
 					newUNOP_AUX(OP_CASEDISPATCH, 0, NULL, dispatch), body);
 			if ($case_subject_alias)
 				subject = newASSIGNOP(0, $case_subject_alias, 0, subject);
-			if ($case_subject_pins)
+			OP *static_pins = case_pattern_static_pins(body);
+			OP *pins = $case_subject_pins;
+			if (static_pins)
+				pins = pins
+				    ? op_append_elem(OP_LIST, pins, static_pins)
+				    : static_pins;
+			if (pins)
 				body = op_prepend_elem(OP_LINESEQ,
 					newLISTOP(OP_CASEWITH, OPf_WANT_LIST,
-						$case_subject_pins, NULL), body);
+						pins, NULL), body);
 			OP *scoped_body = op_scope(body);
 			OP *caseop = newCASEOP(subject, scoped_body);
 			if (dispatch && (scoped_body->op_type == OP_LINESEQ
@@ -2106,6 +2112,20 @@ term[product]	:	termbinop
 	|       CASE_ELLIPSIS
 			{ $$ = newSVOP(OP_CONST, OPpCONST_BARE | OPf_SPECIAL,
 				newSVpvs("...")); }
+	|       CASE_PIN
+		{
+			parser->in_case_pattern_pin = TRUE;
+		}
+		case_pattern_target
+		{
+			parser->in_case_pattern_pin = FALSE;
+			if (!$case_pattern_target
+			    || $case_pattern_target->op_type != OP_PADSV)
+				Perl_croak(aTHX_
+				    "pinned pattern value must be an existing scalar lexical");
+			$$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_target);
+			$$->op_private = CASE_PATTERN_CRITERION_PIN;
+		}
 	|	amper                                /* &foo; */
 			{ $$ = newUNOP(OP_ENTERSUB, 0, scalar($amper)); }
 	|	amper PERLY_PAREN_OPEN PERLY_PAREN_CLOSE                 /* &foo() or foo() */

@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-print "1..83\n";
+print "1..88\n";
 
 my $ran = 0;
 $_ = 'outside';
@@ -1128,3 +1128,65 @@ my $numstr_padded = eval q{
 print !$@ && $numstr_padded
     ? "ok 83 - NumStr accepts padded numeric strings\n"
     : "not ok 83 - NumStr accepts padded numeric strings\n";
+
+my ($pin_hit, $pin_y) = (0, 7);
+my $caret_pin = eval q{
+    use feature 'case_match';
+    my $x = [ 7, 7, 7 ];
+    case ($x) {
+        match ([^$pin_y, ^$pin_y, ^$pin_y]) { $pin_hit = 1; }
+    }
+    1;
+};
+print !$@ && $caret_pin && $pin_hit
+    ? "ok 84 - caret pins an existing lexical\n"
+    : "not ok 84 - caret pins an existing lexical\n";
+
+my ($mixed_pin, $mixed_tail, $mixed_tail_result);
+my $mixed_pin_ok = eval q{
+    use feature 'case_match';
+    case ([ 7, 4 ]) {
+        match ([^$pin_y, $mixed_tail]) {
+            $mixed_pin = 1;
+            $mixed_tail_result = $mixed_tail;
+        }
+    }
+    1;
+};
+print !$@ && $mixed_pin_ok && $mixed_pin && $mixed_tail_result == 4
+    ? "ok 85 - caret pins can mix with captures\n"
+    : "not ok 85 - caret pins can mix with captures\n";
+
+my ($xor_left, $xor_right, $xor_seen) = (1, 2, 0);
+my $guard_xor_ok = eval q{
+    use feature 'case_match';
+    case (0) {
+        match (0 if (($xor_left ^ $xor_right) == 3)) { $xor_seen = 1; }
+    }
+    1;
+};
+print !$@ && $guard_xor_ok && $xor_seen
+    ? "ok 86 - ordinary caret remains XOR in guards\n"
+    : "not ok 86 - ordinary caret remains XOR in guards\n";
+
+my ($snapshot_hit, $snapshot_y) = (0, 7);
+my $snapshot_ok = eval q{
+    use feature 'case_match';
+    case ([ 7 ]) {
+        match ([^$snapshot_y] if (($snapshot_y = 8) && 0)) { die 'wrong clause'; }
+        match ([^$snapshot_y]) { $snapshot_hit = 1; }
+    }
+    1;
+};
+print !$@ && $snapshot_ok && $snapshot_hit && $snapshot_y == 8
+    ? "ok 87 - caret pins are captured at case entry\n"
+    : "not ok 87 - caret pins are captured at case entry\n";
+
+my $unbound_pin = eval q{
+    use feature 'case_match';
+    case (1) { match (^$not_declared) { 1; } }
+    1;
+};
+print $@ =~ /pinned pattern value must be an existing scalar lexical/
+    ? "ok 88 - caret requires an existing lexical\n"
+    : "not ok 88 - caret requires an existing lexical\n";

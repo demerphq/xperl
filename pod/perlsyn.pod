@@ -977,6 +977,20 @@ names pinned for the case:
         match ({ key => $wanted_key, ... }) { use_record($record) }
     }
 
+An existing scalar can also be pinned at the point where it appears in a
+data shape by prefixing it with C<^>:
+
+    my $wanted_key = "key";
+    case ($record) {
+        match ({ ^$wanted_key => $value, ... }) { use_record($value) }
+    }
+
+In a C<match (...)> data shape, C<^$name> compares with the existing lexical's
+value instead of introducing a clause-local binding.  The value is captured
+when the surrounding C<case> begins.  This is a pattern-only meaning of the
+caret; ordinary Perl expressions, including guards, retain the normal caret
+operators.
+
 An expression may be evaluated once and assigned to a fresh case-local pin
 with C<as>:
 

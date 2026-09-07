@@ -1680,6 +1680,11 @@ variables, but received a value of the indicated kind.
 (F) A typed pattern target cannot also be listed among the values pinned by
 the enclosing C<case> C<with> clause.
 
+=item pinned pattern value must be an existing scalar lexical
+
+(F) A caret-prefixed pattern value must name an existing scalar lexical.  The
+C<^> pinning modifier is available only inside a C<match> data shape.
+
 =item array pattern has invalid ellipsis placement
 
 (F) An array pattern contained too many ellipses for the supported pattern

@@ -377,6 +377,22 @@ commas:
         }
     }
 
+There is also a shorter way to pin an existing scalar directly in a data
+shape.  Put a caret before the scalar name:
+
+    my $wanted = "ok";
+    case ($record) {
+        match ({ type => ^$wanted, ... }) { use_record($record) }
+    }
+
+Inside a C<match (...)> data shape, C<^$name> means “compare with the value
+of this existing lexical”.  It does not create a new binding.  The value is
+snapshotted when the surrounding C<case> begins, so all clauses see the same
+pinned value even if a guard or clause body later changes the lexical.  Only
+an existing scalar lexical may follow the caret.  This meaning of C<^> is
+special to the data-shape language; outside a match clause, Perl's ordinary
+caret operators keep their normal meaning.
+
 An expression can be evaluated once and made into a case-local pin:
 
     case ($record) with (expected_type() as $wanted) {

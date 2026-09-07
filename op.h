@@ -252,6 +252,7 @@ struct case_pattern_aux {
     struct case_pattern_node *root;
     struct case_dispatch_aux *dispatch;
     U32 dispatch_clause;
+    AV *static_pins; /* pad indexes pinned by ^ in this pattern */
     AV *regex_names; /* named captures and their clause-local bindings */
     AV *regex_padixes;
 };
@@ -277,7 +278,8 @@ enum {
     CASE_PATTERN_CRITERION_FLOATSTR = 8,
     CASE_PATTERN_CRITERION_NUM = 9,
     CASE_PATTERN_CRITERION_NUMSTR = 10,
-    CASE_PATTERN_CRITERION_NUMEQ = 11
+    CASE_PATTERN_CRITERION_NUMEQ = 11,
+    CASE_PATTERN_CRITERION_PIN = 12
 };
 
 
