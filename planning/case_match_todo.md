@@ -88,7 +88,7 @@ polish rather than a semantic gap.
 
 ## Priority 2: finish constant dispatch
 
-### 3. Audit optimized representations and cloning — OPEN
+### 3. Audit optimized representations and cloning — DEFERRED
 
 Keep the array and HV strategies distinct:
 
@@ -111,7 +111,7 @@ Absent domains must not be represented by ambiguous zero values.  IV and UV
   bounds must use scalar lengths without constructing unnecessary temporary
   strings.
 
-### 4. Improve dispatch selection — OPEN
+### 4. Improve dispatch selection — DEFERRED
 
 The current automatic policy is provisional: linear probing below 16 clauses and
 binary search at 16 clauses or above.  Benchmark and tune the crossover by:
@@ -139,7 +139,7 @@ compiler, CPU, and exact benchmark command.  Keep benchmark scripts and
 results under `planning/scripts/`; they are developer tools, not language
 interfaces.
 
-### 5. Add conditional-tree lowering — OPEN
+### 5. Add conditional-tree lowering — DEFERRED
 
 For small pure constant cases with no guards, generate an ordinary conditional
 optree when it is faster than the generic case machinery.  The generated
@@ -310,12 +310,10 @@ tests should be runnable from both the repository root and the `t/` directory.
 ## Suggested execution order for the remaining work
 
 1. Close ownership, cleanup, and cloning gaps.
-2. Finish benchmark coverage and tune constant dispatch.
-3. Implement and validate small-case conditional-tree lowering.
-4. Finish regex hardening and add object/class patterns.
-5. Expand context, exception, magic, mutation, cloning, and sanitizer tests.
-6. Synchronize documentation and generated files as semantics change.
-7. Run focused suites, porting checks, `make regen`, and finally `make_test`.
+2. Add object/class patterns.
+3. Expand context, exception, magic, mutation, cloning, and sanitizer tests.
+4. Synchronize documentation and generated files as semantics change.
+5. Run focused suites, porting checks, `make regen`, and finally `make_test`.
 
 Do not mark the feature complete until the implementation, optimizer behavior,
 exception/cleanup paths, documentation, and the full relevant test matrix all
