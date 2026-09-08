@@ -6242,6 +6242,29 @@ S_case_pattern_pin_value(pTHX_ PADOFFSET padix)
     return NULL;
 }
 
+static bool
+S_case_pattern_values_equal(pTHX_ SV *left, SV *right)
+{
+    if (SvROK(left) || SvROK(right))
+        return SvROK(left) && SvROK(right) && SvRV(left) == SvRV(right);
+    return sv_streq_flags(left, right, SV_GMAGIC);
+}
+
+static bool
+S_case_pattern_exact_class(pTHX_ SV *value, const SV *classname)
+{
+    HV *wanted;
+    STRLEN classlen;
+    const char *classpv;
+
+    if (!SvROK(value) || !SvOBJECT(SvRV(value)))
+        return FALSE;
+    classpv = SvPVX_const(classname);
+    classlen = SvCUR(classname);
+    wanted = gv_stashpvn(classpv, classlen, 0);
+    return wanted && SvSTASH(SvRV(value)) == wanted;
+}
+
 static void
 S_case_pattern_mark_concat(pTHX_ OP *pattern, bool in_concat)
 {
@@ -8186,9 +8209,8 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
         SV *logical = NULL;
         bool matched;
 
-        if (!node->object_class || !SvROK(value)
-            || !SvOBJECT(SvRV(value))
-            || !sv_derived_from(value, SvPV_nolen_const(node->object_class)))
+        if (!node->object_class
+            || !S_case_pattern_exact_class(aTHX_ value, node->object_class))
             return FALSE;
         if (fields) {
             if (SvTYPE(SvRV(value)) == SVt_PVOBJ)
@@ -8233,9 +8255,8 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             shape_node = args->child[argix + 1];
         }
         if (!class_node || class_node->op->op_type != OP_CONST
-            || !SvROK(value) || !SvOBJECT(SvRV(value))
-            || !sv_derived_from(value,
-                SvPV_nolen_const(cSVOPx_sv(class_node->op))))
+            || !S_case_pattern_exact_class(aTHX_ value,
+                cSVOPx_sv(class_node->op)))
             return FALSE;
         if (shape_node->op->op_type == OP_LIST
             || (shape_node->op->op_type == OP_NULL
@@ -8285,7 +8306,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             matched = (SvIOK(value) || SvNOK(value))
                 && do_ncmp(value, called) == 0;
         else
-            matched = SvPOK(value) && sv_eq(value, called);
+            matched = sv_streq_flags(value, called, SV_GMAGIC);
         SvREFCNT_dec_NN(called);
         return matched;
     }
@@ -8300,7 +8321,8 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
         if (criterion == CASE_PATTERN_CRITERION_PIN) {
             SV *pinvalue = target && target->op_type == OP_PADSV
                 ? S_case_pattern_pin_value(aTHX_ target->op_targ) : NULL;
-            return pinvalue && sv_eq(pinvalue, value);
+            return pinvalue && S_case_pattern_values_equal(aTHX_
+                pinvalue, value);
         }
         if (criterion == CASE_PATTERN_CRITERION_INTSTR
             || criterion == CASE_PATTERN_CRITERION_FLOATSTR
@@ -8360,7 +8382,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             return (SvIOK(value) || SvNOK(value))
                 && do_ncmp(value, pattern_sv) == 0;
         }
-        return SvPOK(value) && sv_eq(value, pattern_sv);
+        return sv_streq_flags(value, pattern_sv, SV_GMAGIC);
     }
 
     if (pattern->op_type == OP_PADSV) {
@@ -8374,12 +8396,14 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                 SV **pinix = av_fetch(pins, j, FALSE);
                 SV **pinvalue = av_fetch(pins, j + 1, FALSE);
                 if (pinix && pinvalue && SvUV(*pinix) == (UV)padix)
-                    return sv_eq(*pinvalue, value);
+                    return S_case_pattern_values_equal(aTHX_
+                        *pinvalue, value);
             }
         }
         for (i = 0; i < *nbindings; i++) {
             if (bindings[i].padix == padix)
-                return sv_eq(bindings[i].value, value);
+                return S_case_pattern_values_equal(aTHX_
+                    bindings[i].value, value);
         }
         if (*nbindings >= 64)
             return FALSE;

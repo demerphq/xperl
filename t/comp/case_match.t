@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-print "1..122\n";
+print "1..128\n";
 
 my $ran = 0;
 $_ = 'outside';
@@ -206,6 +206,12 @@ print !$@ && $regex_match ? "ok 16 - regex pattern\n"
     package CaseMatch::Stringified;
     use overload '""' => sub { $_[0]{value} }, fallback => 1;
     sub new { bless { value => $_[1] }, shift }
+}
+
+{
+    package CaseMatch::IdentityString;
+    use overload '""' => sub { 'same' }, 'eq' => sub { 1 }, fallback => 1;
+    sub new { bless {}, shift }
 }
 
 my $subject;
@@ -1692,3 +1698,111 @@ print !$@ && $concat_overloaded
     && $concat_overloaded_result eq 'X'
     ? "ok 122 - concatenation uses overloaded stringification\n"
     : "not ok 122 - concatenation uses overloaded stringification\n";
+
+my ($native_x, $native_y, $native_class_result);
+my $native_class_match = eval q{
+    use feature 'case_match';
+    use experimental 'class';
+    class NativePointCase {
+        field $x :param;
+        field $y :param;
+    }
+    my $point = NativePointCase->new(x => 10, y => 20);
+    case ($point) {
+        match (NativePointCase {
+            '$x' => $native_x,
+            '$y' => $native_y,
+        }) { $native_class_result = 1; }
+    }
+    1;
+};
+print !$@ && $native_class_match && $native_class_result
+    && $native_x == 10 && $native_y == 20
+    ? "ok 123 - native class fields destructure directly\n"
+    : "not ok 123 - native class fields destructure directly\n";
+
+my $native_subclass_result = 0;
+my $native_exact_class = eval q{
+    use feature 'case_match';
+    use experimental 'class';
+    class NativeSubCase :isa(NativePointCase) { }
+    my $point = NativeSubCase->new(x => 10, y => 20);
+    case ($point) {
+        match (NativePointCase { '$x' => 10, '$y' => 20 }) {
+            $native_subclass_result = 1;
+        }
+    }
+    1;
+};
+print !$@ && $native_exact_class && !$native_subclass_result
+    ? "ok 124 - native class patterns require the exact class\n"
+    : "not ok 124 - native class patterns require the exact class\n";
+
+my $pinned_identity_result = 0;
+my $pinned_identity = eval q{
+    use feature 'case_match';
+    my $wanted = CaseMatch::IdentityString->new;
+    my $other = CaseMatch::IdentityString->new;
+    case ($other) with ($wanted) {
+        match ($wanted) { $pinned_identity_result = 1; }
+    }
+    1;
+};
+print !$@ && $pinned_identity && !$pinned_identity_result
+    ? "ok 125 - pinned references compare by identity\n"
+    : "not ok 125 - pinned references compare by identity\n";
+
+my $native_overload_result = 0;
+my $native_overload = eval q{
+    use feature 'case_match';
+    use experimental 'class';
+    class NativeOverloadPointCase { field $x :param }
+    my $point = NativeOverloadPointCase->new(
+        x => CaseMatch::Stringified->new('same'));
+    case ($point) {
+        match (NativeOverloadPointCase { '$x' => 'same' }) {
+            $native_overload_result = 1;
+        }
+    }
+    1;
+};
+print !$@ && $native_overload && $native_overload_result
+    ? "ok 126 - nested overload is used for string patterns\n"
+    : "not ok 126 - nested overload is used for string patterns\n";
+
+my $native_tied_fetches = 0;
+my $native_tied_result = 0;
+my $native_tied = eval q{
+    use feature 'case_match';
+    use experimental 'class';
+    tie my $field, 'CaseMatch::Tie';
+    class NativeTiedPointCase { field $x :param }
+    my $point = NativeTiedPointCase->new(x => $field);
+    case ($point) {
+        match (NativeTiedPointCase { '$x' => 7 }) {
+            $native_tied_result = 1;
+        }
+    }
+    1;
+};
+$native_tied_fetches = $CaseMatch::Tie::fetches;
+print !$@ && $native_tied && $native_tied_result && $native_tied_fetches
+    ? "ok 127 - tied nested values use normal read semantics\n"
+    : "not ok 127 - tied nested values use normal read semantics\n";
+
+my $native_missing_result = 0;
+my $native_missing = eval q{
+    use feature 'case_match';
+    use experimental 'class';
+    class NativeMissingPointCase { field $x :param }
+    my $point = NativeMissingPointCase->new(x => 10);
+    case ($point) {
+        match (NativeMissingPointCase { '$missing' => 10 }) {
+            $native_missing_result = 1;
+        }
+    }
+    1;
+};
+print !$@ && $native_missing && !$native_missing_result
+    ? "ok 128 - missing native fields are a non-match\n"
+    : "not ok 128 - missing native fields are a non-match\n";

@@ -233,13 +233,16 @@ case ($pair) {
 }
 ```
 
-Object shapes check the class and inspect the blessed reference structurally;
-they do not call constructors, accessors, overload methods, or arbitrary user
-methods.  A hash object shape is exact unless it ends in `...`.  Blessed scalar
-references can use a form such as `Box \$value`.  More detailed class-field
-metadata, roles, and other blessed reference layouts remain future work.
-Literal checks of class-backed field objects are supported, while capture
-bindings through their temporary field-expression scope remain deferred.
+Object shapes inspect the blessed reference structurally without calling
+constructors, accessors, or arbitrary user methods.  Native Perl class objects
+backed by the class field-map representation are supported, and a
+class-qualified shape requires the exact named class in this version.  A hash
+object shape is exact unless it ends in `...`; blessed scalar references can
+use a form such as `Box \$value`.  Missing fields do not match.  Tied or
+magical nested values use ordinary read semantics, overload is used only when
+the selected pattern requires conversion, and captured references retain
+identity.  Inheritance and role matching are reserved for a future `isa`
+or related pattern form.
 
 An optional `if` introduces an ordinary Perl guard.  The guard runs after the
 data shape has matched and may use the tentative bindings.  Guards are

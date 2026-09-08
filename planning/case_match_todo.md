@@ -263,11 +263,11 @@ undefined value, following the regex engine's result.
 
 ### 5. Object and class patterns — PARTIALLY COMPLETE
 
-Status: the initial structural object-pattern slice is complete and focused
-coverage now passes.  Blessed hash, array, and scalar-reference objects can be
-matched and destructured; object captures are resolved to clause lexicals at
-compile time, and array slurp targets retain their underlying array pads.
-Class-backed field-map objects and broader object semantics remain open.
+Status: the initial structural object-pattern slice and native class
+field-map/PTROBJ support are implemented and covered by focused acceptance
+tests.  Blessed hash, array, and scalar-reference objects can be matched and
+destructured; object captures are resolved to clause lexicals at compile time,
+and array slurp targets retain their underlying array pads.
 
 The first structural object-pattern slice is implemented and documented.  A
 class-qualified pattern can now match and destructure blessed hash references,
@@ -286,15 +286,14 @@ during pattern compilation.
 
 Still open for this item:
 
-- declared Perl class instances backed by the class field map/PTROBJ storage;
 - a post-v0 `isa` pattern/operator for inheritance checks, followed by a
   separate decision about role-membership matching;
-- field magic, tied values, exceptions, aliases, and reference-identity
-  guarantees;
+- broader field magic, tied-value, exception, alias, and reference-identity
+  coverage beyond the v0 acceptance cases;
 - a cleaner grammar path for class-qualified reference forms that avoids the
   ordinary indirect-method-call representation.
 
-For v0 acceptance, verify these settled rules explicitly:
+The v0 acceptance cases now verify these settled rules:
 
 - a pinned reference compares by identity, while a reference capture binds the
   referent normally and does not clone it;

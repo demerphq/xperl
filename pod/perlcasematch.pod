@@ -268,13 +268,16 @@ A blessed scalar reference can bind its referent with a reference shape:
         match (Box \$number) { say $number }
     }
 
-These forms are structural.  They do not use overload methods, constructors,
-or arbitrary user methods.  The current implementation covers blessed hash,
-array, and scalar references and checks the named class, including its normal
-inheritance relationship.  More detailed class-field metadata, roles, and
-other blessed reference layouts remain future work.  In particular, capture
-bindings from the temporary scope of a class-field object expression are not
-yet supported; literal class-field checks are supported.
+These forms are structural.  They do not use constructors, accessors, or
+arbitrary user methods.  Native Perl class objects backed by the class
+field-map representation are also supported.  A class-qualified shape
+requires the exact named class in this version; an inherited class or role
+does not satisfy it.  A missing field is a non-match.  Field values then use
+the ordinary data-shape rules: tied or magical values follow normal read
+semantics, and overload is used only when the selected pattern requires a
+string, numeric, or boolean conversion.  Captured references retain their
+identity.  An inheritance test such as an C<isa> pattern is reserved for a
+future version.
 
 =head2 Regular-expression data shapes
 

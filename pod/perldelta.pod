@@ -67,10 +67,12 @@ pinned by C<with>.
 Blessed references may use a class-qualified data shape.  Hash object shapes
 check quoted field names, array object shapes check positional values, and a
 reference object shape can bind a scalar referent.  These patterns inspect the
-object structure directly without calling constructors, accessors, overload
-methods, or arbitrary user methods.  The initial implementation covers blessed
-hash, array, and scalar references; richer class-field metadata and roles are
-future work.
+object structure directly without calling constructors, accessors, or
+arbitrary user methods.  Native Perl class objects backed by the class
+field-map representation are supported, with exact-class matching in this
+version.  Missing fields do not match; tied or magical nested values use
+ordinary read semantics, and overload is used only when the selected pattern
+requires conversion.  Inheritance and role matching remain future work.
 
 An existing scalar can also be pinned directly in a data shape with the
 pattern-only C<^$name> form.  Its value is snapshotted when the surrounding
