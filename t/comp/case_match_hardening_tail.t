@@ -6,7 +6,7 @@ BEGIN {
     set_up_inc( qw(. ../lib) );
 }
 
-plan(6);
+plan(7);
 
 require Scalar::Util;
 
@@ -96,6 +96,25 @@ sub array_binding_release_probe {
 }
 ok(array_binding_release_probe(),
    'captured objects in aggregate bindings are released at case exit');
+
+sub returned_binding_survives_cleanup {
+    use feature 'case_match';
+    my $value = bless {}, 'CaseMatchHardeningTail::Destroyed';
+    my $weak = $value;
+    Scalar::Util::weaken($weak);
+    my $result = do {
+        case ($value) {
+            match (ObjectVal($object)) { $object }
+        }
+    };
+    undef $value;
+    my $ok = ref($result) eq 'CaseMatchHardeningTail::Destroyed'
+        && defined($weak);
+    undef $result;
+    return $ok && !defined($weak);
+}
+ok(returned_binding_survives_cleanup(),
+   'case cleanup does not invalidate a value returned by a clause');
 
 my ($nested_result, $nested_outer_result);
 my $nested_case_ok = eval q{
