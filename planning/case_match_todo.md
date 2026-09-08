@@ -190,6 +190,25 @@ Status: one-capture literal concatenation is implemented and tested for prefix,
 suffix, sandwich, pinned, and empty captures.  Multiple captures and richer
 structural expressions remain unspecified or unsupported.
 
+The v0 rules for completing this form are now settled:
+
+- multiple non-adjacent captures are allowed;
+- captures are resolved left-to-right using the shortest value bounded by the
+  next literal or pinned fragment;
+- adjacent unbounded captures are illegal and must throw an exception;
+- a capture name may occur at most once in a concatenation pattern, so repeated
+  captures such as `$x . "-" . $x` are also illegal;
+- empty captures are allowed;
+- concatenation is the only structural expression supported for now;
+- operands must be strings or values with usable overloaded stringification;
+  numeric coercion is not part of this pattern form;
+- normal Perl string, magic, Unicode, byte, and overload semantics apply;
+- the subject and pinned operands are evaluated once per match attempt.
+
+The remaining implementation work is to add the multiple-capture parser and
+matcher rules, diagnostics for the forbidden forms, and focused coverage for
+ambiguous boundaries, empty captures, overload, magic, and byte/Unicode data.
+
 The current implementation supports one unpinned scalar capture surrounded by
 literal concatenation fragments.  Define and test the next boundary before
 implementing it:
