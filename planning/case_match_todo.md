@@ -193,7 +193,12 @@ for nonparticipating named captures, duplicate-capture delegation to the regex
 engine, static compile-time compilation, open-search reuse, and case-local
 capture restoration are implemented.  Remaining hardening includes:
 
-- defining and testing genuinely dynamic regex construction;
+- defining and testing genuinely dynamic regex construction.  The initial
+  form will require an explicitly pinned value, for example
+  `case ($value) with ($re) { match (/thing-$re-thing/) { ... } }`; the
+  interpolated regex is evaluated and compiled once for the clause attempt and
+  reused for every candidate in an open search.  Removing the explicit pin is
+  deferred until its evaluation and binding rules are clear;
 - leaving Unicode and byte-string behavior to the regex engine, while testing
   that the case matcher does not interfere with it;
 - deciding whether to support `(?{ ... })` and `(??{ ... })`.  They are
