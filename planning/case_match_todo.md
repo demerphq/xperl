@@ -352,11 +352,11 @@ Confirm that:
 - subject evaluation and pattern evaluation do not accidentally change
   context.
 
-### 7. Exception and cleanup behavior — OPEN
+### 7. Exception and cleanup behavior — PARTIALLY COMPLETE
 
-Status: ordinary matching and rollback paths work, but nested evaluations,
-exceptions during every phase, destruction, and cleanup-state restoration need
-dedicated coverage.
+Status: subject, pattern, guard, body, nested-eval, rollback, localization,
+destruction, and nested-case cleanup paths now have focused coverage.  The
+complete exception matrix and sanitizer validation remain open.
 
 Verify nested and outer `eval`, `die` in subjects, patterns, guards, and clause
 bodies, plus exceptions during cleanup and destruction.  Confirm:
@@ -396,6 +396,42 @@ tests for cloning compiled pattern representations, values, pads, and case
 contexts.  Then exercise DEBUGGING, ASAN, and LSan configurations.  Leak runs
 must use `PERL_DESTRUCT_LEVEL=2`; reports from ptrace-restricted processes are
 not valid LSan evidence.
+
+### Current hardening-pass findings
+
+The first focused hardening pass is in
+`t/comp/case_match_hardening.t` and
+`t/comp/case_match_hardening_tail.t`.  Both files pass, as do the existing
+128-test compiler/runtime suite and the four-test feature showcase.
+
+The coverage now verifies:
+
+- scalar, list, and void result behavior, including a matched empty list;
+- one-time tied scalar subject fetches and writes from a clause;
+- tied array and hash reads through normal magic;
+- overloaded scalar matching without applying stringification to structural
+  object matching;
+- reference-capture identity and mutation of original aggregate subjects;
+- exception propagation from subjects, zero-argument patterns, guards, and
+  clause bodies;
+- nested `eval` catching a case-internal exception;
+- binding rollback after a guard exception;
+- normal localization cleanup;
+- release of captured scalar and array values at the case boundary;
+- nested case state restoration after both ordinary success and cleanup.
+
+The hardening work fixed three real defects: case binding cleanup used the old
+two-field representation after array bindings became triples, tied aggregate
+matching bypassed magic-aware size/value access, and optimized dispatch could
+ignore stringification overloads.  A guard exception that used to SIGSEGV now
+rolls back bindings and propagates normally.
+
+Remaining limitations are tracked by the numbered items above.  In
+particular, the clause body is intentionally not promised to inherit the
+case expression's list context; the case result itself follows its caller's
+context.  Broader ownership, clone, threaded, and sanitizer validation still
+belongs to items 1, 6, 7, 8, and 9 rather than being treated as complete from
+this focused pass.
 
 ## Documentation maintenance
 

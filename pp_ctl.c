@@ -8097,7 +8097,9 @@ S_case_commit_bindings(pTHX_ PERL_CONTEXT *cx)
 
     if (!bindings)
         return;
-    S_case_discard_bindings(aTHX_ cx);
+    assert(!cx->blk_case.case_committed_bindings);
+    cx->blk_case.case_committed_bindings = bindings;
+    cx->blk_case.case_bindings = NULL;
 }
 
 static void
@@ -8186,7 +8188,16 @@ S_case_pattern_match_object_fields(pTHX_ const struct case_pattern_node *node,
             pairs++;
         }
     }
-    return open || pairs == (size_t)HvUSEDKEYS(hv);
+    if (open)
+        return TRUE;
+    if (SvRMAGICAL(hv) && mg_find((const SV *)hv, PERL_MAGIC_tied)) {
+        size_t count = 0;
+        (void)hv_iterinit(hv);
+        while (hv_iternext(hv))
+            count++;
+        return pairs == count;
+    }
+    return pairs == (size_t)HvUSEDKEYS(hv);
 }
 
 static bool
@@ -8197,6 +8208,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
     const OP *pattern;
     const OP *kid;
 
+    SvGETMAGIC(value);
     node = S_case_pattern_unwrap(node);
     pattern = node->op;
 
@@ -8478,7 +8490,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
         }
 
         {
-            const SSize_t nvalues = AvFILLp(av) + 1;
+            const SSize_t nvalues = AvFILL(av) + 1;
             AV *pattern_av = pattern_value && SvROK(pattern_value)
                 && SvTYPE(SvRV(pattern_value)) == SVt_PVAV
                 ? MUTABLE_AV(SvRV(pattern_value)) : NULL;
@@ -8611,7 +8623,16 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             pairs++;
         }
         }
-        return open || pairs == (SSize_t)HvUSEDKEYS(hv);
+        if (open)
+            return TRUE;
+        if (SvRMAGICAL(hv) && mg_find((const SV *)hv, PERL_MAGIC_tied)) {
+            SSize_t count = 0;
+            (void)hv_iterinit(hv);
+            while (hv_iternext(hv))
+                count++;
+            return pairs == count;
+        }
+        return pairs == (SSize_t)HvUSEDKEYS(hv);
     }
 
     /* The enclosing pattern expression has already been evaluated.  For a
@@ -8684,7 +8705,10 @@ PP(pp_casematch)
         matched = (SvIOK(DEFSV) || SvNOK(DEFSV))
             && do_ncmp(DEFSV, cSVOPx_sv(pattern->op)) == 0;
     else if (aux->kind == CASE_PATTERN_SIMPLE_STR)
-        matched = SvPOK(DEFSV) && sv_eq(DEFSV, cSVOPx_sv(pattern->op));
+        matched = SvPOK(DEFSV)
+            ? sv_streq_flags(DEFSV, cSVOPx_sv(pattern->op), SV_GMAGIC)
+            : S_case_pattern_match(aTHX_ pattern, DEFSV, *PL_stack_sp,
+                                   bindings, &nbindings);
     else if (aux->always_matches || S_case_pattern_is_wildcard(aTHX_ aux))
         matched = TRUE;
     else
@@ -8761,7 +8785,7 @@ S_case_dispatch_candidate(pTHX_ const AV *values, const AV *clauses, SV *subject
             matched = do_ncmp(subject, value) == 0;
             break;
         case CASE_PATTERN_SIMPLE_STR:
-            matched = sv_eq(subject, value);
+            matched = sv_streq_flags(subject, value, SV_GMAGIC);
             break;
         }
         if (matched) {
@@ -8875,6 +8899,15 @@ PP(pp_casedispatch)
     if (!cx || CxTYPE(cx) != CXt_CASE
         || !dispatch || dispatch->magic != CASE_DISPATCH_AUX_MAGIC)
         return NORMAL;
+
+    /* An overloaded subject must use the ordinary matcher.  The optimized
+     * typed tables cannot preserve the selected overload for ordering or
+     * equality, and must not turn an overloaded comparison into raw SV data.
+     */
+    if ((SvROK(DEFSV) && SvOBJECT(SvRV(DEFSV))) || SvAMAGIC(DEFSV)) {
+        cx->blk_case.case_dispatch_active = FALSE;
+        return NORMAL;
+    }
 
     best = dispatch->default_clause;
 

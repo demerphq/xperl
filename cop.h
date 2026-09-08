@@ -1038,6 +1038,7 @@ struct block_case {
         bool case_dispatch_active;
         U32 case_dispatch_clause;
         AV *case_bindings;
+        AV *case_committed_bindings;
         AV *case_pins;
         OP *redo_op;
 };

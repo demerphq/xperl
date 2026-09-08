@@ -4484,6 +4484,7 @@ Perl_cx_pushcase(pTHX_ PERL_CONTEXT *cx, SV *orig_defsv)
     cx->blk_case.case_dispatch_active = FALSE;
     cx->blk_case.case_dispatch_clause = CASE_DISPATCH_NO_CLAUSE;
     cx->blk_case.case_bindings = NULL;
+    cx->blk_case.case_committed_bindings = NULL;
     cx->blk_case.case_pins = NULL;
     cx->blk_case.redo_op = cLOGOP->op_redoop
         ? cLOGOP->op_redoop : cLOGOP->op_first;
@@ -4499,14 +4500,45 @@ Perl_cx_popcase(pTHX_ PERL_CONTEXT *cx)
     GvSV(PL_defgv) = cx->blk_case.defsv_save;
     cx->blk_case.defsv_save = NULL;
     SvREFCNT_dec(sv);
+    if (cx->blk_case.case_committed_bindings) {
+        AV *bindings = cx->blk_case.case_committed_bindings;
+        SSize_t i;
+        for (i = 0; i + 2 <= av_len(bindings); i += 3) {
+            SV **padix_sv = av_fetch(bindings, i, FALSE);
+            SV **is_array_sv = av_fetch(bindings, i + 2, FALSE);
+            if (padix_sv && is_array_sv) {
+                SV *target = PAD_SV((PADOFFSET)SvUV(*padix_sv));
+                if (SvTRUE(*is_array_sv))
+                    av_clear(MUTABLE_AV(target));
+                else
+                    sv_setsv(target, &PL_sv_undef);
+            }
+        }
+        SvREFCNT_dec((SV *)bindings);
+        cx->blk_case.case_committed_bindings = NULL;
+    }
     if (cx->blk_case.case_bindings) {
         AV *bindings = cx->blk_case.case_bindings;
         SSize_t i;
-        for (i = 0; i + 1 <= av_len(bindings); i += 2) {
+        for (i = 0; i + 2 <= av_len(bindings); i += 3) {
             SV **padix_sv = av_fetch(bindings, i, FALSE);
             SV **old_value_sv = av_fetch(bindings, i + 1, FALSE);
-            if (padix_sv && old_value_sv)
-                sv_setsv(PAD_SV((PADOFFSET)SvUV(*padix_sv)), *old_value_sv);
+            SV **is_array_sv = av_fetch(bindings, i + 2, FALSE);
+            if (padix_sv && old_value_sv && is_array_sv) {
+                SV *target = PAD_SV((PADOFFSET)SvUV(*padix_sv));
+                if (SvTRUE(*is_array_sv)) {
+                    AV *old_array = MUTABLE_AV(SvRV(*old_value_sv));
+                    SSize_t j;
+                    av_clear(MUTABLE_AV(target));
+                    for (j = 0; j <= av_len(old_array); j++) {
+                        SV **value = av_fetch(old_array, j, FALSE);
+                        if (value)
+                            av_push(MUTABLE_AV(target), SvREFCNT_inc(*value));
+                    }
+                }
+                else
+                    sv_setsv(target, *old_value_sv);
+            }
         }
         SvREFCNT_dec((SV *)bindings);
         cx->blk_case.case_bindings = NULL;

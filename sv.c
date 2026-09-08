@@ -16540,6 +16540,8 @@ Perl_cx_dup(pTHX_ PERL_CONTEXT *cxs, I32 ix, I32 max, CLONE_PARAMS* param)
                                 sv_dup_inc(ncx->blk_case.defsv_save, param);
                 ncx->blk_case.case_bindings =
                     av_dup_inc(ncx->blk_case.case_bindings, param);
+                ncx->blk_case.case_committed_bindings =
+                    av_dup_inc(ncx->blk_case.case_committed_bindings, param);
                 ncx->blk_case.case_pins =
                     av_dup_inc(ncx->blk_case.case_pins, param);
                 break;
