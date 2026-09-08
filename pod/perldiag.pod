@@ -1099,6 +1099,12 @@ zero-argument function call, or put ordinary Perl computation in a guard.
 (F) A case data-shape method call used a form that is not supported.  Only
 statically named, zero-argument class-method calls are currently accepted.
 
+=item unsupported case pattern expression
+
+(F) A case data-shape contained a Perl operator that is not part of the
+supported data-shape language.  Use a guard after C<if> for ordinary Perl
+computation.
+
 
 =item can't convert empty path
 

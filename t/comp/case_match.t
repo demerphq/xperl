@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-print "1..91\n";
+print "1..92\n";
 
 my $ran = 0;
 $_ = 'outside';
@@ -1222,6 +1222,16 @@ print $@ =~ /unsupported case pattern call/
     ? "ok 90 - pattern calls reject arguments\n"
     : "not ok 90 - pattern calls reject arguments\n";
 
+my $unsupported_pattern_expression = eval q{
+    use feature 'case_match';
+    my $x = 7;
+    case (8) { match ($x + 1) { 1 } }
+    1;
+};
+print $@ =~ /unsupported case pattern expression/
+    ? "ok 91 - unsupported pattern expressions are rejected\n"
+    : "not ok 91 - unsupported pattern expressions are rejected\n";
+
 my $call_inside_shape = eval q{
     use feature 'case_match';
     sub case_pattern_value { 7 }
@@ -1231,5 +1241,5 @@ my $call_inside_shape = eval q{
     1;
 };
 print !$@ && $call_inside_shape
-    ? "ok 91 - zero-argument calls work inside shapes\n"
-    : "not ok 91 - zero-argument calls work inside shapes\n";
+    ? "ok 92 - zero-argument calls work inside shapes\n"
+    : "not ok 92 - zero-argument calls work inside shapes\n";

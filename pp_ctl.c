@@ -6887,6 +6887,28 @@ S_case_pattern_validate(pTHX_ const OP *op)
         return;
     }
 
+    /* The left side of match is a data-shape language, not an arbitrary Perl
+     * expression.  Keep this list explicit: falling through to the generic
+     * dynamic-leaf handling would silently give unsupported operators the
+     * wrong meaning. */
+    switch (op->op_type) {
+    case OP_CONST:
+    case OP_UNDEF:
+    case OP_PADSV:
+    case OP_PADAV:
+    case OP_CASECOERCE:
+    case OP_REFGEN:
+    case OP_SREFGEN:
+    case OP_CONCAT:
+    case OP_MULTICONCAT:
+    case OP_MATCH:
+    case OP_ANONLIST:
+    case OP_ANONHASH:
+        break;
+    default:
+        Perl_croak(aTHX_ "unsupported case pattern expression");
+    }
+
     if (op->op_flags & OPf_KIDS)
         for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid))
             S_case_pattern_validate(aTHX_ kid);
