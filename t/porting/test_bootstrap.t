@@ -20,11 +20,14 @@ my %exceptions = (
     filter_exception => "require './test.pl'",
     hints => "require './test.pl'",
     parser => 'use DieDieDie',
- parser_run => "require './test.pl'",
- proto => 'use strict',
- namespaces => qr/^\s*use (?:feature 'namespaces'|Carp as C);/m,
- case_match => qr/^\s*use (?:v5\.45\.3|strict|warnings|overload[^;]*|experimental 'class'|feature (?:'case_match'|qw\(case_match namespaces\))|builtin qw\(true false\));/m,
- case_match_examples => qr/^\s*(?:require '\.\/test\.pl'|use (?:feature 'case_match'|builtin qw\(true false\)));/m,
+    parser_run => "require './test.pl'",
+    proto => 'use strict',
+    namespaces => qr/^\s*use (?:feature 'namespaces'|Carp as C);/m,
+    case_match => qr/^\s*use (?:v5\.45\.3|strict|warnings|overload[^;]*|experimental 'class'|feature (?:'case_match'|qw\(case_match namespaces\))|builtin qw\(true false\));/m,
+    case_match_examples => qr/^\s*(?:require '\.\/test\.pl'|use (?:feature 'case_match'|builtin qw\(true false\)));/m,
+    case_match_hardening => qr/^\s*(?:require (?:'\.\/test\.pl'|Scalar::Util)|use (?:feature 'case_match'|overload[^;]*));/m,
+    case_match_hardening_tail => qr/^\s*(?:require (?:'\.\/test\.pl'|Scalar::Util)|use feature 'case_match');/m,
+    case_match_threads => qr/^\s*(?:require '\.\/test\.pl'|use feature 'case_match');/m,
  );
 
 while (my $file = <$fh>) {
