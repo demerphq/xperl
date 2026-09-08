@@ -6477,6 +6477,7 @@ S_case_pattern_compile_node(pTHX_ const OP *op, bool preserve_lists)
     node = (struct case_pattern_node *)PerlMemShared_calloc(
         1, sizeof(struct case_pattern_node));
     node->op = op;
+    node->binding_padix = NOT_IN_PAD;
     if (op->op_type == OP_PADSV) {
         const PADOFFSET oldpad = op->op_targ;
         node->binding_padix = oldpad;
@@ -8327,7 +8328,9 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                     SvREFCNT_dec_NN((SV *)rest);
                     return FALSE;
                 }
-                bindings[*nbindings].padix = slurp->binding_padix;
+                bindings[*nbindings].padix = slurp->binding_padix != NOT_IN_PAD
+                    ? slurp->binding_padix
+                    : cUNOPx(slurp->op)->op_first->op_targ;
                 bindings[*nbindings].value = (SV *)rest;
                 bindings[*nbindings].owned = TRUE;
                 bindings[*nbindings].is_array = TRUE;
