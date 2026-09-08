@@ -4565,6 +4565,7 @@ Perl_cx_popcasematch(pTHX_ PERL_CONTEXT *cx)
 {
     PERL_ARGS_ASSERT_CX_POPCASEMATCH;
     PERL_UNUSED_CONTEXT;
+    PERL_UNUSED_ARG(cx);
     assert(CxTYPE(cx) == CXt_CASEMATCH);
 }
 
