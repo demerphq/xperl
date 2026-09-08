@@ -527,6 +527,7 @@ case_pattern_numeric_base
 		{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_numeric_args);
 		  $$->op_private = CASE_PATTERN_CRITERION_INTSTR;
 		  if (!$case_pattern_numeric_args) {
+		      op_free(cUNOPx($$)->op_first);
 		      cUNOPx($$)->op_first = NULL;
 		      $$->op_flags &= ~OPf_KIDS;
 		  } }
@@ -534,6 +535,7 @@ case_pattern_numeric_base
 		{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_numeric_args);
 		  $$->op_private = CASE_PATTERN_CRITERION_FLOATSTR;
 		  if (!$case_pattern_numeric_args) {
+		      op_free(cUNOPx($$)->op_first);
 		      cUNOPx($$)->op_first = NULL;
 		      $$->op_flags &= ~OPf_KIDS;
 		  } }
@@ -541,6 +543,7 @@ case_pattern_numeric_base
 		{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_numeric_args);
 		  $$->op_private = CASE_PATTERN_CRITERION_NUM;
 		  if (!$case_pattern_numeric_args) {
+		      op_free(cUNOPx($$)->op_first);
 		      cUNOPx($$)->op_first = NULL;
 		      $$->op_flags &= ~OPf_KIDS;
 		  } }
@@ -548,6 +551,7 @@ case_pattern_numeric_base
 		{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_numeric_args);
 		  $$->op_private = CASE_PATTERN_CRITERION_NUMSTR;
 		  if (!$case_pattern_numeric_args) {
+		      op_free(cUNOPx($$)->op_first);
 		      cUNOPx($$)->op_first = NULL;
 		      $$->op_flags &= ~OPf_KIDS;
 		  } }
@@ -2207,15 +2211,15 @@ term[product]	:	termbinop
 	|	FUNC0OP PERLY_PAREN_OPEN PERLY_PAREN_CLOSE
 			{ $$ = $FUNC0OP; }
 	|	KW_RefVal PERLY_PAREN_OPEN PERLY_PAREN_CLOSE
-			{ $$ = newUNOP(OP_CASECOERCE, 0, NULL); cUNOPx($$)->op_first = NULL; $$->op_flags &= ~OPf_KIDS; $$->op_private = CASE_PATTERN_CRITERION_REFVAL; }
+			{ $$ = newUNOP(OP_CASECOERCE, 0, NULL); op_free(cUNOPx($$)->op_first); cUNOPx($$)->op_first = NULL; $$->op_flags &= ~OPf_KIDS; $$->op_private = CASE_PATTERN_CRITERION_REFVAL; }
 	|	KW_RefVal PERLY_PAREN_OPEN case_pattern_target PERLY_PAREN_CLOSE
 			{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_target); $$->op_private = CASE_PATTERN_CRITERION_REFVAL; }
 	|	KW_ScalarVal PERLY_PAREN_OPEN PERLY_PAREN_CLOSE
-			{ $$ = newUNOP(OP_CASECOERCE, 0, NULL); cUNOPx($$)->op_first = NULL; $$->op_flags &= ~OPf_KIDS; $$->op_private = CASE_PATTERN_CRITERION_SCALARVAL; }
+			{ $$ = newUNOP(OP_CASECOERCE, 0, NULL); op_free(cUNOPx($$)->op_first); cUNOPx($$)->op_first = NULL; $$->op_flags &= ~OPf_KIDS; $$->op_private = CASE_PATTERN_CRITERION_SCALARVAL; }
 	|	KW_ScalarVal PERLY_PAREN_OPEN case_pattern_target PERLY_PAREN_CLOSE
 			{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_target); $$->op_private = CASE_PATTERN_CRITERION_SCALARVAL; }
 	|	KW_ObjectVal PERLY_PAREN_OPEN PERLY_PAREN_CLOSE
-			{ $$ = newUNOP(OP_CASECOERCE, 0, NULL); cUNOPx($$)->op_first = NULL; $$->op_flags &= ~OPf_KIDS; $$->op_private = CASE_PATTERN_CRITERION_OBJECTVAL; }
+			{ $$ = newUNOP(OP_CASECOERCE, 0, NULL); op_free(cUNOPx($$)->op_first); cUNOPx($$)->op_first = NULL; $$->op_flags &= ~OPf_KIDS; $$->op_private = CASE_PATTERN_CRITERION_OBJECTVAL; }
 	|	KW_ObjectVal PERLY_PAREN_OPEN case_pattern_target PERLY_PAREN_CLOSE
 			{ $$ = newUNOP(OP_CASECOERCE, 0, $case_pattern_target); $$->op_private = CASE_PATTERN_CRITERION_OBJECTVAL; }
 	|	case_pattern_numeric

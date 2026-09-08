@@ -40,8 +40,8 @@ and must use `PERL_DESTRUCT_LEVEL=2`.
 
 ## Case/match LSan result
 
-The direct LSan run of `t/comp/case_match.t` completed all 128 tests, then
-reported this leak:
+The first direct LSan run of `t/comp/case_match.t` completed all 128 tests,
+then reported this leak:
 
 ```text
 Indirect leak of 32072 byte(s) in 21 object(s)
@@ -51,14 +51,21 @@ Indirect leak of 392 byte(s) in 7 object(s)
 SUMMARY: AddressSanitizer: 32464 byte(s) leaked in 28 allocation(s)
 ```
 
-Control runs were clean for a trivial Perl process, ordinary repeated evals,
-the hardening test, the threaded case test, a native-class case, a rejected
-pattern compilation, and a regex pattern.  This makes the leak case-test
-specific, but does not yet identify the exact pattern form or cleanup path.
-The likely area is ownership of an optree or op slab retained by one of the
-larger compile-time case-pattern exercises.  This remains an open ownership
-follow-up and must not be marked complete based only on the ASan
-`detect_leaks=0` result.
+The cause was an ownership bug in the grammar for childless case criteria.
+`newUNOP(OP_CASECOERCE, 0, NULL)` creates an implicit `OP_STUB` child.  The
+grammar then made the node childless by clearing `op_first` and `OPf_KIDS`,
+but did not free that stub.  The orphaned ops retained their slabs until
+shutdown, where LSan reported them as indirect leaks.
+
+The grammar now frees the implicit stub before clearing the child pointer for
+the no-argument `RefVal()`, `ScalarVal()`, and `ObjectVal()` criteria, and for
+the no-argument `IntStr()`, `FloatStr()`, `Num()`, and `NumStr()` criteria.
+The generated parser files were regenerated with `make regen_perly`.
+
+After the fix, the direct LSan run of `t/comp/case_match.t` completed all 128
+tests with no leak report.  The same focused prefixes that isolated the
+original leak were also clean.  The case/match op-slab leak is therefore
+resolved; the unrelated ASan follow-ups below remain open.
 
 ## TODO tests that passed
 
@@ -131,9 +138,8 @@ Follow-up work:
 
 ## Current conclusion
 
-Case/match passes its direct ASan memory-error coverage and threaded stress
-coverage, but its direct LSan run currently reports the op-slab leak described
-above.  A completely clean full ASan run is additionally blocked by the
-unrelated Cpanel::JSON::XS GH70 over-read and the threaded `localtime()` stress
-failures.  These issues must be tracked separately from one another, while the
-case-test-specific op-slab leak remains part of case/match ownership cleanup.
+Case/match passes its direct ASan and valid LSan memory-error coverage and
+threaded stress coverage.  A completely clean full ASan run is additionally
+blocked by the unrelated Cpanel::JSON::XS GH70 over-read and the threaded
+`localtime()` stress failures.  These issues must be tracked separately from
+one another.
