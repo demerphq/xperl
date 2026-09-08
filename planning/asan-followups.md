@@ -15,7 +15,7 @@ ASAN_OPTIONS=detect_leaks=0:abort_on_error=1 \
 make -j8 test_harness TEST_JOBS=16
 ```
 
-The case/match focused test passed independently:
+The case/match focused test passed under ASan with leak checking disabled:
 
 ```sh
 PERL_DESTRUCT_LEVEL=2 \
@@ -23,8 +23,9 @@ ASAN_OPTIONS=detect_leaks=0:abort_on_error=1 \
 ./perl -Ilib t/comp/case_match.t
 ```
 
-All 128 tests passed.  The focused five-file case/match harness should also be
-run under this configuration before the ASan work is considered complete.
+All 128 tests passed.  The focused five-file case/match harness also passes
+under this configuration, as does a 100-run stress loop of the threaded case
+test.
 
 LeakSanitizer must remain disabled in the restricted agent environment.  A run
 with `detect_leaks=1` aborts with:
@@ -36,6 +37,28 @@ LeakSanitizer does not work under ptrace
 
 A valid LSan result requires a run outside that ptrace-restricted environment,
 and must use `PERL_DESTRUCT_LEVEL=2`.
+
+## Case/match LSan result
+
+The direct LSan run of `t/comp/case_match.t` completed all 128 tests, then
+reported this leak:
+
+```text
+Indirect leak of 32072 byte(s) in 21 object(s)
+    S_new_slab ... op.c:280
+Indirect leak of 392 byte(s) in 7 object(s)
+    S_link_freed_op ... op.c:311
+SUMMARY: AddressSanitizer: 32464 byte(s) leaked in 28 allocation(s)
+```
+
+Control runs were clean for a trivial Perl process, ordinary repeated evals,
+the hardening test, the threaded case test, a native-class case, a rejected
+pattern compilation, and a regex pattern.  This makes the leak case-test
+specific, but does not yet identify the exact pattern form or cleanup path.
+The likely area is ownership of an optree or op slab retained by one of the
+larger compile-time case-pattern exercises.  This remains an open ownership
+follow-up and must not be marked complete based only on the ASan
+`detect_leaks=0` result.
 
 ## TODO tests that passed
 
@@ -108,7 +131,9 @@ Follow-up work:
 
 ## Current conclusion
 
-Case/match passes its direct ASan coverage.  A completely clean full ASan
-run is currently blocked by the unrelated Cpanel::JSON::XS GH70 over-read and
-the threaded `localtime()` stress failures.  Those must be tracked separately
-from case/match ownership and cleanup validation.
+Case/match passes its direct ASan memory-error coverage and threaded stress
+coverage, but its direct LSan run currently reports the op-slab leak described
+above.  A completely clean full ASan run is additionally blocked by the
+unrelated Cpanel::JSON::XS GH70 over-read and the threaded `localtime()` stress
+failures.  These issues must be tracked separately from one another, while the
+case-test-specific op-slab leak remains part of case/match ownership cleanup.
