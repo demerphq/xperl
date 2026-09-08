@@ -315,8 +315,8 @@ variables are restored.
 
 =head2 Concatenated string data shapes
 
-A string data shape can combine literal text with one unpinned scalar name.  The
-name receives the part of the subject between the literal pieces:
+A string data shape can combine literal text with unpinned scalar names.  Each
+name receives the part of the subject between the surrounding literal pieces:
 
     case ($text) {
         match ("x" . $middle . "z") {
@@ -324,10 +324,36 @@ name receives the part of the subject between the literal pieces:
         }
     }
 
-This matches C<xmiddlez> and binds C<$middle> to C<middle>.  A literal may
-appear on only one side as well, as in C<"x" . $suffix> or C<$prefix . "z">.
-An empty part is valid, so C<xz> matches the first example with an empty
-C<$middle>.
+This matches C<xmiddlez> and binds C<$middle> to C<middle>.  Several captures
+are allowed when they are separated by a literal or pinned value:
+
+    case ($text) {
+        match ("a" . $first . "b" . $second . "c") {
+            say "first=$first second=$second";
+        }
+    }
+
+The matcher works from left to right.  For each capture it chooses the
+shortest value that reaches the next literal or pinned value.  In the example,
+the first C<$first> ends at the first C<b>; the final capture receives the
+remaining text up to C<c>.  A literal may appear on only one side as well, as
+in C<"x" . $suffix> or C<$prefix . "z">.  An empty capture is valid, so C<xz>
+matches the first example with an empty C<$middle>.
+
+Every capture name may occur only once in a concatenation.  Adjacent unpinned
+captures are not allowed because there is no boundary that tells the matcher
+where one ends and the next begins:
+
+    # Both forms are errors.
+    match ($first . $second) { ... }
+    match ("a" . $first . "-" . $first) { ... }
+
+These restrictions are checked explicitly.  An unsupported operator, call, or
+other expression in the structural part is an error; it is never silently
+ignored or treated as ordinary Perl.  Use the guard after C<if> for ordinary
+Perl computation:
+
+    match ("prefix_" . $name if length($name) > 2) { ... }
 
 The concatenation is interpreted as a data shape, not as an ordinary Perl
 expression.  A scalar named in a C<with> clause, or prefixed with C<^>, is
@@ -337,10 +363,13 @@ pinned and contributes its existing value instead of capturing text:
         match ("x" . $wanted) { say "it matched" }
     }
 
-Multiple unpinned names and more general expression operands are not part of
-the current data-shape language.  In particular, a function call or an
-arithmetic expression inside C<match (...)> is not a general way to compute a
-data shape.  Use the guard after C<if> for ordinary Perl computation.
+Concatenation is the only structural expression currently supported.  A
+function call, arithmetic expression, or other operator inside the
+concatenation is not a way to compute a data shape.  Use the guard after
+C<if> for ordinary Perl computation.  Literal strings and values with normal
+stringification, including usable overloaded stringification, follow ordinary
+Perl string and Unicode/byte semantics; concatenation does not perform a
+separate numeric coercion step.
 
 =head1 ARRAY AND HASH PATTERNS
 
@@ -540,8 +569,8 @@ Alternatives, optional fields, ranges, and other richer data-shape forms.
 =item *
 
 Using regular expressions as part of a larger string data shape remains
-unsupported.  More elaborate capture protocols, including multiple matching
-captures with the same name, may receive more precise rules later.
+unsupported.  More elaborate capture protocols, such as repeated capture
+names, remain unsupported.
 
 =item *
 
@@ -559,6 +588,13 @@ clause remains the one that wins.
 
 More precise diagnostics that identify the source location of a particular
 data shape or clause when compilation fails.
+
+=item *
+
+Unsupported or ambiguous data-shape syntax must always be rejected.  The
+implementation must not silently ignore a construct or reinterpret it as a
+different kind of pattern.  This rule applies to future pattern forms as well
+as the forms documented here.
 
 =back
 

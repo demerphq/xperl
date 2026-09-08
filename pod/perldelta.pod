@@ -77,6 +77,29 @@ pattern-only C<^$name> form.  Its value is snapshotted when the surrounding
 C<case> begins, and ordinary caret operators retain their normal meaning
 outside C<match> data shapes.
 
+String shapes may contain multiple unbound scalars inside literal
+concatenation, for example:
+
+    case ($text) {
+        match ("a" . $first . "b" . $second . "c") {
+            say "first=$first second=$second";
+        }
+    }
+
+Captures are resolved from left to right using the shortest value bounded by
+the next literal or pinned fragment.  Empty captures are allowed.  Adjacent
+unpinned captures, repeated capture names, and fragments separated only by an
+empty literal are errors.  A name listed by C<with>, or written with the
+pattern-only C<^> prefix, is a pinned existing lexical and must match its
+snapshotted value rather than capture new text.  Concatenation supports only
+literal, capture, and pinned fragments; arithmetic, calls, and other
+unsupported expressions throw an exception.
+
+More generally, unsupported or ambiguous data-shape syntax is rejected
+explicitly.  It is never silently ignored, treated as a non-match, or
+reinterpreted as ordinary Perl code.  See L<perlcasematch> and L<perldiag>
+for the current rules and diagnostics.
+
 =head2 Lexical namespaces
 
 The experimental C<namespaces> feature provides lexical namespace prefixes,

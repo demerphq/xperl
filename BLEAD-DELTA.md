@@ -181,10 +181,31 @@ test, respectively, for any reference, any non-reference scalar, and a
 blessed reference.  They can each take one binding target, such as
 `ObjectVal($object)`.
 
-String shapes may contain one unbound scalar inside literal concatenation, for
-example `match ("x" . $middle . "z")`.  The name receives the text between the
-literal parts.  A name listed by `with` is different: it is a pinned existing
-lexical and must match its current value rather than capture new text.
+String shapes may contain multiple unbound scalars inside literal
+concatenation, for example:
+
+```perl
+case ($text) {
+    match ("a" . $first . "b" . $second . "c") {
+        say "first=$first second=$second";
+    }
+}
+```
+
+Captures are resolved from left to right using the shortest value bounded by
+the next literal or pinned fragment.  Empty captures are allowed.  Adjacent
+unpinned captures, repeated capture names, and fragments separated only by an
+empty literal are errors.  A name listed by `with`, or written with the
+pattern-only `^` prefix, is a pinned existing lexical and must match its
+snapshotted value rather than capture new text.  Concatenation supports only
+literal, capture, and pinned fragments; arithmetic, calls, and other
+unsupported expressions throw an exception.
+
+This is a general rule for the data-shape language: unsupported or ambiguous
+syntax is rejected explicitly.  It is never silently ignored, treated as a
+non-match, or reinterpreted as ordinary Perl code.  Related POD:
+[`pod/perlcasematch.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlcasematch.pod)
+and [`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod).
 
 Array and hash shapes can be nested.  An array shape without an ellipsis must
 have exactly the listed length.  Edge ellipses describe open shapes, such as

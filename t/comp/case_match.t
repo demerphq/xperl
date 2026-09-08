@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-print "1..112\n";
+print "1..122\n";
 
 my $ran = 0;
 $_ = 'outside';
@@ -1559,3 +1559,136 @@ my $object_scalar_ok = eval q{
 print !$@ && $object_scalar_ok && $object_scalar == 70
     ? "ok 112 - blessed scalar references destructure their value\n"
     : "not ok 112 - blessed scalar references destructure their value\n";
+
+my ($concat_first, $concat_second, $concat_multiple_result);
+my $concat_multiple = eval q{
+    use feature 'case_match';
+    case ('aXbYbC') {
+        match ('a' . $concat_first . 'b' . $concat_second . 'C') {
+            $concat_multiple_result = "$concat_first/$concat_second";
+        }
+    }
+    1;
+};
+print !$@ && $concat_multiple
+    && $concat_multiple_result eq 'X/Yb'
+    ? "ok 113 - concatenation supports multiple captures\n"
+    : "not ok 113 - concatenation supports multiple captures\n";
+
+my ($concat_empty_first, $concat_empty_last, $concat_empty_multiple_result);
+my $concat_empty_multiple = eval q{
+    use feature 'case_match';
+    case ('a-b') {
+        match ('a' . $concat_empty_first . '-' . $concat_empty_last) {
+            $concat_empty_multiple_result =
+                "$concat_empty_first/$concat_empty_last";
+        }
+    }
+    1;
+};
+print !$@ && $concat_empty_multiple
+    && $concat_empty_multiple_result eq '/b'
+    ? "ok 114 - concatenation permits empty multiple captures\n"
+    : "not ok 114 - concatenation permits empty multiple captures\n";
+
+my $concat_adjacent = eval q{
+    use feature 'case_match';
+    case ('ab') {
+        match ($concat_first . $concat_second) { 1 }
+    }
+    1;
+};
+print $@ =~ /adjacent captures are not allowed/
+    ? "ok 115 - adjacent concatenation captures are rejected\n"
+    : "not ok 115 - adjacent concatenation captures are rejected\n";
+
+my $concat_empty_separator = eval q{
+    use feature 'case_match';
+    case ('ab') {
+        match ($concat_first . '' . $concat_second) { 1 }
+    }
+    1;
+};
+print $@ =~ /adjacent captures are not allowed/
+    ? "ok 116 - empty fragments do not separate captures\n"
+    : "not ok 116 - empty fragments do not separate captures\n";
+
+my $concat_repeated = eval q{
+    use feature 'case_match';
+    case ('a-b-c') {
+        match ('a' . $concat_first . '-' . $concat_first . '-c') { 1 }
+    }
+    1;
+};
+print $@ =~ /repeated capture names are not allowed/
+    ? "ok 117 - repeated concatenation captures are rejected\n"
+    : "not ok 117 - repeated concatenation captures are rejected\n";
+
+my $concat_call = eval q{
+    use feature 'case_match';
+    sub concat_value { 'x' }
+    case ('axb') {
+        match ('a' . concat_value() . 'b') { 1 }
+    }
+    1;
+};
+print $@ =~ /unsupported case pattern concatenation expression/
+    ? "ok 118 - calls in concatenation patterns are rejected\n"
+    : "not ok 118 - calls in concatenation patterns are rejected\n";
+
+my $concat_arithmetic = eval q{
+    use feature 'case_match';
+    my $offset = 1;
+    case ('a2b') {
+        match ('a' . ($offset + 1) . 'b') { 1 }
+    }
+    1;
+};
+print $@ =~ /unsupported case pattern concatenation expression/
+    ? "ok 119 - arithmetic in concatenation patterns is rejected\n"
+    : "not ok 119 - arithmetic in concatenation patterns is rejected\n";
+
+my ($concat_caret_pin, $concat_caret_result);
+my $concat_caret = eval q{
+    use feature 'case_match';
+    my $fixed = 'X';
+    case ('aX-b') {
+        match ('a' . ^$fixed . '-' . $concat_caret_pin) {
+            $concat_caret_result = $concat_caret_pin;
+        }
+    }
+    1;
+};
+print !$@ && $concat_caret && $concat_caret_result eq 'b'
+    ? "ok 120 - concatenation supports caret-pinned boundaries\n"
+    : "not ok 120 - concatenation supports caret-pinned boundaries\n";
+
+my $concat_pin_repeat;
+my $concat_pinned_multiple = eval q{
+    use feature 'case_match';
+    my $fixed = 'X';
+    case ('aXbXc') with ($fixed) {
+        match ('a' . $fixed . 'b' . $fixed . 'c') {
+            $concat_pin_repeat = 1;
+        }
+    }
+    1;
+};
+print !$@ && $concat_pinned_multiple && $concat_pin_repeat
+    ? "ok 121 - repeated pinned concatenation fragments are allowed\n"
+    : "not ok 121 - repeated pinned concatenation fragments are allowed\n";
+
+my $concat_overloaded_result;
+my $concat_overloaded = eval q{
+    use feature 'case_match';
+    case (CaseMatch::Stringified->new('aXb')) {
+        match ('a' . $concat_overloaded_capture . 'b') {
+            $concat_overloaded_result = $concat_overloaded_capture;
+        }
+    }
+    1;
+};
+print !$@ && $concat_overloaded
+    && $concat_overloaded_result eq 'X'
+    ? "ok 122 - concatenation uses overloaded stringification\n"
+    : "not ok 122 - concatenation uses overloaded stringification\n";

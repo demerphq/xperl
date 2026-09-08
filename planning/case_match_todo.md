@@ -31,8 +31,8 @@ The branch currently provides:
   markers, including leftmost subsequence matching;
 - regex data-shape patterns, including ordinary captures and clause-local
   bindings for named captures;
-- simple string concatenation patterns with one scalar capture, including
-  prefix, suffix, sandwich, pinned, and empty captures;
+- string concatenation patterns with multiple scalar captures, including
+  prefix, suffix, sandwich, pinned, empty, and leftmost-shortest captures;
 - scalar and nested scalar-reference patterns, such as `\$value` and
   `\\$value`, which bind the referent rather than the outer reference;
 - unrestricted ordinary Perl guards inside `match (...)`;
@@ -53,6 +53,19 @@ work below is therefore hardening and extension, not a replacement of the
 basic control-flow representation.
 
 ## Priority 1: make the basic implementation correct and maintainable
+
+### 1a. Never silently ignore unsupported syntax — COMPLETE
+
+Status: the validator and concat matcher now reject unsupported structural
+syntax instead of treating it as a non-match or silently evaluating it as
+ordinary Perl.
+
+This is a permanent case/match invariant.  Every pattern form must either be
+implemented according to its documented data-shape rules or throw an explicit
+exception.  In particular, unsupported operators, calls, malformed
+concatenation boundaries, duplicate capture targets, and adjacent captures
+must not be discarded or misinterpreted.  New pattern forms must add focused
+negative tests proving that unsupported variants fail visibly.
 
 ### 1. Make pattern compilation ownership explicit — OPEN
 
@@ -184,11 +197,12 @@ for comparison tests.
 
 ## Priority 3: complete pattern semantics
 
-### 6. Composite scalar patterns — PARTIALLY COMPLETE
+### 6. Composite scalar patterns — COMPLETE
 
-Status: one-capture literal concatenation is implemented and tested for prefix,
-suffix, sandwich, pinned, and empty captures.  Multiple captures and richer
-structural expressions remain unspecified or unsupported.
+Status: multiple-capture literal concatenation is implemented and tested for
+prefix, suffix, sandwich, pinned, empty, and repeated-boundary cases.  The
+matcher resolves captures left to right and chooses the shortest value bounded
+by the next non-empty literal or pinned fragment.
 
 The v0 rules for completing this form are now settled:
 
@@ -205,25 +219,13 @@ The v0 rules for completing this form are now settled:
 - normal Perl string, magic, Unicode, byte, and overload semantics apply;
 - the subject and pinned operands are evaluated once per match attempt.
 
-The remaining implementation work is to add the multiple-capture parser and
-matcher rules, diagnostics for the forbidden forms, and focused coverage for
-ambiguous boundaries, empty captures, overload, magic, and byte/Unicode data.
+The following extensions remain deliberately deferred: richer structural
+operators, numeric coercion within concatenation, repeated capture names, and
+regex fragments embedded in string concatenation.  Unsupported forms must
+continue to throw rather than silently falling back to another interpretation.
 
-The current implementation supports one unpinned scalar capture surrounded by
-literal concatenation fragments.  Define and test the next boundary before
-implementing it:
-
-- multiple captures;
-- ambiguous splits and their leftmost/rightmost rule;
-- adjacent captures;
-- pinned and unpinned operands mixed together;
-- Unicode and byte strings;
-- magical and tied operands;
-- empty literal fragments;
-- whether any additional simple operators are admitted.
-
-Zero-argument function and method calls are now the one deliberate exception:
-they are evaluated in scalar context when their clause is tried.  Do not
+Zero-argument function and method calls remain supported as standalone scalar
+pattern values.  They are not admitted as concatenation components.  Do not
 silently evaluate calls with arguments, arithmetic, or other arbitrary Perl
 expressions as pattern syntax.  If richer pattern expressions are eventually
 allowed, specify exactly which operators are structural and how bindings are

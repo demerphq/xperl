@@ -6278,117 +6278,273 @@ S_case_pattern_unwrap(const struct case_pattern_node *node)
     return node;
 }
 
+static size_t
+S_case_pattern_concat_count(const struct case_pattern_node *node)
+{
+    const struct case_pattern_node *part;
+    size_t count = 0;
+    U32 i;
+
+    node = S_case_pattern_unwrap(node);
+    if (!node || !node->op)
+        return 0;
+    if (node->op->op_type != OP_CONCAT
+        && node->op->op_type != OP_MULTICONCAT)
+        return 1;
+    for (i = 0; i < node->nchild; i++) {
+        part = node->child[i];
+        count += S_case_pattern_concat_count(part);
+    }
+    return count;
+}
+
+static bool
+S_case_pattern_concat_flatten(const struct case_pattern_node *node,
+                              const struct case_pattern_node **parts,
+                              size_t max, size_t *nparts)
+{
+    U32 i;
+
+    node = S_case_pattern_unwrap(node);
+    if (!node || !node->op)
+        return FALSE;
+    if (node->op->op_type == OP_CONCAT
+        || node->op->op_type == OP_MULTICONCAT) {
+        for (i = 0; i < node->nchild; i++)
+            if (!S_case_pattern_concat_flatten(node->child[i], parts,
+                                               max, nparts))
+                return FALSE;
+        return TRUE;
+    }
+    if (*nparts >= max)
+        return FALSE;
+    parts[(*nparts)++] = node;
+    return TRUE;
+}
+
+static bool
+S_case_pattern_concat_is_capture(pTHX_ const struct case_pattern_node *node)
+{
+    const OP *op;
+
+    node = S_case_pattern_unwrap(node);
+    op = node ? node->op : NULL;
+    return op && op->op_type == OP_PADSV
+        && !S_case_pattern_pad_is_pinned(aTHX_ op->op_targ);
+}
+
+static SV *
+S_case_pattern_concat_fixed_value(pTHX_ const struct case_pattern_node *node)
+{
+    const OP *op;
+    SV *value;
+
+    node = S_case_pattern_unwrap(node);
+    op = node ? node->op : NULL;
+    if (!op)
+        return NULL;
+    if (op->op_type == OP_CONST
+        && !(op->op_private & OPpCONST_BARE))
+        return newSVsv(cSVOPx_sv(op));
+    if (op->op_type == OP_PADSV
+        && S_case_pattern_pad_is_pinned(aTHX_ op->op_targ)) {
+        value = S_case_pattern_pin_value(aTHX_ op->op_targ);
+        return value ? newSVsv(value) : newSVsv(&PL_sv_undef);
+    }
+    if (op->op_type == OP_CASECOERCE
+        && (op->op_private & CASE_PATTERN_CRITERION_MASK)
+            == CASE_PATTERN_CRITERION_PIN) {
+        const OP *target = (op->op_flags & OPf_KIDS)
+            ? cUNOPx(op)->op_first : NULL;
+        if (target && target->op_type == OP_PADSV) {
+            value = S_case_pattern_pin_value(aTHX_ target->op_targ);
+            return value ? newSVsv(value) : newSVsv(&PL_sv_undef);
+        }
+    }
+    return NULL;
+}
+
+static bool
+S_case_pattern_concat_find(const char *subject, STRLEN subject_len,
+                           STRLEN start, const char *needle,
+                           STRLEN needle_len, STRLEN *found)
+{
+    STRLEN pos;
+
+    if (!needle_len) {
+        *found = start;
+        return TRUE;
+    }
+    if (needle_len > subject_len || start > subject_len - needle_len)
+        return FALSE;
+    for (pos = start; pos <= subject_len - needle_len; pos++) {
+        if (memEQ(subject + pos, needle, needle_len)) {
+            *found = pos;
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+static void
+S_case_pattern_concat_croak(pTHX_ const char *message,
+                             const struct case_pattern_node **parts,
+                             SV **fixed_values, size_t capacity)
+{
+    size_t i;
+    if (fixed_values) {
+        for (i = 0; i < capacity; i++)
+            if (fixed_values[i])
+                SvREFCNT_dec_NN(fixed_values[i]);
+    }
+    Safefree(fixed_values);
+    Safefree(parts);
+    Perl_croak(aTHX_ "%s", message);
+}
+
 static bool
 S_case_pattern_concat_match(pTHX_ const struct case_pattern_node *node,
                              SV *value, SV *pattern_value,
                              struct case_binding *bindings,
                              size_t *nbindings)
 {
-    const struct case_pattern_node *parts[16];
-    size_t nparts = 0, i, capture = SIZE_MAX;
-    const struct case_pattern_node *capture_node = NULL;
-    SV *prefix = newSVpvn("", 0);
-    SV *suffix = newSVpvn("", 0);
-    bool after_capture = FALSE, pinned = FALSE;
+    const struct case_pattern_node **parts = NULL;
+    SV **fixed_values = NULL;
+    size_t nparts = S_case_pattern_concat_count(node);
+    size_t capacity = nparts;
+    size_t i, j, cursor = 0, capture_count = 0;
     const char *subject;
-    STRLEN subject_len, prefix_len, suffix_len;
+    STRLEN subject_len;
     bool matched = FALSE;
 
     PERL_UNUSED_VAR(pattern_value);
 
-    /* Flatten only binary concatenation.  Anything else remains an ordinary
-     * dynamic pattern and is handled by the generic matcher. */
-    {
-        const struct case_pattern_node *stack[16];
-        size_t sp = 0;
-        stack[sp++] = node;
-        while (sp) {
-            const struct case_pattern_node *part = S_case_pattern_unwrap(stack[--sp]);
-            if (!part || !part->op)
-                goto out;
-            if (part->op->op_type == OP_CONCAT) {
-                if (part->nchild != 2 || sp + 2 > 16)
-                    goto out;
-                stack[sp++] = part->child[1];
-                stack[sp++] = part->child[0];
-            }
-            else if (nparts < 16)
-                parts[nparts++] = part;
-            else
-                goto out;
+    if (!nparts)
+        S_case_pattern_concat_croak(aTHX_
+            "unsupported case pattern concatenation expression", NULL, NULL, 0);
+    Newx(parts, capacity, const struct case_pattern_node *);
+    Newxz(fixed_values, capacity, SV *);
+    nparts = 0;
+    if (!S_case_pattern_concat_flatten(node, parts, capacity, &nparts))
+        S_case_pattern_concat_croak(aTHX_
+            "unsupported case pattern concatenation", parts, fixed_values,
+            capacity);
+    subject = SvPV_nomg_const(value, subject_len);
+
+    /* Validate all capture boundaries before creating tentative bindings.
+     * This also makes malformed patterns fail without leaving partially
+     * constructed binding state behind. */
+    for (i = 0; i < nparts; i++) {
+        if (!S_case_pattern_concat_is_capture(aTHX_ parts[i]))
+            continue;
+        capture_count++;
+        if (capture_count > 64)
+            S_case_pattern_concat_croak(aTHX_
+                "too many captures in a case pattern concatenation",
+                parts, fixed_values, capacity);
+        for (j = 0; j < i; j++) {
+            if (S_case_pattern_concat_is_capture(aTHX_ parts[j])
+                && S_case_pattern_unwrap(parts[j])->binding_padix
+                    == S_case_pattern_unwrap(parts[i])->binding_padix)
+                S_case_pattern_concat_croak(aTHX_
+                    "repeated capture names are not allowed in a case pattern concatenation",
+                    parts, fixed_values, capacity);
+        }
+        for (j = i + 1; j < nparts; j++) {
+            STRLEN boundary_len;
+            if (S_case_pattern_concat_is_capture(aTHX_ parts[j]))
+                S_case_pattern_concat_croak(aTHX_
+                    "adjacent captures are not allowed in a case pattern concatenation",
+                    parts, fixed_values, capacity);
+            if (!fixed_values[j])
+                fixed_values[j] = S_case_pattern_concat_fixed_value(aTHX_ parts[j]);
+            if (!fixed_values[j])
+                S_case_pattern_concat_croak(aTHX_
+                    "unsupported case pattern concatenation component",
+                    parts, fixed_values, capacity);
+            (void)SvPV(fixed_values[j], boundary_len);
+            if (boundary_len)
+                break;
         }
     }
     for (i = 0; i < nparts; i++) {
         const struct case_pattern_node *part = parts[i];
-        const OP *op = part->op;
-        if (op->op_type == OP_PADSV) {
-            if (S_case_pattern_pad_is_pinned(aTHX_ op->op_targ)) {
-                pinned = TRUE;
-                if (after_capture)
-                    sv_catsv(suffix, S_case_pattern_pin_value(aTHX_ op->op_targ));
-                else
-                    sv_catsv(prefix, S_case_pattern_pin_value(aTHX_ op->op_targ));
-                continue;
+        if (S_case_pattern_concat_is_capture(aTHX_ part)) {
+            size_t next = i + 1;
+            STRLEN end = subject_len;
+            SV *boundary = NULL;
+            const char *boundary_pv;
+            STRLEN boundary_len;
+
+            /* Empty fixed fragments do not establish a boundary.  Skip them
+             * while looking ahead so that capture pairs separated only by an
+             * empty literal are rejected just like directly adjacent pairs. */
+            while (next < nparts) {
+                if (S_case_pattern_concat_is_capture(aTHX_ parts[next]))
+                    S_case_pattern_concat_croak(aTHX_
+                        "adjacent captures are not allowed in a case pattern concatenation",
+                        parts, fixed_values, capacity);
+                if (!fixed_values[next])
+                    fixed_values[next] = S_case_pattern_concat_fixed_value(aTHX_ parts[next]);
+                boundary = fixed_values[next];
+                if (!boundary)
+                    S_case_pattern_concat_croak(aTHX_
+                        "unsupported case pattern concatenation component",
+                        parts, fixed_values, capacity);
+                boundary_pv = SvPV(boundary, boundary_len);
+                if (boundary_len)
+                    break;
+                boundary = NULL;
+                next++;
             }
-            if (capture != SIZE_MAX)
-                goto out;
-            capture = i;
-            capture_node = part;
-            after_capture = TRUE;
-        }
-        else if (op->op_type == OP_CONST && !(op->op_private & OPpCONST_BARE)) {
-            SV *fragment = cSVOPx_sv(op);
-            if (after_capture)
-                sv_catsv(suffix, fragment);
-            else
-                sv_catsv(prefix, fragment);
-        }
-        else
-            goto out;
-    }
-    if (capture == SIZE_MAX) {
-        SV *expected = newSVsv(prefix);
-        sv_catsv(expected, suffix);
-        matched = pinned && sv_eq(value, expected);
-        SvREFCNT_dec_NN(expected);
-        goto out;
-    }
-
-    subject = SvPV_nomg_const(value, subject_len);
-    prefix_len = SvCUR(prefix);
-    suffix_len = SvCUR(suffix);
-    if (subject_len < prefix_len + suffix_len
-        || !memEQ(subject, SvPVX_const(prefix), prefix_len)
-        || !memEQ(subject + subject_len - suffix_len,
-                  SvPVX_const(suffix), suffix_len))
-        goto out;
-
-    {
-        const PADOFFSET padix = capture_node->binding_padix;
-        const STRLEN middle_len = subject_len - prefix_len - suffix_len;
-        SV *middle = newSVpvn_flags(subject + prefix_len, middle_len,
-                                    SvUTF8(value) ? SVf_UTF8 : 0);
-        for (i = 0; i < *nbindings; i++) {
-            if (bindings[i].padix == padix) {
-                matched = sv_eq(bindings[i].value, middle);
-                SvREFCNT_dec_NN(middle);
-                goto out;
+            if (next < nparts) {
+                if (!S_case_pattern_concat_find(subject, subject_len, cursor,
+                                                 boundary_pv, boundary_len,
+                                                 &end)) {
+                    goto out;
+                }
+            }
+            {
+                const PADOFFSET padix = S_case_pattern_unwrap(part)->binding_padix;
+                const STRLEN capture_len = end - cursor;
+                SV *captured = newSVpvn_flags(subject + cursor, capture_len,
+                                               SvUTF8(value) ? SVf_UTF8 : 0);
+                bindings[*nbindings].padix = padix;
+                bindings[*nbindings].value = captured;
+                bindings[*nbindings].owned = TRUE;
+                bindings[*nbindings].is_array = FALSE;
+                (*nbindings)++;
+                cursor = end;
             }
         }
-        if (*nbindings >= 64) {
-            SvREFCNT_dec_NN(middle);
-            goto out;
+        else {
+            SV *fragment = fixed_values[i];
+            const char *fragment_pv;
+            STRLEN fragment_len;
+            if (!fragment)
+                fragment = fixed_values[i] =
+                    S_case_pattern_concat_fixed_value(aTHX_ part);
+            if (!fragment)
+                S_case_pattern_concat_croak(aTHX_
+                    "unsupported case pattern concatenation component",
+                    parts, fixed_values, capacity);
+            fragment_pv = SvPV(fragment, fragment_len);
+            if (cursor > subject_len || fragment_len > subject_len - cursor
+                || !memEQ(subject + cursor, fragment_pv, fragment_len)) {
+                goto out;
+            }
+            cursor += fragment_len;
         }
-        bindings[*nbindings].padix = padix;
-        bindings[*nbindings].value = middle;
-        bindings[*nbindings].owned = TRUE;
-        bindings[*nbindings].is_array = FALSE;
-        (*nbindings)++;
-        matched = TRUE;
     }
+    matched = cursor == subject_len;
 out:
-    SvREFCNT_dec_NN(prefix);
-    SvREFCNT_dec_NN(suffix);
+    if (fixed_values) {
+        for (i = 0; i < capacity; i++)
+            if (fixed_values[i])
+                SvREFCNT_dec_NN(fixed_values[i]);
+    }
+    Safefree(fixed_values);
+    Safefree(parts);
     return matched;
 }
 
@@ -6756,6 +6912,40 @@ S_case_pattern_is_slurp(const OP *op)
 static void S_case_pattern_validate(pTHX_ const OP *op);
 
 static void
+S_case_pattern_validate_concat(pTHX_ const OP *op)
+{
+    const OP *kid;
+
+    if (!op)
+        Perl_croak(aTHX_ "unsupported case pattern concatenation expression");
+    if (op->op_type == OP_NULL && (op->op_flags & OPf_KIDS)) {
+        S_case_pattern_validate_concat(aTHX_ cUNOPx(op)->op_first);
+        return;
+    }
+    if (op->op_type == OP_CONCAT || op->op_type == OP_MULTICONCAT) {
+        if (!(op->op_flags & OPf_KIDS))
+            Perl_croak(aTHX_ "unsupported case pattern concatenation expression");
+        for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid))
+            S_case_pattern_validate_concat(aTHX_ kid);
+        return;
+    }
+    if (op->op_type == OP_CONST
+        && !(op->op_private & OPpCONST_BARE))
+        return;
+    if (op->op_type == OP_PADSV)
+        return;
+    if (op->op_type == OP_CASECOERCE
+        && (op->op_private & CASE_PATTERN_CRITERION_MASK)
+            == CASE_PATTERN_CRITERION_PIN) {
+        const OP *target = (op->op_flags & OPf_KIDS)
+            ? cUNOPx(op)->op_first : NULL;
+        if (target && target->op_type == OP_PADSV)
+            return;
+    }
+    Perl_croak(aTHX_ "unsupported case pattern concatenation expression");
+}
+
+static void
 S_case_pattern_validate_object_fields(pTHX_ const OP *op)
 {
     const OP *kid;
@@ -6996,6 +7186,10 @@ S_case_pattern_validate(pTHX_ const OP *op)
             S_case_pattern_validate_object_fields(aTHX_ shape);
         else
             S_case_pattern_validate(aTHX_ shape);
+        return;
+    }
+    if (op->op_type == OP_CONCAT || op->op_type == OP_MULTICONCAT) {
+        S_case_pattern_validate_concat(aTHX_ op);
         return;
     }
     if (op->op_type == OP_NULL && (op->op_flags & OPf_KIDS)) {

@@ -1124,6 +1124,35 @@ statically named, zero-argument class-method calls are currently accepted.
 supported data-shape language.  Use a guard after C<if> for ordinary Perl
 computation.
 
+=item unsupported case pattern concatenation expression
+
+(F) A concatenation data shape contained an operator or call that is not part
+of the supported concatenation language.  Use a guard after C<if> for ordinary
+Perl computation.
+
+=item unsupported case pattern concatenation component
+
+(F) A component of a concatenation data shape could not be converted into a
+fixed string or a supported capture.  Use a supported literal, pinned value,
+or capture, or put ordinary Perl computation in a guard after C<if>.
+
+=item too many captures in a case pattern concatenation
+
+(F) A concatenation data shape contained more captures than the matcher can
+bind.  Split the data shape into simpler clauses.
+
+=item adjacent captures are not allowed in a case pattern concatenation
+
+(F) Two unpinned captures were adjacent, or were separated only by an empty
+fragment.  The matcher needs a literal or pinned value to establish the
+boundary between captures.
+
+=item repeated capture names are not allowed in a case pattern concatenation
+
+(F) The same unpinned capture target appeared more than once in one
+concatenation data shape.  Use distinct capture names or pin the repeated
+value explicitly.
+
 =item invalid object field pattern
 
 (F) An object data shape did not contain a valid field list.
