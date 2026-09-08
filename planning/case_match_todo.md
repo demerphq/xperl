@@ -107,9 +107,14 @@ The warning identifies the duplicate value and its source location.  Reporting
 the original clause's source location as well remains optional diagnostic
 polish rather than a semantic gap.
 
-## Priority 2: finish constant dispatch
+## Post-v0 follow-up: dispatch optimization
 
-### 3. Audit optimized representations and cloning — DEFERRED
+The following work is intentionally outside the v0 completion checklist.  The
+current dispatch implementations are functional and covered by development
+benchmarks; these items can be revisited after the semantics and ownership
+model have stabilized.
+
+### Post-v0.1. Audit optimized representations and cloning
 
 Status: the array and HV dispatch forms exist and are usable, but their
 representation, ownership, and cloning behavior have not received a complete
@@ -137,7 +142,7 @@ Absent domains must not be represented by ambiguous zero values.  IV and UV
   bounds must use scalar lengths without constructing unnecessary temporary
   strings.
 
-### 4. Improve dispatch selection — DEFERRED
+### Post-v0.2. Improve dispatch selection
 
 Status: provisional strategy selection is implemented and benchmark tooling has
 been used during development.  The thresholds and build/type-specific tuning
@@ -169,7 +174,7 @@ compiler, CPU, and exact benchmark command.  Keep benchmark scripts and
 results under `planning/scripts/`; they are developer tools, not language
 interfaces.
 
-### 5. Add conditional-tree lowering — DEFERRED
+### Post-v0.3. Add conditional-tree lowering
 
 Status: not implemented.  Current constant dispatch still uses the dedicated
 case machinery; no conditional optree is generated yet.
@@ -195,9 +200,9 @@ Do not lower cases containing dynamic patterns, captures, pins, guards, or
 unsupported composite forms.  Add a development-only way to disable lowering
 for comparison tests.
 
-## Priority 3: complete pattern semantics
+## Priority 2: complete pattern semantics
 
-### 6. Composite scalar patterns — COMPLETE
+### 3. Composite scalar patterns — COMPLETE
 
 Status: multiple-capture literal concatenation is implemented and tested for
 prefix, suffix, sandwich, pinned, empty, and repeated-boundary cases.  The
@@ -231,7 +236,7 @@ expressions as pattern syntax.  If richer pattern expressions are eventually
 allowed, specify exactly which operators are structural and how bindings are
 obtained.
 
-### 7. Regex-pattern hardening — COMPLETE
+### 4. Regex-pattern hardening — COMPLETE
 
 Status: the currently specified static-regex behavior is implemented and
 covered, including named captures, nonparticipating captures, localization,
@@ -256,7 +261,7 @@ A non-participating named capture is a named group whose branch was not taken
 by the successful regex match.  It remains a clause-local binding with the
 undefined value, following the regex engine's result.
 
-### 8. Object and class patterns — PARTIALLY COMPLETE
+### 5. Object and class patterns — PARTIALLY COMPLETE
 
 Status: the initial structural object-pattern slice is complete and focused
 coverage now passes.  Blessed hash, array, and scalar-reference objects can be
@@ -286,7 +291,13 @@ Still open for this item:
 - a cleaner grammar path for class-qualified reference forms that avoids the
   ordinary indirect-method-call representation.
 
-### 9. Additional pattern forms — DEFERRED
+## Post-v0 follow-up: additional pattern forms
+
+These language extensions are intentionally outside the v0 completion
+checklist.  They require separate grammar and semantic decisions after the
+current structural matcher has settled.
+
+### Post-v0.4. Additional pattern forms
 
 Status: not implemented beyond the currently supported single final array
 slurp and minimum-length form.  Alternatives, ranges, optional fields,
@@ -306,9 +317,9 @@ These remain deliberately deferred until the current foundation is stable:
 Each form needs grammar, binding, rollback, context, error, and optimizer
 rules before implementation.
 
-## Priority 4: context, exceptions, and compatibility
+## Priority 3: context, exceptions, and compatibility
 
-### 10. Context and result behavior — PARTIALLY COMPLETE
+### 6. Context and result behavior — PARTIALLY COMPLETE
 
 Status: basic selected-clause results and no-match behavior are implemented,
 but the full supported-pattern matrix has not yet been audited in scalar, list,
@@ -326,7 +337,7 @@ Confirm that:
 - subject evaluation and pattern evaluation do not accidentally change
   context.
 
-### 11. Exception and cleanup behavior — OPEN
+### 7. Exception and cleanup behavior — OPEN
 
 Status: ordinary matching and rollback paths work, but nested evaluations,
 exceptions during every phase, destruction, and cleanup-state restoration need
@@ -341,7 +352,7 @@ bodies, plus exceptions during cleanup and destruction.  Confirm:
 - nested cases restore their parent state;
 - fatal interpreter-wide failures remain interpreter-wide.
 
-### 12. Magic, aliases, and mutation — PARTIALLY COMPLETE
+### 8. Magic, aliases, and mutation — PARTIALLY COMPLETE
 
 Status: basic tied and overloaded subject cases are covered.  Alias identity,
 mutation, destruction, and callback-count guarantees still need broader tests.
@@ -359,7 +370,7 @@ Expand tests for:
 The case subject should be fetched once for matching, while the clause body must
 still be able to modify the original lvalue.
 
-### 13. Threaded and cloning support — OPEN
+### 9. Threaded and cloning support — OPEN
 
 Status: the ordinary build is passing the focused object and example suites,
 but threaded, cloned-pattern, DEBUGGING, ASAN, and LSan coverage remains to be
@@ -393,13 +404,16 @@ tests should be runnable from both the repository root and the `t/` directory.
 ## Suggested execution order for the remaining work
 
 1. Close ownership, cleanup, and cloning gaps.
-2. Audit and tune constant dispatch representations and thresholds.
-3. Decide whether to implement conditional-tree lowering.
-4. Expand context, exception, magic, mutation, object, cloning, and sanitizer
+2. Expand context, exception, magic, mutation, object, cloning, and sanitizer
    tests.
-5. Synchronize documentation and generated files as semantics change.
-6. Run focused suites, porting checks, `make regen`, and finally `make_test`.
+3. Synchronize documentation and generated files as semantics change.
+4. Run focused suites, porting checks, `make regen`, and finally `make_test`.
 
-Do not mark the feature complete until the implementation, optimizer behavior,
+Post-v0 work begins with the dispatch optimization section above, followed by
+the additional pattern forms section.
+
+Do not mark the v0 feature complete until the active implementation,
 exception/cleanup paths, documentation, and the full relevant test matrix all
-agree with one another.
+agree with one another.  The dispatch and language-extension sections above
+are explicitly post-v0 follow-up work and are not prerequisites for that
+milestone.
