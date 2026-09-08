@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-print "1..106\n";
+print "1..112\n";
 
 my $ran = 0;
 $_ = 'outside';
@@ -1482,3 +1482,80 @@ my $false_identity_guard = eval q{
 print !$@ && $false_identity_guard
     ? "ok 106 - identity pattern still evaluates its guard\n"
     : "not ok 106 - identity pattern still evaluates its guard\n";
+
+my ($object_x, $object_y);
+my $object_hash_ok = eval q{
+    use feature 'case_match';
+    my $object_hash = bless { '$x' => 10, '$y' => 20 }, 'Point';
+    case ($object_hash) {
+        match (Point { '$x' => $object_x, '$y' => $object_y }) { 1; }
+    }
+    1;
+};
+print !$@ && $object_hash_ok && $object_x == 10 && $object_y == 20
+    ? "ok 107 - blessed hash objects destructure named fields\n"
+    : "not ok 107 - blessed hash objects destructure named fields\n";
+
+my $object_exact = eval q{
+    use feature 'case_match';
+    my $object_hash = bless { '$x' => 10, '$y' => 20 }, 'Point';
+    case ($object_hash) {
+        match (Point { '$x' => 10 }) { die 'extra field matched'; }
+    }
+    1;
+};
+print !$@ && $object_exact
+    ? "ok 108 - object field patterns are exact by default\n"
+    : "not ok 108 - object field patterns are exact by default\n";
+
+my $object_open;
+my $object_open_ok = eval q{
+    use feature 'case_match';
+    my $object_hash = bless { '$x' => 10, '$y' => 20 }, 'Point';
+    case ($object_hash) {
+        match (Point { '$x' => $object_open, ... }) { 1; }
+    }
+    1;
+};
+print !$@ && $object_open_ok && $object_open == 10
+    ? "ok 109 - object field patterns accept a trailing ellipsis\n"
+    : "not ok 109 - object field patterns accept a trailing ellipsis\n";
+
+my ($object_first, $object_second);
+my $object_array_ok = eval q{
+    use feature 'case_match';
+    my $object_array = bless [ 30, 40 ], 'Point';
+    case ($object_array) {
+        match (Point [ $object_first, $object_second ]) { 1; }
+    }
+    1;
+};
+print !$@ && $object_array_ok && $object_first == 30 && $object_second == 40
+    ? "ok 110 - blessed array objects destructure positional values\n"
+    : "not ok 110 - blessed array objects destructure positional values\n";
+
+my $object_wrong_class = eval q{
+    use feature 'case_match';
+    my $other = bless { '$x' => 10, '$y' => 20 }, 'Other';
+    case ($other) {
+        match (Point { '$x' => 10, '$y' => 20 }) { die 'wrong class matched'; }
+    }
+    1;
+};
+print !$@ && $object_wrong_class
+    ? "ok 111 - object patterns check the class name\n"
+    : "not ok 111 - object patterns check the class name\n";
+
+my $object_scalar;
+my $object_scalar_ok = eval q{
+    use feature 'case_match';
+    my $value = 70;
+    my $object = bless \$value, 'Point';
+    case ($object) {
+        match (Point \$object_scalar) { 1; }
+    }
+    1;
+};
+print !$@ && $object_scalar_ok && $object_scalar == 70
+    ? "ok 112 - blessed scalar references destructure their value\n"
+    : "not ok 112 - blessed scalar references destructure their value\n";

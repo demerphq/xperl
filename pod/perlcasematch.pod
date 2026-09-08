@@ -230,6 +230,52 @@ Thus C<NumEq(0)> matches C<"0000">, C<"0.0">, and C<"0000.0">.  It also
 matches C<"A"> as zero when Perl's numeric conversion rules say it does, and
 issues Perl's usual warning.
 
+=head1 OBJECT AND CLASS SHAPES
+
+A blessed reference can be matched by putting its class name before an array,
+hash, or reference shape.  The class name is checked first; the shape then
+describes the contents of the blessed reference.  No constructor, accessor, or
+other method is called to inspect the object.
+
+For a blessed hash reference, quoted keys describe the object's fields:
+
+    my $point = bless { '$x' => 3, '$y' => 4 }, 'Point';
+
+    case ($point) {
+        match (Point { '$x' => $x, '$y' => $y }) {
+            say "point: $x,$y";
+        }
+    }
+
+Hash object shapes are exact unless they end with C<...>.  The ellipsis allows
+additional fields.  The field values use the ordinary data-shape rules, so
+they may be literals, captures, nested shapes, or pinned values.
+
+A blessed array reference uses a positional shape:
+
+    my $pair = bless [ 10, 20 ], 'Pair';
+    case ($pair) {
+        match (Pair [ $first, $second ]) {
+            say "$first and $second";
+        }
+    }
+
+A blessed scalar reference can bind its referent with a reference shape:
+
+    my $value = 42;
+    my $boxed = bless \$value, 'Box';
+    case ($boxed) {
+        match (Box \$number) { say $number }
+    }
+
+These forms are structural.  They do not use overload methods, constructors,
+or arbitrary user methods.  The current implementation covers blessed hash,
+array, and scalar references and checks the named class, including its normal
+inheritance relationship.  More detailed class-field metadata, roles, and
+other blessed reference layouts remain future work.  In particular, capture
+bindings from the temporary scope of a class-field object expression are not
+yet supported; literal class-field checks are supported.
+
 =head2 Regular-expression data shapes
 
 A regular expression can be used as a data shape.  It is applied to the case

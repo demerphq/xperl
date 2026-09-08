@@ -7569,7 +7569,8 @@ yyl_backslash(pTHX_ char *s)
     if (PL_lex_inwhat == OP_SUBST && PL_lex_repl == PL_linestr && isDIGIT(*s))
         ck_warner(packWARN(WARN_SYNTAX),"Can't use \\%c to mean $%c in expression",
                   *s, *s);
-    S_warn_expect_operator(aTHX_ "Backslash", s, FALSE);
+    if (!PL_parser->in_case_pattern)
+        S_warn_expect_operator(aTHX_ "Backslash", s, FALSE);
     OPERATOR(REFGEN);
 }
 

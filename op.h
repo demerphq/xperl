@@ -241,6 +241,8 @@ struct case_pattern_node {
     const OP *op;
     struct case_pattern_node **child;
     U32 nchild;
+    const SV *object_class;
+    struct case_pattern_node *object_shape;
 };
 
 struct case_dispatch_aux;
@@ -280,7 +282,8 @@ enum {
     CASE_PATTERN_CRITERION_NUM = 9,
     CASE_PATTERN_CRITERION_NUMSTR = 10,
     CASE_PATTERN_CRITERION_NUMEQ = 11,
-    CASE_PATTERN_CRITERION_PIN = 12
+    CASE_PATTERN_CRITERION_PIN = 12,
+    CASE_PATTERN_CRITERION_OBJECT = 13
 };
 
 

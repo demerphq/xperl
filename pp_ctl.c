@@ -6392,8 +6392,55 @@ out:
     return matched;
 }
 
+static void
+S_case_pattern_scan_call(pTHX_ const OP *op, const OP **target,
+                         const OP **invocant, U32 *nargs);
+
+static const OP *
+S_case_pattern_find_shape_op(const OP *op)
+{
+    const OP *kid;
+
+    if (!op)
+        return NULL;
+    if (op->op_type == OP_ANONHASH || op->op_type == OP_ANONLIST
+        || op->op_type == OP_REFGEN || op->op_type == OP_SREFGEN
+        || op->op_type == OP_LIST
+        || (op->op_type == OP_NULL && op->op_targ == OP_LIST))
+        return op;
+    if (!(op->op_flags & OPf_KIDS))
+        return NULL;
+    for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid)) {
+        const OP *shape = S_case_pattern_find_shape_op(kid);
+        if (shape)
+            return shape;
+    }
+    return NULL;
+}
+
+static bool
+S_case_pattern_object_call(pTHX_ const OP *op, const OP **class_op,
+                           const OP **shape_op)
+{
+    const OP *target = NULL;
+    const OP *invocant = NULL;
+    U32 nargs = 0;
+
+    if (!op || op->op_type != OP_ENTERSUB)
+        return FALSE;
+    S_case_pattern_scan_call(aTHX_ cUNOPx(op)->op_first,
+                             &target, &invocant, &nargs);
+    if (!target || target->op_type != OP_METHOD_NAMED || !invocant
+        || !S_case_pattern_find_shape_op(invocant))
+        return FALSE;
+    *class_op = target;
+    *shape_op = invocant;
+    PERL_UNUSED_VAR(nargs);
+    return TRUE;
+}
+
 static struct case_pattern_node *
-S_case_pattern_compile_node(pTHX_ const OP *op)
+S_case_pattern_compile_node(pTHX_ const OP *op, bool preserve_lists)
 {
     const OP *kid;
     U32 nchild = 0;
@@ -6403,8 +6450,24 @@ S_case_pattern_compile_node(pTHX_ const OP *op)
     if (!op)
         return NULL;
 
-    if (op->op_type == OP_NULL && (op->op_flags & OPf_KIDS))
-        return S_case_pattern_compile_node(aTHX_ cUNOPx(op)->op_first);
+    if (op->op_type == OP_NULL && (op->op_flags & OPf_KIDS)
+        && (!preserve_lists || op->op_targ != OP_LIST))
+        return S_case_pattern_compile_node(aTHX_ cUNOPx(op)->op_first,
+                                           preserve_lists);
+
+    {
+        const OP *class_op = NULL;
+        const OP *shape_op = NULL;
+        if (S_case_pattern_object_call(aTHX_ op, &class_op, &shape_op)) {
+            node = (struct case_pattern_node *)PerlMemShared_calloc(
+                1, sizeof(struct case_pattern_node));
+            node->op = op;
+            node->object_class = cSVOPx_sv(class_op);
+            node->object_shape = S_case_pattern_compile_node(aTHX_ shape_op,
+                                                              TRUE);
+            return node;
+        }
+    }
 
     if (op->op_flags & OPf_KIDS) {
         for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid))
@@ -6419,7 +6482,8 @@ S_case_pattern_compile_node(pTHX_ const OP *op)
         node->child = (struct case_pattern_node **)
             PerlMemShared_malloc(nchild * sizeof(struct case_pattern_node *));
         for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid), i++)
-            node->child[i] = S_case_pattern_compile_node(aTHX_ kid);
+            node->child[i] = S_case_pattern_compile_node(aTHX_ kid,
+                                                         preserve_lists);
     }
     return node;
 }
@@ -6654,6 +6718,44 @@ S_case_pattern_is_slurp(const OP *op)
         && cUNOPx(op)->op_first->op_type == OP_PADAV;
 }
 
+static void S_case_pattern_validate(pTHX_ const OP *op);
+
+static void
+S_case_pattern_validate_object_fields(pTHX_ const OP *op)
+{
+    const OP *kid;
+    bool need_value = FALSE;
+    bool open = FALSE;
+
+    if (!op || (op->op_type != OP_LIST
+                && !(op->op_type == OP_NULL && op->op_targ == OP_LIST)))
+        Perl_croak(aTHX_ "invalid object field pattern");
+    for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid)) {
+        if (kid->op_type == OP_PUSHMARK
+            || (kid->op_type == OP_NULL && kid->op_targ == OP_PUSHMARK))
+            continue;
+        if (S_case_pattern_is_ellipsis(aTHX_ kid)) {
+            if (need_value || open)
+                Perl_croak(aTHX_ "object ellipsis must follow field pairs");
+            open = TRUE;
+            continue;
+        }
+        if (open)
+            Perl_croak(aTHX_ "object fields cannot follow an ellipsis");
+        if (!need_value) {
+            if (kid->op_type != OP_CONST)
+                Perl_croak(aTHX_ "object field names must be constants");
+            need_value = TRUE;
+        }
+        else {
+            S_case_pattern_validate(aTHX_ kid);
+            need_value = FALSE;
+        }
+    }
+    if (need_value)
+        Perl_croak(aTHX_ "object field pattern requires key/value pairs");
+}
+
 static bool
 S_case_pattern_canonical_number(const char *start, const char *end)
 {
@@ -6796,6 +6898,21 @@ S_case_pattern_validate(pTHX_ const OP *op)
             "dynamic regexes are only allowed in match guard clauses");
 
     if (op->op_type == OP_ENTERSUB) {
+        const OP *class_op = NULL;
+        const OP *shape_op = NULL;
+        if (S_case_pattern_object_call(aTHX_ op, &class_op, &shape_op)) {
+            const OP *fields = S_case_pattern_find_shape_op(shape_op);
+            if (fields && (fields->op_type == OP_LIST
+                           || (fields->op_type == OP_NULL
+                               && fields->op_targ == OP_LIST)))
+                S_case_pattern_validate_object_fields(aTHX_ fields);
+            else
+                S_case_pattern_validate(aTHX_ shape_op);
+            return;
+        }
+    }
+
+    if (op->op_type == OP_ENTERSUB) {
         const OP *call_target = NULL;
         const OP *call_invocant = NULL;
         U32 nargs = 0;
@@ -6821,6 +6938,30 @@ S_case_pattern_validate(pTHX_ const OP *op)
             ? cUNOPx(op)->op_first : NULL;
         if (!arg || (arg->op_type != OP_CONST && arg->op_type != OP_UNDEF))
             Perl_croak(aTHX_ "NumEq() requires a literal argument in a match pattern");
+    }
+    if (op->op_type == OP_CASECOERCE
+        && (op->op_private & CASE_PATTERN_CRITERION_MASK)
+            == CASE_PATTERN_CRITERION_OBJECT) {
+        const OP *args = (op->op_flags & OPf_KIDS)
+            ? cUNOPx(op)->op_first : NULL;
+        const OP *arg;
+        const OP *shape = NULL;
+        if (args && args->op_type == OP_LIST) {
+            arg = cLISTOPx(args)->op_first;
+            if (arg && (arg->op_type == OP_PUSHMARK
+                        || (arg->op_type == OP_NULL
+                            && arg->op_targ == OP_PUSHMARK)))
+                arg = OpSIBLING(arg);
+            if (arg)
+                shape = OpSIBLING(arg);
+        }
+        if (!args || args->op_type != OP_LIST || !shape)
+            Perl_croak(aTHX_ "invalid object pattern");
+        if (shape->op_type == OP_ANONHASH || shape->op_type == OP_LIST)
+            S_case_pattern_validate_object_fields(aTHX_ shape);
+        else
+            S_case_pattern_validate(aTHX_ shape);
+        return;
     }
     if (op->op_type == OP_NULL && (op->op_flags & OPf_KIDS)) {
         S_case_pattern_validate(aTHX_ cUNOPx(op)->op_first);
@@ -7000,6 +7141,7 @@ S_case_pattern_free_node(struct case_pattern_node *node)
 
     if (!node)
         return;
+    S_case_pattern_free_node(node->object_shape);
     for (i = 0; i < node->nchild; i++)
         S_case_pattern_free_node(node->child[i]);
     PerlMemShared_free(node->child);
@@ -7018,7 +7160,7 @@ Perl_case_pattern_compile(pTHX_ const OP *pattern)
         1, sizeof(struct case_pattern_aux));
     aux->magic = CASE_PATTERN_AUX_MAGIC;
     aux->pattern = (OP *)pattern;
-    aux->root = S_case_pattern_compile_node(aTHX_ pattern);
+    aux->root = S_case_pattern_compile_node(aTHX_ pattern, FALSE);
     aux->static_pins = newAV();
     S_case_pattern_note_static_pins(aTHX_ pattern, aux->static_pins);
     S_case_pattern_compile_regex(aTHX_ aux);
@@ -7732,6 +7874,114 @@ S_case_rollback_bindings(pTHX_ PERL_CONTEXT *cx)
 static bool
 S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                       SV *pattern_value,
+                      struct case_binding *bindings, size_t *nbindings);
+
+static const struct case_pattern_node *
+S_case_pattern_find_shape_node(const struct case_pattern_node *node)
+{
+    U32 i;
+
+    if (!node)
+        return NULL;
+    if (node->op->op_type == OP_LIST
+        || (node->op->op_type == OP_NULL && node->op->op_targ == OP_LIST))
+        return node;
+    for (i = 0; i < node->nchild; i++) {
+        const struct case_pattern_node *shape =
+            S_case_pattern_find_shape_node(node->child[i]);
+        if (shape)
+            return shape;
+    }
+    return NULL;
+}
+
+static void
+S_case_pattern_remap_object_bindings(pTHX_ struct case_binding *bindings,
+                                      size_t first_binding,
+                                      size_t nbindings)
+{
+    size_t j;
+
+    for (j = first_binding; j < nbindings; j++) {
+        struct case_binding *binding = &bindings[j];
+        const PADOFFSET oldpad = binding->padix;
+        const char *name;
+        PADOFFSET padix;
+
+        if (oldpad > PL_comppad_name_fill
+            || !PAD_COMPNAME(oldpad))
+            Perl_croak(aTHX_
+                "object pattern capture is not a clause lexical");
+        name = PAD_COMPNAME_PV(oldpad);
+
+        for (padix = 0; padix < oldpad; padix++) {
+            if (PAD_COMPNAME_PV(padix)
+                && strEQ(PAD_COMPNAME_PV(padix), name)) {
+                binding->padix = padix;
+                break;
+            }
+        }
+        if (binding->padix == oldpad) {
+            for (padix = oldpad + 1;
+                 padix <= PL_comppad_name_fill; padix++) {
+                if (PAD_COMPNAME_PV(padix)
+                    && strEQ(PAD_COMPNAME_PV(padix), name)) {
+                    binding->padix = padix;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+static bool
+S_case_pattern_match_object_fields(pTHX_ const struct case_pattern_node *node,
+                                    SV *value,
+                                    struct case_binding *bindings,
+                                    size_t *nbindings)
+{
+    HV *hv;
+    size_t pairs = 0;
+    bool open = FALSE;
+
+    if (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVHV)
+        return FALSE;
+    hv = MUTABLE_HV(SvRV(value));
+    {
+        const size_t first_binding = *nbindings;
+        U32 i;
+        for (i = 0; i < node->nchild; i++) {
+            const struct case_pattern_node *keynode = node->child[i];
+            const struct case_pattern_node *valnode;
+            HE *he;
+            if (keynode->op->op_type == OP_PUSHMARK
+                || (keynode->op->op_type == OP_NULL
+                    && keynode->op->op_targ == OP_PUSHMARK))
+                continue;
+            if (S_case_pattern_is_ellipsis(aTHX_ keynode->op)) {
+                open = TRUE;
+                continue;
+            }
+            if (open || i + 1 >= node->nchild)
+                return FALSE;
+            valnode = node->child[++i];
+            if (keynode->op->op_type != OP_CONST)
+                return FALSE;
+            he = hv_fetch_ent(hv, cSVOPx_sv(keynode->op), FALSE, 0);
+            if (!he || !S_case_pattern_match(aTHX_ valnode, HeVAL(he),
+                                              NULL, bindings, nbindings))
+                return FALSE;
+            pairs++;
+        }
+        S_case_pattern_remap_object_bindings(aTHX_ bindings,
+                                             first_binding, *nbindings);
+    }
+    return open || pairs == (size_t)HvUSEDKEYS(hv);
+}
+
+static bool
+S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
+                      SV *pattern_value,
                       struct case_binding *bindings, size_t *nbindings)
 {
     const OP *pattern;
@@ -7742,6 +7992,85 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
 
     if (pattern->op_type == OP_UNDEF)
         return !SvOK(value);
+
+    if (node->object_shape) {
+        const struct case_pattern_node *fields =
+            S_case_pattern_find_shape_node(node->object_shape);
+        SV *logical = NULL;
+        bool matched;
+
+        if (!node->object_class || !SvROK(value)
+            || !SvOBJECT(SvRV(value))
+            || !sv_derived_from(value, SvPV_nolen_const(node->object_class)))
+            return FALSE;
+        if (fields) {
+            if (SvTYPE(SvRV(value)) == SVt_PVOBJ)
+                logical = Perl_class_object_to_hash(aTHX_ value);
+            matched = S_case_pattern_match_object_fields(aTHX_
+                fields, logical ? logical : value, bindings, nbindings);
+        }
+        else {
+            if (node->object_shape->op->op_type == OP_ANONHASH
+                && SvTYPE(SvRV(value)) == SVt_PVOBJ)
+                logical = Perl_class_object_to_hash(aTHX_ value);
+            matched = S_case_pattern_match(aTHX_ node->object_shape,
+                                            logical ? logical : value,
+                                            NULL, bindings, nbindings);
+        }
+        if (logical)
+            SvREFCNT_dec(logical);
+        return matched;
+    }
+
+    if (pattern->op_type == OP_CASECOERCE
+        && (pattern->op_private & CASE_PATTERN_CRITERION_MASK)
+            == CASE_PATTERN_CRITERION_OBJECT) {
+        const struct case_pattern_node *args = node->nchild
+            ? node->child[0] : NULL;
+        const struct case_pattern_node *class_node;
+        const struct case_pattern_node *shape_node;
+        SV *logical = NULL;
+        const size_t first_binding = *nbindings;
+        bool matched;
+
+        if (!args || args->op->op_type != OP_LIST || args->nchild < 2)
+            return FALSE;
+        {
+            U32 argix = 0;
+            if (args->child[argix]->op->op_type == OP_PUSHMARK
+                || (args->child[argix]->op->op_type == OP_NULL
+                    && args->child[argix]->op->op_targ == OP_PUSHMARK))
+                argix++;
+            if (argix + 1 >= args->nchild)
+                return FALSE;
+            class_node = args->child[argix];
+            shape_node = args->child[argix + 1];
+        }
+        if (!class_node || class_node->op->op_type != OP_CONST
+            || !SvROK(value) || !SvOBJECT(SvRV(value))
+            || !sv_derived_from(value,
+                SvPV_nolen_const(cSVOPx_sv(class_node->op))))
+            return FALSE;
+        if (shape_node->op->op_type == OP_LIST
+            || (shape_node->op->op_type == OP_NULL
+                && shape_node->op->op_targ == OP_LIST))
+            matched = S_case_pattern_match_object_fields(aTHX_
+                shape_node, value, bindings, nbindings);
+        else {
+            if (shape_node->op->op_type == OP_ANONHASH
+                && SvTYPE(SvRV(value)) == SVt_PVOBJ)
+                logical = Perl_class_object_to_hash(aTHX_ value);
+            matched = S_case_pattern_match(aTHX_ shape_node,
+                                            logical ? logical : value,
+                                            NULL, bindings, nbindings);
+        }
+        if (matched)
+            S_case_pattern_remap_object_bindings(aTHX_ bindings,
+                                                 first_binding, *nbindings);
+        if (logical)
+            SvREFCNT_dec(logical);
+        return matched;
+    }
 
     if (pattern->op_type == OP_REFGEN || pattern->op_type == OP_SREFGEN) {
         const struct case_pattern_node *referent_pattern =

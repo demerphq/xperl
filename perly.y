@@ -102,6 +102,7 @@
 %type <opval> bare_statement_case bare_statement_match case_subject_alias
 %type <opval> case_subject_pins case_subject_pin_expr case_local_scalar
 %type <opval> case_mblock case_match_stmtseq case_match_guard case_pattern_target
+%type <opval> case_pattern_object case_pattern_expr
 %type <opval> case_pattern_numeric case_pattern_numeric_base
 %type <opval> case_pattern_numeric_args
 %type <ival> case_pattern_start case_pattern_end case_subject_type
@@ -424,8 +425,8 @@ bare_statement_match
 		PERLY_PAREN_OPEN
 		case_pattern_start
 		remember
-		mexpr
-		{ case_pattern_note_regex($mexpr); }
+		case_pattern_expr
+		{ case_pattern_note_regex($case_pattern_expr); }
 		case_pattern_end
 		case_match_guard
 		PERLY_PAREN_CLOSE
@@ -435,7 +436,7 @@ bare_statement_match
 				yyerror("match clauses are only allowed directly in a case");
 				YYERROR;
 			}
-			OP *pattern = $mexpr;
+			OP *pattern = $case_pattern_expr;
 			case_pattern_preserve_concat(pattern);
 			UNOP_AUX_item *pattern_aux = case_pattern_compile(pattern);
 			/* The pattern is a data-shape description.  Keep its optree in
@@ -458,6 +459,29 @@ bare_statement_match
 			$$ = block_end($remember,
 				newCASEMATCHOP(condition,
 					op_scope($mblock)));
+		}
+;
+
+case_pattern_expr
+	: case_pattern_object
+	| mexpr
+		{ $$ = $mexpr; }
+;
+
+case_pattern_object
+	: BAREWORD PERLY_BRACKET_OPEN optexpr PERLY_BRACKET_CLOSE
+		{
+			OP *shape = newANONLIST($optexpr);
+			OP *args = op_append_elem(OP_LIST, $BAREWORD, shape);
+			$$ = newUNOP(OP_CASECOERCE, 0, args);
+			$$->op_private = CASE_PATTERN_CRITERION_OBJECT;
+		}
+	| BAREWORD REFGEN term
+		{
+			OP *shape = newUNOP(OP_REFGEN, 0, $term);
+			OP *args = op_append_elem(OP_LIST, $BAREWORD, shape);
+			$$ = newUNOP(OP_CASECOERCE, 0, args);
+			$$->op_private = CASE_PATTERN_CRITERION_OBJECT;
 		}
 ;
 

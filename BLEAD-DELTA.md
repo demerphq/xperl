@@ -195,6 +195,31 @@ requires at least `N` remaining elements, where `N` is currently between 0 and
 keys.  The current implementation permits one array slurp and does not combine
 it with an ellipsis or another slurp.
 
+Blessed references can use a class-qualified shape.  A hash shape checks named
+fields, an array shape checks positional values, and a reference shape checks
+and binds the referent:
+
+```perl
+my $point = bless { '$x' => 3, '$y' => 4 }, 'Point';
+
+case ($point) {
+    match (Point { '$x' => $x, '$y' => $y }) { say "$x,$y" }
+}
+
+my $pair = bless [ 10, 20 ], 'Pair';
+case ($pair) {
+    match (Pair [ $first, $second ]) { say "$first,$second" }
+}
+```
+
+Object shapes check the class and inspect the blessed reference structurally;
+they do not call constructors, accessors, overload methods, or arbitrary user
+methods.  A hash object shape is exact unless it ends in `...`.  Blessed scalar
+references can use a form such as `Box \$value`.  More detailed class-field
+metadata, roles, and other blessed reference layouts remain future work.
+Literal checks of class-backed field objects are supported, while capture
+bindings through their temporary field-expression scope remain deferred.
+
 An optional `if` introduces an ordinary Perl guard.  The guard runs after the
 data shape has matched and may use the tentative bindings.  Guards are
 unrestricted Perl expressions: they may call functions, have side effects, or

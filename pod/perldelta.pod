@@ -64,6 +64,14 @@ C<ObjectVal> may each take one scalar target, such as C<RefVal($reference)>,
 which is bound after the type check succeeds.  Such a target cannot also be
 pinned by C<with>.
 
+Blessed references may use a class-qualified data shape.  Hash object shapes
+check quoted field names, array object shapes check positional values, and a
+reference object shape can bind a scalar referent.  These patterns inspect the
+object structure directly without calling constructors, accessors, overload
+methods, or arbitrary user methods.  The initial implementation covers blessed
+hash, array, and scalar references; richer class-field metadata and roles are
+future work.
+
 An existing scalar can also be pinned directly in a data shape with the
 pattern-only C<^$name> form.  Its value is snapshotted when the surrounding
 C<case> begins, and ordinary caret operators retain their normal meaning

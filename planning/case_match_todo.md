@@ -207,21 +207,29 @@ A non-participating named capture is a named group whose branch was not taken
 by the successful regex match.  It remains a clause-local binding with the
 undefined value, following the regex engine's result.
 
-### 8. Object and class patterns — OPEN
+### 8. Object and class patterns — PARTIALLY COMPLETE
 
-Add object/class destructuring only through an explicit, documented protocol.
-Pattern matching must not call constructors or arbitrary methods merely to
-inspect an object.  Coordinate this work with the class field map and the
-existing `implements` metadata.
+The first structural object-pattern slice is implemented and documented.  A
+class-qualified pattern can now match and destructure blessed hash references,
+blessed array references, and blessed scalar references.  Hash fields use
+quoted field names, array fields are positional, and a trailing hash ellipsis
+allows extra fields.  Class compatibility is checked without calling
+constructors, accessors, overload methods, or arbitrary user methods.
 
-Define behavior for:
+Regression coverage is in `t/comp/case_match.t` for captures, exact versus open
+hash shapes, positional array shapes, scalar-reference shapes, and class
+mismatches.  The implementation also remaps captures from the temporary
+lexical scope produced by the class-qualified parser form to the clause's
+lexicals.
 
-- class instances with declared fields;
-- subclasses and roles;
-- blessed hash/object values without declared fields;
-- field accessors, magic, and overloaded values;
-- failed field reads and exceptions;
-- aliases and reference identity.
+Still open for this item:
+
+- declared Perl class instances backed by the class field map/PTROBJ storage;
+- role and subclass policy beyond the current normal class relationship check;
+- field magic, tied values, overloaded values, exceptions, aliases, and
+  reference-identity guarantees;
+- a cleaner grammar path for class-qualified reference forms that avoids the
+  ordinary indirect-method-call representation.
 
 ### 9. Additional pattern forms — DEFERRED
 

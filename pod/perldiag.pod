@@ -1124,6 +1124,37 @@ statically named, zero-argument class-method calls are currently accepted.
 supported data-shape language.  Use a guard after C<if> for ordinary Perl
 computation.
 
+=item invalid object field pattern
+
+(F) An object data shape did not contain a valid field list.
+
+=item object ellipsis must follow field pairs
+
+(F) An object field data shape placed its ellipsis before a complete set of
+key/value pairs.
+
+=item object fields cannot follow an ellipsis
+
+(F) An object field data shape placed a field after its open-ended ellipsis.
+
+=item object field names must be constants
+
+(F) An object field data shape used a non-constant expression as a field name.
+
+=item object field pattern requires key/value pairs
+
+(F) An object field data shape ended after a field name without its value.
+
+=item invalid object pattern
+
+(F) A class-qualified object data shape did not contain a class and a valid
+shape.
+
+=item object pattern capture is not a clause lexical
+
+(F) An object data shape attempted to bind a field to a lexical that is not
+available to the match clause.
+
 
 =item can't convert empty path
 

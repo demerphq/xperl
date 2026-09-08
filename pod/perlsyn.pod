@@ -979,6 +979,14 @@ shape is exact.  Data-shape bindings are tentative and are visible only after
 the complete data shape and its optional guard succeed.  A guard is written inside the
 C<match> parentheses:
 
+Blessed references can use a class-qualified shape.  For example,
+C<match(Point { '$x' => $x, '$y' => $y })> checks a blessed hash object and
+binds its named fields, while C<match(Pair [ $first, $second ])> checks a
+blessed array object.  C<match(Box \$value)> checks a blessed scalar reference
+and binds its referent.  These checks inspect the reference structure directly;
+they do not call constructors, accessors, overload methods, or arbitrary user
+methods.  A hash object shape is exact unless it ends with C<...>.
+
     case ($value) {
         match ([$number] if $number > 0) { use_positive($number) }
     }
