@@ -8,12 +8,12 @@ BEGIN {
 
 use feature 'case_match';
 
-plan(5);
-
 eval { require threads; threads->create(sub { 1 })->join };
 if ($@) {
     skip_all('threads are not available');
 }
+
+plan(5);
 
 sub run_case_in_thread {
     my ($subject) = @_;
