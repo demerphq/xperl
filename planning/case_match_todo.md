@@ -5,6 +5,11 @@ This document records the remaining work for the experimental
 implementation-focused: the broader language proposal remains in
 [`perl-pattern-matching.md`](perl-pattern-matching.md).
 
+Status labels mean: `COMPLETE` is implemented and has focused coverage;
+`PARTIALLY COMPLETE` has a working baseline but still needs specified
+extensions or broader hardening; `OPEN` is unfinished; and `DEFERRED` is
+intentionally postponed.
+
 ## Current baseline
 
 The branch currently provides:
@@ -49,7 +54,7 @@ basic control-flow representation.
 
 ## Priority 1: make the basic implementation correct and maintainable
 
-### 1. Make pattern compilation ownership explicit
+### 1. Make pattern compilation ownership explicit — OPEN
 
 The pattern auxiliary tree must have clear ownership rules for every retained
 `OP`, `SV`, and auxiliary array.  In particular:
@@ -67,7 +72,7 @@ the normal multiconcat optimizer leaves their structure intact.  This should
 be reviewed against future optimizer changes and covered by an explicit
 ownership/regression test.
 
-### 2. Duplicate constant patterns
+### 2. Duplicate constant patterns — COMPLETE
 
 For pure constant cases, duplicate values cannot select different clauses: only
 the earliest source clause is reachable.  The implementation currently retains
@@ -83,7 +88,7 @@ polish rather than a semantic gap.
 
 ## Priority 2: finish constant dispatch
 
-### 3. Audit optimized representations and cloning
+### 3. Audit optimized representations and cloning — OPEN
 
 Keep the array and HV strategies distinct:
 
@@ -106,7 +111,7 @@ Absent domains must not be represented by ambiguous zero values.  IV and UV
   bounds must use scalar lengths without constructing unnecessary temporary
   strings.
 
-### 4. Improve dispatch selection
+### 4. Improve dispatch selection — OPEN
 
 The current automatic policy is provisional: linear probing below 16 clauses and
 binary search at 16 clauses or above.  Benchmark and tune the crossover by:
@@ -134,7 +139,7 @@ compiler, CPU, and exact benchmark command.  Keep benchmark scripts and
 results under `planning/scripts/`; they are developer tools, not language
 interfaces.
 
-### 5. Add conditional-tree lowering
+### 5. Add conditional-tree lowering — OPEN
 
 For small pure constant cases with no guards, generate an ordinary conditional
 optree when it is faster than the generic case machinery.  The generated
@@ -159,7 +164,7 @@ for comparison tests.
 
 ## Priority 3: complete pattern semantics
 
-### 6. Composite scalar patterns
+### 6. Composite scalar patterns — PARTIALLY COMPLETE
 
 The current implementation supports one unpinned scalar capture surrounded by
 literal concatenation fragments.  Define and test the next boundary before
@@ -181,17 +186,14 @@ expressions as pattern syntax.  If richer pattern expressions are eventually
 allowed, specify exactly which operators are structural and how bindings are
 obtained.
 
-### 7. Regex-pattern hardening
+### 7. Regex-pattern hardening — PARTIALLY COMPLETE
 
-Regex data shapes, ordinary captures, named clause-local bindings, and
-`undef` for nonparticipating named captures are implemented.  Remaining
-hardening includes:
+Regex data shapes, ordinary captures, named clause-local bindings, `undef`
+for nonparticipating named captures, duplicate-capture delegation to the regex
+engine, static compile-time compilation, open-search reuse, and case-local
+capture restoration are implemented.  Remaining hardening includes:
 
-- allowing the regex engine to define duplicate named-capture behavior;
-- defining and testing genuinely dynamic regex construction; static regex
-  literals are compiled at source-code compile time and their compiled form is
-  reused for every candidate in an open array or hash search;
-- defining evaluation rules for genuinely dynamic regex construction;
+- defining and testing genuinely dynamic regex construction;
 - leaving Unicode and byte-string behavior to the regex engine, while testing
   that the case matcher does not interfere with it;
 - deciding whether to support `(?{ ... })` and `(??{ ... })`.  They are
@@ -205,7 +207,7 @@ A non-participating named capture is a named group whose branch was not taken
 by the successful regex match.  It remains a clause-local binding with the
 undefined value, following the regex engine's result.
 
-### 8. Object and class patterns
+### 8. Object and class patterns — OPEN
 
 Add object/class destructuring only through an explicit, documented protocol.
 Pattern matching must not call constructors or arbitrary methods merely to
@@ -221,7 +223,7 @@ Define behavior for:
 - failed field reads and exceptions;
 - aliases and reference identity.
 
-### 9. Additional pattern forms
+### 9. Additional pattern forms — DEFERRED
 
 These remain deliberately deferred until the current foundation is stable:
 
@@ -238,7 +240,7 @@ rules before implementation.
 
 ## Priority 4: context, exceptions, and compatibility
 
-### 10. Context and result behavior
+### 10. Context and result behavior — PARTIALLY COMPLETE
 
 Test every supported pattern and clause form in scalar, list, and void context.
 Confirm that:
@@ -252,7 +254,7 @@ Confirm that:
 - subject evaluation and pattern evaluation do not accidentally change
   context.
 
-### 11. Exception and cleanup behavior
+### 11. Exception and cleanup behavior — OPEN
 
 Verify nested and outer `eval`, `die` in subjects, patterns, guards, and clause
 bodies, plus exceptions during cleanup and destruction.  Confirm:
@@ -263,7 +265,7 @@ bodies, plus exceptions during cleanup and destruction.  Confirm:
 - nested cases restore their parent state;
 - fatal interpreter-wide failures remain interpreter-wide.
 
-### 12. Magic, aliases, and mutation
+### 12. Magic, aliases, and mutation — PARTIALLY COMPLETE
 
 Expand tests for:
 
@@ -278,7 +280,7 @@ Expand tests for:
 The case subject should be fetched once for matching, while the clause body must
 still be able to modify the original lvalue.
 
-### 13. Threaded and cloning support
+### 13. Threaded and cloning support — OPEN
 
 Run the complete focused suite under threaded and non-threaded builds.  Add
 tests for cloning compiled pattern representations, values, pads, and case
@@ -307,10 +309,10 @@ tests should be runnable from both the repository root and the `t/` directory.
 
 ## Suggested execution order for the remaining work
 
-1. Close ownership, cleanup, and duplicate-pattern gaps.
+1. Close ownership, cleanup, and cloning gaps.
 2. Finish benchmark coverage and tune constant dispatch.
 3. Implement and validate small-case conditional-tree lowering.
-4. Harden regex behavior and add object/class patterns.
+4. Finish regex hardening and add object/class patterns.
 5. Expand context, exception, magic, mutation, cloning, and sanitizer tests.
 6. Synchronize documentation and generated files as semantics change.
 7. Run focused suites, porting checks, `make regen`, and finally `make_test`.
