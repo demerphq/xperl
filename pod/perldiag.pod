@@ -1092,6 +1092,12 @@ C<(??{ ... })> code block.  These constructs are not currently supported in a
 case pattern because their side effects cannot be safely defined when one
 compiled expression is applied to multiple candidates.
 
+=item dynamic regexes are only allowed in match guard clauses
+
+(F) A case data-shape regular expression contained runtime interpolation.
+Dynamic regular expression construction is not supported in a match pattern.
+Put the regular expression in the ordinary Perl guard after C<if> instead.
+
 =item duplicate case pattern constant %s will never match; duplicate at %s, first at %s
 
 (S syntax) A constant data-shape was repeated in a C<case> block.  The first

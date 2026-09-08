@@ -1075,6 +1075,9 @@ p	|UNOP_AUX_item *|case_pattern_compile				\
 				|NN const OP *pattern
 p	|void	|case_pattern_free					\
 				|NULLOK UNOP_AUX_item *aux
+p	|void	|case_pattern_mark_identity				\
+				|NN OP *body				\
+				|NN const OP *subject
 p	|void	|case_pattern_note_pins 				\
 				|NN const OP *pins
 p	|void	|case_pattern_note_regex				\

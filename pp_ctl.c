@@ -6791,6 +6791,10 @@ S_case_pattern_validate(pTHX_ const OP *op)
     if (!op)
         return;
 
+    if (op->op_type == OP_REGCOMP)
+        Perl_croak(aTHX_
+            "dynamic regexes are only allowed in match guard clauses");
+
     if (op->op_type == OP_ENTERSUB) {
         const OP *call_target = NULL;
         const OP *call_invocant = NULL;
@@ -7064,6 +7068,46 @@ S_case_pattern_is_wildcard(pTHX_ const struct case_pattern_aux *aux)
     return pattern->op_type == OP_CONST
         && (pattern->op_private & OPpCONST_BARE)
         && strEQ(SvPV_nolen_const(cSVOPx_sv(pattern)), "_");
+}
+
+static void
+S_case_pattern_mark_identity_walk(pTHX_ OP *op, PADOFFSET subject_padix)
+{
+    OP *kid;
+
+    PERL_UNUSED_CONTEXT;
+    if (!op || op->op_type == OP_ENTERCASE)
+        return;
+    if (op->op_type == OP_CASEMATCH) {
+        struct case_pattern_aux *aux =
+            (struct case_pattern_aux *)cUNOP_AUXx(op)->op_aux;
+        const struct case_pattern_node *root = aux &&
+            aux->magic == CASE_PATTERN_AUX_MAGIC ? aux->root : NULL;
+        const OP *pattern = root ? root->op : NULL;
+
+        while (pattern && pattern->op_type == OP_NULL
+               && (pattern->op_flags & OPf_KIDS))
+            pattern = cUNOPx(pattern)->op_first;
+        if (aux && aux->magic == CASE_PATTERN_AUX_MAGIC
+            && pattern && pattern->op_type == OP_PADSV
+            && pattern->op_targ == subject_padix)
+            aux->always_matches = TRUE;
+        return;
+    }
+    if (!(op->op_flags & OPf_KIDS))
+        return;
+    for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid))
+        S_case_pattern_mark_identity_walk(aTHX_ kid, subject_padix);
+}
+
+void
+Perl_case_pattern_mark_identity(pTHX_ OP *body, const OP *subject)
+{
+    PERL_ARGS_ASSERT_CASE_PATTERN_MARK_IDENTITY;
+
+    if (!body || !subject || subject->op_type != OP_PADSV)
+        return;
+    S_case_pattern_mark_identity_walk(aTHX_ body, subject->op_targ);
 }
 
 static bool
@@ -8103,6 +8147,8 @@ PP(pp_casematch)
             && do_ncmp(DEFSV, cSVOPx_sv(pattern->op)) == 0;
     else if (aux->kind == CASE_PATTERN_SIMPLE_STR)
         matched = SvPOK(DEFSV) && sv_eq(DEFSV, cSVOPx_sv(pattern->op));
+    else if (aux->always_matches || S_case_pattern_is_wildcard(aTHX_ aux))
+        matched = TRUE;
     else
         matched = S_case_pattern_match(aTHX_
             pattern, DEFSV, *PL_stack_sp,

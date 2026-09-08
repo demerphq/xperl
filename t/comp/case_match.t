@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-print "1..102\n";
+print "1..106\n";
 
 my $ran = 0;
 $_ = 'outside';
@@ -1429,3 +1429,56 @@ my $regex_overloaded = eval q{
 print !$@ && $regex_overloaded
     ? "ok 102 - regex patterns use overloaded subjects\n"
     : "not ok 102 - regex patterns use overloaded subjects\n";
+
+my $dynamic_regex = eval q{
+    use feature 'case_match';
+    my $re = 'target';
+    case ('target') {
+        match (/$re/) { 1 }
+    }
+    1;
+};
+print $@ =~ /dynamic regexes are only allowed in match guard clauses/
+    ? "ok 103 - dynamic regex patterns are rejected\n"
+    : "not ok 103 - dynamic regex patterns are rejected\n";
+
+my $pinned_dynamic_regex = eval q{
+    use feature 'case_match';
+    my $re = 'target';
+    case ('target') with ($re) {
+        match (/$re/) { 1 }
+    }
+    1;
+};
+print $@ =~ /dynamic regexes are only allowed in match guard clauses/
+    ? "ok 104 - pinned dynamic regex patterns are rejected\n"
+    : "not ok 104 - pinned dynamic regex patterns are rejected\n";
+
+my ($wildcard_guard, $identity_guard);
+my $guard_identity = eval q{
+    use feature 'case_match';
+    my $subject = 'same';
+    my $re = qr/^same$/;
+    case ($subject) {
+        match (_ if $subject =~ $re) { $wildcard_guard = 1; }
+    }
+    case ($subject) {
+        match ($subject if $subject eq 'same') { $identity_guard = 1; }
+    }
+    1;
+};
+print !$@ && $guard_identity && $wildcard_guard && $identity_guard
+    ? "ok 105 - guards work with wildcard and identity patterns\n"
+    : "not ok 105 - guards work with wildcard and identity patterns\n";
+
+my $false_identity_guard = eval q{
+    use feature 'case_match';
+    my $subject = 'same';
+    case ($subject) {
+        match ($subject if $subject eq 'different') { die 'wrong clause'; }
+    }
+    1;
+};
+print !$@ && $false_identity_guard
+    ? "ok 106 - identity pattern still evaluates its guard\n"
+    : "not ok 106 - identity pattern still evaluates its guard\n";

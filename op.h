@@ -255,6 +255,7 @@ struct case_pattern_aux {
     AV *static_pins; /* pad indexes pinned by ^ in this pattern */
     AV *regex_names; /* named captures and their clause-local bindings */
     AV *regex_padixes;
+    bool always_matches; /* wildcard or identity pattern */
 };
 
 #define CASE_PATTERN_AUX_MAGIC ((U32)0x43504154) /* "CPAT" */

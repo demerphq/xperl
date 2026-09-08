@@ -1060,6 +1060,7 @@
 #   define case_dispatch_free(a)                Perl_case_dispatch_free(aTHX_ a)
 #   define case_pattern_compile(a)              Perl_case_pattern_compile(aTHX_ a)
 #   define case_pattern_free(a)                 Perl_case_pattern_free(aTHX_ a)
+#   define case_pattern_mark_identity(a,b)      Perl_case_pattern_mark_identity(aTHX_ a,b)
 #   define case_pattern_note_pins(a)            Perl_case_pattern_note_pins(aTHX_ a)
 #   define case_pattern_note_regex(a)           Perl_case_pattern_note_regex(aTHX_ a)
 #   define case_pattern_preserve_concat(a)      Perl_case_pattern_preserve_concat(aTHX_ a)

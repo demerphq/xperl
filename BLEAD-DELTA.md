@@ -160,7 +160,11 @@ For an open array or hash shape, a static regular expression is compiled once
 and its compiled form is reused for each candidate.  Regex code blocks,
 `(?{ ... })` and `(??{ ... })`, are currently rejected while the case pattern
 is compiled; they must not be silently ignored.  Unicode and byte-string
-behavior remains the responsibility of the regular-expression engine.
+behavior remains the responsibility of the regular-expression engine.  Dynamic
+regular expressions such as C</thing-$re-thing/> are rejected in a data-shape
+pattern as well.  Put runtime construction in the ordinary guard, for example
+C<match (_ if $subject =~ /thing-$re-thing/) { ... }>.  See
+L<perlcasematch> for the full rules and examples.
 
 Numeric criteria add a controlled distinction between native numbers and
 numeric-looking strings.  `IntStr`, `FloatStr`, and `NumStr` can both match and

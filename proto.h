@@ -670,6 +670,15 @@ Perl_case_pattern_free(pTHX_ UNOP_AUX_item *aux)
     STMT_START { Perl_assert_aTHX; } STMT_END
 
 PERL_CALLCONV void
+Perl_case_pattern_mark_identity(pTHX_ OP *body, const OP *subject)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_CASE_PATTERN_MARK_IDENTITY \
+    STMT_START { Perl_assert_aTHX; assert(body); assert(subject); } STMT_END
+
+PERL_CALLCONV void
 Perl_case_pattern_note_pins(pTHX_ const OP *pins)
         Perl_attribute_nonnull_aTHX
         Perl_attribute_nonnull(pTHX_1)

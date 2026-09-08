@@ -53,7 +53,10 @@ Static regular expressions used by open array or hash shapes are compiled once
 and reused for each candidate.  Regex code blocks, C<(?{ ... })> and
 C<(??{ ... })>, are currently rejected while a case pattern is compiled so
 that their side effects cannot be silently discarded.  Unicode and byte-string
-behavior remains under the control of the regular-expression engine.
+behavior remains under the control of the regular-expression engine.  Dynamic
+regular expressions, such as C</thing-$re-thing/>, are also rejected in a
+data-shape pattern; use an ordinary Perl guard after C<if> when the regular
+expression must be built or interpolated at run time.
 
 Array data shapes may capture a final tail with C<@name>, or require a minimum
 tail length with C<@name:N>.  The typed criteria C<RefVal>, C<ScalarVal>, and

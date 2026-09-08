@@ -257,8 +257,11 @@ Unicode and byte-string behavior.  Regex code blocks, C<(?{ ... })> and
 C<(??{ ... })>, are not currently supported in a data-shape regex.  They are
 rejected while the pattern is compiled, rather than being silently ignored.
 This restriction may be revisited once their interaction with repeated
-candidate matching has been specified.  Using a regular expression as one
-fragment of a larger string data shape remains unsupported.
+candidate matching has been specified.  Dynamic regular expressions, such as
+C</thing-$re-thing/>, are also rejected in a data-shape pattern.  Put such a
+regular expression in the ordinary Perl guard instead, for example
+C<match (_ if $subject =~ /thing-$re-thing/) { ... }>.  Using a regular
+expression as one fragment of a larger string data shape remains unsupported.
 
 The ordinary capture state is localized to the C<case> block.  When the case
 ends, the previous values of C<$1>, C<$2>, C<%+>, C<%->, and related match

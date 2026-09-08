@@ -186,27 +186,22 @@ expressions as pattern syntax.  If richer pattern expressions are eventually
 allowed, specify exactly which operators are structural and how bindings are
 obtained.
 
-### 7. Regex-pattern hardening — PARTIALLY COMPLETE
+### 7. Regex-pattern hardening — COMPLETE
 
 Regex data shapes, ordinary captures, named clause-local bindings, `undef`
 for nonparticipating named captures, duplicate-capture delegation to the regex
 engine, static compile-time compilation, open-search reuse, and case-local
-capture restoration are implemented.  Remaining hardening includes:
+capture restoration are implemented.  Regex code blocks are rejected rather
+than silently discarded.  Dynamic regex construction is deliberately rejected
+in a data-shape pattern for now; only a regular expression written as a static
+pattern is accepted there.  Runtime-built regular expressions belong in the
+ordinary Perl guard after `if`, where their normal evaluation rules apply.
 
-- defining and testing genuinely dynamic regex construction.  The initial
-  form will require an explicitly pinned value, for example
-  `case ($value) with ($re) { match (/thing-$re-thing/) { ... } }`; the
-  interpolated regex is evaluated and compiled once for the clause attempt and
-  reused for every candidate in an open search.  Removing the explicit pin is
-  deferred until its evaluation and binding rules are clear;
-- leaving Unicode and byte-string behavior to the regex engine, while testing
-  that the case matcher does not interfere with it;
-- deciding whether to support `(?{ ... })` and `(??{ ... })`.  They are
-  currently rejected during case-pattern compilation so that their side
-  effects cannot be silently lost.  Any future support must define how their
-  state behaves when one compiled regex is applied to several candidates;
-- preserving and localizing `$1`, `$2`, `%+`, `%-`, and related legacy capture
-  state so that the enclosing case restores the previous match when it exits.
+Unicode and byte-string behavior remains the responsibility of the regex
+engine, and the focused tests verify that the case matcher does not interfere
+with it.  Future work may revisit dynamic regex patterns or regex code blocks,
+but either change would need a separate specification for evaluation count,
+side effects, and repeated candidates.
 
 A non-participating named capture is a named group whose branch was not taken
 by the successful regex match.  It remains a clause-local binding with the

@@ -327,6 +327,7 @@ bare_statement_case
 						pins, NULL), body);
 			OP *scoped_body = op_scope(body);
 			OP *caseop = newCASEOP(subject, scoped_body);
+			case_pattern_mark_identity(scoped_body, subject);
 			if (dispatch && (scoped_body->op_type == OP_LINESEQ
 			                 || scoped_body->op_type == OP_SCOPE)) {
 				OP *scope_kid;
