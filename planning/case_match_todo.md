@@ -56,6 +56,10 @@ basic control-flow representation.
 
 ### 1. Make pattern compilation ownership explicit — OPEN
 
+Status: the current implementation works for the focused suite, but ownership
+is not yet audited systematically across cloning, failed matches, exceptions,
+and destruction.
+
 The pattern auxiliary tree must have clear ownership rules for every retained
 `OP`, `SV`, and auxiliary array.  In particular:
 
@@ -74,6 +78,10 @@ ownership/regression test.
 
 ### 2. Duplicate constant patterns — COMPLETE
 
+Status: implemented and covered by focused tests.  Duplicate pure-constant
+patterns warn and retain the earliest reachable clause; guarded and dynamic
+patterns remain distinct.
+
 For pure constant cases, duplicate values cannot select different clauses: only
 the earliest source clause is reachable.  The implementation currently retains
 the earliest clause for dispatch purposes.  The compiler now emits a C<syntax>
@@ -89,6 +97,11 @@ polish rather than a semantic gap.
 ## Priority 2: finish constant dispatch
 
 ### 3. Audit optimized representations and cloning — DEFERRED
+
+Status: the array and HV dispatch forms exist and are usable, but their
+representation, ownership, and cloning behavior have not received a complete
+cross-build audit.  This is intentionally deferred while the feature semantics
+settle.
 
 Keep the array and HV strategies distinct:
 
@@ -112,6 +125,10 @@ Absent domains must not be represented by ambiguous zero values.  IV and UV
   strings.
 
 ### 4. Improve dispatch selection — DEFERRED
+
+Status: provisional strategy selection is implemented and benchmark tooling has
+been used during development.  The thresholds and build/type-specific tuning
+are not considered final.
 
 The current automatic policy is provisional: linear probing below 16 clauses and
 binary search at 16 clauses or above.  Benchmark and tune the crossover by:
@@ -141,6 +158,9 @@ interfaces.
 
 ### 5. Add conditional-tree lowering — DEFERRED
 
+Status: not implemented.  Current constant dispatch still uses the dedicated
+case machinery; no conditional optree is generated yet.
+
 For small pure constant cases with no guards, generate an ordinary conditional
 optree when it is faster than the generic case machinery.  The generated
 structure must preserve:
@@ -166,6 +186,10 @@ for comparison tests.
 
 ### 6. Composite scalar patterns — PARTIALLY COMPLETE
 
+Status: one-capture literal concatenation is implemented and tested for prefix,
+suffix, sandwich, pinned, and empty captures.  Multiple captures and richer
+structural expressions remain unspecified or unsupported.
+
 The current implementation supports one unpinned scalar capture surrounded by
 literal concatenation fragments.  Define and test the next boundary before
 implementing it:
@@ -188,6 +212,10 @@ obtained.
 
 ### 7. Regex-pattern hardening — COMPLETE
 
+Status: the currently specified static-regex behavior is implemented and
+covered, including named captures, nonparticipating captures, localization,
+open searches, and rejection of dynamic regex patterns and regex code blocks.
+
 Regex data shapes, ordinary captures, named clause-local bindings, `undef`
 for nonparticipating named captures, duplicate-capture delegation to the regex
 engine, static compile-time compilation, open-search reuse, and case-local
@@ -209,6 +237,12 @@ undefined value, following the regex engine's result.
 
 ### 8. Object and class patterns — PARTIALLY COMPLETE
 
+Status: the initial structural object-pattern slice is complete and focused
+coverage now passes.  Blessed hash, array, and scalar-reference objects can be
+matched and destructured; object captures are resolved to clause lexicals at
+compile time, and array slurp targets retain their underlying array pads.
+Class-backed field-map objects and broader object semantics remain open.
+
 The first structural object-pattern slice is implemented and documented.  A
 class-qualified pattern can now match and destructure blessed hash references,
 blessed array references, and blessed scalar references.  Hash fields use
@@ -218,9 +252,9 @@ constructors, accessors, overload methods, or arbitrary user methods.
 
 Regression coverage is in `t/comp/case_match.t` for captures, exact versus open
 hash shapes, positional array shapes, scalar-reference shapes, and class
-mismatches.  The implementation also remaps captures from the temporary
-lexical scope produced by the class-qualified parser form to the clause's
-lexicals.
+mismatches.  The implementation resolves captures from the temporary lexical
+scope produced by the class-qualified parser form to the clause's lexicals
+during pattern compilation.
 
 Still open for this item:
 
@@ -232,6 +266,11 @@ Still open for this item:
   ordinary indirect-method-call representation.
 
 ### 9. Additional pattern forms — DEFERRED
+
+Status: not implemented beyond the currently supported single final array
+slurp and minimum-length form.  Alternatives, ranges, optional fields,
+multiple variable-length captures, user protocols, and expression-valued
+clauses remain intentionally deferred.
 
 These remain deliberately deferred until the current foundation is stable:
 
@@ -250,6 +289,10 @@ rules before implementation.
 
 ### 10. Context and result behavior — PARTIALLY COMPLETE
 
+Status: basic selected-clause results and no-match behavior are implemented,
+but the full supported-pattern matrix has not yet been audited in scalar, list,
+and void contexts.
+
 Test every supported pattern and clause form in scalar, list, and void context.
 Confirm that:
 
@@ -264,6 +307,10 @@ Confirm that:
 
 ### 11. Exception and cleanup behavior — OPEN
 
+Status: ordinary matching and rollback paths work, but nested evaluations,
+exceptions during every phase, destruction, and cleanup-state restoration need
+dedicated coverage.
+
 Verify nested and outer `eval`, `die` in subjects, patterns, guards, and clause
 bodies, plus exceptions during cleanup and destruction.  Confirm:
 
@@ -274,6 +321,9 @@ bodies, plus exceptions during cleanup and destruction.  Confirm:
 - fatal interpreter-wide failures remain interpreter-wide.
 
 ### 12. Magic, aliases, and mutation — PARTIALLY COMPLETE
+
+Status: basic tied and overloaded subject cases are covered.  Alias identity,
+mutation, destruction, and callback-count guarantees still need broader tests.
 
 Expand tests for:
 
@@ -289,6 +339,10 @@ The case subject should be fetched once for matching, while the clause body must
 still be able to modify the original lvalue.
 
 ### 13. Threaded and cloning support — OPEN
+
+Status: the ordinary build is passing the focused object and example suites,
+but threaded, cloned-pattern, DEBUGGING, ASAN, and LSan coverage remains to be
+completed.
 
 Run the complete focused suite under threaded and non-threaded builds.  Add
 tests for cloning compiled pattern representations, values, pads, and case
@@ -318,10 +372,12 @@ tests should be runnable from both the repository root and the `t/` directory.
 ## Suggested execution order for the remaining work
 
 1. Close ownership, cleanup, and cloning gaps.
-2. Add object/class patterns.
-3. Expand context, exception, magic, mutation, cloning, and sanitizer tests.
-4. Synchronize documentation and generated files as semantics change.
-5. Run focused suites, porting checks, `make regen`, and finally `make_test`.
+2. Audit and tune constant dispatch representations and thresholds.
+3. Decide whether to implement conditional-tree lowering.
+4. Expand context, exception, magic, mutation, object, cloning, and sanitizer
+   tests.
+5. Synchronize documentation and generated files as semantics change.
+6. Run focused suites, porting checks, `make regen`, and finally `make_test`.
 
 Do not mark the feature complete until the implementation, optimizer behavior,
 exception/cleanup paths, documentation, and the full relevant test matrix all
