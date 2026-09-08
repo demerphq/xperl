@@ -490,10 +490,9 @@ A user-defined data-shape protocol.
 =item *
 
 Richer data-shape forms, additional binding forms, and further dispatch
-optimizations remain under consideration.  Constant-only dispatch currently
-accepts duplicate clauses; the earliest matching clause wins, just as it does
-in the ordinary clause walk.  This behavior may be tightened in a future
-experimental version.
+optimizations remain under consideration.  Repeating the same constant data
+shape produces a C<syntax> warning because the later clause can never match.
+The first clause remains the one that wins.
 
 =item *
 

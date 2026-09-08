@@ -67,21 +67,19 @@ the normal multiconcat optimizer leaves their structure intact.  This should
 be reviewed against future optimizer changes and covered by an explicit
 ownership/regression test.
 
-### 2. Clarify and enforce duplicate rules
+### 2. Duplicate constant patterns
 
 For pure constant cases, duplicate values cannot select different clauses: only
 the earliest source clause is reachable.  The implementation currently retains
-the earliest clause for dispatch purposes.  Decide and implement the user-facing
-rule:
-
-- either reject duplicate constant clauses at compile time;
-- or emit an experimental warning while preserving first-clause semantics;
-- or document silent first-clause deduplication as intentional.
+the earliest clause for dispatch purposes.  The compiler now emits a C<syntax>
+warning saying that the duplicate pattern will never match, while preserving
+first-clause semantics.
 
 Guarded and dynamic clauses must not be deduplicated because their evaluation may
 have side effects and their guards can distinguish otherwise equal patterns.
-The diagnostic should identify the duplicate pattern and, where practical,
-both source locations.
+The warning currently uses a general diagnostic.  Improving it to identify the
+duplicate value and, where practical, both source locations remains optional
+diagnostic polish rather than a semantic gap.
 
 ## Priority 2: finish constant dispatch
 

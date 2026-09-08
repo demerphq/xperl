@@ -7092,7 +7092,7 @@ S_case_dispatch_clause(pTHX_ const OP *op, struct case_pattern_aux **auxp,
     return TRUE;
 }
 
-static void
+static bool
 S_case_dispatch_push(pTHX_ AV **valuesp, AV **clausesp, SV *value, U32 clause,
                      U32 capacity, U8 kind)
 {
@@ -7107,7 +7107,7 @@ S_case_dispatch_push(pTHX_ AV **valuesp, AV **clausesp, SV *value, U32 clause,
             if (old && (kind == CASE_PATTERN_SIMPLE_NUM
                         ? do_ncmp(*old, value) == 0
                         : sv_cmp(*old, value) == 0))
-                return;
+                return TRUE;
         }
     }
     if (!*valuesp) {
@@ -7122,6 +7122,7 @@ S_case_dispatch_push(pTHX_ AV **valuesp, AV **clausesp, SV *value, U32 clause,
     }
     av_push(*valuesp, SvREFCNT_inc_simple_NN(value));
     av_push(*clausesp, newSVuv((UV)clause));
+    return FALSE;
 }
 
 static void
@@ -7236,18 +7237,28 @@ S_case_dispatch_key(pTHX_ SV *key, SV *value, U8 kind)
     sv_catsv(key, value);
 }
 
-static void
+static bool
 S_case_dispatch_store(pTHX_ HV **tablep, SV *value, U8 kind, U32 clause)
 {
     SV *key;
+    bool duplicate;
 
     if (!*tablep)
         *tablep = newHV();
     key = newSVpvn("", 0);
     S_case_dispatch_key(aTHX_ key, value, kind);
-    if (!hv_fetch_ent(*tablep, key, FALSE, 0))
+    duplicate = hv_fetch_ent(*tablep, key, FALSE, 0) != NULL;
+    if (!duplicate)
         (void)hv_store_ent(*tablep, key, newSVuv((UV)clause), 0);
     SvREFCNT_dec_NN(key);
+    return duplicate;
+}
+
+static void
+S_case_dispatch_warn_duplicate(pTHX)
+{
+    ck_warner_d(packWARN(WARN_SYNTAX),
+        "duplicate case pattern will never match");
 }
 
 static void
@@ -7348,7 +7359,8 @@ Perl_case_dispatch_compile(pTHX_ OP *body)
     for (kid = cLISTOPx(body)->op_first; kid; kid = OpSIBLING(kid)) {
         struct case_pattern_aux *pattern_aux;
         const OP *pattern;
-    SV *value;
+        SV *value;
+        bool duplicate;
 
         if (OP_TYPE_IS_COP_NN(kid))
             continue;
@@ -7361,7 +7373,10 @@ Perl_case_dispatch_compile(pTHX_ OP *body)
         dispatch->refcnt++;
 
         if (pattern_aux->kind == CASE_PATTERN_SIMPLE_UNDEF) {
-            if (dispatch->undef_clause == CASE_DISPATCH_NO_CLAUSE)
+            duplicate = dispatch->undef_clause != CASE_DISPATCH_NO_CLAUSE;
+            if (duplicate)
+                S_case_dispatch_warn_duplicate(aTHX);
+            else
                 dispatch->undef_clause = pattern_aux->dispatch_clause;
             continue;
         }
@@ -7376,7 +7391,10 @@ Perl_case_dispatch_compile(pTHX_ OP *body)
         value = cSVOPx_sv(pattern);
         if (pattern_aux->kind == CASE_PATTERN_SIMPLE_BOOL) {
             const U32 bool_ix = SvTRUE(value) ? 1 : 0;
-            if (dispatch->bool_clause[bool_ix] == CASE_DISPATCH_NO_CLAUSE)
+            duplicate = dispatch->bool_clause[bool_ix] != CASE_DISPATCH_NO_CLAUSE;
+            if (duplicate)
+                S_case_dispatch_warn_duplicate(aTHX);
+            else
                 dispatch->bool_clause[bool_ix] = pattern_aux->dispatch_clause;
         }
         else if (pattern_aux->kind == CASE_PATTERN_SIMPLE_NUM) {
@@ -7385,27 +7403,31 @@ Perl_case_dispatch_compile(pTHX_ OP *body)
             else
                 S_case_dispatch_add_iv_bound(dispatch, value);
             if (dispatch->strategy == CASE_DISPATCH_HV)
-                S_case_dispatch_store(aTHX_
+                duplicate = S_case_dispatch_store(aTHX_
                     SvNOK(value) ? &dispatch->nv_table : &dispatch->iv_table,
                     value, CASE_PATTERN_SIMPLE_NUM, pattern_aux->dispatch_clause);
             else if (SvNOK(value))
-                S_case_dispatch_push(aTHX_ &dispatch->nv_values,
+                duplicate = S_case_dispatch_push(aTHX_ &dispatch->nv_values,
                     &dispatch->nv_clauses, value, pattern_aux->dispatch_clause,
                     clause_count, CASE_PATTERN_SIMPLE_NUM);
             else
-                S_case_dispatch_push(aTHX_ &dispatch->iv_values,
+                duplicate = S_case_dispatch_push(aTHX_ &dispatch->iv_values,
                     &dispatch->iv_clauses, value, pattern_aux->dispatch_clause,
                     clause_count, CASE_PATTERN_SIMPLE_NUM);
+            if (duplicate)
+                S_case_dispatch_warn_duplicate(aTHX);
         }
         else {
             const STRLEN len = SvCUR(value);
             if (dispatch->strategy == CASE_DISPATCH_HV)
-                S_case_dispatch_store(aTHX_ &dispatch->pv_table, value,
+                duplicate = S_case_dispatch_store(aTHX_ &dispatch->pv_table, value,
                     CASE_PATTERN_SIMPLE_STR, pattern_aux->dispatch_clause);
             else
-                S_case_dispatch_push(aTHX_ &dispatch->pv_values,
+                duplicate = S_case_dispatch_push(aTHX_ &dispatch->pv_values,
                     &dispatch->pv_clauses, value, pattern_aux->dispatch_clause,
                     clause_count, CASE_PATTERN_SIMPLE_STR);
+            if (duplicate)
+                S_case_dispatch_warn_duplicate(aTHX);
             if (!dispatch->pv_has_bounds) {
                 dispatch->pv_minlen = len;
                 dispatch->pv_maxlen = len;

@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-print "1..92\n";
+print "1..93\n";
 
 my $ran = 0;
 $_ = 'outside';
@@ -160,8 +160,9 @@ my $dynamic_array = eval q{
     }
     1;
 };
-print !$@ && $dynamic_array ? "ok 14 - dynamic nested array pattern\n"
-                            : "not ok 14 - dynamic nested array pattern\n";
+print $@ =~ /unsupported case pattern expression/
+    ? "ok 14 - dynamic nested array pattern is rejected\n"
+    : "not ok 14 - dynamic nested array pattern is rejected\n";
 
 my $dynamic_hash = eval q{
     use feature 'case_match';
@@ -171,8 +172,9 @@ my $dynamic_hash = eval q{
     }
     1;
 };
-print !$@ && $dynamic_hash ? "ok 15 - dynamic nested hash pattern\n"
-                           : "not ok 15 - dynamic nested hash pattern\n";
+print $@ =~ /unsupported case pattern expression/
+    ? "ok 15 - dynamic nested hash pattern is rejected\n"
+    : "not ok 15 - dynamic nested hash pattern is rejected\n";
 
 my $regex_match = eval q{
     use feature 'case_match';
@@ -493,25 +495,31 @@ print !$@ && $typed_boolean && $bool_yes && $bool_no && $bool_number
     : "not ok 39 - boolean literals use truth-value semantics\n";
 
 my ($dispatch_order, $dispatch_duplicate, $dispatch_miss) = (0, 0, 0);
-my $constant_dispatch = eval q{
-    use feature 'case_match';
-    use builtin qw(true false);
-    case (1) {
-        match ('1') { $dispatch_order = 1 }
-        match (true) { $dispatch_order = 2 }
-        match (1) { $dispatch_order = 3 }
-    }
-    case (1) {
-        match (1) { $dispatch_duplicate++ }
-        match (1) { $dispatch_duplicate += 10 }
-    }
-    case (3) {
-        match (1) { $dispatch_miss = 1 }
-    }
-    1;
-};
+my @dispatch_warnings;
+my $constant_dispatch;
+{
+    local $SIG{__WARN__} = sub { push @dispatch_warnings, @_ };
+    $constant_dispatch = eval q{
+        use feature 'case_match';
+        use builtin qw(true false);
+        case (1) {
+            match ('1') { $dispatch_order = 1 }
+            match (true) { $dispatch_order = 2 }
+            match (1) { $dispatch_order = 3 }
+        }
+        case (1) {
+            match (1) { $dispatch_duplicate++ }
+            match (1) { $dispatch_duplicate += 10 }
+        }
+        case (3) {
+            match (1) { $dispatch_miss = 1 }
+        }
+        1;
+    };
+}
 print !$@ && $constant_dispatch && $dispatch_order == 2
     && $dispatch_duplicate == 1 && !$dispatch_miss
+    && @dispatch_warnings == 1
     ? "ok 40 - constant dispatch preserves typed source order\n"
     : "not ok 40 - constant dispatch preserves typed source order\n";
 
@@ -1243,3 +1251,29 @@ my $call_inside_shape = eval q{
 print !$@ && $call_inside_shape
     ? "ok 92 - zero-argument calls work inside shapes\n"
     : "not ok 92 - zero-argument calls work inside shapes\n";
+
+my @duplicate_case_warnings;
+my ($duplicate_first, $duplicate_second) = (0, 0);
+my $duplicate_constants;
+{
+    local $SIG{__WARN__} = sub { push @duplicate_case_warnings, @_ };
+    $duplicate_constants = eval q{
+        use feature 'case_match';
+        case (1) {
+            match (1) { $duplicate_first = 1 }
+            match (1) { $duplicate_second = 1 }
+        }
+        case ('x') {
+            match ('x') { 1 }
+            match ('x') { 2 }
+        }
+        1;
+    };
+}
+my $duplicate_warning_count = grep {
+    /duplicate case pattern will never match/
+} @duplicate_case_warnings;
+print !$@ && $duplicate_constants && $duplicate_first == 1
+    && !$duplicate_second && $duplicate_warning_count == 2
+    ? "ok 93 - duplicate constant patterns warn and retain first clause\n"
+    : "not ok 93 - duplicate constant patterns warn and retain first clause\n";

@@ -1085,6 +1085,11 @@ block.
 (F) A function or method call used as a case data-shape value had arguments.
 Only zero-argument calls are supported in this position.
 
+=item duplicate case pattern will never match
+
+(S syntax) A constant data-shape was repeated in a C<case> block.  The first
+clause remains the one that can match; the later clause can never be selected.
+
 =item case pattern call has no callable target
 
 (F) A case data-shape call did not resolve to a callable function or method.
