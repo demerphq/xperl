@@ -275,6 +275,8 @@ blessed array references, and blessed scalar references.  Hash fields use
 quoted field names, array fields are positional, and a trailing hash ellipsis
 allows extra fields.  Class compatibility is checked without calling
 constructors, accessors, overload methods, or arbitrary user methods.
+For v0, a class-qualified pattern requires the object's exact class;
+inheritance and role membership do not satisfy it.
 
 Regression coverage is in `t/comp/case_match.t` for captures, exact versus open
 hash shapes, positional array shapes, scalar-reference shapes, and class
@@ -285,11 +287,25 @@ during pattern compilation.
 Still open for this item:
 
 - declared Perl class instances backed by the class field map/PTROBJ storage;
-- role and subclass policy beyond the current normal class relationship check;
-- field magic, tied values, overloaded values, exceptions, aliases, and
-  reference-identity guarantees;
+- a post-v0 `isa` pattern/operator for inheritance checks, followed by a
+  separate decision about role-membership matching;
+- field magic, tied values, exceptions, aliases, and reference-identity
+  guarantees;
 - a cleaner grammar path for class-qualified reference forms that avoids the
   ordinary indirect-method-call representation.
+
+For v0 acceptance, verify these settled rules explicitly:
+
+- a pinned reference compares by identity, while a reference capture binds the
+  referent normally and does not clone it;
+- native class fields are read directly, without accessors or arbitrary
+  methods, and a missing field is a non-match unless field access itself
+  raises an exception;
+- tied or magical nested values follow ordinary Perl read semantics;
+- overloaded nested values are invoked only when the selected pattern requires
+  string, numeric, or boolean conversion; structural object matching does not
+  stringify the whole object;
+- captured references preserve their original identity.
 
 ## Post-v0 follow-up: additional pattern forms
 
