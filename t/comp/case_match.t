@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-print "1..97\n";
+print "1..102\n";
 
 my $ran = 0;
 $_ = 'outside';
@@ -192,6 +192,20 @@ print !$@ && $regex_match ? "ok 16 - regex pattern\n"
     sub TIESCALAR { bless {}, shift }
     sub FETCH { $fetches++; 7 }
     sub STORE { $_[0]{value} = $_[1] }
+}
+
+{
+    package CaseMatch::RegexTie;
+    our $fetches;
+    sub TIESCALAR { bless { value => $_[1] }, shift }
+    sub FETCH { $fetches++; $_[0]{value} }
+    sub STORE { $_[0]{value} = $_[1] }
+}
+
+{
+    package CaseMatch::Stringified;
+    use overload '""' => sub { $_[0]{value} }, fallback => 1;
+    sub new { bless { value => $_[1] }, shift }
 }
 
 my $subject;
@@ -1352,3 +1366,66 @@ my $regex_code_block = eval q{
 print $@ && $@ =~ /regex code blocks are not supported in case patterns/
     ? "ok 97 - regex code blocks are rejected\n"
     : "not ok 97 - regex code blocks are rejected\n";
+
+my $unicode_regex = eval q{
+    use feature 'case_match';
+    my $word = "caf\x{e9}";
+    case ($word) {
+        match (/^caf\x{e9}$/) { 1 }
+    }
+    1;
+};
+print !$@ && $unicode_regex
+    ? "ok 98 - regex patterns preserve Unicode behavior\n"
+    : "not ok 98 - regex patterns preserve Unicode behavior\n";
+
+my $byte_regex = eval q{
+    use feature 'case_match';
+    my $word = pack 'C*', 99, 97, 102, 233;
+    case ($word) {
+        match (/^caf\xE9$/) { 1 }
+    }
+    1;
+};
+print !$@ && $byte_regex
+    ? "ok 99 - regex patterns preserve byte behavior\n"
+    : "not ok 99 - regex patterns preserve byte behavior\n";
+
+my $regex_open_hash_capture;
+my $regex_open_hash_ok = eval q{
+    use feature 'case_match';
+    case ({ first => 'skip', second => 'target', third => 'tail' }) {
+        match ({ second => /^(?<word>target)$/, ... }) {
+            $regex_open_hash_capture = $word;
+        }
+    }
+    1;
+};
+print !$@ && $regex_open_hash_ok && $regex_open_hash_capture eq 'target'
+    ? "ok 100 - regex patterns search open hashes\n"
+    : "not ok 100 - regex patterns search open hashes\n";
+
+my $regex_tied;
+tie $regex_tied, 'CaseMatch::RegexTie', 'target';
+$CaseMatch::RegexTie::fetches = 0;
+my $regex_tied_ok = eval q{
+    use feature 'case_match';
+    case ($regex_tied) {
+        match (/^target$/) { 1 }
+    }
+    1;
+};
+print !$@ && $regex_tied_ok && $CaseMatch::RegexTie::fetches == 1
+    ? "ok 101 - regex patterns fetch tied subjects once\n"
+    : "not ok 101 - regex patterns fetch tied subjects once\n";
+
+my $regex_overloaded = eval q{
+    use feature 'case_match';
+    case (CaseMatch::Stringified->new('target')) {
+        match (/^target$/) { 1 }
+    }
+    1;
+};
+print !$@ && $regex_overloaded
+    ? "ok 102 - regex patterns use overloaded subjects\n"
+    : "not ok 102 - regex patterns use overloaded subjects\n";
