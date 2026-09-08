@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-print "1..93\n";
+print "1..94\n";
 
 my $ran = 0;
 $_ = 'outside';
@@ -1281,3 +1281,23 @@ print !$@ && $duplicate_constants && $duplicate_first == 1
     && $duplicate_warning_values
     ? "ok 93 - duplicate constant patterns warn and retain first clause\n"
     : "not ok 93 - duplicate constant patterns warn and retain first clause\n";
+
+my @mixed_duplicate_warnings;
+my $mixed_duplicate_constants;
+{
+    local $SIG{__WARN__} = sub { push @mixed_duplicate_warnings, @_ };
+    $mixed_duplicate_constants = eval q{
+        use feature 'case_match';
+        my $dynamic = 1;
+        case (1) {
+            match (1) { 1 }
+            match ($dynamic) { 2 }
+            match (1) { 3 }
+        }
+        1;
+    };
+}
+print !$@ && $mixed_duplicate_constants && @mixed_duplicate_warnings == 1
+    && $mixed_duplicate_warnings[0] =~ /constant 1/
+    ? "ok 94 - duplicate constants warn in mixed cases\n"
+    : "not ok 94 - duplicate constants warn in mixed cases\n";

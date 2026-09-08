@@ -7270,6 +7270,75 @@ S_case_dispatch_warn_duplicate(pTHX_ SV *value, U8 kind)
 }
 
 static void
+S_case_dispatch_warn_duplicates(pTHX_ OP *body)
+{
+    AV *iv_values = NULL;
+    AV *iv_clauses = NULL;
+    AV *nv_values = NULL;
+    AV *nv_clauses = NULL;
+    AV *pv_values = NULL;
+    AV *pv_clauses = NULL;
+    bool undef_seen = FALSE;
+    bool bool_seen[2] = { FALSE, FALSE };
+    OP *kid;
+
+    for (kid = cLISTOPx(body)->op_first; kid; kid = OpSIBLING(kid)) {
+        struct case_pattern_aux *pattern_aux;
+        const OP *pattern;
+        SV *value;
+        bool duplicate;
+
+        if (OP_TYPE_IS_COP_NN(kid)
+            || !S_case_dispatch_clause(aTHX_ kid, &pattern_aux, NULL))
+            continue;
+        if (S_case_pattern_is_wildcard(aTHX_ pattern_aux))
+            break;
+        pattern = pattern_aux->root->op;
+        if (pattern_aux->kind == CASE_PATTERN_SIMPLE_UNDEF) {
+            duplicate = undef_seen;
+            undef_seen = TRUE;
+            if (duplicate)
+                S_case_dispatch_warn_duplicate(aTHX_ NULL,
+                    CASE_PATTERN_SIMPLE_UNDEF);
+            continue;
+        }
+        value = cSVOPx_sv(pattern);
+        if (pattern_aux->kind == CASE_PATTERN_SIMPLE_BOOL) {
+            const U32 bool_ix = SvTRUE(value) ? 1 : 0;
+            duplicate = bool_seen[bool_ix];
+            bool_seen[bool_ix] = TRUE;
+            if (duplicate)
+                S_case_dispatch_warn_duplicate(aTHX_ value,
+                    CASE_PATTERN_SIMPLE_BOOL);
+        }
+        else if (pattern_aux->kind == CASE_PATTERN_SIMPLE_NUM) {
+            if (SvNOK(value))
+                duplicate = S_case_dispatch_push(aTHX_ &nv_values,
+                    &nv_clauses, value, 0, 0, CASE_PATTERN_SIMPLE_NUM);
+            else
+                duplicate = S_case_dispatch_push(aTHX_ &iv_values,
+                    &iv_clauses, value, 0, 0, CASE_PATTERN_SIMPLE_NUM);
+            if (duplicate)
+                S_case_dispatch_warn_duplicate(aTHX_ value,
+                    CASE_PATTERN_SIMPLE_NUM);
+        }
+        else {
+            duplicate = S_case_dispatch_push(aTHX_ &pv_values,
+                &pv_clauses, value, 0, 0, CASE_PATTERN_SIMPLE_STR);
+            if (duplicate)
+                S_case_dispatch_warn_duplicate(aTHX_ value,
+                    CASE_PATTERN_SIMPLE_STR);
+        }
+    }
+    SvREFCNT_dec((SV *)iv_values);
+    SvREFCNT_dec((SV *)iv_clauses);
+    SvREFCNT_dec((SV *)nv_values);
+    SvREFCNT_dec((SV *)nv_clauses);
+    SvREFCNT_dec((SV *)pv_values);
+    SvREFCNT_dec((SV *)pv_clauses);
+}
+
+static void
 S_case_dispatch_sort(pTHX_ AV *values, AV *clauses, U8 kind)
 {
     SSize_t i, j, count;
@@ -7328,6 +7397,7 @@ Perl_case_dispatch_compile(pTHX_ OP *body)
 
     if (!body || body->op_type != OP_LINESEQ)
         return NULL;
+    S_case_dispatch_warn_duplicates(aTHX_ body);
     for (kid = cLISTOPx(body)->op_first; kid; kid = OpSIBLING(kid)) {
         struct case_pattern_aux *pattern_aux;
         if (OP_TYPE_IS_COP_NN(kid))
@@ -7382,10 +7452,7 @@ Perl_case_dispatch_compile(pTHX_ OP *body)
 
         if (pattern_aux->kind == CASE_PATTERN_SIMPLE_UNDEF) {
             duplicate = dispatch->undef_clause != CASE_DISPATCH_NO_CLAUSE;
-            if (duplicate)
-                S_case_dispatch_warn_duplicate(aTHX_ NULL,
-                    CASE_PATTERN_SIMPLE_UNDEF);
-            else
+            if (!duplicate)
                 dispatch->undef_clause = pattern_aux->dispatch_clause;
             continue;
         }
@@ -7401,10 +7468,7 @@ Perl_case_dispatch_compile(pTHX_ OP *body)
         if (pattern_aux->kind == CASE_PATTERN_SIMPLE_BOOL) {
             const U32 bool_ix = SvTRUE(value) ? 1 : 0;
             duplicate = dispatch->bool_clause[bool_ix] != CASE_DISPATCH_NO_CLAUSE;
-            if (duplicate)
-                S_case_dispatch_warn_duplicate(aTHX_ value,
-                    CASE_PATTERN_SIMPLE_BOOL);
-            else
+            if (!duplicate)
                 dispatch->bool_clause[bool_ix] = pattern_aux->dispatch_clause;
         }
         else if (pattern_aux->kind == CASE_PATTERN_SIMPLE_NUM) {
@@ -7424,9 +7488,6 @@ Perl_case_dispatch_compile(pTHX_ OP *body)
                 duplicate = S_case_dispatch_push(aTHX_ &dispatch->iv_values,
                     &dispatch->iv_clauses, value, pattern_aux->dispatch_clause,
                     clause_count, CASE_PATTERN_SIMPLE_NUM);
-            if (duplicate)
-                S_case_dispatch_warn_duplicate(aTHX_ value,
-                    CASE_PATTERN_SIMPLE_NUM);
         }
         else {
             const STRLEN len = SvCUR(value);
@@ -7437,9 +7498,6 @@ Perl_case_dispatch_compile(pTHX_ OP *body)
                 duplicate = S_case_dispatch_push(aTHX_ &dispatch->pv_values,
                     &dispatch->pv_clauses, value, pattern_aux->dispatch_clause,
                     clause_count, CASE_PATTERN_SIMPLE_STR);
-            if (duplicate)
-                S_case_dispatch_warn_duplicate(aTHX_ value,
-                    CASE_PATTERN_SIMPLE_STR);
             if (!dispatch->pv_has_bounds) {
                 dispatch->pv_minlen = len;
                 dispatch->pv_maxlen = len;
