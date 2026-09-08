@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-print "1..94\n";
+print "1..97\n";
 
 my $ran = 0;
 $_ = 'outside';
@@ -1301,3 +1301,54 @@ print !$@ && $mixed_duplicate_constants && @mixed_duplicate_warnings == 1
     && $mixed_duplicate_warnings[0] =~ /constant 1/
     ? "ok 94 - duplicate constants warn in mixed cases\n"
     : "not ok 94 - duplicate constants warn in mixed cases\n";
+
+my $regex_open_capture;
+my $regex_open_ok = eval q{
+    use feature 'case_match';
+    case ([ 'skip', 'target', 'tail' ]) {
+        match ([ ..., /^(?<word>target)$/, ... ]) {
+            $regex_open_capture = $word;
+        }
+    }
+    1;
+};
+print !$@ && $regex_open_ok && $regex_open_capture eq 'target'
+    ? "ok 95 - regex patterns search open arrays\n"
+    : "not ok 95 - regex patterns search open arrays\n";
+
+my $regex_localization = eval q{
+    use feature 'case_match';
+    'outer' =~ /(?<outer>outer)/;
+    my ($before_one, $before_named) = ($1, $+{outer});
+    my ($inside_one, $inside_two, $inside_named);
+    case ('inner value') {
+        match (/(?<inner>inner) (value)/) {
+            ($inside_one, $inside_two, $inside_named) =
+                ($1, $2, $+{inner});
+        }
+    }
+    [ $before_one, $before_named, $inside_one, $inside_two,
+      $inside_named, $1, $+{outer}, $-{outer}[0] ];
+};
+print !$@ && $regex_localization
+    && $regex_localization->[0] eq 'outer'
+    && $regex_localization->[1] eq 'outer'
+    && $regex_localization->[2] eq 'inner'
+    && $regex_localization->[3] eq 'value'
+    && $regex_localization->[4] eq 'inner'
+    && $regex_localization->[5] eq 'outer'
+    && $regex_localization->[6] eq 'outer'
+    && $regex_localization->[7] eq 'outer'
+    ? "ok 96 - regex captures are localized to the case\n"
+    : "not ok 96 - regex captures are localized to the case\n";
+
+my $regex_code_block = eval q{
+    use feature 'case_match';
+    case ('foo') {
+        match (/(?{ 1 })foo/) { 1; }
+    }
+    1;
+};
+print $@ && $@ =~ /regex code blocks are not supported in case patterns/
+    ? "ok 97 - regex code blocks are rejected\n"
+    : "not ok 97 - regex code blocks are rejected\n";

@@ -156,6 +156,12 @@ example, `match (/^user: (?<name>[[:word:]]+)$/) { say $name }` binds `$name`
 when the subject matches; a named capture that does not participate is bound
 to `undef`.
 
+For an open array or hash shape, a static regular expression is compiled once
+and its compiled form is reused for each candidate.  Regex code blocks,
+`(?{ ... })` and `(??{ ... })`, are currently rejected while the case pattern
+is compiled; they must not be silently ignored.  Unicode and byte-string
+behavior remains the responsibility of the regular-expression engine.
+
 Numeric criteria add a controlled distinction between native numbers and
 numeric-looking strings.  `IntStr`, `FloatStr`, and `NumStr` can both match and
 bind values; they accept surrounding whitespace and leading-zero padding by

@@ -187,12 +187,23 @@ Regex data shapes, ordinary captures, named clause-local bindings, and
 `undef` for nonparticipating named captures are implemented.  Remaining
 hardening includes:
 
-- behavior for duplicate named captures;
-- evaluation of subject and regex exactly once;
-- Unicode, byte, magic, and tied-subject behavior;
-- rejection or explicit handling of `(?{ ... })` and `(??{ ... })` code blocks;
-- preservation of `$1`, `$2`, `%+`, and related legacy behavior outside the
-  pattern-binding interface.
+- allowing the regex engine to define duplicate named-capture behavior;
+- defining and testing genuinely dynamic regex construction; static regex
+  literals are compiled at source-code compile time and their compiled form is
+  reused for every candidate in an open array or hash search;
+- defining evaluation rules for genuinely dynamic regex construction;
+- leaving Unicode and byte-string behavior to the regex engine, while testing
+  that the case matcher does not interfere with it;
+- deciding whether to support `(?{ ... })` and `(??{ ... })`.  They are
+  currently rejected during case-pattern compilation so that their side
+  effects cannot be silently lost.  Any future support must define how their
+  state behaves when one compiled regex is applied to several candidates;
+- preserving and localizing `$1`, `$2`, `%+`, `%-`, and related legacy capture
+  state so that the enclosing case restores the previous match when it exits.
+
+A non-participating named capture is a named group whose branch was not taken
+by the successful regex match.  It remains a clause-local binding with the
+undefined value, following the regex engine's result.
 
 ### 8. Object and class patterns
 

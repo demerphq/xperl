@@ -246,12 +246,23 @@ Named captures become clause-local scalar bindings.  They are copies of the
 values selected by the regular expression, so the clause can use C<$name>
 directly.  The normal regular-expression variables, such as C<$1> and
 C<$+{name}>, are also updated and remain available.  A named capture that did
-not participate in a successful match is bound to C<undef>.
+not participate in a successful match is still bound to C<undef>.  Duplicate
+named captures follow the behavior of the regular-expression engine.
 
 The regular expression is still a regular Perl regular expression.  Its
-ordinary matching behavior, including its capture rules, applies.  Regex
-code blocks and using a regular expression as one fragment of a larger string
-data shape are not yet specified by this feature.
+ordinary matching behavior, including its capture rules, applies.  A static
+regular expression is compiled once and may be applied repeatedly while an
+open array or hash shape searches for a candidate.  The regex engine controls
+Unicode and byte-string behavior.  Regex code blocks, C<(?{ ... })> and
+C<(??{ ... })>, are not currently supported in a data-shape regex.  They are
+rejected while the pattern is compiled, rather than being silently ignored.
+This restriction may be revisited once their interaction with repeated
+candidate matching has been specified.  Using a regular expression as one
+fragment of a larger string data shape remains unsupported.
+
+The ordinary capture state is localized to the C<case> block.  When the case
+ends, the previous values of C<$1>, C<$2>, C<%+>, C<%->, and related match
+variables are restored.
 
 =head2 Concatenated string data shapes
 

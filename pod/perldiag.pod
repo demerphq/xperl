@@ -1085,6 +1085,13 @@ block.
 (F) A function or method call used as a case data-shape value had arguments.
 Only zero-argument calls are supported in this position.
 
+=item regex code blocks are not supported in case patterns
+
+(F) A case data-shape regular expression contained a C<(?{ ... })> or
+C<(??{ ... })> code block.  These constructs are not currently supported in a
+case pattern because their side effects cannot be safely defined when one
+compiled expression is applied to multiple candidates.
+
 =item duplicate case pattern constant %s will never match; duplicate at %s, first at %s
 
 (S syntax) A constant data-shape was repeated in a C<case> block.  The first

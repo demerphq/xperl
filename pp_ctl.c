@@ -6554,6 +6554,9 @@ Perl_case_pattern_note_regex(pTHX_ const OP *pattern)
     re = PM_GETRE(cPMOPx(match));
     if (!re)
         return;
+    if (RX_EXTFLAGS(re) & RXf_EVAL_SEEN)
+        Perl_croak(aTHX_
+            "regex code blocks are not supported in case patterns");
     names_ref = CALLREG_NAMED_BUFF_ALL(re, RXapif_ALL | RXapif_REGNAMES);
     if (!names_ref || !SvROK(names_ref)) {
         SvREFCNT_dec(names_ref);
