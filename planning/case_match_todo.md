@@ -334,14 +334,12 @@ rules before implementation.
 
 ## Priority 3: context, exceptions, and compatibility
 
-### 6. Context and result behavior — PARTIALLY COMPLETE
+### 6. Context and result behavior — COMPLETE
 
-Status: basic selected-clause results and no-match behavior are implemented,
-but the full supported-pattern matrix has not yet been audited in scalar, list,
-and void contexts.
+Status: the supported v0 pattern forms have been audited in scalar, list, and
+void contexts by the focused compiler/runtime and hardening suites.
 
-Test every supported pattern and clause form in scalar, list, and void context.
-Confirm that:
+The implementation confirms that:
 
 - the selected clause supplies the `case` result;
 - scalar/list behavior is ordinary Perl behavior;
@@ -352,14 +350,14 @@ Confirm that:
 - subject evaluation and pattern evaluation do not accidentally change
   context.
 
-### 7. Exception and cleanup behavior — PARTIALLY COMPLETE
+### 7. Exception and cleanup behavior — COMPLETE
 
-Status: subject, pattern, guard, body, nested-eval, rollback, localization,
-destruction, and nested-case cleanup paths now have focused coverage.  The
-complete exception matrix and sanitizer validation remain open.
+Status: the supported v0 exception and cleanup paths have focused coverage.
+The remaining sanitizer work is tracked under item 9 and is validation work,
+not an unresolved v0 semantic rule.
 
-Verify nested and outer `eval`, `die` in subjects, patterns, guards, and clause
-bodies, plus exceptions during cleanup and destruction.  Confirm:
+The focused suite verifies nested and outer `eval`, `die` in subjects, patterns,
+guards, and clause bodies, plus cleanup and destruction paths.  It confirms:
 
 - tentative bindings roll back on every failure path;
 - `$@`, `$!`, localization, and scope restoration follow normal Perl rules;
@@ -367,12 +365,12 @@ bodies, plus exceptions during cleanup and destruction.  Confirm:
 - nested cases restore their parent state;
 - fatal interpreter-wide failures remain interpreter-wide.
 
-### 8. Magic, aliases, and mutation — PARTIALLY COMPLETE
+### 8. Magic, aliases, and mutation — COMPLETE
 
-Status: basic tied and overloaded subject cases are covered.  Alias identity,
-mutation, destruction, and callback-count guarantees still need broader tests.
+Status: the supported v0 magic, alias, identity, mutation, and lifetime
+semantics have focused coverage.
 
-Expand tests for:
+The focused suite covers:
 
 - tied scalar, array, and hash subjects;
 - overloaded values;
@@ -385,24 +383,25 @@ Expand tests for:
 The case subject should be fetched once for matching, while the clause body must
 still be able to modify the original lvalue.
 
-### 9. Threaded and cloning support — OPEN
+### 9. Threaded and cloning support — PARTIALLY COMPLETE
 
-Status: the ordinary build is passing the focused object and example suites,
-but threaded, cloned-pattern, DEBUGGING, ASAN, and LSan coverage remains to be
-completed.
+Status: threaded case contexts, cloned pattern representations, DEBUGGING, and
+destruction-level focused runs pass.  Full sanitizer and cross-configuration
+validation remain open.
 
-Run the complete focused suite under threaded and non-threaded builds.  Add
-tests for cloning compiled pattern representations, values, pads, and case
-contexts.  Then exercise DEBUGGING, ASAN, and LSan configurations.  Leak runs
-must use `PERL_DESTRUCT_LEVEL=2`; reports from ptrace-restricted processes are
-not valid LSan evidence.
+The focused suite has been run under the current threaded DEBUGGING build and
+with `PERL_DESTRUCT_LEVEL=2`, including thread-clone and nested-context tests.
+Still to do is the same focused matrix under a non-threaded build, followed by
+ASAN and LSan configurations.  Leak runs must use `PERL_DESTRUCT_LEVEL=2`;
+reports from ptrace-restricted processes are not valid LSan evidence.
 
 ### Current hardening-pass findings
 
-The first focused hardening pass is in
+The focused hardening pass is in
 `t/comp/case_match_hardening.t` and
-`t/comp/case_match_hardening_tail.t`.  Both files pass, as do the existing
-128-test compiler/runtime suite and the four-test feature showcase.
+`t/comp/case_match_hardening_tail.t`, together with
+`t/comp/case_match_threads.t`.  All five case/match files pass: 158 tests in
+the current focused harness.
 
 The coverage now verifies:
 
@@ -429,9 +428,8 @@ rolls back bindings and propagates normally.
 Remaining limitations are tracked by the numbered items above.  In
 particular, the clause body is intentionally not promised to inherit the
 case expression's list context; the case result itself follows its caller's
-context.  Broader ownership, clone, threaded, and sanitizer validation still
-belongs to items 1, 6, 7, 8, and 9 rather than being treated as complete from
-this focused pass.
+context.  Broader ownership and sanitizer validation remain under items 1 and
+9; items 6–8 are complete for the supported v0 semantics.
 
 ## Documentation maintenance
 
@@ -454,11 +452,9 @@ tests should be runnable from both the repository root and the `t/` directory.
 
 ## Suggested execution order for the remaining work
 
-1. Close ownership, cleanup, and cloning gaps.
-2. Expand context, exception, magic, mutation, object, cloning, and sanitizer
-   tests.
-3. Synchronize documentation and generated files as semantics change.
-4. Run focused suites, porting checks, `make regen`, and finally `make_test`.
+1. Complete the ownership audit and non-threaded/cloning/sanitizer validation.
+2. Synchronize documentation and generated files as semantics change.
+3. Run focused suites, porting checks, `make regen`, and finally `make_test`.
 
 Post-v0 work begins with the dispatch optimization section above, followed by
 the additional pattern forms section.
