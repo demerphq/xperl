@@ -77,9 +77,9 @@ first-clause semantics.
 
 Guarded and dynamic clauses must not be deduplicated because their evaluation may
 have side effects and their guards can distinguish otherwise equal patterns.
-The warning currently uses a general diagnostic.  Improving it to identify the
-duplicate value and, where practical, both source locations remains optional
-diagnostic polish rather than a semantic gap.
+The warning identifies the duplicate value and its source location.  Reporting
+the original clause's source location as well remains optional diagnostic
+polish rather than a semantic gap.
 
 ## Priority 2: finish constant dispatch
 

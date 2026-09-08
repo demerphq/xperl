@@ -46,7 +46,8 @@ Data shapes may also use zero-argument function and method calls as scalar
 values.  Calls are made in scalar context when their clause is tried; calls
 with arguments remain unsupported.  Repeating a constant data shape produces
 a C<syntax> warning because the later clause can never match; the first clause
-remains selected.
+remains selected.  The warning includes the repeated constant and its source
+location.
 
 Array data shapes may capture a final tail with C<@name>, or require a minimum
 tail length with C<@name:N>.  The typed criteria C<RefVal>, C<ScalarVal>, and

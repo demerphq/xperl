@@ -1271,9 +1271,13 @@ my $duplicate_constants;
     };
 }
 my $duplicate_warning_count = grep {
-    /duplicate case pattern will never match/
+    /duplicate case pattern constant (?:1|x) will never match/
 } @duplicate_case_warnings;
+my $duplicate_warning_values = grep {
+    /constant 1/ && /constant x/
+} join('', @duplicate_case_warnings);
 print !$@ && $duplicate_constants && $duplicate_first == 1
     && !$duplicate_second && $duplicate_warning_count == 2
+    && $duplicate_warning_values
     ? "ok 93 - duplicate constant patterns warn and retain first clause\n"
     : "not ok 93 - duplicate constant patterns warn and retain first clause\n";

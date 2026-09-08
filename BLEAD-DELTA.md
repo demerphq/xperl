@@ -227,7 +227,8 @@ include linear, binary-search, and hash-based constant lookup.  These are
 performance choices, not different language features: source order, the first
 successful clause, and default-clause behavior remain the same.  Repeating a
 constant data shape emits a C<syntax> warning because the later clause can
-never match; the first clause remains selected.
+never match.  The warning includes the repeated constant and its source
+location; the first clause remains selected.
 
 This feature is independent of Perl's older `given`/`when` mechanism.  The two
 constructs are alternatives for conditional code, but `case`/`match` has no

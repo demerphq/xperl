@@ -7255,10 +7255,18 @@ S_case_dispatch_store(pTHX_ HV **tablep, SV *value, U8 kind, U32 clause)
 }
 
 static void
-S_case_dispatch_warn_duplicate(pTHX)
+S_case_dispatch_warn_duplicate(pTHX_ SV *value, U8 kind)
 {
+    const char *value_text;
+
+    if (kind == CASE_PATTERN_SIMPLE_UNDEF)
+        value_text = "undef";
+    else if (kind == CASE_PATTERN_SIMPLE_BOOL)
+        value_text = SvTRUE(value) ? "true" : "false";
+    else
+        value_text = SvPV_nolen_const(value);
     ck_warner_d(packWARN(WARN_SYNTAX),
-        "duplicate case pattern will never match");
+        "duplicate case pattern constant %s will never match", value_text);
 }
 
 static void
@@ -7375,7 +7383,8 @@ Perl_case_dispatch_compile(pTHX_ OP *body)
         if (pattern_aux->kind == CASE_PATTERN_SIMPLE_UNDEF) {
             duplicate = dispatch->undef_clause != CASE_DISPATCH_NO_CLAUSE;
             if (duplicate)
-                S_case_dispatch_warn_duplicate(aTHX);
+                S_case_dispatch_warn_duplicate(aTHX_ NULL,
+                    CASE_PATTERN_SIMPLE_UNDEF);
             else
                 dispatch->undef_clause = pattern_aux->dispatch_clause;
             continue;
@@ -7393,7 +7402,8 @@ Perl_case_dispatch_compile(pTHX_ OP *body)
             const U32 bool_ix = SvTRUE(value) ? 1 : 0;
             duplicate = dispatch->bool_clause[bool_ix] != CASE_DISPATCH_NO_CLAUSE;
             if (duplicate)
-                S_case_dispatch_warn_duplicate(aTHX);
+                S_case_dispatch_warn_duplicate(aTHX_ value,
+                    CASE_PATTERN_SIMPLE_BOOL);
             else
                 dispatch->bool_clause[bool_ix] = pattern_aux->dispatch_clause;
         }
@@ -7415,7 +7425,8 @@ Perl_case_dispatch_compile(pTHX_ OP *body)
                     &dispatch->iv_clauses, value, pattern_aux->dispatch_clause,
                     clause_count, CASE_PATTERN_SIMPLE_NUM);
             if (duplicate)
-                S_case_dispatch_warn_duplicate(aTHX);
+                S_case_dispatch_warn_duplicate(aTHX_ value,
+                    CASE_PATTERN_SIMPLE_NUM);
         }
         else {
             const STRLEN len = SvCUR(value);
@@ -7427,7 +7438,8 @@ Perl_case_dispatch_compile(pTHX_ OP *body)
                     &dispatch->pv_clauses, value, pattern_aux->dispatch_clause,
                     clause_count, CASE_PATTERN_SIMPLE_STR);
             if (duplicate)
-                S_case_dispatch_warn_duplicate(aTHX);
+                S_case_dispatch_warn_duplicate(aTHX_ value,
+                    CASE_PATTERN_SIMPLE_STR);
             if (!dispatch->pv_has_bounds) {
                 dispatch->pv_minlen = len;
                 dispatch->pv_maxlen = len;

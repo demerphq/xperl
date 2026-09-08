@@ -492,7 +492,8 @@ A user-defined data-shape protocol.
 Richer data-shape forms, additional binding forms, and further dispatch
 optimizations remain under consideration.  Repeating the same constant data
 shape produces a C<syntax> warning because the later clause can never match.
-The first clause remains the one that wins.
+The warning includes the repeated constant and its source location.  The first
+clause remains the one that wins.
 
 =item *
 
