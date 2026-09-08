@@ -7255,9 +7255,20 @@ S_case_dispatch_store(pTHX_ HV **tablep, SV *value, U8 kind, U32 clause)
 }
 
 static void
-S_case_dispatch_warn_duplicate(pTHX_ SV *value, U8 kind)
+S_case_dispatch_warn_duplicate(pTHX_ SV *value, U8 kind,
+                               const COP *first_cop, const COP *duplicate_cop)
 {
     const char *value_text;
+    const char *first_file = first_cop ? CopFILE(first_cop) : "<unknown>";
+    const char *duplicate_file = duplicate_cop
+        ? CopFILE(duplicate_cop) : "<unknown>";
+    const line_t first_line = first_cop ? CopLINE(first_cop) : NOLINE;
+    const line_t duplicate_line = duplicate_cop
+        ? CopLINE(duplicate_cop) : NOLINE;
+    const char *first_location = form("%s line %" LINE_Tf,
+        first_file, first_line);
+    const char *duplicate_location = form("%s line %" LINE_Tf,
+        duplicate_file, duplicate_line);
 
     if (kind == CASE_PATTERN_SIMPLE_UNDEF)
         value_text = "undef";
@@ -7266,7 +7277,8 @@ S_case_dispatch_warn_duplicate(pTHX_ SV *value, U8 kind)
     else
         value_text = SvPV_nolen_const(value);
     ck_warner_d(packWARN(WARN_SYNTAX),
-        "duplicate case pattern constant %s will never match", value_text);
+        "duplicate case pattern constant %s will never match; duplicate at "
+        "%s, first at %s", value_text, duplicate_location, first_location);
 }
 
 static void
@@ -7280,6 +7292,12 @@ S_case_dispatch_warn_duplicates(pTHX_ OP *body)
     AV *pv_clauses = NULL;
     bool undef_seen = FALSE;
     bool bool_seen[2] = { FALSE, FALSE };
+    const COP *undef_cop = NULL;
+    const COP *bool_cop[2] = { NULL, NULL };
+    AV *iv_sources = NULL;
+    AV *nv_sources = NULL;
+    AV *pv_sources = NULL;
+    const COP *cop = NULL;
     OP *kid;
 
     for (kid = cLISTOPx(body)->op_first; kid; kid = OpSIBLING(kid)) {
@@ -7288,8 +7306,11 @@ S_case_dispatch_warn_duplicates(pTHX_ OP *body)
         SV *value;
         bool duplicate;
 
-        if (OP_TYPE_IS_COP_NN(kid)
-            || !S_case_dispatch_clause(aTHX_ kid, &pattern_aux, NULL))
+        if (OP_TYPE_IS_COP_NN(kid)) {
+            cop = cCOPx(kid);
+            continue;
+        }
+        if (!S_case_dispatch_clause(aTHX_ kid, &pattern_aux, NULL))
             continue;
         if (S_case_pattern_is_wildcard(aTHX_ pattern_aux))
             break;
@@ -7299,7 +7320,9 @@ S_case_dispatch_warn_duplicates(pTHX_ OP *body)
             undef_seen = TRUE;
             if (duplicate)
                 S_case_dispatch_warn_duplicate(aTHX_ NULL,
-                    CASE_PATTERN_SIMPLE_UNDEF);
+                    CASE_PATTERN_SIMPLE_UNDEF, undef_cop, cop);
+            else
+                undef_cop = cop;
             continue;
         }
         value = cSVOPx_sv(pattern);
@@ -7309,25 +7332,66 @@ S_case_dispatch_warn_duplicates(pTHX_ OP *body)
             bool_seen[bool_ix] = TRUE;
             if (duplicate)
                 S_case_dispatch_warn_duplicate(aTHX_ value,
-                    CASE_PATTERN_SIMPLE_BOOL);
+                    CASE_PATTERN_SIMPLE_BOOL, bool_cop[bool_ix], cop);
+            else
+                bool_cop[bool_ix] = cop;
         }
         else if (pattern_aux->kind == CASE_PATTERN_SIMPLE_NUM) {
+            AV **sourcesp = SvNOK(value) ? &nv_sources : &iv_sources;
+            AV *sources = *sourcesp;
+            SSize_t i;
+            const COP *first_cop = NULL;
+
             if (SvNOK(value))
                 duplicate = S_case_dispatch_push(aTHX_ &nv_values,
                     &nv_clauses, value, 0, 0, CASE_PATTERN_SIMPLE_NUM);
             else
                 duplicate = S_case_dispatch_push(aTHX_ &iv_values,
                     &iv_clauses, value, 0, 0, CASE_PATTERN_SIMPLE_NUM);
-            if (duplicate)
+            if (duplicate) {
+                for (i = 0; i <= av_len(sources); i++) {
+                    SV **old = av_fetch(SvNOK(value)
+                        ? nv_values : iv_values, i, FALSE);
+                    if (old && do_ncmp(*old, value) == 0) {
+                        SV **source = av_fetch(sources, i, FALSE);
+                        if (source)
+                            first_cop = INT2PTR(const COP *, SvUVX(*source));
+                        break;
+                    }
+                }
                 S_case_dispatch_warn_duplicate(aTHX_ value,
-                    CASE_PATTERN_SIMPLE_NUM);
+                    CASE_PATTERN_SIMPLE_NUM, first_cop, cop);
+            }
+            else {
+                if (!sources)
+                    sources = *sourcesp = newAV();
+                av_push(sources, newSVuv(PTR2UV(cop)));
+            }
         }
         else {
+            AV *sources = pv_sources;
+            SSize_t i;
+            const COP *first_cop = NULL;
             duplicate = S_case_dispatch_push(aTHX_ &pv_values,
                 &pv_clauses, value, 0, 0, CASE_PATTERN_SIMPLE_STR);
-            if (duplicate)
+            if (duplicate) {
+                for (i = 0; i <= av_len(pv_values); i++) {
+                    SV **old = av_fetch(pv_values, i, FALSE);
+                    if (old && sv_cmp(*old, value) == 0) {
+                        SV **source = av_fetch(sources, i, FALSE);
+                        if (source)
+                            first_cop = INT2PTR(const COP *, SvUVX(*source));
+                        break;
+                    }
+                }
                 S_case_dispatch_warn_duplicate(aTHX_ value,
-                    CASE_PATTERN_SIMPLE_STR);
+                    CASE_PATTERN_SIMPLE_STR, first_cop, cop);
+            }
+            else {
+                if (!sources)
+                    sources = pv_sources = newAV();
+                av_push(sources, newSVuv(PTR2UV(cop)));
+            }
         }
     }
     SvREFCNT_dec((SV *)iv_values);
@@ -7336,6 +7400,9 @@ S_case_dispatch_warn_duplicates(pTHX_ OP *body)
     SvREFCNT_dec((SV *)nv_clauses);
     SvREFCNT_dec((SV *)pv_values);
     SvREFCNT_dec((SV *)pv_clauses);
+    SvREFCNT_dec((SV *)iv_sources);
+    SvREFCNT_dec((SV *)nv_sources);
+    SvREFCNT_dec((SV *)pv_sources);
 }
 
 static void

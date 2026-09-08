@@ -1085,7 +1085,7 @@ block.
 (F) A function or method call used as a case data-shape value had arguments.
 Only zero-argument calls are supported in this position.
 
-=item duplicate case pattern constant %s will never match
+=item duplicate case pattern constant %s will never match; duplicate at %s, first at %s
 
 (S syntax) A constant data-shape was repeated in a C<case> block.  The first
 clause remains the one that can match; the later clause can never be selected.
