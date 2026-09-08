@@ -242,6 +242,7 @@ struct case_pattern_node {
     struct case_pattern_node **child;
     U32 nchild;
     PADOFFSET binding_padix;
+    bool binding_local;
     const SV *object_class;
     struct case_pattern_node *object_shape;
 };

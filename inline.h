@@ -4503,10 +4503,11 @@ Perl_cx_popcase(pTHX_ PERL_CONTEXT *cx)
     if (cx->blk_case.case_committed_bindings) {
         AV *bindings = cx->blk_case.case_committed_bindings;
         SSize_t i;
-        for (i = 0; i + 2 <= av_len(bindings); i += 3) {
+        for (i = 0; i + 3 <= av_len(bindings); i += 4) {
             SV **padix_sv = av_fetch(bindings, i, FALSE);
             SV **is_array_sv = av_fetch(bindings, i + 2, FALSE);
-            if (padix_sv && is_array_sv) {
+            SV **clear_sv = av_fetch(bindings, i + 3, FALSE);
+            if (padix_sv && is_array_sv && clear_sv && SvTRUE(*clear_sv)) {
                 SV *target = PAD_SV((PADOFFSET)SvUV(*padix_sv));
                 if (SvTRUE(*is_array_sv))
                     av_clear(MUTABLE_AV(target));
@@ -4520,7 +4521,7 @@ Perl_cx_popcase(pTHX_ PERL_CONTEXT *cx)
     if (cx->blk_case.case_bindings) {
         AV *bindings = cx->blk_case.case_bindings;
         SSize_t i;
-        for (i = 0; i + 2 <= av_len(bindings); i += 3) {
+        for (i = 0; i + 3 <= av_len(bindings); i += 4) {
             SV **padix_sv = av_fetch(bindings, i, FALSE);
             SV **old_value_sv = av_fetch(bindings, i + 1, FALSE);
             SV **is_array_sv = av_fetch(bindings, i + 2, FALSE);

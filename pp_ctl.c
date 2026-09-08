@@ -6196,6 +6196,7 @@ struct case_binding {
     SV *value;
     bool owned;
     bool is_array;
+    bool clear_on_exit;
 };
 
 static PERL_CONTEXT *S_case_context(pTHX);
@@ -6536,6 +6537,8 @@ S_case_pattern_concat_match(pTHX_ const struct case_pattern_node *node,
                 bindings[*nbindings].value = captured;
                 bindings[*nbindings].owned = TRUE;
                 bindings[*nbindings].is_array = FALSE;
+                bindings[*nbindings].clear_on_exit =
+                    S_case_pattern_unwrap(part)->binding_local;
                 (*nbindings)++;
                 cursor = end;
             }
@@ -6657,9 +6660,11 @@ S_case_pattern_compile_node(pTHX_ const OP *op, bool preserve_lists)
         1, sizeof(struct case_pattern_node));
     node->op = op;
     node->binding_padix = NOT_IN_PAD;
+    node->binding_local = FALSE;
     if (op->op_type == OP_PADSV) {
         const PADOFFSET oldpad = op->op_targ;
         node->binding_padix = oldpad;
+        node->binding_local = TRUE;
         if (preserve_lists && PL_parser
             && PL_parser->case_pattern_vars) {
             HE *he;
@@ -6679,6 +6684,7 @@ S_case_pattern_compile_node(pTHX_ const OP *op, bool preserve_lists)
                                 || (candidate[0] == '$'
                                     && strEQ(candidate + 1, wanted)))) {
                             node->binding_padix = existing;
+                            node->binding_local = FALSE;
                             break;
                         }
                     }
@@ -8110,7 +8116,7 @@ S_case_rollback_bindings(pTHX_ PERL_CONTEXT *cx)
 
     if (!bindings)
         return;
-    for (i = 0; i + 2 <= av_len(bindings); i += 3) {
+    for (i = 0; i + 3 <= av_len(bindings); i += 4) {
         SV **padix_sv = av_fetch(bindings, i, FALSE);
         SV **old_value_sv = av_fetch(bindings, i + 1, FALSE);
         SV **is_array_sv = av_fetch(bindings, i + 2, FALSE);
@@ -8145,6 +8151,24 @@ S_case_pattern_find_shape_node(const struct case_pattern_node *node)
             S_case_pattern_find_shape_node(node->child[i]);
         if (shape)
             return shape;
+    }
+    return NULL;
+}
+
+static const struct case_pattern_node *
+S_case_pattern_find_op_node(const struct case_pattern_node *node, const OP *op)
+{
+    U32 i;
+
+    if (!node)
+        return NULL;
+    if (node->op == op)
+        return node;
+    for (i = 0; i < node->nchild; i++) {
+        const struct case_pattern_node *found =
+            S_case_pattern_find_op_node(node->child[i], op);
+        if (found)
+            return found;
     }
     return NULL;
 }
@@ -8364,6 +8388,8 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
         {
             size_t i;
             const PADOFFSET padix = target->op_targ;
+            const struct case_pattern_node *target_node =
+                S_case_pattern_find_op_node(node, target);
             for (i = 0; i < *nbindings; i++)
                 if (bindings[i].padix == padix)
                     return sv_eq(bindings[i].value, value);
@@ -8373,6 +8399,8 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             bindings[*nbindings].value = value;
             bindings[*nbindings].owned = FALSE;
             bindings[*nbindings].is_array = FALSE;
+            bindings[*nbindings].clear_on_exit = target_node
+                ? target_node->binding_local : TRUE;
             (*nbindings)++;
         }
         return TRUE;
@@ -8423,6 +8451,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
         bindings[*nbindings].value = value;
         bindings[*nbindings].owned = FALSE;
         bindings[*nbindings].is_array = FALSE;
+        bindings[*nbindings].clear_on_exit = node->binding_local;
         (*nbindings)++;
         return TRUE;
     }
@@ -8564,6 +8593,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                 bindings[*nbindings].value = (SV *)rest;
                 bindings[*nbindings].owned = TRUE;
                 bindings[*nbindings].is_array = TRUE;
+                bindings[*nbindings].clear_on_exit = slurp->binding_local;
                 (*nbindings)++;
             }
             return TRUE;
@@ -8678,6 +8708,7 @@ S_case_pattern_bind_regex(pTHX_ const struct case_pattern_aux *aux,
         bindings[*nbindings].value = captured;
         bindings[*nbindings].owned = TRUE;
         bindings[*nbindings].is_array = FALSE;
+        bindings[*nbindings].clear_on_exit = TRUE;
         (*nbindings)++;
     }
 }
@@ -8731,12 +8762,14 @@ PP(pp_casematch)
                                      MUTABLE_AV(PAD_SV(bindings[i].padix)));
                     av_push(pending, newRV_noinc((SV *)old));
                     av_push(pending, newSViv(1));
+                    av_push(pending, newSViv(bindings[i].clear_on_exit));
                     S_case_set_array(aTHX_ PAD_SV(bindings[i].padix),
                                      MUTABLE_AV(bindings[i].value));
                 }
                 else {
                     av_push(pending, newSVsv(PAD_SV(bindings[i].padix)));
                     av_push(pending, newSViv(0));
+                    av_push(pending, newSViv(bindings[i].clear_on_exit));
                     sv_setsv(PAD_SV(bindings[i].padix), bindings[i].value);
                 }
             }
