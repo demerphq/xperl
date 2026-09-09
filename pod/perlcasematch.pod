@@ -425,6 +425,16 @@ This prints C<record with extra keys: 42>.  The first clause fails because
 the subject also has a C<source> key.  Removing that key makes the first
 clause match instead.
 
+Repeating a constant key in the same hash shape is a compile-time error.
+For example, C<{ x => 1, x => 1 }> is not a valid shape.  Separate nested
+hash shapes may each use the same key.
+
+A key supplied by a pinned variable or a zero-argument call is determined
+at runtime.  If two such keys turn out to be equal, both value requirements
+must hold for that one key.  This is not an error, but it does not permit
+extra keys: a shape that covers only C<x> cannot match C<{ x => 1, y => 2 }>
+without an ellipsis.
+
 Array and hash shapes may be nested:
 
     match ({ point => [ $x, $y ], ... }) { say "point: $x, $y" }

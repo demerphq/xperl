@@ -6967,11 +6967,24 @@ S_case_pattern_validate_concat(pTHX_ const OP *op)
 }
 
 static void
+S_case_pattern_note_hash_key(pTHX_ HV *keys, const OP *key)
+{
+    if (key->op_type == OP_CONST) {
+        SV *name = cSVOPx_sv(key);
+        if (hv_exists_ent(keys, name, 0))
+            Perl_croak(aTHX_ "duplicate key \"%" SVf "\" in a case hash pattern",
+                       SVfARG(name));
+        (void)hv_store_ent(keys, name, SvREFCNT_inc(&PL_sv_yes), 0);
+    }
+}
+
+static void
 S_case_pattern_validate_object_fields(pTHX_ const OP *op)
 {
     const OP *kid;
     bool need_value = FALSE;
     bool open = FALSE;
+    HV *keys = MUTABLE_HV(sv_2mortal(MUTABLE_SV(newHV())));
 
     if (!op || (op->op_type != OP_LIST
                 && !(op->op_type == OP_NULL && op->op_targ == OP_LIST)))
@@ -6991,6 +7004,7 @@ S_case_pattern_validate_object_fields(pTHX_ const OP *op)
         if (!need_value) {
             if (kid->op_type != OP_CONST)
                 Perl_croak(aTHX_ "object field names must be constants");
+            S_case_pattern_note_hash_key(aTHX_ keys, kid);
             need_value = TRUE;
         }
         else {
@@ -7285,6 +7299,7 @@ S_case_pattern_validate(pTHX_ const OP *op)
         U32 ellipses = 0;
         U32 logical_ix = 0;
         U32 nchild = 0;
+        HV *keys = MUTABLE_HV(sv_2mortal(MUTABLE_SV(newHV())));
         for (kid = cLISTOPx(op)->op_first; kid; kid = OpSIBLING(kid)) {
             if (kid->op_type == OP_PUSHMARK)
                 continue;
@@ -7303,6 +7318,8 @@ S_case_pattern_validate(pTHX_ const OP *op)
                 logical_ix++;
                 continue;
             }
+            if (!(logical_ix & 1))
+                S_case_pattern_note_hash_key(aTHX_ keys, kid);
             S_case_pattern_validate(aTHX_ kid);
             logical_ix++;
         }
@@ -8651,12 +8668,16 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
     if (pattern->op_type == OP_ANONHASH) {
         HV *hv;
         HV *pattern_hv = NULL;
-        SSize_t pairs = 0;
+        HV *covered;
         bool open = FALSE;
 
         if (SvROK(value) == 0 || SvTYPE(SvRV(value)) != SVt_PVHV)
             return FALSE;
         hv = MUTABLE_HV(SvRV(value));
+        /* Coverage, not the number of syntactic pairs, determines exactness.
+         * Runtime keys may coincide; both value constraints still apply,
+         * but they cover only one subject key.  Do not diagnose collisions. */
+        covered = MUTABLE_HV(sv_2mortal(MUTABLE_SV(newHV())));
         if (pattern_value && SvROK(pattern_value)
             && SvTYPE(SvRV(pattern_value)) == SVt_PVHV)
             pattern_hv = MUTABLE_HV(SvRV(pattern_value));
@@ -8687,6 +8708,13 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             valop = valnode ? valnode->op : NULL;
             keysv = (keynode->op->op_type == OP_CONST)
                 ? cSVOPx_sv(keynode->op) : NULL;
+            if (!keysv) {
+                keysv = keynode->op->op_type == OP_ENTERSUB
+                    ? S_case_pattern_call(aTHX_ keynode->op)
+                    : S_case_pattern_concat_fixed_value(aTHX_ keynode);
+                if (keysv)
+                    sv_2mortal(keysv);
+            }
             if (!keysv || !valop)
                 return FALSE;
             he = hv_fetch_ent(hv, keysv, FALSE, 0);
@@ -8698,7 +8726,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                                                   bindings, nbindings))
                     return FALSE;
             }
-            pairs++;
+            (void)hv_store_ent(covered, keysv, SvREFCNT_inc(&PL_sv_yes), 0);
         }
         }
         if (open)
@@ -8708,9 +8736,9 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             (void)hv_iterinit(hv);
             while (hv_iternext(hv))
                 count++;
-            return pairs == count;
+            return (SSize_t)HvUSEDKEYS(covered) == count;
         }
-        return pairs == (SSize_t)HvUSEDKEYS(hv);
+        return HvUSEDKEYS(covered) == HvUSEDKEYS(hv);
     }
 
     /* The enclosing pattern expression has already been evaluated.  For a

@@ -6,9 +6,54 @@ BEGIN {
     set_up_inc( qw(. ../lib) );
 }
 
-plan(27);
+plan(31);
 
 require Scalar::Util;
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    for my $shape ('{a=>1,a=>1}', '{1=>1,"1"=>1}',
+                   '[{a=>1,a=>1}]', 'Point {a=>1,a=>1}') {
+        eval 'case ({a=>1,b=>2}) { match (' . $shape . ') { 1 } }';
+        say $@ =~ /duplicate key .* in a case hash pattern/
+            ? 'rejected' : 'wrong result';
+    }
+}, "rejected\nrejected\nrejected\nrejected", {},
+    'statically duplicate keys are rejected in plain and object hash shapes');
+
+fresh_perl_is(q{
+    use strict;
+    use feature qw(case_match say);
+    my ($a, $b) = ('x', 'x');
+    for my $subject ({x=>1,y=>1}, {x=>1}, {x=>2}) {
+        case ($subject) with ($a,$b) {
+            match ({$a=>1,$b=>1}) { say 'hit' }
+            match (_) { say 'miss' }
+        }
+    }
+}, "miss\nhit\nmiss", {},
+    'runtime key collisions preserve exactness without duplicate-key errors');
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    my $key = 'x';
+    case ({x=>1,y=>2}) {
+        match ({x=>1,^$key=>2,...}) { say 'wrong value constraint' }
+        match ({x=>1,^$key=>1}) { say 'wrong exactness' }
+        match ({x=>1,^$key=>1,...}) { say 'open hit' }
+    }
+}, 'open hit', {},
+    'colliding literal and caret-pinned keys retain all value constraints');
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    my $calls = 0;
+    sub key { ++$calls; 'x' }
+    case ({x=>1,y=>2}) {
+        match ({key()=>1,key()=>1}) { say 'wrong exactness' }
+        match (_) { say "miss,$calls" }
+    }
+}, 'miss,2', {}, 'runtime key-producing calls are evaluated once per key');
 
 fresh_perl_is(q{
     use utf8;

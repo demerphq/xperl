@@ -17,7 +17,7 @@ case/match and porting tests before a full harness run.
    and named regex captures.
 5. **Complete:** reject slurp minima outside `0 .. 2**32 - 1` without
    overflowing during decimal parsing.
-6. **Pending:** reject statically known duplicate hash keys. Runtime key
+6. **Complete:** reject statically known duplicate hash keys. Runtime key
    collisions must not raise duplicate-key errors or let an exact shape
    accept unspecified keys.
 

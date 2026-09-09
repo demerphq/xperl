@@ -1808,6 +1808,12 @@ be combined with an ellipsis.
 (F) The minimum length requested for an array slurpy target exceeds the
 supported maximum of C<2**32 - 1>.
 
+=item duplicate key "%s" in a case hash pattern
+
+(F) A hash data shape specified the same constant key more than once.
+Each constant key must occur only once in that hash shape.  Keys in
+different nested hashes are checked independently.
+
 =item hash pattern may contain only one ellipsis
 
 (F) A hash pattern contained more than one ellipsis.
