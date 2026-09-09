@@ -6436,7 +6436,7 @@ S_case_pattern_concat_match(pTHX_ const struct case_pattern_node *node,
     SV **fixed_values = NULL;
     size_t nparts = S_case_pattern_concat_count(node);
     size_t capacity = nparts;
-    size_t i, j, cursor = 0, capture_count = 0;
+    size_t i, j, cursor = 0;
     const char *subject;
     STRLEN subject_len;
     bool matched = FALSE;
@@ -6461,11 +6461,6 @@ S_case_pattern_concat_match(pTHX_ const struct case_pattern_node *node,
     for (i = 0; i < nparts; i++) {
         if (!S_case_pattern_concat_is_capture(aTHX_ parts[i]))
             continue;
-        capture_count++;
-        if (capture_count > 64)
-            S_case_pattern_concat_croak(aTHX_
-                "too many captures in a case pattern concatenation",
-                parts, fixed_values, capacity);
         for (j = 0; j < i; j++) {
             if (S_case_pattern_concat_is_capture(aTHX_ parts[j])
                 && S_case_pattern_unwrap(parts[j])->binding_padix
@@ -7450,6 +7445,22 @@ S_case_pattern_free_node(struct case_pattern_node *node)
     PerlMemShared_free(node);
 }
 
+/* Each node can contribute at most one ordinary binding.  Counting all
+ * nodes is conservative, including pins and constants, and avoids imposing
+ * an arbitrary semantic limit on captures. */
+static size_t
+S_case_pattern_binding_capacity(const struct case_pattern_node *node)
+{
+    size_t count = 1;
+    U32 i;
+    if (!node)
+        return 0;
+    count += S_case_pattern_binding_capacity(node->object_shape);
+    for (i = 0; i < node->nchild; i++)
+        count += S_case_pattern_binding_capacity(node->child[i]);
+    return count;
+}
+
 UNOP_AUX_item *
 Perl_case_pattern_compile(pTHX_ const OP *pattern)
 {
@@ -7466,6 +7477,8 @@ Perl_case_pattern_compile(pTHX_ const OP *pattern)
     aux->static_pins = newAV();
     S_case_pattern_note_static_pins(aTHX_ pattern, aux->static_pins);
     S_case_pattern_compile_regex(aTHX_ aux);
+    aux->binding_capacity = S_case_pattern_binding_capacity(aux->root)
+        + (aux->regex_names ? (size_t)av_count(aux->regex_names) : 0);
     aux->kind = CASE_PATTERN_COMPLEX;
     if (pattern->op_type == OP_UNDEF)
         aux->kind = CASE_PATTERN_SIMPLE_UNDEF;
@@ -8448,8 +8461,6 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             for (i = 0; i < *nbindings; i++)
                 if (bindings[i].padix == padix)
                     return sv_eq(bindings[i].value, value);
-            if (*nbindings >= 64)
-                return FALSE;
             bindings[*nbindings].padix = padix;
             bindings[*nbindings].value = value;
             bindings[*nbindings].owned = FALSE;
@@ -8502,8 +8513,6 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                 return S_case_pattern_values_equal(aTHX_
                     bindings[i].value, value);
         }
-        if (*nbindings >= 64)
-            return FALSE;
         bindings[*nbindings].padix = padix;
         bindings[*nbindings].value = value;
         bindings[*nbindings].owned = FALSE;
@@ -8532,7 +8541,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
 
     if (pattern->op_type == OP_ANONLIST) {
         AV *av;
-        const struct case_pattern_node *fixed[64];
+        struct case_pattern_node * const *fixed = node->child;
         size_t nfixed = 0;
         bool leading_open = FALSE;
         bool trailing_open = FALSE;
@@ -8547,8 +8556,10 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
         {
             const struct case_pattern_node *child = node->child[childix];
             kid = child->op;
-            if (kid->op_type == OP_PUSHMARK)
+            if (kid->op_type == OP_PUSHMARK) {
+                fixed++;
                 continue;
+            }
             if (kid->op_type == OP_CONST
                 && (kid->op_flags & OPf_SPECIAL)
                 && strEQ(SvPV_nolen_const(cSVOPx_sv(kid)), "...")) {
@@ -8556,6 +8567,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                     if (leading_open)
                         return FALSE;
                     leading_open = TRUE;
+                    fixed++;
                 }
                 else if (trailing_open)
                     return FALSE;
@@ -8570,9 +8582,9 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                 slurp = child;
                 continue;
             }
-            if (trailing_open || nfixed == 64)
+            if (trailing_open)
                 return FALSE;
-            fixed[nfixed++] = child;
+            nfixed++;
         }
 
         {
@@ -8639,10 +8651,6 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                         return FALSE;
                     }
                     av_push(rest, SvREFCNT_inc(*svp));
-                }
-                if (*nbindings >= 64) {
-                    SvREFCNT_dec_NN((SV *)rest);
-                    return FALSE;
                 }
                 bindings[*nbindings].padix = slurp->binding_padix != NOT_IN_PAD
                     ? slurp->binding_padix
@@ -8757,10 +8765,6 @@ S_case_pattern_bind_regex(pTHX_ const struct case_pattern_aux *aux,
         }
         if (j < *nbindings)
             continue;
-        if (*nbindings >= 64) {
-            SvREFCNT_dec_NN(captured);
-            break;
-        }
         bindings[*nbindings].padix = (PADOFFSET)SvUV(*padix_svp);
         bindings[*nbindings].value = captured;
         bindings[*nbindings].owned = TRUE;
@@ -8772,7 +8776,8 @@ S_case_pattern_bind_regex(pTHX_ const struct case_pattern_aux *aux,
 
 PP(pp_casematch)
 {
-    struct case_binding bindings[64];
+    struct case_binding local_bindings[64];
+    struct case_binding *bindings = local_bindings;
     size_t nbindings = 0;
     PERL_CONTEXT *cx = S_case_context(aTHX);
     const struct case_pattern_aux *aux =
@@ -8782,6 +8787,12 @@ PP(pp_casematch)
         ? aux->root : NULL;
     if (!pattern)
         Perl_croak(aTHX_ "missing compiled case pattern");
+    if (aux->binding_capacity > C_ARRAY_LENGTH(local_bindings)) {
+        /* Mortal storage also releases the buffer if matching throws. */
+        SV *storage = sv_2mortal(newSV(
+            aux->binding_capacity * sizeof(struct case_binding)));
+        bindings = (struct case_binding *)SvPVX(storage);
+    }
     bool matched;
     if (cx && cx->blk_case.case_dispatch_active && aux->dispatch)
         matched = aux->dispatch_clause == cx->blk_case.case_dispatch_clause;

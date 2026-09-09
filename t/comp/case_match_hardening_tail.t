@@ -6,9 +6,43 @@ BEGIN {
     set_up_inc( qw(. ../lib) );
 }
 
-plan(19);
+plan(22);
 
 require Scalar::Util;
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    for my $n (63, 64, 65, 128, 256) {
+        my $values = join ',', 1 .. $n;
+        my $bindings = join ',', map { '$x' . $_ } 1 .. $n;
+        for my $shape ($values, $bindings) {
+            my $result = eval 'case ([' . $values . ']) { match (['
+                . $shape . ']) { "hit" } match (_) { "miss" } }';
+            die $@ if $@;
+            die 'wrong result' unless $result eq 'hit';
+        }
+    }
+    say 'ok';
+}, 'ok', {}, 'large arrays and capture sets have no 64-element limit');
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    my $shape = join '.', map { ('"/"', '$x' . $_) } 1 .. 65;
+    my $result = eval 'case ("/v" x 65) { match (' . $shape
+        . ') { $x1 . $x65 } match (_) { "miss" } }';
+    die $@ if $@;
+    say $result;
+}, 'vv', {}, 'concatenations can capture more than 64 values');
+
+fresh_perl_is(q{
+    use strict;
+    use feature qw(case_match say);
+    my $shape = join '', map { '(?<x' . $_ . '>a)' } 1 .. 65;
+    my $result = eval 'case ("a" x 65) { match (/' . $shape
+        . '/) { $x1 . $x65 } match (_) { "miss" } }';
+    die $@ if $@;
+    say $result;
+}, 'aa', {}, 'regexes can bind more than 64 named captures');
 
 fresh_perl_is(q{
     use feature qw(case_match say);

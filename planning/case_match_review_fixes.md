@@ -11,7 +11,9 @@ case/match and porting tests before a full harness run.
    including regexes inside object shapes and open-array searches.
 3. **Complete:** apply actual-boolean matching consistently to nested
    constants, including imported builtin booleans.
-4. **Pending:** remove silent 64-element and 64-binding limits.
+4. **Complete:** remove silent 64-element and 64-binding limits. Regression
+   tests cover up to 256 array elements and bindings, and 65 concatenation
+   and named regex captures.
 5. **Complete:** reject slurp minima outside `0 .. 2**32 - 1` without
    overflowing during decimal parsing.
 6. **Pending:** reject statically known duplicate hash keys. Runtime key

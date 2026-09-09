@@ -1136,11 +1136,6 @@ Perl computation.
 fixed string or a supported capture.  Use a supported literal, pinned value,
 or capture, or put ordinary Perl computation in a guard after C<if>.
 
-=item too many captures in a case pattern concatenation
-
-(F) A concatenation data shape contained more captures than the matcher can
-bind.  Split the data shape into simpler clauses.
-
 =item adjacent captures are not allowed in a case pattern concatenation
 
 (F) Two unpinned captures were adjacent, or were separated only by an empty
@@ -6888,8 +6883,8 @@ a block by itself.
 =item Strict() is only valid with IntStr(), FloatStr(), NumStr(), or NumEq() in a match pattern
 
 (F) The C<Strict> data-shape modifier applies only to the string-bearing
-numeric criteria C<IntStr>, C<FloatStr>, and C<NumStr>.  It cannot be applied
-to C<Num> or C<NumEq>.
+numeric criteria C<IntStr>, C<FloatStr>, and C<NumStr>, and to C<NumEq>.
+It cannot be applied to C<Num>.
 
 =item "state" subroutine %s can't be in a package
 

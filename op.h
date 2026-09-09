@@ -259,6 +259,7 @@ struct case_pattern_aux {
     AV *static_pins; /* pad indexes pinned by ^ in this pattern */
     AV *regex_names; /* named captures and their clause-local bindings */
     AV *regex_padixes;
+    size_t binding_capacity; /* upper bound for one tentative match */
     bool always_matches; /* wildcard or identity pattern */
 };
 
