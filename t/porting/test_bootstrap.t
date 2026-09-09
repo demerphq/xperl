@@ -31,12 +31,22 @@ my %exceptions = (
             require\s+(?:'\./test\.pl'|Scalar::Util)
             | use\s+(?:
                 strict | utf8 | experimental\s+'class' | overload[^;]*
+                | warnings\s+FATAL\s*=>\s*'syntax'
                 | feature\s+(?:'case_match'|qw\(case_match\s+say(?:\s+class)?\))
                 | builtin\s+qw\(true\s+false\)
             )
         );
     }mx,
     case_match_threads => qr/^\s*(?:require '\.\/test\.pl'|use feature 'case_match');/m,
+    case_match_review => qr{
+        ^\s*(?:
+            require\s+'\./test\.pl'
+            | use\s+(?:
+                generator | feature\s+'class' | overload[^;]*
+                | builtin\s+qw\((?:weaken|true\s+false)\)
+            )
+        );
+    }mx,
  );
 
 while (my $file = <$fh>) {

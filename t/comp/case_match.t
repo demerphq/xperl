@@ -94,7 +94,6 @@ my $open_array = eval q{
     case ([ 1, 2, 3 ]) {
         match ([ 1, ... ]) { 1; }
     }
-    1;
 };
 print !$@ && $open_array ? "ok 9 - open array pattern\n"
                          : "not ok 9 - open array pattern\n";
@@ -104,7 +103,6 @@ my $open_hash = eval q{
     case ({ foo => 1, bar => 2 }) {
         match ({ foo => 1, ... }) { 1; }
     }
-    1;
 };
 print !$@ && $open_hash ? "ok 10 - open hash pattern\n"
                         : "not ok 10 - open hash pattern\n";
@@ -114,7 +112,6 @@ my $open_prefix = eval q{
     case ([ 1, 2, 3 ]) {
         match ([ ..., 3 ]) { 1; }
     }
-    1;
 };
 print !$@ && $open_prefix ? "ok 11 - open prefix pattern\n"
                           : "not ok 11 - open prefix pattern\n";
@@ -905,12 +902,12 @@ my $reference_shapes = eval q{
     use feature 'case_match';
     my $scalar = 7;
     my $scalar_ref = \$scalar;
-    my $nested_ref = \\$scalar;
+    my $nested_ref = \\\\$scalar;
     case ($scalar_ref) {
         match (\$captured) { $scalar_ref_value = $captured }
     }
     case ($nested_ref) {
-        match (\\$nested_captured) { $nested_ref_value = $nested_captured }
+        match (\\\\$nested_captured) { $nested_ref_value = $nested_captured }
     }
     1;
 };

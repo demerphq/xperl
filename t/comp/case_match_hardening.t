@@ -53,16 +53,23 @@ require Scalar::Util;
 
 my ($scalar_result, @list_result, $void_result);
 use feature 'case_match';
+sub clause_context {
+    return wantarray ? ('list', 'result') : 'scalar';
+}
+sub clause_void_context {
+    $void_result = !defined(wantarray);
+}
 $scalar_result = do {
-    case (1) { match (1) { wantarray ? 'list' : 'scalar' } }
+    case (1) { match (1) { clause_context() } }
 };
 @list_result = do {
-    case (1) { match (1) { wantarray ? ('list', 'result') : 'scalar' } }
+    case (1) { match (1) { clause_context() } }
 };
-case (1) { match (1) { $void_result = !defined(wantarray) } };
+case (1) { match (1) { clause_void_context() } };
 ok($scalar_result eq 'scalar'
-   && @list_result == 1 && $list_result[0] eq 'scalar' && $void_result,
-   'case result follows caller context while clauses use scalar context');
+   && @list_result == 2 && $list_result[0] eq 'list'
+   && $list_result[1] eq 'result' && $void_result,
+   'selected clause expressions receive scalar, list, and void context');
 
 my ($empty_matched, $empty_scalar, @empty_list);
 my $empty_result_ok = eval q{
