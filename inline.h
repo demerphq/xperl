@@ -4536,6 +4536,13 @@ Perl_cx_popcase(pTHX_ PERL_CONTEXT *cx)
             SV **is_array_sv = av_fetch(bindings, i + 2, FALSE);
             if (padix_sv && old_value_sv && is_array_sv) {
                 SV *target = PAD_SV((PADOFFSET)SvUV(*padix_sv));
+                if (SvREFCNT(target) > 1 || SvOBJECT(target)) {
+                    SV *replacement = SvTRUE(*is_array_sv)
+                        ? MUTABLE_SV(newAV()) : newSV_type(SVt_NULL);
+                    PAD_SVl((PADOFFSET)SvUV(*padix_sv)) = replacement;
+                    SvREFCNT_dec(target);
+                    target = replacement;
+                }
                 if (SvTRUE(*is_array_sv)) {
                     AV *old_array = MUTABLE_AV(SvRV(*old_value_sv));
                     SSize_t j;

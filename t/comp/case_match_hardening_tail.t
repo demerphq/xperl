@@ -6,9 +6,42 @@ BEGIN {
     set_up_inc( qw(. ../lib) );
 }
 
-plan(31);
+plan(33);
 
 require Scalar::Util;
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    our $calls = 0;
+    package Key {
+        use overload '""' => sub { ++$main::calls; 'x' };
+    }
+    my $key = bless {}, 'Key';
+    case ({x=>1,y=>2}) with ($key) {
+        match ({$key=>1}) { say 'wrong exactness' }
+        match (_) { say "miss,$calls" }
+    }
+}, 'miss,1', {}, 'runtime hash keys are stringified once per key requirement');
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    my @closures;
+    for my $throws (0, 1) {
+        eval {
+            case ([42, 43]) {
+                match ([$x, @tail] if do {
+                    push @closures, sub { ($x, @tail) };
+                    die "guard error\n" if $throws;
+                    0;
+                }) { die 'wrong clause' }
+                match (_) { }
+            }
+        };
+        die $@ if $@ && $@ ne "guard error\n";
+    }
+    say join ',', $_->() for @closures;
+}, "42,43\n42,43", {},
+    'guard rejection and exceptions preserve escaped lexical bindings');
 
 fresh_perl_is(q{
     use feature qw(case_match say);

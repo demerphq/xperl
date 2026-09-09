@@ -13,7 +13,19 @@ if ($@) {
     skip_all('threads are not available');
 }
 
-plan(5);
+plan(6);
+
+sub regex_closure {
+    case (['a', 'b']) {
+        match ([/(?<first>a)/, /(?<second>b)/]) {
+            return sub { "$first,$second" };
+        }
+    }
+}
+
+my $captures = threads->create(sub { regex_closure()->() });
+is($captures->join, 'a,b',
+   'cloned multi-regex shapes preserve captures in escaped closures');
 
 sub run_case_in_thread {
     my ($subject) = @_;

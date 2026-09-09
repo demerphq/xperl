@@ -8173,6 +8173,15 @@ S_case_rollback_bindings(pTHX_ PERL_CONTEXT *cx)
         SV **is_array_sv = av_fetch(bindings, i + 2, FALSE);
         if (padix_sv && old_value_sv && is_array_sv) {
             SV *target = PAD_SV((PADOFFSET)SvUV(*padix_sv));
+            /* A guard can publish a closure even when it rejects the
+             * clause. Restore the pad, not the lexical the closure owns. */
+            if (SvREFCNT(target) > 1 || SvOBJECT(target)) {
+                SV *replacement = SvTRUE(*is_array_sv)
+                    ? MUTABLE_SV(newAV()) : newSV_type(SVt_NULL);
+                PAD_SVl((PADOFFSET)SvUV(*padix_sv)) = replacement;
+                SvREFCNT_dec(target);
+                target = replacement;
+            }
             if (SvTRUE(*is_array_sv))
                 S_case_set_array(aTHX_ target, MUTABLE_AV(SvRV(*old_value_sv)));
             else
@@ -8712,8 +8721,13 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                 keysv = keynode->op->op_type == OP_ENTERSUB
                     ? S_case_pattern_call(aTHX_ keynode->op)
                     : S_case_pattern_concat_fixed_value(aTHX_ keynode);
-                if (keysv)
-                    sv_2mortal(keysv);
+                if (keysv) {
+                    SV *rawkey = sv_2mortal(keysv);
+                    keysv = sv_newmortal();
+                    /* Fetch and coverage must use the same string, even
+                     * when the key has stateful stringification overload. */
+                    sv_copypv(keysv, rawkey);
+                }
             }
             if (!keysv || !valop)
                 return FALSE;
