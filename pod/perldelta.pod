@@ -29,6 +29,10 @@ here, but most should go in the L</Performance Enhancements> section.
 
 =head2 Experimental data-shape matching
 
+Capture names repeated across separate regexes in one C<match> clause now
+produce a C<syntax> warning: only the first regex supplies the lexical
+binding.  Duplicate names within a single regex retain their usual behavior.
+
 The experimental C<case_match> feature adds a C<case> statement with ordered
 C<match> clauses.  Data shapes can match scalar values, nested array and hash
 references, regular expressions, wildcards, and pinned lexical values.  A

@@ -6,9 +6,82 @@ BEGIN {
     set_up_inc( qw(. ../lib) );
 }
 
-plan(33);
+plan(39);
 
 require Scalar::Util;
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    my @warnings;
+    local $SIG{__WARN__} = sub { push @warnings, @_ };
+    eval q{case (['a', 'b']) {
+        match ([/(?<x>a)/, /(?<x>b)/]) { say "$x,$+{x}" }
+    }};
+    die $@ if $@;
+    say scalar @warnings;
+    say $warnings[0] =~ /Named capture 'x'.*only the first regex.*later captures are not visible.*line / ? 'diagnostic' : 'bad warning';
+}, "a,b\n1\ndiagnostic", {},
+    'separate regexes warn once and publish only the first lexical binding');
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    my @warnings;
+    local $SIG{__WARN__} = sub { push @warnings, @_ };
+    eval q{case ('two') {
+        match (/(?<num>one)|(?<num>two)/) { say "$num,$+{num}" }
+    }};
+    die $@ if $@;
+    say scalar @warnings;
+}, "two,two\n0", {},
+    'duplicate names within one regex use the first participating capture');
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    my @warnings;
+    local $SIG{__WARN__} = sub { push @warnings, @_ };
+    eval q{case (['a', 'b']) {
+        match ([/(?:a|(?<x>z))/, /(?<x>b)/]) {
+            say defined($x) ? 'wrong' : "undef,$+{x}";
+        }
+    }};
+    die $@ if $@;
+    say scalar @warnings;
+}, "undef,b\n1", {},
+    'first regex binding remains undef when its named group does not participate');
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    local $SIG{__WARN__} = sub { die @_ };
+    eval q{case ('a') {
+        match (/(?<x>a)/) { say $x }
+        match (/(?<x>b)/) { say $x }
+    }};
+    die $@ if $@;
+}, 'a', {}, 'capture-name collision tracking is local to each clause');
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    eval q{
+        use warnings FATAL => 'syntax';
+        case (['a', 'b']) {
+            match ([/(?<x>a)/, /(?<x>b)/]) { say 'wrong' }
+        }
+    };
+    say $@ =~ /Named capture 'x'/ ? 'fatal warning' : 'wrong';
+}, 'fatal warning', {}, 'cross-regex capture warning obeys lexical warning policy');
+
+fresh_perl_is(q{
+    use utf8;
+    use feature qw(case_match say);
+    my @warnings;
+    local $SIG{__WARN__} = sub { push @warnings, @_ };
+    eval q{case (['a', 'b']) {
+        match ([/(?<prénom>a)/, /(?<prénom>b)/]) { say $prénom }
+    }};
+    die $@ if $@;
+    say @warnings == 1 && $warnings[0] =~ /Named capture 'prénom'/
+        ? 'UTF-8 name' : 'wrong';
+}, "a\nUTF-8 name", {}, 'cross-regex warning preserves UTF-8 capture names');
 
 fresh_perl_is(q{
     use feature qw(case_match say);

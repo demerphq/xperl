@@ -158,6 +158,9 @@ and make named captures available as clause-local scalar bindings.  For
 example, `match (/^user: (?<name>[[:word:]]+)$/) { say $name }` binds `$name`
 when the subject matches; a named capture that does not participate is bound
 to `undef`.  Each regex in a nested shape contributes its own named bindings.
+Reusing a name across separate regexes in one clause warns: only the first
+regex supplies that lexical binding.  Duplicate names within a single regex
+use the usual first-participating-capture rule without this warning.
 The ordinary regex capture variables still describe the most recent match.
 
 For an open array or hash shape, a static regular expression is compiled once

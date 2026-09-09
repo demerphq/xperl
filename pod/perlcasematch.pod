@@ -539,6 +539,18 @@ bindings:
 The ordinary capture variables, such as C<$1> and C<%+>, describe the most
 recent successful regex match; they are not combined across expressions.
 
+Give captures in separate regexes different names if you want to use all
+their values.  If several regexes in one clause use the same capture name,
+the compiler issues a C<syntax> warning.  Only the first regex supplies the
+clause-local variable; later captures with that name are not visible through
+it.  This also applies when the first regex's named group did not participate:
+the variable stays C<undef>, even if a later regex captures a value.
+
+Repeated names I<within a single regex> work as usual, without this warning.
+For example, C</(?E<lt>numE<gt>one)|(?E<lt>numE<gt>two)/> binds C<$num> to
+C<"two"> when matching C<"two">.  The regex engine chooses the first
+participating capture with that name, just as it does for C<$+{num}>.
+
 The clause can use the captures from its successful match.  When the case
 ends, the previous values of C<$1>, C<$2>, C<%+>, C<%->, and the other regex
 match variables are restored.

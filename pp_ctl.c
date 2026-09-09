@@ -6751,7 +6751,7 @@ Perl_case_pattern_static_pins(pTHX_ OP *body)
     return list;
 }
 
-static void S_case_pattern_prepare_regex(pTHX_ const OP *pattern);
+static void S_case_pattern_prepare_regex(pTHX_ const OP *pattern, HV *seen);
 
 static void
 S_case_pattern_rebind(pTHX_ OP *op, HV *padmap)
@@ -6807,11 +6807,12 @@ Perl_case_pattern_prepare(pTHX_ OP *pattern)
         if (padmap)
             S_case_pattern_rebind(aTHX_ pattern, padmap);
     }
-    S_case_pattern_prepare_regex(aTHX_ pattern);
+    S_case_pattern_prepare_regex(aTHX_ pattern,
+        MUTABLE_HV(sv_2mortal(MUTABLE_SV(newHV()))));
 }
 
 static void
-S_case_pattern_prepare_regex(pTHX_ const OP *pattern)
+S_case_pattern_prepare_regex(pTHX_ const OP *pattern, HV *seen)
 {
     REGEXP *re;
     SV *names_ref;
@@ -6824,7 +6825,7 @@ S_case_pattern_prepare_regex(pTHX_ const OP *pattern)
     if (pattern->op_type != OP_MATCH) {
         if (pattern->op_flags & OPf_KIDS)
             for (kid = cUNOPx(pattern)->op_first; kid; kid = OpSIBLING(kid))
-                S_case_pattern_prepare_regex(aTHX_ kid);
+                S_case_pattern_prepare_regex(aTHX_ kid, seen);
         return;
     }
     re = PM_GETRE(cPMOPx(pattern));
@@ -6838,6 +6839,7 @@ S_case_pattern_prepare_regex(pTHX_ const OP *pattern)
         SvREFCNT_dec(names_ref);
         return;
     }
+    sv_2mortal(names_ref);
     names = MUTABLE_AV(SvRV(names_ref));
     for (i = 0; i <= av_len(names); i++) {
         SV **name_svp = av_fetch(names, i, FALSE);
@@ -6846,6 +6848,20 @@ S_case_pattern_prepare_regex(pTHX_ const OP *pattern)
 
         if (!name_svp || !*name_svp)
             continue;
+        /* REGNAMES returns each name once per regex, even when several
+         * groups share it.  Only collisions between separate regexes need
+         * a warning: the engine selects the participating group within a
+         * regex, but the clause publishes only its first binding per name.
+         * Keep this separate from case_pattern_vars, which also contains
+         * ordinary destructuring targets. */
+        if (hv_exists_ent(seen, *name_svp, 0))
+            ck_warner_d(packWARN(WARN_SYNTAX),
+                "Named capture '%" SVf "' occurs in multiple regexes in a match clause; "
+                "only the first regex maps to its lexical variable; "
+                "later captures are not visible through that variable",
+                SVfARG(*name_svp));
+        else
+            (void)hv_store_ent(seen, *name_svp, newSViv(1), 0);
         padname = newSVpvn("$", 1);
         sv_catsv(padname, *name_svp);
         if (hv_exists(PL_parser->case_pattern_vars,
@@ -6859,7 +6875,6 @@ S_case_pattern_prepare_regex(pTHX_ const OP *pattern)
                        newSVuv((UV)padix), 0);
         SvREFCNT_dec_NN(padname);
     }
-    SvREFCNT_dec_NN(names_ref);
 }
 
 static void

@@ -4759,6 +4759,15 @@ but also uses any of the others it will not trigger this warning.
 Symbols beginning with an underscore and symbols using special
 identifiers (q.v. L<perldata>) are exempt from this warning.
 
+=item Named capture '%s' occurs in multiple regexes in a match clause; only the first regex maps to its lexical variable; later captures are not visible through that variable
+
+(S syntax) Separate regular expressions in one data-shape match clause use
+the same named capture.  Only the first regex supplies the clause-local
+variable, even if its capture is C<undef>.  Use distinct names to make the
+other captures available as lexical variables.  This warning does not apply
+to repeated capture names within a single regex, which follow the usual
+C<%+> lookup rules.  See L<perlcasematch>.
+
 =item Named parameters in signatures are experimental
 
 (S experimental::signature_named_parameters)  This warning is emitted if you
