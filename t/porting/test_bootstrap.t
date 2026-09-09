@@ -26,7 +26,16 @@ my %exceptions = (
     case_match => qr/^\s*use (?:v5\.45\.3|strict|warnings|overload[^;]*|experimental 'class'|feature (?:'case_match'|qw\(case_match namespaces\))|builtin qw\(true false\));/m,
     case_match_examples => qr/^\s*(?:require '\.\/test\.pl'|use (?:feature 'case_match'|builtin qw\(true false\)));/m,
     case_match_hardening => qr/^\s*(?:require (?:'\.\/test\.pl'|Scalar::Util)|use (?:feature 'case_match'|overload[^;]*));/m,
-    case_match_hardening_tail => qr/^\s*(?:require (?:'\.\/test\.pl'|Scalar::Util)|use (?:strict|utf8|overload[^;]*|feature (?:'case_match'|qw\(case_match say(?: class)?\))|builtin qw\(true false\)));/m,
+    case_match_hardening_tail => qr{
+        ^\s*(?:
+            require\s+(?:'\./test\.pl'|Scalar::Util)
+            | use\s+(?:
+                strict | utf8 | experimental\s+'class' | overload[^;]*
+                | feature\s+(?:'case_match'|qw\(case_match\s+say(?:\s+class)?\))
+                | builtin\s+qw\(true\s+false\)
+            )
+        );
+    }mx,
     case_match_threads => qr/^\s*(?:require '\.\/test\.pl'|use feature 'case_match');/m,
  );
 
