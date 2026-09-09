@@ -6661,7 +6661,7 @@ S_case_pattern_compile_node(pTHX_ const OP *op, bool preserve_lists)
     node->op = op;
     node->binding_padix = NOT_IN_PAD;
     node->binding_local = FALSE;
-    if (op->op_type == OP_PADSV) {
+    if (op->op_type == OP_PADSV || op->op_type == OP_PADAV) {
         node->binding_padix = op->op_targ;
         node->binding_local = TRUE;
     }
@@ -8648,7 +8648,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                 bindings[*nbindings].value = (SV *)rest;
                 bindings[*nbindings].owned = TRUE;
                 bindings[*nbindings].is_array = TRUE;
-                bindings[*nbindings].clear_on_exit = slurp->binding_local;
+                bindings[*nbindings].clear_on_exit = TRUE;
                 (*nbindings)++;
             }
             return TRUE;

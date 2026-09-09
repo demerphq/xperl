@@ -6,9 +6,37 @@ BEGIN {
     set_up_inc( qw(. ../lib) );
 }
 
-plan(15);
+plan(17);
 
 require Scalar::Util;
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    my (@closures, @refs);
+    for (1 .. 3) {
+        case ([$_]) {
+            match ([$x]) {
+                push @closures, sub { $x };
+                push @refs, \$x;
+            }
+        }
+    }
+    say join ',', map { $_->() } @closures;
+    say join ',', map { $$_ } @refs;
+}, "1,2,3\n1,2,3", {},
+    'escaped scalar bindings retain their values and iteration identity');
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    my @closures;
+    for (1 .. 3) {
+        case ([$_, $_ + 1]) {
+            match ([@tail]) { push @closures, sub { @tail } }
+        }
+    }
+    say join ',', $_->() for @closures;
+}, "1,2\n2,3\n3,4", {},
+    'escaped slurp bindings retain their values and iteration identity');
 
 {
     package CaseMatchHardeningTail::Destroyed;

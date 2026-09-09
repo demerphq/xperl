@@ -4509,7 +4509,16 @@ Perl_cx_popcase(pTHX_ PERL_CONTEXT *cx)
             SV **clear_sv = av_fetch(bindings, i + 3, FALSE);
             if (padix_sv && is_array_sv && clear_sv && SvTRUE(*clear_sv)) {
                 SV *target = PAD_SV((PADOFFSET)SvUV(*padix_sv));
-                if (SvTRUE(*is_array_sv))
+                /* Like SAVEt_CLEARSV, abandon a lexical that has escaped
+                 * into a closure or reference instead of clearing it. */
+                if (SvREFCNT(target) > 1 || SvOBJECT(target)) {
+                    SV *replacement = SvTRUE(*is_array_sv)
+                        ? MUTABLE_SV(newAV()) : newSV_type(SVt_NULL);
+                    SvFLAGS(replacement) |= SVs_PADSTALE;
+                    PAD_SVl((PADOFFSET)SvUV(*padix_sv)) = replacement;
+                    SvREFCNT_dec(target);
+                }
+                else if (SvTRUE(*is_array_sv))
                     av_clear(MUTABLE_AV(target));
                 else
                     sv_setsv(target, &PL_sv_undef);
