@@ -6,7 +6,7 @@ BEGIN {
     set_up_inc( qw(. ../lib) );
 }
 
-plan(7);
+plan(15);
 
 require Scalar::Util;
 
@@ -130,3 +130,114 @@ my $nested_case_ok = eval q{
 ok(!$@ && $nested_case_ok && $nested_result eq 'inner'
    && $nested_outer_result eq 'outer',
    'nested cases restore the parent case state');
+
+for my $target (qw(x px)) {
+    my $program = q{
+        use strict;
+        use feature qw(case_match say);
+        use experimental 'class';
+        class Position {
+            field $x :param;
+            field $y :param;
+        }
+        case (Position->new(x => 3, y => 4)) {
+            match (Position { '$x' => $TARGET, '$y' => $other }
+                   if $TARGET == 3 && $other == 4) {
+                say "$TARGET,$other";
+            }
+        }
+    };
+    $program =~ s/TARGET/$target/g;
+    fresh_perl_is($program, '3,4', {},
+        "native class fields bind implicit target \$$target in guard and body");
+}
+
+fresh_perl_is(q{
+    use strict;
+    use feature qw(case_match say);
+    my ($x, $y) = ('outer x', 'outer y');
+    my $point = bless { x => 3, y => 4 }, 'Point';
+    case ($point) {
+        match (Point { 'x' => $x, 'y' => $y } if $x == 3) {
+            say "$x,$y";
+        }
+    }
+    say "$x,$y";
+}, "3,4\nouter x,outer y", {},
+    'class-qualified captures shadow rather than overwrite outer lexicals');
+
+fresh_perl_is(q{
+    use strict;
+    use feature qw(case_match say);
+    my $record = bless {
+        child => bless({ values => [3, 4, 5] }, 'Child'),
+    }, 'Record';
+    case ($record) {
+        match (Record {
+            'child' => Child { 'values' => [$head, @tail] },
+        } if $head == 3 && @tail == 2) {
+            say "$head:@tail";
+        }
+    }
+}, '3:4 5', {},
+    'nested object shapes expose scalar and array captures to the clause');
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    use experimental 'class';
+    class Position {
+        field $x :param;
+        field $y :param;
+    }
+    case (Position->new(x => 3, y => 4)) {
+        match (Position { '$x' => $x, '$y' => $y }) {
+            say "position: $x, $y";
+        }
+    }
+}, 'position: 3, 4', {},
+    'native captures named after fields do not select class field pad entries');
+
+fresh_perl_is(q{
+    use strict;
+    use feature qw(case_match say);
+    my $wanted = 'ok';
+    my $value = 'outside';
+    my $record = bless { status => 'ok', value => 3 }, 'Record';
+    case ($record) with ($wanted) {
+        match (Record { 'status' => $wanted, 'value' => $value }
+               if $value == 4) { die 'wrong guard' }
+        match (Record { 'status' => ^$wanted, 'value' => Int($value) }
+               if $value == 3) { say $value }
+    }
+    say "$wanted,$value";
+}, "3\nok,outside", {},
+    'object pins and typed captures retain scope across a failed guard');
+
+fresh_perl_is(q{
+    use strict;
+    use utf8;
+    use feature qw(case_match say);
+    for (1 .. 3) {
+        case ([bless({ value => $_ }, 'Record')]) {
+            match ([Record { 'value' => $résultat }]) {
+                say $résultat;
+            }
+        }
+    }
+}, "1\n2\n3", {},
+    'object captures nested in arrays preserve UTF-8 names and repeated use');
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    for (1 .. 3) {
+        my $result = eval q{
+            case ([]) {
+                match ([@rest:4294967295]) { die 'tail too short' }
+                match (_) { 'miss' }
+            }
+        };
+        die $@ if $@;
+        say $result;
+    }
+}, "miss\nmiss\nmiss", {},
+    'freeing a slurp pattern does not treat its minimum as a pad index');

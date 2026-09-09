@@ -1080,8 +1080,8 @@ p	|void	|case_pattern_mark_identity				\
 				|NN const OP *subject
 p	|void	|case_pattern_note_pins 				\
 				|NN const OP *pins
-p	|void	|case_pattern_note_regex				\
-				|NN const OP *pattern
+p	|void	|case_pattern_prepare					\
+				|NN OP *pattern
 p	|void	|case_pattern_preserve_concat				\
 				|NN OP *pattern
 p	|OP *	|case_pattern_static_pins				\

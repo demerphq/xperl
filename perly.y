@@ -427,7 +427,7 @@ bare_statement_match
 		case_pattern_start
 		remember
 		case_pattern_expr
-		{ case_pattern_note_regex($case_pattern_expr); }
+		{ case_pattern_prepare($case_pattern_expr); }
 		case_pattern_end
 		case_match_guard
 		PERLY_PAREN_CLOSE

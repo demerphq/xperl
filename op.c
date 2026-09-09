@@ -1134,6 +1134,7 @@ Perl_op_clear(pTHX_ OP *o)
     case OP_ENTEREVAL:	/* Was holding hints. */
     case OP_ARGDEFELEM:	/* Was holding signature index. */
     case OP_ITER:       /* Was holding multivariable itervar count */
+    case OP_CASECOERCE: /* Was holding a coercion kind or slurp minimum. */
         o->op_targ = 0;
         break;
     default:

@@ -74,6 +74,14 @@ version.  Missing fields do not match; tied or magical nested values use
 ordinary read semantics, and overload is used only when the selected pattern
 requires conversion.  Inheritance and role matching remain future work.
 
+Class-qualified shapes introduce captures in the match clause's lexical
+scope, including its guard.  Captures do not overwrite outer variables with
+the same names.  A defect that could select a class field's pad entry and
+crash when a capture shared its name has been fixed.
+
+Freeing an array-tail pattern no longer treats its minimum element count as
+a lexical pad index, which could crash during eval cleanup.
+
 An existing scalar can also be pinned directly in a data shape with the
 pattern-only C<^$name> form.  Its value is snapshotted when the surrounding
 C<case> begins, and ordinary caret operators retain their normal meaning

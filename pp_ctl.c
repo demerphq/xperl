@@ -6662,36 +6662,8 @@ S_case_pattern_compile_node(pTHX_ const OP *op, bool preserve_lists)
     node->binding_padix = NOT_IN_PAD;
     node->binding_local = FALSE;
     if (op->op_type == OP_PADSV) {
-        const PADOFFSET oldpad = op->op_targ;
-        node->binding_padix = oldpad;
+        node->binding_padix = op->op_targ;
         node->binding_local = TRUE;
-        if (preserve_lists && PL_parser
-            && PL_parser->case_pattern_vars) {
-            HE *he;
-            hv_iterinit(PL_parser->case_pattern_vars);
-            while ((he = hv_iternext(PL_parser->case_pattern_vars))) {
-                SV *padix = HeVAL(he);
-                if (padix && SvUV(padix) == (UV)oldpad) {
-                    const char *wanted = HeKEY(he);
-                    PADOFFSET existing;
-                    for (existing = 0; existing < oldpad; existing++) {
-                        const char *candidate = PAD_COMPNAME(existing)
-                            ? PAD_COMPNAME_PV(existing) : NULL;
-                        if (candidate
-                            && (strEQ(candidate, wanted)
-                                || (wanted[0] == '$'
-                                    && strEQ(candidate, wanted + 1))
-                                || (candidate[0] == '$'
-                                    && strEQ(candidate + 1, wanted)))) {
-                            node->binding_padix = existing;
-                            node->binding_local = FALSE;
-                            break;
-                        }
-                    }
-                    break;
-                }
-            }
-        }
     }
     node->nchild = nchild;
     if (nchild) {
@@ -6820,8 +6792,27 @@ S_case_pattern_find_match_op(const OP *op)
     return NULL;
 }
 
+static void
+S_case_pattern_rebind(pTHX_ OP *op, HV *padmap)
+{
+    OP *kid;
+
+    if (!op)
+        return;
+    if (op->op_type == OP_PADSV || op->op_type == OP_PADAV
+        || op->op_type == OP_PADHV || op->op_type == OP_PADANY) {
+        SV **replacement = hv_fetch(padmap, (const char *)&op->op_targ,
+                                    sizeof(op->op_targ), FALSE);
+        if (replacement)
+            op->op_targ = (PADOFFSET)SvUV(*replacement);
+    }
+    if (op->op_flags & OPf_KIDS)
+        for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid))
+            S_case_pattern_rebind(aTHX_ kid, padmap);
+}
+
 void
-Perl_case_pattern_note_regex(pTHX_ const OP *pattern)
+Perl_case_pattern_prepare(pTHX_ OP *pattern)
 {
     const OP *match;
     REGEXP *re;
@@ -6829,9 +6820,38 @@ Perl_case_pattern_note_regex(pTHX_ const OP *pattern)
     AV *names;
     SSize_t i;
 
-    PERL_ARGS_ASSERT_CASE_PATTERN_NOTE_REGEX;
+    PERL_ARGS_ASSERT_CASE_PATTERN_PREPARE;
     if (!PL_parser || !PL_parser->case_pattern_vars)
         return;
+
+    /* Class-qualified hash shapes pass through an indirect-object block.
+     * That temporary scope may have closed some capture declarations.
+     * Declare replacements in the match clause before parsing its guard and
+     * body, and update the shape's pad references by identity, never by
+     * searching older declarations with the same spelling. */
+    {
+        HV *padmap = NULL;
+        HE *he;
+        hv_iterinit(PL_parser->case_pattern_vars);
+        while ((he = hv_iternext(PL_parser->case_pattern_vars))) {
+            SV *padix = HeVAL(he);
+            const PADOFFSET oldpad = (PADOFFSET)SvUV(padix);
+            PADNAME *name = PAD_COMPNAME(oldpad);
+            if (COP_SEQ_RANGE_LOW(name) != PERL_PADSEQ_INTRO
+                && COP_SEQ_RANGE_HIGH(name) != PERL_PADSEQ_INTRO) {
+                PADOFFSET newpad = pad_add_name_pvn(HeKEY(he), HeKLEN(he),
+                    padadd_NO_DUP_CHECK | (HeKUTF8(he) ? SVf_UTF8 : 0),
+                    NULL, NULL);
+                if (!padmap)
+                    padmap = MUTABLE_HV(sv_2mortal(MUTABLE_SV(newHV())));
+                (void)hv_store(padmap, (const char *)&oldpad, sizeof(oldpad),
+                               newSVuv((UV)newpad), 0);
+                sv_setuv(padix, (UV)newpad);
+            }
+        }
+        if (padmap)
+            S_case_pattern_rebind(aTHX_ pattern, padmap);
+    }
     match = S_case_pattern_find_match_op(pattern);
     if (!match || !PL_parser->in_case_pattern)
         return;

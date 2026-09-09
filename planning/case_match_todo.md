@@ -96,7 +96,7 @@ basic control-flow representation.
 
 ## Priority 1: make the basic implementation correct and maintainable
 
-### Native-class implicit capture regression — OPEN
+### Native-class implicit capture regression — COMPLETE
 
 Running the proposed guide example exposed a defect on 2026-09-09:
 
@@ -113,15 +113,23 @@ case (Position->new(x => 3, y => 4)) {
 }
 ```
 
-This exits with SIGSEGV on the current build.  Assigning the constructed
-object to a lexical before the case does not prevent the crash.  Using
-different undeclared capture names avoids the crash but prints empty values.
-Predeclared captures with different names receive the correct values; constant
-field checks also work.  The existing native-field regression uses predeclared
-targets and therefore misses this defect.  Add implicit-target coverage and
-fix capture resolution, including targets sharing field names, before marking
-native-class destructuring complete.  The guide uses constant field checks
-and states this temporary limitation.
+This previously exited with SIGSEGV.  Using different undeclared capture
+names avoided the crash but produced empty values.  Predeclared targets hid
+the defect because the pattern compiler incorrectly redirected captures to
+older same-named declarations, including class field pad entries.
+
+Pattern preparation now replaces captures closed by the temporary parser
+scope with new declarations in the match clause, before parsing the guard
+and body.  Pattern pad references are updated by index, and the fallback
+search for older names has been removed.  Tests cover field-name collisions,
+guards, shadowing, nested objects, array tails, pins, typed captures, UTF-8
+names, and repeated execution.  The guide now uses implicit field captures.
+
+The broader validation also exposed a separate slurp cleanup defect: the
+minimum count in `OP_CASECOERCE::op_targ` was passed to `pad_free()` as a pad
+index.  Opcode cleanup now clears that count before generic pad cleanup.
+A fresh-process regression repeatedly compiles and destroys a pattern using
+the maximum U32 minimum without allocating a correspondingly large array.
 
 ### 1a. Never silently ignore unsupported syntax — COMPLETE
 

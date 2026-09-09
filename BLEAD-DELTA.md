@@ -233,6 +233,10 @@ case ($pair) {
 }
 ```
 
+Captures in class-qualified shapes are new clause-local variables, available
+in the guard and body.  They can share names with class fields or outer
+variables without overwriting them.
+
 Object shapes inspect the blessed reference structurally without calling
 constructors, accessors, or arbitrary user methods.  Native Perl class objects
 backed by the class field-map representation are supported, and a

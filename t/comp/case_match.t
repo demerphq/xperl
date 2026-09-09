@@ -1504,7 +1504,9 @@ my $object_hash_ok = eval q{
     use feature 'case_match';
     my $object_hash = bless { '$x' => 10, '$y' => 20 }, 'Point';
     case ($object_hash) {
-        match (Point { '$x' => $object_x, '$y' => $object_y }) { 1; }
+        match (Point { '$x' => $x, '$y' => $y }) {
+            ($object_x, $object_y) = ($x, $y);
+        }
     }
     1;
 };
@@ -1529,7 +1531,7 @@ my $object_open_ok = eval q{
     use feature 'case_match';
     my $object_hash = bless { '$x' => 10, '$y' => 20 }, 'Point';
     case ($object_hash) {
-        match (Point { '$x' => $object_open, ... }) { 1; }
+        match (Point { '$x' => $x, ... }) { $object_open = $x; }
     }
     1;
 };
@@ -1542,7 +1544,9 @@ my $object_array_ok = eval q{
     use feature 'case_match';
     my $object_array = bless [ 30, 40 ], 'Point';
     case ($object_array) {
-        match (Point [ $object_first, $object_second ]) { 1; }
+        match (Point [ $first, $second ]) {
+            ($object_first, $object_second) = ($first, $second);
+        }
     }
     1;
 };
@@ -1568,7 +1572,7 @@ my $object_scalar_ok = eval q{
     my $value = 70;
     my $object = bless \$value, 'Point';
     case ($object) {
-        match (Point \$object_scalar) { 1; }
+        match (Point \$captured) { $object_scalar = $captured; }
     }
     1;
 };
@@ -1720,9 +1724,12 @@ my $native_class_match = eval q{
     my $point = NativePointCase->new(x => 10, y => 20);
     case ($point) {
         match (NativePointCase {
-            '$x' => $native_x,
-            '$y' => $native_y,
-        }) { $native_class_result = 1; }
+            '$x' => $x,
+            '$y' => $y,
+        }) {
+            ($native_x, $native_y) = ($x, $y);
+            $native_class_result = 1;
+        }
     }
     1;
 };
@@ -1891,7 +1898,6 @@ my $large_slurp_ok = eval q{
     case (\@value) {
         match ([1, 2, @rest:300]) { scalar(@rest) == 300 }
     }
-    1;
 };
 print !$@ && $large_slurp_ok
     ? "ok 133 - array slurp minima are not limited to 255\n"
@@ -1904,7 +1910,6 @@ my $large_slurp_miss = eval q{
         match ([1, 2, @rest2:300]) { 0 }
         match (_) { 1 }
     }
-    1;
 };
 print !$@ && $large_slurp_miss
     ? "ok 134 - array slurp minimum rejects short tails\n"

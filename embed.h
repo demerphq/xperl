@@ -1067,7 +1067,7 @@
 #   define case_pattern_free(a)                 Perl_case_pattern_free(aTHX_ a)
 #   define case_pattern_mark_identity(a,b)      Perl_case_pattern_mark_identity(aTHX_ a,b)
 #   define case_pattern_note_pins(a)            Perl_case_pattern_note_pins(aTHX_ a)
-#   define case_pattern_note_regex(a)           Perl_case_pattern_note_regex(aTHX_ a)
+#   define case_pattern_prepare(a)              Perl_case_pattern_prepare(aTHX_ a)
 #   define case_pattern_preserve_concat(a)      Perl_case_pattern_preserve_concat(aTHX_ a)
 #   define case_pattern_static_pins(a)          Perl_case_pattern_static_pins(aTHX_ a)
 #   define check_utf8_print(a,b)                Perl_check_utf8_print(aTHX_ a,b)

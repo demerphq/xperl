@@ -474,17 +474,15 @@ with C<class>, use the field names including their sigils:
     }
 
     case (Position->new(x => 3, y => 4)) {
-        match (Position { '$x' => 3, '$y' => 4 }) {
-            say "position is (3, 4)";
+        match (Position { '$x' => $x, '$y' => $y }) {
+            say "position: $x, $y";
         }
     }
 
-This prints C<position is (3, 4)>.  The quoted C<'$x'> and C<'$y'> identify
-the fields to check, including their sigils.
-
-Native-class field captures currently have a known defect with implicitly
-declared targets.  Until that is fixed, use constant field checks for these
-objects; the example above does not create capture variables.
+This prints C<position: 3, 4>.  The quoted C<'$x'> and C<'$y'> identify
+the fields, including their sigils.  The unquoted C<$x> and C<$y> are new
+clause-local variables that receive those fields' values.  They are also
+available in a guard and do not overwrite outer variables with the same names.
 
 The class name must match exactly in this version; inheritance and role
 matching are not used.
