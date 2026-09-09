@@ -28,10 +28,23 @@ is skipped in the current nonthreaded build.
 
 ## Validation
 
-Focused case/match tests pass in the current nonthreaded production build.
-The ordinary regex suite `re/pat.t` and the diagnostics inventory also pass.
-Regeneration, full porting checks, and the full harness remain to be run.
+All fixes are committed. Validation on September 9 used the existing
+nonthreaded, non-DEBUGGING `-O3` configuration:
+
+- Focused case/match coverage: 185 tests passed; the thread-only test file
+  skipped because threads are unavailable in this build.
+- The ordinary regex suite `re/pat.t` and diagnostics inventory passed.
+- `make regen` completed using the installed Perl, with no generated-file
+  differences. The full run also passed `porting/regen.t`.
+- Final full harness: **PASS**, 3,083 files, 1,393,619 tests, 178 seconds.
+  Command: `TEST_JOBS=16 make -j10 test_harness`.
+- The initial broad run exposed an incomplete, file-specific bootstrap
+  pragma allowlist. After correcting it, all 724 bootstrap checks passed
+  through the harness, followed by the successful full rerun above.
+
 No new sanitizer or threaded build has been configured for this review.
+Logs are retained outside the source tree in the workspace directory
+`tmp/case-match-review-20260909/`.
 
 Keep fixes in incremental commits. Update user documentation and the main
 TODO where appropriate. Build and regeneration commands run in the visible
