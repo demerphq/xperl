@@ -5,7 +5,7 @@ BEGIN {
     unshift @INC, '../lib';
 }
 
-print "1..128\n";
+print "1..134\n";
 
 my $ran = 0;
 $_ = 'outside';
@@ -501,18 +501,18 @@ print !$@ && $with_expression
     ? "ok 38 - with expression pins a case-local value\n"
     : "not ok 38 - with expression pins a case-local value\n";
 
-my ($bool_yes, $bool_no, $bool_number) = (0, 0, 0);
+my ($bool_yes, $bool_no, $bool_string) = (0, 0, 0);
 my $typed_boolean = eval q{
     use feature 'case_match';
     use builtin qw(true false);
     case (true)  { match (true)  { $bool_yes = 1 } }
     case (false) { match (false) { $bool_no = 1 } }
-    case (1)     { match (true)  { $bool_number = 1 } }
+    case ('yes') { match (true)  { $bool_string = 1 } }
     1;
 };
-print !$@ && $typed_boolean && $bool_yes && $bool_no && $bool_number
-    ? "ok 39 - boolean literals use truth-value semantics\n"
-    : "not ok 39 - boolean literals use truth-value semantics\n";
+print !$@ && $typed_boolean && $bool_yes && $bool_no && !$bool_string
+    ? "ok 39 - boolean literals require boolean values\n"
+    : "not ok 39 - boolean literals require boolean values\n";
 
 my ($dispatch_order, $dispatch_duplicate, $dispatch_miss) = (0, 0, 0);
 my @dispatch_warnings;
@@ -537,7 +537,7 @@ my $constant_dispatch;
         1;
     };
 }
-print !$@ && $constant_dispatch && $dispatch_order == 2
+print !$@ && $constant_dispatch && $dispatch_order == 3
     && $dispatch_duplicate == 1 && !$dispatch_miss
     && @dispatch_warnings == 1
     ? "ok 40 - constant dispatch preserves typed source order\n"
@@ -1101,18 +1101,28 @@ my $strict_num_error = eval q{
     case (0) { match (Strict(Num())) { 1 } }
     1;
 };
-print $@ =~ /Strict\(\).*only valid with IntStr\(\), FloatStr\(\), or NumStr\(\)/
+print $@ =~ /Strict\(\).*only valid with IntStr\(\), FloatStr\(\), NumStr\(\), or NumEq\(\)/
     ? "ok 78 - Strict rejects Num\n"
     : "not ok 78 - Strict rejects Num\n";
 
-my $strict_eq_error = eval q{
-    use feature 'case_match';
-    case (0) { match (Strict(NumEq(0))) { 1 } }
-    1;
-};
-print $@ =~ /Strict\(\).*only valid with IntStr\(\), FloatStr\(\), or NumStr\(\)/
-    ? "ok 79 - Strict rejects NumEq\n"
-    : "not ok 79 - Strict rejects NumEq\n";
+my ($strict_eq_good, $strict_eq_bad, $strict_eq_warning);
+{
+    local $SIG{__WARN__} = sub { $strict_eq_warning++ };
+    my $strict_eq_ok = eval q{
+        use feature 'case_match';
+        case ('+1') {
+            match (Strict(NumEq(1))) { $strict_eq_good = 1 }
+        }
+        case ('+A') {
+            match (Strict(NumEq(1))) { $strict_eq_bad = 1 }
+        }
+        1;
+    };
+    $strict_eq_good = 0 unless $strict_eq_ok && !$@;
+}
+print $strict_eq_good && !$strict_eq_bad && !$strict_eq_warning
+    ? "ok 79 - Strict NumEq accepts numeric prefixes without warning\n"
+    : "not ok 79 - Strict NumEq accepts numeric prefixes without warning\n";
 
 my $num_eq_target_error = eval q{
     use feature 'case_match';
@@ -1806,3 +1816,96 @@ my $native_missing = eval q{
 print !$@ && $native_missing && !$native_missing_result
     ? "ok 128 - missing native fields are a non-match\n"
     : "not ok 128 - missing native fields are a non-match\n";
+
+my ($defined_value, $defined_undef, $defined_binding, $defined_binding_seen);
+my $defined_criterion = eval q{
+    use feature 'case_match';
+    case (42) {
+        match (DefinedVal($defined_binding)) {
+            $defined_value = 1;
+            $defined_binding_seen = $defined_binding == 42;
+        }
+    }
+    case (undef) {
+        match (DefinedVal()) { $defined_undef = 1 }
+    }
+    1;
+};
+print !$@ && $defined_criterion && $defined_value && !$defined_undef
+    && $defined_binding_seen
+    ? "ok 129 - DefinedVal matches and binds defined values\n"
+    : "not ok 129 - DefinedVal matches and binds defined values\n";
+
+my ($native_int_hit, $native_int_miss, $native_float_hit, $native_float_miss);
+my $native_criteria = eval q{
+    use feature 'case_match';
+    case (42) {
+        match (Int()) { $native_int_hit = 1 }
+        match (_) { $native_int_miss = 1 }
+    }
+    case (42.5) {
+        match (Float()) { $native_float_hit = 1 }
+        match (_) { $native_float_miss = 1 }
+    }
+    1;
+};
+print !$@ && $native_criteria && $native_int_hit && !$native_int_miss
+    && $native_float_hit && !$native_float_miss
+    ? "ok 130 - Int and Float match native numeric kinds\n"
+    : "not ok 130 - Int and Float match native numeric kinds\n";
+
+my ($typed_int_string, $typed_float_integer);
+my $native_criteria_rejects_strings = eval q{
+    use feature 'case_match';
+    case ('42') {
+        match (Int()) { $typed_int_string = 1 }
+    }
+    case (42) {
+        match (Float()) { $typed_float_integer = 1 }
+    }
+    1;
+};
+print !$@ && $native_criteria_rejects_strings
+    && !$typed_int_string && !$typed_float_integer
+    ? "ok 131 - Int and Float reject other representations\n"
+    : "not ok 131 - Int and Float reject other representations\n";
+
+my $strict_boolean_criteria = eval q{
+    use feature 'case_match';
+    use builtin qw(true false);
+    my ($strict_true, $strict_false, $truthy_string, $falsey_string);
+    case (true)  { match (TRUE)  { $strict_true = 1 } }
+    case (false) { match (FALSE) { $strict_false = 1 } }
+    case ('yes') { match (TRUE)  { $truthy_string = 1 } }
+    case ('')    { match (FALSE) { $falsey_string = 1 } }
+    join '', map { $_ ? 1 : 0 }
+        $strict_true, $strict_false, $truthy_string, $falsey_string;
+};
+print !$@ && $strict_boolean_criteria eq '1111'
+    ? "ok 132 - TRUE and FALSE use expression truth semantics\n"
+    : "not ok 132 - TRUE and FALSE use expression truth semantics\n";
+
+my $large_slurp_ok = eval q{
+    use feature 'case_match';
+    my @value = (1, 2, 3..302);
+    case (\@value) {
+        match ([1, 2, @rest:300]) { scalar(@rest) == 300 }
+    }
+    1;
+};
+print !$@ && $large_slurp_ok
+    ? "ok 133 - array slurp minima are not limited to 255\n"
+    : "not ok 133 - array slurp minima are not limited to 255\n";
+
+my $large_slurp_miss = eval q{
+    use feature 'case_match';
+    my @value = (1, 2, 3..301);
+    case (\@value) {
+        match ([1, 2, @rest2:300]) { 0 }
+        match (_) { 1 }
+    }
+    1;
+};
+print !$@ && $large_slurp_miss
+    ? "ok 134 - array slurp minimum rejects short tails\n"
+    : "not ok 134 - array slurp minimum rejects short tails\n";

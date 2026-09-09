@@ -7296,8 +7296,6 @@ yyl_snail(pTHX_ char *s)
             UV min = 0;
             do {
                 min = min * 10 + (*p - '0');
-                if (min > 255)
-                    Perl_croak(aTHX_ "array slurp minimum must be between 0 and 255");
                 p++;
             } while (isDIGIT(*p));
             PL_parser->case_slurp_min = (U32)min;
@@ -8692,6 +8690,34 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
         PL_bufptr = s;
         return REPORT(KW_ToFloat);
 
+    case KEY_DefinedVal:
+        if (!PL_parser->in_case_pattern)
+            return yyl_just_a_word(aTHX_ s, len, orig_keyword, c);
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_DefinedVal);
+
+    case KEY_FALSE:
+        if (!PL_parser->in_case_pattern)
+            return yyl_just_a_word(aTHX_ s, len, orig_keyword, c);
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_FALSE);
+
+    case KEY_Float:
+        if (!PL_parser->in_case_pattern)
+            return yyl_just_a_word(aTHX_ s, len, orig_keyword, c);
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_Float);
+
+    case KEY_Int:
+        if (!PL_parser->in_case_pattern)
+            return yyl_just_a_word(aTHX_ s, len, orig_keyword, c);
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_Int);
+
     case KEY_chop:
         UNI(OP_CHOP);
 
@@ -9503,6 +9529,13 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
         PL_expect = XTERM;
         PL_bufptr = s;
         return REPORT(KW_ToString);
+
+    case KEY_TRUE:
+        if (!PL_parser->in_case_pattern)
+            return yyl_just_a_word(aTHX_ s, len, orig_keyword, c);
+        PL_expect = XTERM;
+        PL_bufptr = s;
+        return REPORT(KW_TRUE);
 
     case KEY_ObjectVal:
         if (!PL_parser->in_case_pattern)

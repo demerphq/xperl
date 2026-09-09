@@ -7036,6 +7036,10 @@ S_case_pattern_numeric_match(pTHX_ SV *value, U8 criterion)
     bool integer_string;
     bool float_string;
 
+    if (kind == CASE_PATTERN_CRITERION_INT)
+        return SvIOK(value);
+    if (kind == CASE_PATTERN_CRITERION_FLOAT)
+        return SvNOK(value);
     if (kind == CASE_PATTERN_CRITERION_NUM)
         return SvIOK(value) || SvNOK(value);
 
@@ -7074,6 +7078,26 @@ S_case_pattern_numeric_match(pTHX_ SV *value, U8 criterion)
         return float_string;
     }
     return integer_string || float_string;
+}
+
+static bool
+S_case_pattern_strict_numeq(pTHX_ SV *value)
+{
+    const char *start;
+    STRLEN len;
+    STRLEN n;
+
+    if (!SvPOK(value) || SvROK(value))
+        return TRUE;
+    start = SvPV_nomg_const(value, len);
+    if (!len || isSPACE((U8)start[0]))
+        return FALSE;
+    for (n = len; n; n--) {
+        int number_type = grok_number(start, n, NULL);
+        if (number_type && !(number_type & IS_NUMBER_TRAILING))
+            return TRUE;
+    }
+    return FALSE;
 }
 
 static void
@@ -8360,7 +8384,9 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             return pinvalue && S_case_pattern_values_equal(aTHX_
                 pinvalue, value);
         }
-        if (criterion == CASE_PATTERN_CRITERION_INTSTR
+        if (criterion == CASE_PATTERN_CRITERION_INT
+            || criterion == CASE_PATTERN_CRITERION_FLOAT
+            || criterion == CASE_PATTERN_CRITERION_INTSTR
             || criterion == CASE_PATTERN_CRITERION_FLOATSTR
             || criterion == CASE_PATTERN_CRITERION_NUM
             || criterion == CASE_PATTERN_CRITERION_NUMSTR) {
@@ -8370,11 +8396,20 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             const OP *arg = target;
             if (!arg || (arg->op_type != OP_CONST && arg->op_type != OP_UNDEF))
                 Perl_croak(aTHX_ "NumEq() requires a literal argument in a match pattern");
+            if ((pattern->op_private & CASE_PATTERN_CRITERION_STRICT)
+                && !S_case_pattern_strict_numeq(aTHX_ value))
+                return FALSE;
             matched = do_ncmp(value,
                               arg->op_type == OP_CONST
                               ? cSVOPx_sv(arg) : &PL_sv_undef) == 0;
             return matched;
         }
+        else if (criterion == CASE_PATTERN_CRITERION_DEFINEDVAL)
+            matched = SvOK(value);
+        else if (criterion == CASE_PATTERN_CRITERION_TRUE)
+            matched = SvTRUE(value);
+        else if (criterion == CASE_PATTERN_CRITERION_FALSE)
+            matched = !SvTRUE(value);
         else if (criterion == CASE_PATTERN_CRITERION_REFVAL)
             matched = SvROK(value);
         else if (criterion == CASE_PATTERN_CRITERION_SCALARVAL)
@@ -8529,7 +8564,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             if (nvalues < (SSize_t)nfixed)
                 return FALSE;
             if (slurp && nvalues - (SSize_t)nfixed
-                    < (SSize_t)slurp->op->op_private)
+                    < (SSize_t)slurp->op->op_targ)
                 return FALSE;
             if (!leading_open && !trailing_open && nvalues != (SSize_t)nfixed)
                 if (!slurp)
@@ -8731,7 +8766,8 @@ PP(pp_casematch)
     else if (aux->kind == CASE_PATTERN_SIMPLE_UNDEF)
         matched = !SvOK(DEFSV);
     else if (aux->kind == CASE_PATTERN_SIMPLE_BOOL)
-        matched = (SvTRUE(DEFSV) == SvTRUE(cSVOPx_sv(pattern->op)));
+        matched = SvIsBOOL(DEFSV)
+            && (SvTRUE(DEFSV) == SvTRUE(cSVOPx_sv(pattern->op)));
     else if (aux->kind == CASE_PATTERN_SIMPLE_NUM)
         matched = (SvIOK(DEFSV) || SvNOK(DEFSV))
             && do_ncmp(DEFSV, cSVOPx_sv(pattern->op)) == 0;
@@ -8812,7 +8848,8 @@ S_case_dispatch_candidate(pTHX_ const AV *values, const AV *clauses, SV *subject
             continue;
         switch (kind) {
         case CASE_PATTERN_SIMPLE_BOOL:
-            matched = (SvTRUE(subject) == SvTRUE(value));
+            matched = SvIsBOOL(subject)
+                && (SvTRUE(subject) == SvTRUE(value));
             break;
         case CASE_PATTERN_SIMPLE_NUM:
             matched = do_ncmp(subject, value) == 0;
@@ -8948,8 +8985,9 @@ PP(pp_casedispatch)
         && dispatch->undef_clause != CASE_DISPATCH_NO_CLAUSE
         && dispatch->undef_clause < best)
         best = dispatch->undef_clause;
-    if (dispatch->bool_clause[0] != CASE_DISPATCH_NO_CLAUSE
-        || dispatch->bool_clause[1] != CASE_DISPATCH_NO_CLAUSE) {
+    if (SvIsBOOL(DEFSV)
+        && (dispatch->bool_clause[0] != CASE_DISPATCH_NO_CLAUSE
+            || dispatch->bool_clause[1] != CASE_DISPATCH_NO_CLAUSE)) {
         const U32 bool_clause = SvTRUE(DEFSV) ? dispatch->bool_clause[1]
                                            : dispatch->bool_clause[0];
         if (bool_clause != CASE_DISPATCH_NO_CLAUSE && bool_clause < best)

@@ -69,15 +69,20 @@ my %feature_kw = (
     ToInteger           => 'case_match',
     ToFloat             => 'case_match',
     ToString            => 'case_match',
+    DefinedVal          => 'case_match',
     RefVal              => 'case_match',
     ScalarVal           => 'case_match',
     ObjectVal           => 'case_match',
+    Int                 => 'case_match',
+    Float               => 'case_match',
     IntStr              => 'case_match',
     FloatStr            => 'case_match',
     Num                 => 'case_match',
     NumStr              => 'case_match',
     Strict              => 'case_match',
     NumEq               => 'case_match',
+    TRUE                => 'case_match',
+    FALSE               => 'case_match',
     namespace           => 'namespaces',
     as                  => 'namespaces',
     __NAMESPACE__       => 'namespaces',
@@ -156,7 +161,11 @@ __END__
 +END
 -ToFloat
 -FloatStr
+-Float
+-FALSE
+-DefinedVal
 -IntStr
+-Int
 -Num
 -NumEq
 -NumStr
@@ -166,6 +175,7 @@ __END__
 -RefVal
 -ScalarVal
 -ToString
+-TRUE
 -Strict
 +UNITCHECK
 -abs

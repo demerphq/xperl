@@ -59,10 +59,14 @@
 #   undef KEY___NAMESPACE__
 #   undef KEY_as
 #   undef KEY_case
+#   undef KEY_DefinedVal
 #   undef KEY_equ
+#   undef KEY_FALSE
+#   undef KEY_Float
 #   undef KEY_FloatStr
 #   undef KEY_gen
 #   undef KEY_implements
+#   undef KEY_Int
 #   undef KEY_IntStr
 #   undef KEY_match
 #   undef KEY_namespace
@@ -78,6 +82,7 @@
 #   undef KEY_ToFloat
 #   undef KEY_ToInteger
 #   undef KEY_ToString
+#   undef KEY_TRUE
 #   undef KEY_with
 #   undef KEY_yield
 #   undef MGv2f_SCALARVALUE_AUTOPROPAGATE
