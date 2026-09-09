@@ -111,12 +111,35 @@ can be matched directly:
         match (_)     { say "some value" }
     }
 
-The boolean data shapes C<true> and C<false> match only Perl's real boolean
-values.  They do not turn every true or false value into a boolean match.
-Use C<TRUE> and C<FALSE> when the pattern should use ordinary Perl truth
-semantics instead.  For example, C<match (TRUE)> matches a non-empty string,
-while C<match (FALSE)> matches an empty string.  Use C<match (undef)> when
-undefined and defined-false values must be distinguished.
+Boolean matching has two deliberately different forms.  The lower-case
+C<true> and C<false> patterns ask whether the subject is a boolean value.  They
+do not ask whether the subject merely behaves as true or false.  Thus a string
+such as C<"yes"> and the number C<1> do not match C<true>, even though they are
+true in an ordinary Perl condition.
+
+    use builtin qw(true false);
+
+    case ($value) {
+        match (true)  { say "the value is the boolean true" }
+        match (false) { say "the value is the boolean false" }
+        match (_)     { say "the value is not a boolean" }
+    }
+
+The upper-case C<TRUE> and C<FALSE> patterns ask the usual truth-value
+question instead.  C<TRUE> matches any value that would be true in an
+C<if> statement, and C<FALSE> matches any value that would be false.  For
+example, C<"yes"> matches C<TRUE>, while C<"">, C<0>, and C<undef> match
+C<FALSE>.
+
+    case ($value) {
+        match (TRUE)  { say "the value is truthy" }
+        match (FALSE) { say "the value is falsey" }
+    }
+
+This distinction is useful when a program must tell the difference between
+the boolean value C<false> and some other value that happens to be false.
+Use C<match (undef)> when undefined and defined-false values must be
+distinguished.
 
 =head2 Zero-argument calls
 
