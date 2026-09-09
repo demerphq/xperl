@@ -153,17 +153,19 @@ my $boolean_ran = eval q{
     use builtin qw(true false);
     $boolean_ok = same_array(
         [
-            do { case (1) { match (true) { 'true' } match (false) { 'false' } } },
-            do { case (0) { match (true) { 'true' } match (false) { 'false' } } },
+            do { case (true) { match (true) { 'true' } match (false) { 'false' } } },
+            do { case (false) { match (true) { 'true' } match (false) { 'false' } } },
+            do { case ('0') { match (TRUE) { 'true' } match (FALSE) { 'false' } } },
+            do { case ('yes') { match (true) { 'boolean' } match (TRUE) { 'truthy' } } },
         ],
-        [ 'true', 'false' ],
+        [ 'true', 'false', 'false', 'truthy' ],
     );
     1;
 };
 $boolean_error = $@ unless $boolean_ran;
 diag $boolean_error unless $boolean_ran;
 ok($boolean_ran && $boolean_ok,
-    'true and false use Perl truth-value semantics');
+    'lowercase boolean values and uppercase truth tests are distinct');
 
 my ($typed_ok, $typed_error) = (0, '');
 my $typed_ran = eval q{

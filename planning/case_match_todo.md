@@ -28,11 +28,13 @@ The current names are `Int` and `Float`.  Decide whether they should remain
 distinct from `Num`, or whether a more regular naming scheme is wanted before
 exposing them as stable syntax.
 
-### Documentation organization and examples — OPEN
+### Documentation organization and examples — COMPLETE
 
-The naming-and-pinning discussion should move earlier in the guide, and the
-complete example should grow into a compact tour of the supported forms.  These
-are documentation improvements, not semantic gaps in the implementation.
+Naming and pinning now appear alongside bindings and guards.  The guide has
+runnable opening and closing examples with expected output, a boolean
+comparison table, separate explanations of the two Strict forms, and concrete
+aggregate, class, and conversion examples.  The closing example draws on
+`t/comp/case_match_examples.t`, which remains the broader feature tour.
 
 ## Documentation-derived implementation items — COMPLETE
 
@@ -93,6 +95,33 @@ work below is therefore hardening and extension, not a replacement of the
 basic control-flow representation.
 
 ## Priority 1: make the basic implementation correct and maintainable
+
+### Native-class implicit capture regression — OPEN
+
+Running the proposed guide example exposed a defect on 2026-09-09:
+
+```perl
+use feature qw(case_match say class);
+class Position {
+    field $x :param;
+    field $y :param;
+}
+case (Position->new(x => 3, y => 4)) {
+    match (Position { '$x' => $x, '$y' => $y }) {
+        say "position: $x, $y";
+    }
+}
+```
+
+This exits with SIGSEGV on the current build.  Assigning the constructed
+object to a lexical before the case does not prevent the crash.  Using
+different undeclared capture names avoids the crash but prints empty values.
+Predeclared captures with different names receive the correct values; constant
+field checks also work.  The existing native-field regression uses predeclared
+targets and therefore misses this defect.  Add implicit-target coverage and
+fix capture resolution, including targets sharing field names, before marking
+native-class destructuring complete.  The guide uses constant field checks
+and states this temporary limitation.
 
 ### 1a. Never silently ignore unsupported syntax — COMPLETE
 

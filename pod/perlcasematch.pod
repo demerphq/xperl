@@ -13,13 +13,13 @@ data-shape matching before.
 
 Data-shape matching asks two questions at once: does a value have the shape we
 want, and which parts of it should receive names?  In more technical terms it
-combines structural matching with destructuring.  In many languages this is called
-"pattern matching", but in Perl we prefer the term C<data-shape matching> to
-distinguish it from regular-expression matching.
+combines structural matching with destructuring.  Many languages call this
+"pattern matching".  Here we use C<data-shape matching> to distinguish it
+from regular-expression matching.
 
 Enable the feature with:
 
-    use feature 'case_match';
+    use feature qw(case_match say);
 
 The feature is experimental, so its syntax and behavior may change.
 
@@ -27,29 +27,45 @@ The feature is experimental, so its syntax and behavior may change.
 
 A C<case> examines one subject and tries its C<match> clauses from top to
 bottom.  The first matching clause runs.  Clauses do not fall through.
-The outer case body may contain only direct C<match> clauses; an ordinary
-statement or a nested C<case> is not allowed there, however each match
-clause's attached block is an ordinary block and may contain normal
-statements, loops, and nested cases.
+The outer case body contains only C<match> clauses.  Each clause's attached
+block may contain statements, loops, and nested cases.
 
-    use feature 'case_match';
+    use feature qw(case_match say);
 
-    case ($value) {
-        # only match clauses here
-        match (1) { say "one" }
-        match (2) { say "two" }
-        match (_) {
-            # but you can do anything here
-            say "something else"
+    for my $value (1, 2, 3) {
+        case ($value) {
+            match (1) { say "one" }
+            match (2) { say "two" }
+            match (_) { say "something else" }
         }
     }
+
+This prints:
+
+    one
+    two
+    something else
+
+The later examples assume these features are enabled.  Examples beginning
+with C<match> are clause fragments to place inside a C<case>.
 
 The underscore is a wildcard.  It matches any value and does not create a
 binding, so it is useful as a final default clause.
 
 If no clause matches, C<case> returns C<undef> in scalar context and an empty
-list in list context.  A C<case> expression otherwise returns the value of its
-last expression, just like another block expression.
+list in list context.  Otherwise, it returns the value of the last evaluated
+expression in the selected clause:
+
+    my $description = do {
+        case (2) {
+            match (1) { "one" }
+            match (2) { "two" }
+            match (_) { "something else" }
+        }
+    };
+    say $description;       # two
+
+Use C<do { ... }> when using a case result in an assignment.
 
 The leading part inside C<match (...)> is a data-shape description.  It uses
 familiar punctuation, but it is not an ordinary expression and is not evaluated
@@ -58,8 +74,9 @@ is an ordinary expression used as a guard.
 
 =head1 BINDINGS, PINS, AND GUARDS
 
-A scalar name in a data-shape description is an implicit, clause-local
-binding.  You do not write a separate C<my> declaration for it:
+A scalar name in a data-shape description gives a matched value a name.
+This is called a binding.  The variable is local to that clause, and you do
+not write a separate C<my> declaration for it:
 
     case ($person) {
         match ({ name => $name, age => $age } if $age < 18) {
@@ -70,15 +87,61 @@ binding.  You do not write a separate C<my> declaration for it:
         }
     }
 
-Bindings are tentative.  The matcher does not commit them while it is still
-deciding whether the complete data shape matches.  If a later part fails, the
-earlier bindings are discarded.  The names become available only after the
-complete shape and its guard, if any, succeed.
+Once the complete shape matches, its bindings are available to the guard.
+If the guard succeeds, the attached block runs with those bindings.  If the
+shape or guard fails, the clause's bindings are discarded and the next
+clause is tried.
 
 An unpinned name is a new binding even if an outer scope has a variable with
 the same spelling.  A name listed by C<with>, or prefixed with C<^> in the
 data shape, is the exception: it refers to an existing scalar and is checked
 instead of filled in.
+
+    my $name = "outside";
+    case ("Ada") {
+        match ($name) { say $name }   # Ada: a new local variable
+    }
+    say $name;                       # outside: unchanged
+
+=head2 Naming and pinning
+
+The subject can be given a case-local name with C<as>:
+
+    case (read_record() as $record) {
+        match ({ type => "ok", ... }) { use_record($record) }
+    }
+
+The subject is evaluated once.  C<as $record> declares a new lexical scalar
+containing that value, available throughout the case.  It does not assign to
+an outer variable with the same name.
+
+A C<with> clause pins existing values.  Each item may be a variable or an
+expression followed by C<as> and a scalar name:
+
+    case ($record)
+    with (expected_type() as $wanted, $wanted_version) {
+        match ({ type => $wanted, version => $wanted_version, ... }) {
+            use_record($record);
+        }
+    }
+
+The C<as> syntax in a case subject or C<with> clause belongs to this feature.
+It is distinct from the similarly named syntax in the namespace feature, and
+does not require the C<namespaces> feature.
+
+An existing scalar can also be pinned directly with C<^$name>:
+
+    my $wanted = "ok";
+    case ($record) {
+        match ({ type => ^$wanted, ... }) { use_record($record) }
+    }
+
+The value is snapshotted when the surrounding case begins, so all clauses see
+the same pinned value even if a guard or clause body later changes the scalar.
+Only an existing scalar lexical may follow the caret.  Outside a data-shape
+description, the caret keeps its ordinary meaning.
+
+=head2 Guards
 
 A guard is an ordinary expression checked after the structural match:
 
@@ -121,8 +184,9 @@ An undefined value can be matched directly:
 Boolean matching has two forms with different meanings.  The lower-case
 C<true> and C<false> patterns ask whether the subject is a boolean value.  They
 do not ask whether the subject merely behaves as true or false.  Thus a string
-such as C<"yes"> and the number C<1> do not match C<true>, even though they are
-true in an ordinary Perl condition.
+such as C<"yes"> does not match C<true>, even though it is true in a condition.
+The builtins C<true> and C<false> produce boolean values, as do comparisons
+such as C<< $age < 18 >>.
 
     use builtin qw(true false);
 
@@ -134,14 +198,26 @@ true in an ordinary Perl condition.
 
 The upper-case C<TRUE> and C<FALSE> patterns ask the usual truth-value
 question instead.  C<TRUE> matches any value that would be true in an
-C<if> statement, and C<FALSE> matches any value that would be false.  For
-example, C<"yes"> matches C<TRUE>, while C<"">, C<0>, and C<undef> match
-C<FALSE>.
+C<if> statement, and C<FALSE> matches any value that would be false.  Among
+ordinary scalar values, C<undef>, the empty string C<"">, the number C<0>,
+and the string C<"0"> are false.  All other ordinary scalar values are true.
+Boolean values keep their truth value, and objects with boolean overloads
+use their overload behavior.
 
     case ($value) {
         match (TRUE)  { say "the value is truthy" }
         match (FALSE) { say "the value is falsey" }
     }
+
+For example:
+
+    Subject      true    false    TRUE    FALSE
+    true         yes     no       yes     no
+    false        no      yes      no      yes
+    "yes"        no      no       yes     no
+    "0"          no      no       no      yes
+    ""           no      no       no      yes
+    undef        no      no       no      yes
 
 This distinction is useful when a program must tell the difference between
 the boolean value C<false> and some other value that happens to be false.
@@ -199,10 +275,13 @@ Each criterion may take one scalar target.  The target is bound after the type
 check succeeds:
 
     case ($value) {
-        match (RefVal($reference)) { use_reference($reference) }
         match (ObjectVal($object)) { use_object($object) }
+        match (RefVal($reference)) { use_reference($reference) }
         match (ScalarVal($scalar)) { use_scalar($scalar) }
     }
+
+Put the more specific criterion first.  Every object is also a reference,
+so putting C<RefVal()> first would prevent the object clause from running.
 
 The target is a clause-local binding and cannot also be pinned by C<with>.
 Using a criterion without an argument performs only the type check.
@@ -237,16 +316,16 @@ whitespace and leading-zero padding are accepted unless wrapped by C<Strict()>.
 =item C<FloatStr()>
 
 Matches a floating-point value or a string containing a floating-point number,
-including exponent notation. Surrounding whitespace, and leading-zero padding are
-accepted unless wrapped by C<Strict()>.
+including exponent notation.  Surrounding whitespace and leading-zero
+padding are accepted unless wrapped by C<Strict()>.
 
 =item C<NumStr()>
 
 Matches anything accepted by C<IntStr()> or C<FloatStr()>.
 
-=item C<NumEq(EXPR)>
+=item C<NumEq(CONSTANT)>
 
-Compares the subject with the literal C<EXPR> using numeric C<==> semantics.
+Compares the subject with the literal constant using numeric C<==> semantics.
 It is matching-only and cannot bind a value.
 
 =back
@@ -259,18 +338,29 @@ does not turn the binding into C<7>:
         match (FloatStr($float_text)) { use_float($float_text) }
     }
 
-C<NumEq(EXPR)> uses the usual numeric-conversion rules.  For example,
-C<NumEq(0)> matches C<"0000">, C<"0.0">, and C<"0000.0">.  By default it also
-matches C<"A"> as zero and emits the usual numeric warning.  C<Strict(NumEq(EXPR))>
-requires a string to begin with numeric data, so C<"+1"> can match
-C<NumEq(1)> without a warning while C<"+A"> does not match.
+=head3 Checking numeric spelling with Strict
+
+C<Strict(...)> may wrap C<IntStr()>, C<FloatStr()>, or C<NumStr()> to reject
+surrounding whitespace and leading-zero padding.  For example,
+C<Strict(IntStr())> accepts C<"7"> but rejects C<"0007"> and C<" 7 ">.
+C<Strict(FloatStr())> accepts C<"0.0"> but rejects C<"0000.0">.
+Successful bindings still receive the original value.
+
+=head3 Numeric equality with NumEq
+
+C<NumEq(CONSTANT)> uses the usual numeric-conversion rules.  For example,
+C<NumEq(0)> matches C<"0000">, C<"0.0">, and C<"0000.0">.  It also matches
+C<"A"> as zero and emits the usual numeric warning when warnings are enabled.
 A non-literal argument or a destructuring target is not allowed.
 
-C<Strict(...)> may wrap C<IntStr()>, C<FloatStr()>, C<NumStr()>, or C<NumEq()>
-when a
-canonical spelling is required.  Strict criteria reject surrounding whitespace
-and non-canonical leading-zero padding.  Strict numeric equality keeps the
-usual Perl comparison after this initial check.
+C<Strict(NumEq(CONSTANT))> adds a different check: a string must begin with
+numeric data before the numeric comparison is attempted.  For example,
+C<Strict(NumEq(1))> accepts C<"+1"> and rejects C<"+A"> without a numeric
+warning.  This form does not require canonical spelling: C<"0001"> can
+still match.  A numeric prefix followed by nonnumeric text can still cause
+the ordinary comparison warning.
+
+C<Strict()> is not accepted around C<Int()>, C<Float()>, or C<Num()>.
 
 =head1 REFERENCE AND OBJECT SHAPES
 
@@ -292,19 +382,12 @@ and binds the outer reference itself.  The latter checks a scalar reference
 and binds the value reached through it.  Array and hash shapes can be nested in
 the same way.
 
-=head2 Arrays and hashes
+=head2 Arrays
 
 An array shape matches an array reference.  Without an ellipsis, it must have
 exactly the listed number of elements:
 
     match ([ $x, $y ]) { say "point: $x, $y" }
-
-A hash shape lists keys that must be present.  A trailing C<...> permits extra
-keys:
-
-    match ({ status => "ok", value => $value, ... }) {
-        use_value($value);
-    }
 
 For arrays, C<...> may appear at the beginning, at the end, or at both ends:
 
@@ -313,8 +396,38 @@ For arrays, C<...> may appear at the beginning, at the end, or at both ends:
     match ([ ..., "start", $middle, "end", ... ])
 
 The last form searches from the left and binds the first matching subsequence.
-Array and hash shapes may be nested.  An ellipsis is allowed only in these
-supported open-shape positions.
+For example:
+
+    case ([ "skip", "start", 10, "end", "start", 20, "end" ]) {
+        match ([ ..., "start", $middle, "end", ... ]) {
+            say $middle;     # 10, from the first matching subsequence
+        }
+    }
+
+The elements between the ellipses must be consecutive.  The ellipses allow
+elements before and after that group; they do not allow gaps within it.
+
+=head2 Hashes
+
+A hash shape lists keys that must be present.  Without an ellipsis, the hash
+must have exactly those keys.  A trailing C<...> permits extra keys:
+
+    case ({ status => "ok", value => 42, source => "cache" }) {
+        match ({ status => "ok", value => $value }) {
+            say "exact record";
+        }
+        match ({ status => "ok", value => $value, ... }) {
+            say "record with extra keys: $value";
+        }
+    }
+
+This prints C<record with extra keys: 42>.  The first clause fails because
+the subject also has a C<source> key.  Removing that key makes the first
+clause match instead.
+
+Array and hash shapes may be nested:
+
+    match ({ point => [ $x, $y ], ... }) { say "point: $x, $y" }
 
 =head2 Array tail bindings
 
@@ -328,8 +441,12 @@ C<N> remaining elements while capturing the complete tail:
 
     match ([ 1, 2, @rest:3 ]) { say "three or more: @rest" }
 
-The minimum is stored in the pattern as a full unsigned count rather than a
-small byte-sized field.  A slurp cannot be combined with an ellipsis or
+C<N> is a nonnegative integer from C<0> through C<2**32 - 1>, written as
+decimal digits.  If fewer than C<N> elements remain, the clause does not
+match.  For example, C<[1, 2, 3, 4]> has only two elements after C<1> and
+C<2>, so it does not match C<[1, 2, @rest:3]>.
+
+A tail binding, also called a slurp, cannot be combined with an ellipsis or
 another slurp.
 
 =head2 Class-qualified shapes
@@ -345,10 +462,32 @@ hash, or reference shape:
         }
     }
 
-Hash shapes inspect quoted fields, array shapes inspect positional values, and
-scalar-reference shapes can bind their referents.  Native class objects backed
-by the class field-map representation are supported.  The class name must
-match exactly in this version; inheritance and role matching are not used.
+Hash shapes inspect quoted fields, array shapes inspect positional values,
+and scalar-reference shapes can bind their referents.  For an object created
+with C<class>, use the field names including their sigils:
+
+    use feature 'class';
+
+    class Position {
+        field $x :param;
+        field $y :param;
+    }
+
+    case (Position->new(x => 3, y => 4)) {
+        match (Position { '$x' => 3, '$y' => 4 }) {
+            say "position is (3, 4)";
+        }
+    }
+
+This prints C<position is (3, 4)>.  The quoted C<'$x'> and C<'$y'> identify
+the fields to check, including their sigils.
+
+Native-class field captures currently have a known defect with implicitly
+declared targets.  Until that is fixed, use constant field checks for these
+objects; the example above does not create capture variables.
+
+The class name must match exactly in this version; inheritance and role
+matching are not used.
 Missing fields do not match.  These shapes inspect the object directly and do
 not call constructors, accessors, or arbitrary methods.  Tied and magical
 nested values use normal read semantics, and overload is used when the
@@ -368,20 +507,20 @@ A regular expression can be used as a data shape:
         }
     }
 
-Numbered capture vars and the usual named-capture variables remain available
-in the match clause.  A named capture also creates a clause-local scalar binding.
-A named capture that does not participate is bound to C<undef>.
+Numbered captures and the usual named-capture variables remain available in
+the clause.  A named capture also creates a clause-local scalar binding.  If
+a named group does not participate in a successful match, its binding is
+C<undef>.
 
-The match state is dynamically localized to the C<match> block as they would be in
-any other block.  When the case ends, the previous values of C<$1>, C<$2>, C<%+>,
-C<%->, and any other regex match variables are restored as with any other block exit.
+The clause can use the captures from its successful match.  When the case
+ends, the previous values of C<$1>, C<$2>, C<%+>, C<%->, and the other regex
+match variables are restored.
 
-Static regular expressions are compiled once and may be reused while an open
-array or hash shape searches for candidates.  Dynamic regular expressions,
+Static regular expressions are compiled once and reused when a shape tests
+multiple candidates, such as during an open-array search.  Dynamic expressions,
 including interpolated expressions such as C</thing-$re-thing/>, are rejected
 in a data-shape position.  Regex code blocks such as C<(?{ ... })> and
-C<(??{ ... })> are also rejected.  If you really need to do this then put such
-logic in a guard:
+C<(??{ ... })> are also rejected.  Use a guard for these forms:
 
     match (_ if $subject =~ /thing-$re-thing/) { ... }
 
@@ -422,45 +561,8 @@ Concatenation is the only structural expression currently supported.  Calls
 with arguments, arithmetic, and other unsupported expressions will throw an
 exception.  Literal strings and values with usable overloaded stringification
 follow normal string and Unicode/byte behavior.  Concatenation does not apply
-to true numbers, for that you should use C<ToString()> on the case argument
-to force string context.
-
-=head1 NAMING AND PINNING
-
-The subject can be given a case-local name with C<as>:
-
-    case (read_record() as $record) {
-        match ({ type => "ok", ... }) { use_record($record) }
-    }
-
-The subject is evaluated once.  This does not assign to an outer variable,
-you can think of "as" being a binary operator form of my.
-
-A C<with> clause pins existing values.  Each item may be a variable or, similar
-to the subject var, an expression followed by C<as> and a scalar name:
-
-    case ($record)
-    with (expected_type() as $wanted, $wanted_version) {
-        match ({ type => $wanted, version => $wanted_version, ... }) {
-            use_record($record);
-        }
-    }
-
-The C<as> syntax in a case subject or C<with> clause belongs to this feature.
-It is distinct from the similarly named syntax in the namespace feature, and
-does not require the C<namespaces> feature.
-
-An existing scalar can also be pinned directly with C<^$name>:
-
-    my $wanted = "ok";
-    case ($record) {
-        match ({ type => ^$wanted, ... }) { use_record($record) }
-    }
-
-The value is snapshotted when the surrounding case begins, so all clauses see
-the same pinned value even if a guard or clause body later changes the scalar.
-Only an existing scalar lexical may follow the caret.  Outside a data-shape
-description, the caret keeps its ordinary meaning.
+to numeric values.  Use C<ToString()> on the subject to convert a number to
+a string before matching.
 
 =head1 EXPLICIT SUBJECT CONVERSION
 
@@ -470,28 +572,63 @@ The grammar provides three explicit subject conversions:
     case (ToFloat   $value) { ... }
     case (ToString  $value) { ... }
 
-The subject is evaluated once and converted before any clause is tested.  An
-undefined value remains undefined, and references pass through unchanged. These
-functions are provided to allow the user to ignore numeric/string differences
-in the subject var when needed.
+The subject is evaluated once and converted before any clause is tested.
+These subject conversions let you choose how strings and numbers should be
+treated:
+
+    case (ToInteger "12") {
+        match (12) { say "integer twelve" }
+    }
+    case (ToFloat "2.5") {
+        match (2.5) { say "floating-point two and a half" }
+    }
+    case (ToString 12) {
+        match ("12") { say "string twelve" }
+    }
+
+An undefined value remains undefined, and references pass through unchanged:
+
+    case (ToString undef) {
+        match (undef) { say "still undefined" }
+    }
+    case (ToInteger [3, 4]) {
+        match ([ $x, $y ]) { say "still an array: $x, $y" }
+    }
 
 =head1 A COMPLETE EXAMPLE
 
-This example classifies messages represented by array references:
+This shorter version of the demonstration in F<t/comp/case_match_examples.t>
+classifies a mixture of strings, arrays, and hashes.  It combines extraction,
+pinning, and a guard in one case:
 
-    use feature 'case_match';
+    use feature qw(case_match say);
+
+    my $wanted_status = "ok";
 
     for my $value (
-        [ "ok", 42 ],
-        [ "error", "disk full" ],
-        [ "other", 0 ],
+        "prefix_middle_suffix",
+        [ "point", 3, 4 ],
+        [ { name => "Ada" }, { name => "Lin" } ],
+        { status => "ok", code => 200, source => "cache" },
+        { status => "ok", code => 500 },
+        "something else",
     ) {
         case ($value) {
-            match ([ "ok", $number ]) {
-                say "received $number";
+            match ("prefix_" . $inner . "_suffix") {
+                say "inside <$inner>";
             }
-            match ([ "error", $message ]) {
-                warn $message;
+            match ([ "point", $x, $y ]) {
+                say "point ($x,$y)";
+            }
+            match ([ { name => $first }, { name => $second } ]) {
+                say "names: $first and $second";
+            }
+            match ({ status => ^$wanted_status, code => $code, ... }
+                   if $code < 400) {
+                say "accepted status: $code";
+            }
+            match ({ status => $status, ... }) {
+                say "other status: $status";
             }
             match (_) {
                 say "unrecognised value";
@@ -499,6 +636,22 @@ This example classifies messages represented by array references:
         }
     }
 
+This prints:
+
+    inside <middle>
+    point (3,4)
+    names: Ada and Lin
+    accepted status: 200
+    other status: ok
+    unrecognised value
+
+The record with code C<500> passes the pinned status check, but its guard
+fails.  Matching continues with the broader status clause.  Putting that
+broader clause first would prevent the guarded clause from being reached.
+
+The demonstration test in the source tree includes more combinations,
+including open-array searches, array tails, regex captures, and references,
+and checks the expected results.
 
 =head1 SEE ALSO
 
