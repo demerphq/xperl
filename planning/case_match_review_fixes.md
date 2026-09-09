@@ -9,10 +9,10 @@ case/match and porting tests before a full harness run.
    (169 tests) in the current nonthreaded production build.
 2. **Pending:** discover and bind every static regex's named captures,
    including regexes inside object shapes and open-array searches.
-3. **Pending:** apply actual-boolean matching consistently to nested
+3. **Complete:** apply actual-boolean matching consistently to nested
    constants, including imported builtin booleans.
 4. **Pending:** remove silent 64-element and 64-binding limits.
-5. **Pending:** reject slurp minima outside `0 .. 2**32 - 1` without
+5. **Complete:** reject slurp minima outside `0 .. 2**32 - 1` without
    overflowing during decimal parsing.
 6. **Pending:** reject statically known duplicate hash keys. Runtime key
    collisions must not raise duplicate-key errors or let an exact shape

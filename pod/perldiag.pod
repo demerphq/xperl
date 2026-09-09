@@ -1808,10 +1808,10 @@ end.
 (F) An array slurpy target must be the final element of its pattern and cannot
 be combined with an ellipsis.
 
-=item array slurp minimum must be between 0 and 255
+=item array slurp minimum exceeds 2**32 - 1
 
-(F) The minimum length requested for an array slurpy target was outside the
-supported range of 0 through 255.
+(F) The minimum length requested for an array slurpy target exceeds the
+supported maximum of C<2**32 - 1>.
 
 =item hash pattern may contain only one ellipsis
 
@@ -6885,7 +6885,7 @@ unless there was a failure.  You probably wanted to use system()
 instead, which does return.  To suppress this warning, put the exec() in
 a block by itself.
 
-=item Strict() is only valid with IntStr(), FloatStr(), or NumStr() in a match pattern
+=item Strict() is only valid with IntStr(), FloatStr(), NumStr(), or NumEq() in a match pattern
 
 (F) The C<Strict> data-shape modifier applies only to the string-bearing
 numeric criteria C<IntStr>, C<FloatStr>, and C<NumStr>.  It cannot be applied

@@ -442,7 +442,8 @@ C<N> remaining elements while capturing the complete tail:
     match ([ 1, 2, @rest:3 ]) { say "three or more: @rest" }
 
 C<N> is a nonnegative integer from C<0> through C<2**32 - 1>, written as
-decimal digits.  If fewer than C<N> elements remain, the clause does not
+decimal digits.  Larger minima are compile-time errors.  If fewer than
+C<N> elements remain, the clause does not
 match.  For example, C<[1, 2, 3, 4]> has only two elements after C<1> and
 C<2>, so it does not match C<[1, 2, @rest:3]>.
 

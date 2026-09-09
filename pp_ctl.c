@@ -8472,6 +8472,8 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
         if (pattern->op_private & OPpCONST_BARE
             && strEQ(SvPV_nolen_const(pattern_sv), "_"))
             return TRUE;
+        if (SvIsBOOL(pattern_sv))
+            return SvIsBOOL(value) && (SvTRUE(value) == SvTRUE(pattern_sv));
         if (pattern->op_flags & OPf_SPECIAL || SvIOK(pattern_sv)
             || SvNOK(pattern_sv)) {
             return (SvIOK(value) || SvNOK(value))
@@ -8583,8 +8585,8 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
 
             if (nvalues < (SSize_t)nfixed)
                 return FALSE;
-            if (slurp && nvalues - (SSize_t)nfixed
-                    < (SSize_t)slurp->op->op_targ)
+            if (slurp && (UV)(nvalues - (SSize_t)nfixed)
+                    < (UV)(U32)slurp->op->op_targ)
                 return FALSE;
             if (!leading_open && !trailing_open && nvalues != (SSize_t)nfixed)
                 if (!slurp)

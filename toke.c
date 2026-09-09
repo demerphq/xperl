@@ -7295,6 +7295,16 @@ yyl_snail(pTHX_ char *s)
         if (isDIGIT(*p)) {
             UV min = 0;
             do {
+                /* The syntax promises a U32 minimum even when UV is wider.
+                 * Check before multiplying: checking after accumulation or
+                 * after the U32 cast below would let oversized decimal
+                 * literals wrap (for example, 4294967296 would become zero
+                 * and incorrectly allow an empty tail to match).  Written
+                 * this way, the check itself cannot overflow on a 32-bit UV
+                 * and also rejects literals too large for a 64-bit UV. */
+                if (min > (U32_MAX - (UV)(*p - '0')) / 10)
+                    Perl_croak(aTHX_
+                        "array slurp minimum exceeds 2**32 - 1");
                 min = min * 10 + (*p - '0');
                 p++;
             } while (isDIGIT(*p));

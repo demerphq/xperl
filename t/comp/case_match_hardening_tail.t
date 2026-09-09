@@ -6,9 +6,34 @@ BEGIN {
     set_up_inc( qw(. ../lib) );
 }
 
-plan(17);
+plan(19);
 
 require Scalar::Util;
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    use builtin qw(true false);
+    my $one = 2; --$one;
+    my $zero = 2; $zero -= 2;
+    for my $v ($one, $zero, true, false) {
+        case ([$v]) {
+            match ([true])  { say 'true' }
+            match ([false]) { say 'false' }
+            match (_)      { say 'not boolean' }
+        }
+    }
+}, "not boolean\nnot boolean\ntrue\nfalse", {},
+    'nested builtin boolean constants require actual boolean values');
+
+fresh_perl_is(q{
+    use feature qw(case_match say);
+    for my $min ('4294967296', '18446744073709551616', '9' x 100) {
+        eval 'case ([]) { match ([@rest:' . $min . ']) { 1 } }';
+        say $@ =~ /array slurp minimum exceeds 2\*\*32 - 1/
+            ? 'rejected' : 'wrong result';
+    }
+}, "rejected\nrejected\nrejected", {},
+    'out-of-range slurp minima are rejected before integer overflow');
 
 fresh_perl_is(q{
     use feature qw(case_match say);
