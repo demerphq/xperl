@@ -953,8 +953,8 @@ C<match(\$value)> matches a reference to a scalar and binds the referred-to
 value; C<match(\\$value)> describes one additional reference layer.  This is
 different from C<RefVal($value)>, which binds the outer reference itself.
 
-String data shapes may contain literal fragments and one unpinned scalar
-capture.  For example:
+String data shapes may contain literal fragments and multiple unpinned scalar
+captures.  For example:
 
     case ($text) {
         match ("x" . $middle . "z") { say $middle }
@@ -963,10 +963,11 @@ capture.  For example:
 This matches a string beginning with C<x> and ending with C<z>, binding the
 text between them to C<$middle>.  Prefix-only and suffix-only forms such as
 C<"x" . $suffix> and C<$prefix . "z"> are also supported, including empty
-captures.  The concatenation is data-shape syntax; it is not evaluated as an
-ordinary Perl concatenation before matching.  A name pinned by C<with>
-contributes its existing value instead of capturing.  Multiple captures and
-general expression operands are not currently supported.
+captures.  Multiple captures are supported when literal or pinned fragments
+separate them.  The concatenation is data-shape syntax; it is not evaluated as
+an ordinary concatenation before matching.  A name pinned by C<with>
+contributes its existing value instead of capturing.  General expression
+operands are not currently supported.
 
 A regular expression can also be used as a data shape.  Its ordinary capture
 variables remain available, and a named capture such as C<(?<name>...)> also
