@@ -6,9 +6,63 @@ BEGIN {
     set_up_inc( qw(. ../lib) );
 }
 
-plan(22);
+plan(27);
 
 require Scalar::Util;
+
+fresh_perl_is(q{
+    use utf8;
+    use strict;
+    use feature qw(case_match say);
+    case (['a', 'b']) {
+        match ([/(?<prénom>a)/, /(?<numéro>b)/]) { say "$prénom,$numéro" }
+    }
+}, 'a,b', {}, 'multiple regex captures preserve UTF-8 lexical names');
+
+fresh_perl_is(q{
+    use strict;
+    use feature qw(case_match say);
+    'outside' =~ /(outside)/;
+    case (['a', 'b']) {
+        match ([/(?<first>a)/, /(?<second>b)/]) {
+            say "$first,$second,$1";
+        }
+    }
+    say $1;
+}, "a,b,b\noutside", {},
+    'each regex supplies its own named captures and restores outer matches');
+
+fresh_perl_is(q{
+    use strict;
+    use feature qw(case_match say);
+    case (bless({name => 'Ada', code => '42'}, 'Person')) {
+        match (Person {name => /(?<who>\w+)/, code => /(?<id>\d+)/}) {
+            say "$who,$id";
+        }
+    }
+}, 'Ada,42', {}, 'named regex captures traverse object field shapes');
+
+fresh_perl_is(q{
+    use strict;
+    use feature qw(case_match say class);
+    no warnings 'experimental::class';
+    class Person { field $name :param; field $code :param }
+    case (Person->new(name => 'Ada', code => '42')) {
+        match (Person {'$name' => /(?<who>\w+)/,
+                       '$code' => /(?<id>\d+)/}) { say "$who,$id" }
+    }
+}, 'Ada,42', {}, 'named regex captures traverse native class fields');
+
+fresh_perl_is(q{
+    use strict;
+    use feature qw(case_match say);
+    case (['a1', 'bad', 'a2', 'b2']) {
+        match ([..., /a(?<first>\d)/, /b(?<second>\d)(?<extra>x)?/, ...]) {
+            say "$first,$second," . (defined($extra) ? 'wrong' : 'undef');
+        }
+    }
+}, '2,2,undef', {},
+    'open-array retries discard tentative captures from each rejected candidate');
 
 fresh_perl_is(q{
     use feature qw(case_match say);

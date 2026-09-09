@@ -6751,41 +6751,7 @@ Perl_case_pattern_static_pins(pTHX_ OP *body)
     return list;
 }
 
-static const OP *
-S_case_pattern_find_match(const struct case_pattern_node *node)
-{
-    U32 i;
-
-    if (!node)
-        return NULL;
-    if (node->op && node->op->op_type == OP_MATCH)
-        return node->op;
-    for (i = 0; i < node->nchild; i++) {
-        const OP *match = S_case_pattern_find_match(node->child[i]);
-        if (match)
-            return match;
-    }
-    return NULL;
-}
-
-static const OP *
-S_case_pattern_find_match_op(const OP *op)
-{
-    const OP *kid;
-
-    if (!op)
-        return NULL;
-    if (op->op_type == OP_MATCH)
-        return op;
-    if (!(op->op_flags & OPf_KIDS))
-        return NULL;
-    for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid)) {
-        const OP *match = S_case_pattern_find_match_op(kid);
-        if (match)
-            return match;
-    }
-    return NULL;
-}
+static void S_case_pattern_prepare_regex(pTHX_ const OP *pattern);
 
 static void
 S_case_pattern_rebind(pTHX_ OP *op, HV *padmap)
@@ -6809,12 +6775,6 @@ S_case_pattern_rebind(pTHX_ OP *op, HV *padmap)
 void
 Perl_case_pattern_prepare(pTHX_ OP *pattern)
 {
-    const OP *match;
-    REGEXP *re;
-    SV *names_ref;
-    AV *names;
-    SSize_t i;
-
     PERL_ARGS_ASSERT_CASE_PATTERN_PREPARE;
     if (!PL_parser || !PL_parser->case_pattern_vars)
         return;
@@ -6847,10 +6807,27 @@ Perl_case_pattern_prepare(pTHX_ OP *pattern)
         if (padmap)
             S_case_pattern_rebind(aTHX_ pattern, padmap);
     }
-    match = S_case_pattern_find_match_op(pattern);
-    if (!match || !PL_parser->in_case_pattern)
+    S_case_pattern_prepare_regex(aTHX_ pattern);
+}
+
+static void
+S_case_pattern_prepare_regex(pTHX_ const OP *pattern)
+{
+    REGEXP *re;
+    SV *names_ref;
+    AV *names;
+    SSize_t i;
+    const OP *kid;
+
+    if (!pattern || !PL_parser->in_case_pattern)
         return;
-    re = PM_GETRE(cPMOPx(match));
+    if (pattern->op_type != OP_MATCH) {
+        if (pattern->op_flags & OPf_KIDS)
+            for (kid = cUNOPx(pattern)->op_first; kid; kid = OpSIBLING(kid))
+                S_case_pattern_prepare_regex(aTHX_ kid);
+        return;
+    }
+    re = PM_GETRE(cPMOPx(pattern));
     if (!re)
         return;
     if (RX_EXTFLAGS(re) & RXf_EVAL_SEEN)
@@ -6864,16 +6841,13 @@ Perl_case_pattern_prepare(pTHX_ OP *pattern)
     names = MUTABLE_AV(SvRV(names_ref));
     for (i = 0; i <= av_len(names); i++) {
         SV **name_svp = av_fetch(names, i, FALSE);
-        STRLEN namelen;
-        const char *name;
         SV *padname;
         PADOFFSET padix;
 
         if (!name_svp || !*name_svp)
             continue;
-        name = SvPV(*name_svp, namelen);
         padname = newSVpvn("$", 1);
-        sv_catpvn(padname, name, namelen);
+        sv_catsv(padname, *name_svp);
         if (hv_exists(PL_parser->case_pattern_vars,
                       SvPV_nolen(padname), SvCUR(padname))) {
             SvREFCNT_dec_NN(padname);
@@ -6889,17 +6863,23 @@ Perl_case_pattern_prepare(pTHX_ OP *pattern)
 }
 
 static void
-S_case_pattern_compile_regex(pTHX_ struct case_pattern_aux *aux)
+S_case_pattern_compile_regex(pTHX_ struct case_pattern_node *node)
 {
-    const OP *match = S_case_pattern_find_match(aux->root);
     REGEXP *re;
     SV *names_ref;
     AV *names;
     SSize_t i;
 
-    if (!match || !PL_parser || match->op_type != OP_MATCH)
+    U32 childix;
+
+    if (!node || !PL_parser)
         return;
-    re = PM_GETRE(cPMOPx(match));
+    S_case_pattern_compile_regex(aTHX_ node->object_shape);
+    for (childix = 0; childix < node->nchild; childix++)
+        S_case_pattern_compile_regex(aTHX_ node->child[childix]);
+    if (node->op->op_type != OP_MATCH)
+        return;
+    re = PM_GETRE(cPMOPx(node->op));
     if (!re)
         return;
     names_ref = CALLREG_NAMED_BUFF_ALL(re, RXapif_ALL | RXapif_REGNAMES);
@@ -6910,28 +6890,25 @@ S_case_pattern_compile_regex(pTHX_ struct case_pattern_aux *aux)
     names = MUTABLE_AV(SvRV(names_ref));
     for (i = 0; i <= av_len(names); i++) {
         SV **name_svp = av_fetch(names, i, FALSE);
-        STRLEN namelen;
-        const char *name;
         SV *padname;
         SV **padix_svp;
 
         if (!name_svp || !*name_svp)
             continue;
-        name = SvPV(*name_svp, namelen);
         padname = newSVpvn("$", 1);
-        sv_catpvn(padname, name, namelen);
+        sv_catsv(padname, *name_svp);
         padix_svp = hv_fetch(PL_parser->case_pattern_vars,
                              SvPV_nolen(padname), SvCUR(padname), FALSE);
         if (!padix_svp) {
             SvREFCNT_dec_NN(padname);
             continue;
         }
-        if (!aux->regex_names) {
-            aux->regex_names = newAV();
-            aux->regex_padixes = newAV();
+        if (!node->regex_names) {
+            node->regex_names = newAV();
+            node->regex_padixes = newAV();
         }
-        av_push(aux->regex_names, newSVsv(*name_svp));
-        av_push(aux->regex_padixes, newSVsv(*padix_svp));
+        av_push(node->regex_names, newSVsv(*name_svp));
+        av_push(node->regex_padixes, newSVsv(*padix_svp));
         SvREFCNT_dec_NN(padname);
     }
     SvREFCNT_dec_NN(names_ref);
@@ -7432,15 +7409,17 @@ S_case_pattern_call(pTHX_ const OP *op)
 }
 
 static void
-S_case_pattern_free_node(struct case_pattern_node *node)
+S_case_pattern_free_node(pTHX_ struct case_pattern_node *node)
 {
     U32 i;
 
     if (!node)
         return;
-    S_case_pattern_free_node(node->object_shape);
+    S_case_pattern_free_node(aTHX_ node->object_shape);
     for (i = 0; i < node->nchild; i++)
-        S_case_pattern_free_node(node->child[i]);
+        S_case_pattern_free_node(aTHX_ node->child[i]);
+    SvREFCNT_dec((SV *)node->regex_names);
+    SvREFCNT_dec((SV *)node->regex_padixes);
     PerlMemShared_free(node->child);
     PerlMemShared_free(node);
 }
@@ -7449,15 +7428,16 @@ S_case_pattern_free_node(struct case_pattern_node *node)
  * nodes is conservative, including pins and constants, and avoids imposing
  * an arbitrary semantic limit on captures. */
 static size_t
-S_case_pattern_binding_capacity(const struct case_pattern_node *node)
+S_case_pattern_binding_capacity(pTHX_ const struct case_pattern_node *node)
 {
     size_t count = 1;
     U32 i;
     if (!node)
         return 0;
-    count += S_case_pattern_binding_capacity(node->object_shape);
+    count += node->regex_names ? (size_t)av_count(node->regex_names) : 0;
+    count += S_case_pattern_binding_capacity(aTHX_ node->object_shape);
     for (i = 0; i < node->nchild; i++)
-        count += S_case_pattern_binding_capacity(node->child[i]);
+        count += S_case_pattern_binding_capacity(aTHX_ node->child[i]);
     return count;
 }
 
@@ -7476,9 +7456,8 @@ Perl_case_pattern_compile(pTHX_ const OP *pattern)
     aux->root = S_case_pattern_compile_node(aTHX_ pattern, FALSE);
     aux->static_pins = newAV();
     S_case_pattern_note_static_pins(aTHX_ pattern, aux->static_pins);
-    S_case_pattern_compile_regex(aTHX_ aux);
-    aux->binding_capacity = S_case_pattern_binding_capacity(aux->root)
-        + (aux->regex_names ? (size_t)av_count(aux->regex_names) : 0);
+    S_case_pattern_compile_regex(aTHX_ aux->root);
+    aux->binding_capacity = S_case_pattern_binding_capacity(aTHX_ aux->root);
     aux->kind = CASE_PATTERN_COMPLEX;
     if (pattern->op_type == OP_UNDEF)
         aux->kind = CASE_PATTERN_SIMPLE_UNDEF;
@@ -7503,11 +7482,9 @@ Perl_case_pattern_free(pTHX_ UNOP_AUX_item *items)
     PERL_UNUSED_CONTEXT;
 
     if (aux && aux->magic == CASE_PATTERN_AUX_MAGIC) {
-        S_case_pattern_free_node(aux->root);
+        S_case_pattern_free_node(aTHX_ aux->root);
         op_free(aux->pattern);
         SvREFCNT_dec((SV *)aux->static_pins);
-        SvREFCNT_dec((SV *)aux->regex_names);
-        SvREFCNT_dec((SV *)aux->regex_padixes);
         if (aux->dispatch)
             Perl_case_dispatch_free(aTHX_ (UNOP_AUX_item *)aux->dispatch);
         PerlMemShared_free(aux);
@@ -8193,6 +8170,10 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                       SV *pattern_value,
                       struct case_binding *bindings, size_t *nbindings);
 
+static void
+S_case_pattern_bind_regex(pTHX_ const struct case_pattern_node *node,
+                          struct case_binding *bindings, size_t *nbindings);
+
 static const struct case_pattern_node *
 S_case_pattern_find_shape_node(const struct case_pattern_node *node)
 {
@@ -8534,8 +8515,10 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
          * provides the stacked operand needed by pp_match().  This must be
          * done after its temporary scope is left, because that scope restores
          * PL_curpm. */
-        if (matched)
+        if (matched) {
             PL_curpm = pattern_pm;
+            S_case_pattern_bind_regex(aTHX_ node, bindings, nbindings);
+        }
         return matched;
     }
 
@@ -8736,24 +8719,24 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
 }
 
 static void
-S_case_pattern_bind_regex(pTHX_ const struct case_pattern_aux *aux,
+S_case_pattern_bind_regex(pTHX_ const struct case_pattern_node *node,
                            struct case_binding *bindings,
                            size_t *nbindings)
 {
     SSize_t i;
 
-    if (!aux->regex_names || !aux->regex_padixes)
+    if (!node->regex_names || !node->regex_padixes)
         return;
-    for (i = 0; i <= av_len(aux->regex_names); i++) {
-        SV **name_svp = av_fetch(aux->regex_names, i, FALSE);
-        SV **padix_svp = av_fetch(aux->regex_padixes, i, FALSE);
+    for (i = 0; i <= av_len(node->regex_names); i++) {
+        SV **name_svp = av_fetch(node->regex_names, i, FALSE);
+        SV **padix_svp = av_fetch(node->regex_padixes, i, FALSE);
         SV *captured;
         size_t j;
 
         if (!name_svp || !padix_svp)
             continue;
         captured = CALLREG_NAMED_BUFF_FETCH(
-            PM_GETRE(cPMOPx(S_case_pattern_find_match(aux->root))),
+            PM_GETRE(cPMOPx(node->op)),
             *name_svp, 0);
         if (!captured)
             captured = newSVsv(&PL_sv_undef);
@@ -8815,8 +8798,6 @@ PP(pp_casematch)
         matched = S_case_pattern_match(aTHX_
             pattern, DEFSV, *PL_stack_sp,
             bindings, &nbindings);
-    if (matched)
-        S_case_pattern_bind_regex(aTHX_ aux, bindings, &nbindings);
     size_t i;
 
     if (cx && CxTYPE(cx) == CXt_CASE) {

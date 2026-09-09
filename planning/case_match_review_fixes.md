@@ -7,8 +7,9 @@ case/match and porting tests before a full harness run.
 1. **Complete:** preserve escaped scalar and array bindings when the
    clause exits, including repeated executions. Four focused files pass
    (169 tests) in the current nonthreaded production build.
-2. **Pending:** discover and bind every static regex's named captures,
-   including regexes inside object shapes and open-array searches.
+2. **Complete:** discover and bind every static regex's named captures,
+   including regexes inside object shapes and open-array searches. Preserve
+   UTF-8 capture names and ordinary regex capture localization.
 3. **Complete:** apply actual-boolean matching consistently to nested
    constants, including imported builtin booleans.
 4. **Complete:** remove silent 64-element and 64-binding limits. Regression

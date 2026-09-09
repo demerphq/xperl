@@ -245,6 +245,8 @@ struct case_pattern_node {
     bool binding_local;
     const SV *object_class;
     struct case_pattern_node *object_shape;
+    AV *regex_names; /* this regex's named captures and lexical targets */
+    AV *regex_padixes;
 };
 
 struct case_dispatch_aux;
@@ -257,8 +259,6 @@ struct case_pattern_aux {
     struct case_dispatch_aux *dispatch;
     U32 dispatch_clause;
     AV *static_pins; /* pad indexes pinned by ^ in this pattern */
-    AV *regex_names; /* named captures and their clause-local bindings */
-    AV *regex_padixes;
     size_t binding_capacity; /* upper bound for one tentative match */
     bool always_matches; /* wildcard or identity pattern */
 };
