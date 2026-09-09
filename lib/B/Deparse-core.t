@@ -378,6 +378,11 @@ my %not_tested = map { $_ => 1} qw(
     field
     ToFloat
     FloatStr
+    Float
+    DefinedVal
+    FALSE
+    TRUE
+    Int
     IntStr
     Num
     NumEq

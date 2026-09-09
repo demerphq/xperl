@@ -1192,6 +1192,7 @@ like $@, qr'^Undefined format "STDOUT" called',
     ADJUST AUTOLOAD BEGIN CHECK CORE DESTROY END INIT UNITCHECK
  ToFloat ToInteger ToString ObjectVal RefVal ScalarVal
  IntStr FloatStr Num NumStr Strict NumEq
+ DefinedVal Int Float TRUE FALSE
     __DATA__ __END__
     case match with
     __NAMESPACE__ as namespace
