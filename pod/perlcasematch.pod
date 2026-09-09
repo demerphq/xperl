@@ -111,7 +111,7 @@ can be matched directly:
         match (_)     { say "some value" }
     }
 
-Boolean matching has two deliberately different forms.  The lower-case
+Boolean matching has two forms with different meanings.  The lower-case
 C<true> and C<false> patterns ask whether the subject is a boolean value.  They
 do not ask whether the subject merely behaves as true or false.  Thus a string
 such as C<"yes"> and the number C<1> do not match C<true>, even though they are
@@ -156,8 +156,7 @@ subroutine:
 The call is made in scalar context when the clause is tried.  Calls with
 arguments are rejected because the left side of C<match> is not general
 expression syntax.  Use a guard for ordinary computation or a value that
-needs arguments.  Calls may have side effects, so use them only when that is
-intentional.
+needs arguments.
 
 =head2 Value-kind criteria
 
