@@ -96,6 +96,8 @@ tentative bindings discarded.
 
 =head1 SCALAR DATA SHAPES
 
+=head2 Literal strings and numbers
+
 Literal numbers and literal strings are different data-shape kinds:
 
     case ($value) {
@@ -103,13 +105,18 @@ Literal numbers and literal strings are different data-shape kinds:
         match ("1") { say "the string one" }
     }
 
-This distinction makes the intended comparison explicit.  An undefined value
-can be matched directly:
+This distinction makes the intended comparison explicit.
+
+=head2 Undefined values
+
+An undefined value can be matched directly:
 
     case ($value) {
         match (undef) { say "no value" }
         match (_)     { say "some value" }
     }
+
+=head2 Boolean values
 
 Boolean matching has two forms with different meanings.  The lower-case
 C<true> and C<false> patterns ask whether the subject is a boolean value.  They
@@ -141,7 +148,7 @@ the boolean value C<false> and some other value that happens to be false.
 Use C<match (undef)> when undefined and defined-false values must be
 distinguished.
 
-=head2 Zero-argument calls
+=head2 Computed scalar values
 
 A zero-argument function or method call may supply a value computed by a
 subroutine:
