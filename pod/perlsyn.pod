@@ -927,7 +927,9 @@ value; matching C<"0007"> does not turn the binding into C<7>.
 
 C<Strict(...)> can wrap C<IntStr()>, C<FloatStr()>, or C<NumStr()> to reject
 surrounding whitespace and non-canonical leading-zero padding.  Applying
-C<Strict()> to C<Num()> or C<NumEq(...)> is a compile-time error.
+C<Strict()> to C<Num()> is a compile-time error.  With C<NumEq(...)>,
+C<Strict()> instead requires that a string begin with a numeric prefix
+before comparing it numerically; see L<perlcasematch> for examples.
 
 C<NumEq(EXPR)> is a matching-only criterion.  For now, C<EXPR> must be a
 literal value.  It compares using Perl's normal numeric C<==> rules and does

@@ -92,6 +92,11 @@ If the guard succeeds, the attached block runs with those bindings.  If the
 shape or guard fails, the clause's bindings are discarded and the next
 clause is tried.
 
+Bindings have the usual lexical lifetime.  A closure or reference can keep a
+bound variable alive after the clause ends, just as it can keep a variable
+declared with C<my> alive.  This also applies if a guard stores a closure
+elsewhere before returning false or throwing an exception.
+
 An unpinned name is a new binding even if an outer scope has a variable with
 the same spelling.  A name listed by C<with>, or prefixed with C<^> in the
 data shape, is the exception: it refers to an existing scalar and is checked
@@ -520,6 +525,19 @@ Numbered captures and the usual named-capture variables remain available in
 the clause.  A named capture also creates a clause-local scalar binding.  If
 a named group does not participate in a successful match, its binding is
 C<undef>.
+
+A shape may contain several regular expressions, including inside arrays,
+hashes, and class-qualified shapes.  Each expression supplies its own named
+bindings:
+
+    case (["Ada", "42"]) {
+        match ([ /^(?<name>\w+)$/, /^(?<id>\d+)$/ ]) {
+            say "$name has id $id";
+        }
+    }
+
+The ordinary capture variables, such as C<$1> and C<%+>, describe the most
+recent successful regex match; they are not combined across expressions.
 
 The clause can use the captures from its successful match.  When the case
 ends, the previous values of C<$1>, C<$2>, C<%+>, C<%->, and the other regex

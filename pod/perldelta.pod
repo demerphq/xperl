@@ -49,6 +49,16 @@ a C<syntax> warning because the later clause can never match; the first clause
 remains selected.  The warning includes the repeated constant and its source
 location.
 
+Clause-local captures retain ordinary lexical lifetime when kept alive by
+closures or references, including when a guard rejects a clause.  Nested
+regex shapes bind each regex's named captures independently.  Array shapes
+and capture sets no longer have a fixed 64-element limit.  Slurp minima are
+checked against C<2**32 - 1> before decimal accumulation can overflow.
+
+Duplicate constant keys in hash shapes are compile-time errors.  Runtime
+key collisions do not raise duplicate-key errors; exact hash matching
+checks coverage of distinct keys rather than counting syntactic pairs.
+
 Static regular expressions used by open array or hash shapes are compiled once
 and reused for each candidate.  Regex code blocks, C<(?{ ... })> and
 C<(??{ ... })>, are currently rejected while a case pattern is compiled so

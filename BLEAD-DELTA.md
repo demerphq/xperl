@@ -138,8 +138,10 @@ The text inside `match (...)` is a small data-shape language, not an ordinary
 Perl expression.  Perl-like punctuation makes arrays, hashes, literals, and
 names easy to recognize, but the text describes a shape rather than computing
 a value.  A name such as `$number` is a new scalar binding local to the
-clause's block.  Bindings are tentative: they become visible only after the
-whole data shape and its optional guard succeed.
+clause's block.  Bindings become visible to the guard after the whole shape
+matches; the block runs only if the guard also succeeds.  Closures and
+references can keep bound variables alive after the clause ends, just as
+they can keep ordinary lexical variables alive.
 
 Zero-argument function and method calls may supply scalar values in a data
 shape.  They are called in scalar context when their clause is tried.  Calls
@@ -147,34 +149,41 @@ with arguments remain unsupported; ordinary Perl computation belongs in a
 guard after `if`.
 
 Scalar shapes include `undef`, literal strings, literal numbers, `true`, and
-`false`.  Strings and numbers are deliberately distinct, so `match (1)` and
-`match ("1")` express different cases.  Boolean shapes use Perl's normal
-truth-value rules.  Regular-expression values can be used as scalar matching
+`false`.  Strings and numbers are distinct, so `match (1)` and
+`match ("1")` express different cases.  Lowercase `true` and `false` require
+actual boolean values; uppercase `TRUE` and `FALSE` test ordinary truthiness.
+Regular-expression values can be used as scalar matching
 criteria.  Regular-expression shapes update Perl's ordinary capture variables
 and make named captures available as clause-local scalar bindings.  For
 example, `match (/^user: (?<name>[[:word:]]+)$/) { say $name }` binds `$name`
 when the subject matches; a named capture that does not participate is bound
-to `undef`.
+to `undef`.  Each regex in a nested shape contributes its own named bindings.
+The ordinary regex capture variables still describe the most recent match.
 
 For an open array or hash shape, a static regular expression is compiled once
 and its compiled form is reused for each candidate.  Regex code blocks,
 `(?{ ... })` and `(??{ ... })`, are currently rejected while the case pattern
 is compiled; they must not be silently ignored.  Unicode and byte-string
 behavior remains the responsibility of the regular-expression engine.  Dynamic
-regular expressions such as C</thing-$re-thing/> are rejected in a data-shape
+regular expressions such as `/thing-$re-thing/` are rejected in a data-shape
 pattern as well.  Put runtime construction in the ordinary guard, for example
-C<match (_ if $subject =~ /thing-$re-thing/) { ... }>.  See
-L<perlcasematch> for the full rules and examples.
+`match (_ if $subject =~ /thing-$re-thing/) { ... }`.  See
+[`perlcasematch`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlcasematch.pod)
+for the full rules and examples.
 
 Numeric criteria add a controlled distinction between native numbers and
 numeric-looking strings.  `IntStr`, `FloatStr`, and `NumStr` can both match and
 bind values; they accept surrounding whitespace and leading-zero padding by
 default.  `Num` matches only native numeric values.  `Strict(...)` can wrap the
 string-bearing criteria to reject whitespace and non-canonical padding.  It is
-not valid around `Num` or `NumEq`.  `NumEq(EXPR)` is a matching-only comparison
+not valid around `Num`.  `NumEq(EXPR)` is a matching-only comparison
 using Perl's `==` rules, including its normal numeric warnings; for example,
 `NumEq(0)` matches `"0000"`, `"0.0"`, and `"0000.0"`, and treats `"A"` as zero
-with a warning.
+with a warning.  `Strict(NumEq(...))` requires a numeric prefix in string
+subjects before attempting that comparison.
+
+`Int()` and `Float()` distinguish native integer and floating-point values.
+`DefinedVal()` accepts anything except `undef`.
 
 The special criteria `RefVal()`, `ScalarVal()`, and `ObjectVal()`
 test, respectively, for any reference, any non-reference scalar, and a
@@ -211,10 +220,16 @@ Array and hash shapes can be nested.  An array shape without an ellipsis must
 have exactly the listed length.  Edge ellipses describe open shapes, such as
 `[ $first, ... ]` or `[ ..., $last ]`; an array can also use a final array
 binding such as `[ 1, 2, @rest ]` to capture the remaining tail.  `@rest:N`
-requires at least `N` remaining elements, where `N` is currently between 0 and
-255.  A hash shape requires its listed keys; a final `...` permits additional
+requires at least `N` remaining elements, where `N` is between 0 and
+`2**32 - 1`; larger minima are compile-time errors.  Array shapes and binding
+sets have no fixed 64-element limit.  A hash shape requires its listed keys;
+a final `...` permits additional
 keys.  The current implementation permits one array slurp and does not combine
 it with an ellipsis or another slurp.
+
+Repeating a constant key in a hash shape is a compile-time error.  Runtime
+keys may coincide without an error, but must still satisfy all their value
+requirements.  Covering one key twice does not permit an extra subject key.
 
 Blessed references can use a class-qualified shape.  A hash shape checks named
 fields, an array shape checks positional values, and a reference shape checks
@@ -289,7 +304,7 @@ select a specialized dispatch representation.  The current implementations
 include linear, binary-search, and hash-based constant lookup.  These are
 performance choices, not different language features: source order, the first
 successful clause, and default-clause behavior remain the same.  Repeating a
-constant data shape emits a C<syntax> warning because the later clause can
+constant data shape emits a `syntax` warning because the later clause can
 never match.  The warning includes the repeated constant and its source
 location; the first clause remains selected.
 

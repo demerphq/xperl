@@ -5,6 +5,13 @@ This document records the remaining work for the experimental
 implementation-focused: the broader language proposal remains in
 [`perl-pattern-matching.md`](perl-pattern-matching.md).
 
+The September 9 implementation review found six defects in previously
+covered areas: escaped capture lifetime, multi-regex capture discovery,
+nested builtin booleans, silent size limits, slurp-minimum overflow, and
+duplicate hash keys. Fixes and expanded regressions are complete; broad
+validation is tracked in
+[`case_match_review_fixes.md`](case_match_review_fixes.md).
+
 Status labels mean: `COMPLETE` is implemented and has focused coverage;
 `PARTIALLY COMPLETE` has a working baseline but still needs specified
 extensions or broader hardening; `OPEN` is unfinished; and `DEFERRED` is
