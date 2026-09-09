@@ -10,6 +10,44 @@ Status labels mean: `COMPLETE` is implemented and has focused coverage;
 extensions or broader hardening; `OPEN` is unfinished; and `DEFERRED` is
 intentionally postponed.
 
+## Documentation-derived design questions
+
+These questions were extracted from the case/match guide and do not change
+the current documented spellings.
+
+### Naming value-kind criteria — OPEN
+
+The current names are `DefinedVal`, `ScalarVal`, `RefVal`, and `ObjectVal`.
+Decide whether future aliases or replacements should instead mirror existing
+builtins such as `defined`, `scalar`, `ref`, and `blessed`.  Do not change the
+current names until the language design is settled.
+
+### Naming native numeric criteria — OPEN
+
+The current names are `Int` and `Float`.  Decide whether they should remain
+distinct from `Num`, or whether a more regular naming scheme is wanted before
+exposing them as stable syntax.
+
+### Documentation organization and examples — OPEN
+
+The naming-and-pinning discussion should move earlier in the guide, and the
+complete example should grow into a compact tour of the supported forms.  These
+are documentation improvements, not semantic gaps in the implementation.
+
+## Documentation-derived implementation items — COMPLETE
+
+The recent documentation notes are now reflected in the implementation and
+focused tests:
+
+- `DefinedVal()` performs a defined-value check and can bind one scalar target;
+- `Int()` and `Float()` distinguish native integer and floating-point values;
+- `true` and `false` retain boolean-value matching, while `TRUE` and `FALSE`
+  use ordinary truth-value matching inside a data-shape;
+- `Strict(NumEq(...))` rejects strings with no numeric prefix without causing
+  the ordinary numeric warning;
+- array slurp minima are stored in the full pattern count rather than being
+  limited to 255.
+
 ## Current baseline
 
 The branch currently provides:
@@ -22,9 +60,11 @@ The branch currently provides:
   case-entry snapshot shared by all clauses;
 - scalar patterns for `undef`, booleans, numeric literals, string literals,
   and the wildcard `_`;
-- numeric criteria `IntStr`, `FloatStr`, `Num`, and `NumStr`, with optional
-  `Strict` canonical-spelling checks, plus matching-only `NumEq` using Perl's
+- numeric criteria `Int`, `Float`, `IntStr`, `FloatStr`, `Num`, and `NumStr`,
+  with optional `Strict` checks, plus matching-only `NumEq` using Perl's
   numeric equality semantics;
+- value-kind criteria `DefinedVal`, `ScalarVal`, `RefVal`, and `ObjectVal`,
+  plus the `TRUE` and `FALSE` truth-value criteria;
 - explicit `ToInteger`, `ToFloat`, and `ToString` subject coercions;
 - tentative lexical bindings with commit/rollback behavior;
 - exact and open nested array/hash-reference patterns using edge `...`
