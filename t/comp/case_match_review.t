@@ -8,7 +8,8 @@ BEGIN {
 
 # Cross-feature regressions from the implementation/documentation review.
 # Test observable results AND process status: a crash after printing the
-# expected result must not pass. Known failures are intentionally not TODOs.
+# expected result must not pass. These regressions were originally failing;
+# keep their expectations independent of the implementation being tested.
 sub check_case {
     my ($name, $code, $expected) = @_;
     my $result = fresh_perl(
@@ -63,6 +64,20 @@ for my $mode (qw(none array-linear array-binary hv auto)) {
                 match (_)        { say 'miss' }
             }
             utf8::upgrade($text);
+        }
+    }, "hit\nhit");
+
+    check_case("$mode: byte mode compares raw encodings", q{
+        my $text = chr(233);
+        utf8::upgrade($text);
+        my $encoded = $text;
+        utf8::encode($encoded);
+        use bytes;
+        for my $value ($text, $encoded) {
+            case ($value) {
+                match ("\xc3\xa9") { say 'hit' }
+                match (_) { say 'miss' }
+            }
         }
     }, "hit\nhit");
 
@@ -480,5 +495,41 @@ check_case('regex backtracking publishes captures from the winning candidate', q
         }
     }
 }, '2,2,2');
+
+check_case('concat byte captures do not retain a partial UTF-8 flag', q{
+    my $text = chr(233);
+    utf8::upgrade($text);
+    use bytes;
+    case ($text) {
+        match ("\xc3" . $tail) {
+            say unpack('H*', $tail);
+            say utf8::is_utf8($tail) ? 'wrong flag' : 'bytes';
+        }
+    }
+}, "a9\nbytes");
+
+check_case('concat calls subject and pinned stringification only once', q{
+    package Text {
+        our $calls = 0;
+        use overload '""' => sub { ++$calls; $_[0][0] }, fallback => 1;
+    }
+    my $subject = bless ['prefix_tail'], 'Text';
+    my $prefix = bless ['prefix_'], 'Text';
+    case ($subject) with ($prefix) {
+        match ($prefix . $tail) { say $tail }
+    }
+    say $Text::calls;
+}, "tail\n2");
+
+check_case('computed scalar values use the same kind rules as literals', q{
+    sub text { '1' }
+    sub number { 1 }
+    for my $value (1, '1') {
+        case ($value) {
+            match (text()) { say 'string' }
+            match (number()) { say 'number' }
+        }
+    }
+}, "number\nstring");
 
 done_testing();

@@ -1,5 +1,17 @@
 # `case`/`match` follow-up work
 
+## September 10 correctness follow-up
+
+The eleven problem groups in
+[`case_match_coverage_review.md`](case_match_coverage_review.md) are fixed.
+The expanded regression suite covers native scalar provenance, encoding and
+byte mode, sparse arrays, reference identity, one-fetch capture binding,
+hash-key validation, invalid referent kinds, and subject/field-view ownership.
+Broader sanitizer and cross-build validation remain separate follow-ups;
+the current build is nonthreaded, non-DEBUGGING, and optimized with `-O3`.
+The full harness passes: 3,084 files, 1,393,802 tests. All 367 applicable
+case/match tests pass; thread-specific tests are skipped in this build.
+
 This document records the remaining work for the experimental
 `case_match` feature on the `xperl/case_match` branch.  It is intentionally
 implementation-focused: the broader language proposal remains in
@@ -510,9 +522,9 @@ ignore stringification overloads.  A guard exception that used to SIGSEGV now
 rolls back bindings and propagates normally.
 
 Remaining limitations are tracked by the numbered items above.  In
-particular, the clause body is intentionally not promised to inherit the
-case expression's list context; the case result itself follows its caller's
-context.  Broader ownership and sanitizer validation remain under items 1 and
+particular, selected clause expressions receive scalar, list, or void
+context, as verified by calls to real subroutines. Broader ownership and
+sanitizer validation remain under items 1 and
 9; items 6–8 are complete for the supported v0 semantics.
 
 ## Documentation maintenance

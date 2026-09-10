@@ -175,6 +175,10 @@ Literal numbers and literal strings are different data-shape kinds:
 
 This distinction makes the intended comparison explicit.
 
+Using a string in an earlier numeric expression does not change its kind
+for matching. For example, C<"0007"> remains a string after C<0 + $value>
+has read it. The same rule applies inside arrays, hashes, and object shapes.
+
 =head2 Undefined values
 
 An undefined value can be matched directly:
@@ -290,6 +294,11 @@ so putting C<RefVal()> first would prevent the object clause from running.
 
 The target is a clause-local binding and cannot also be pinned by C<with>.
 Using a criterion without an argument performs only the type check.
+
+Repeating a scalar binding requires the values to agree. References agree
+only when they refer to the same thing, not merely when they print the same
+way. This applies both to C<[$item, $item]> and to typed bindings such as
+C<[RefVal($item), RefVal($item)]>.
 
 =head2 Numeric value criteria
 
@@ -412,6 +421,10 @@ For example:
 The elements between the ellipses must be consecutive.  The ellipses allow
 elements before and after that group; they do not allow gaps within it.
 
+An array slot that has never been assigned is treated as C<undef>. Matching
+does not fill these holes in the original array. A tail binding includes
+the undefined values, preserving their positions in the captured tail.
+
 =head2 Hashes
 
 A hash shape lists keys that must be present.  Without an ellipsis, the hash
@@ -443,6 +456,10 @@ without an ellipsis.
 Array and hash shapes may be nested:
 
     match ({ point => [ $x, $y ], ... }) { say "point: $x, $y" }
+
+Every hash entry must have both a key and a value shape. An unpinned name
+cannot capture a key: use a literal key, a pinned scalar, or a supported
+zero-argument call to say which key to inspect.
 
 =head2 Array tail bindings
 
@@ -507,6 +524,11 @@ not call constructors, accessors, or arbitrary methods.  Tied and magical
 nested values use normal read semantics, and overload is used when the
 selected shape requires string, numeric, or boolean conversion.  Captured
 references retain their identity.
+
+The matcher uses the fetched value for both a nested type check and its
+binding; publishing that binding does not fetch the tied source again.
+If your guard or clause body reads the tied source itself, that is a
+separate ordinary read and may return a different value.
 
 =head1 REGULAR-EXPRESSION SHAPES
 

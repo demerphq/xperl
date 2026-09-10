@@ -29,6 +29,14 @@ here, but most should go in the L</Performance Enhancements> section.
 
 =head2 Experimental data-shape matching
 
+Case/match now consistently preserves string-versus-number distinctions
+after numeric caching, handles sparse array slots as C<undef>, and compares
+equivalent byte and UTF-8 string representations correctly. Repeated typed
+reference captures use identity. Malformed hash shapes are diagnosed during
+compilation. Subject and native field-view ownership fixes prevent leaks,
+and scalar-reference shapes reject non-scalar referents without attempting
+invalid copies.
+
 Capture names repeated across separate regexes in one C<match> clause now
 produce a C<syntax> warning: only the first regex supplies the lexical
 binding.  Duplicate names within a single regex retain their usual behavior.

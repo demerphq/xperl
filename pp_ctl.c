@@ -6412,18 +6412,6 @@ S_case_pattern_concat_find(const char *subject, STRLEN subject_len,
     return FALSE;
 }
 
-static void
-S_case_pattern_concat_croak(pTHX_ const char *message,
-                             const struct case_pattern_node **parts,
-                             SV **fixed_values, size_t capacity)
-{
-    /* All workspace and strings are mortal, including on an overload die. */
-    PERL_UNUSED_ARG(parts);
-    PERL_UNUSED_ARG(fixed_values);
-    PERL_UNUSED_ARG(capacity);
-    Perl_croak(aTHX_ "%s", message);
-}
-
 static bool
 S_case_pattern_concat_match(pTHX_ const struct case_pattern_node *node,
                              SV *value, SV *pattern_value,
@@ -6447,12 +6435,13 @@ S_case_pattern_concat_match(pTHX_ const struct case_pattern_node *node,
         return FALSE;
     text = sv_newmortal();
     sv_copypv(text, value);
-    if (!IN_BYTES)
+    if (IN_BYTES)
+        SvUTF8_off(text);
+    else
         sv_utf8_upgrade(text);
 
     if (!nparts)
-        S_case_pattern_concat_croak(aTHX_
-            "unsupported case pattern concatenation expression", NULL, NULL, 0);
+        Perl_croak(aTHX_ "unsupported case pattern concatenation expression");
     workspace = sv_2mortal(newSV(capacity * sizeof(*parts)));
     parts = (const struct case_pattern_node **)SvPVX(workspace);
     workspace = sv_2mortal(newSV(capacity * sizeof(*fixed_values)));
@@ -6460,9 +6449,7 @@ S_case_pattern_concat_match(pTHX_ const struct case_pattern_node *node,
     Zero(fixed_values, capacity, SV *);
     nparts = 0;
     if (!S_case_pattern_concat_flatten(node, parts, capacity, &nparts))
-        S_case_pattern_concat_croak(aTHX_
-            "unsupported case pattern concatenation", parts, fixed_values,
-            capacity);
+        Perl_croak(aTHX_ "unsupported case pattern concatenation expression");
     subject = SvPV_nomg_const(text, subject_len);
 
     /* Materialize each fixed fragment once. Normalize encodings before
@@ -6475,13 +6462,13 @@ S_case_pattern_concat_match(pTHX_ const struct case_pattern_node *node,
             continue;
         raw = S_case_pattern_concat_fixed_value(aTHX_ parts[i]);
         if (!raw)
-            S_case_pattern_concat_croak(aTHX_
-                "unsupported case pattern concatenation component",
-                parts, fixed_values, capacity);
+            Perl_croak(aTHX_ "unsupported case pattern concatenation component");
         sv_2mortal(raw);
         fixed_values[i] = sv_newmortal();
         sv_copypv(fixed_values[i], raw);
-        if (!IN_BYTES)
+        if (IN_BYTES)
+            SvUTF8_off(fixed_values[i]);
+        else
             sv_utf8_upgrade(fixed_values[i]);
     }
 
@@ -6495,22 +6482,14 @@ S_case_pattern_concat_match(pTHX_ const struct case_pattern_node *node,
             if (S_case_pattern_concat_is_capture(aTHX_ parts[j])
                 && S_case_pattern_unwrap(parts[j])->binding_padix
                     == S_case_pattern_unwrap(parts[i])->binding_padix)
-                S_case_pattern_concat_croak(aTHX_
-                    "repeated capture names are not allowed in a case pattern concatenation",
-                    parts, fixed_values, capacity);
+                Perl_croak(aTHX_
+                    "repeated capture names are not allowed in a case pattern concatenation");
         }
         for (j = i + 1; j < nparts; j++) {
             STRLEN boundary_len;
             if (S_case_pattern_concat_is_capture(aTHX_ parts[j]))
-                S_case_pattern_concat_croak(aTHX_
-                    "adjacent captures are not allowed in a case pattern concatenation",
-                    parts, fixed_values, capacity);
-            if (!fixed_values[j])
-                fixed_values[j] = S_case_pattern_concat_fixed_value(aTHX_ parts[j]);
-            if (!fixed_values[j])
-                S_case_pattern_concat_croak(aTHX_
-                    "unsupported case pattern concatenation component",
-                    parts, fixed_values, capacity);
+                Perl_croak(aTHX_
+                    "adjacent captures are not allowed in a case pattern concatenation");
             (void)SvPV(fixed_values[j], boundary_len);
             if (boundary_len)
                 break;
@@ -6530,16 +6509,9 @@ S_case_pattern_concat_match(pTHX_ const struct case_pattern_node *node,
              * empty literal are rejected just like directly adjacent pairs. */
             while (next < nparts) {
                 if (S_case_pattern_concat_is_capture(aTHX_ parts[next]))
-                    S_case_pattern_concat_croak(aTHX_
-                        "adjacent captures are not allowed in a case pattern concatenation",
-                        parts, fixed_values, capacity);
-                if (!fixed_values[next])
-                    fixed_values[next] = S_case_pattern_concat_fixed_value(aTHX_ parts[next]);
+                    Perl_croak(aTHX_
+                        "adjacent captures are not allowed in a case pattern concatenation");
                 boundary = fixed_values[next];
-                if (!boundary)
-                    S_case_pattern_concat_croak(aTHX_
-                        "unsupported case pattern concatenation component",
-                        parts, fixed_values, capacity);
                 boundary_pv = SvPV(boundary, boundary_len);
                 if (boundary_len)
                     break;
@@ -6572,13 +6544,6 @@ S_case_pattern_concat_match(pTHX_ const struct case_pattern_node *node,
             SV *fragment = fixed_values[i];
             const char *fragment_pv;
             STRLEN fragment_len;
-            if (!fragment)
-                fragment = fixed_values[i] =
-                    S_case_pattern_concat_fixed_value(aTHX_ part);
-            if (!fragment)
-                S_case_pattern_concat_croak(aTHX_
-                    "unsupported case pattern concatenation component",
-                    parts, fixed_values, capacity);
             fragment_pv = SvPV(fragment, fragment_len);
             if (cursor > subject_len || fragment_len > subject_len - cursor
                 || !memEQ(subject + cursor, fragment_pv, fragment_len)) {
@@ -7419,7 +7384,7 @@ S_case_pattern_call(pTHX_ const OP *op)
     const OP *target = NULL;
     const OP *invocant = NULL;
     U32 nargs = 0;
-    SV *result;
+    SV *result = sv_newmortal();
 
     S_case_pattern_scan_call(aTHX_ cUNOPx(op)->op_first,
                              &target, &invocant, &nargs);
@@ -7438,7 +7403,6 @@ S_case_pattern_call(pTHX_ const OP *op)
         CV *cv = S_case_pattern_call_cv(aTHX_ target);
         if (!cv)
             Perl_croak(aTHX_ "case pattern call has no callable target");
-        result = newSVsv(&PL_sv_undef);
         {
             dSP;
             I32 count;
@@ -7459,7 +7423,6 @@ S_case_pattern_call(pTHX_ const OP *op)
         if (!invocant || invocant->op_type != OP_CONST
             || target->op_type != OP_METHOD_NAMED)
             Perl_croak(aTHX_ "unsupported case pattern method call");
-        result = newSVsv(&PL_sv_undef);
         {
             dSP;
             I32 count;
@@ -7478,7 +7441,7 @@ S_case_pattern_call(pTHX_ const OP *op)
         }
     }
 
-    return result;
+    return SvREFCNT_inc_NN(result);
 }
 
 static void
@@ -7790,6 +7753,8 @@ S_case_dispatch_key(pTHX_ SV *key, SV *value, U8 kind)
     }
     SvUTF8_off(key); /* the reused prefix is always plain ASCII */
     sv_catsv(key, value);
+    if (IN_BYTES)
+        SvUTF8_off(key);
 }
 
 static bool
@@ -8112,7 +8077,7 @@ Perl_case_dispatch_compile(pTHX_ OP *body)
                     clause_count, CASE_PATTERN_SIMPLE_NUM);
         }
         else {
-            const STRLEN len = sv_len_utf8_nomg(value);
+            const STRLEN len = IN_BYTES ? SvCUR(value) : sv_len_utf8_nomg(value);
             if (dispatch->strategy == CASE_DISPATCH_HV)
                 duplicate = S_case_dispatch_store(aTHX_ &dispatch->pv_table, value,
                     CASE_PATTERN_SIMPLE_STR, pattern_aux->dispatch_clause);
@@ -8449,28 +8414,28 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             || isGV_with_GP(SvRV(value))
             || SvTYPE(SvRV(value)) == SVt_REGEXP)
             return FALSE;
-        if (pattern->op_type == OP_SREFGEN
-            && referent_pattern->op->op_type == OP_PADSV
-            && (SvTYPE(SvRV(value)) == SVt_PVAV
-                || SvTYPE(SvRV(value)) == SVt_PVHV))
-            return FALSE;
         return S_case_pattern_match(aTHX_
             referent_pattern, SvRV(value),
             NULL, bindings, nbindings);
     }
 
     if (pattern->op_type == OP_ENTERSUB) {
-        SV *called = S_case_pattern_call(aTHX_ pattern);
+        SV *called = sv_2mortal(S_case_pattern_call(aTHX_ pattern));
         bool matched;
 
         if (!SvOK(called))
             matched = !SvOK(value);
-        else if (SvIOK(called) || SvNOK(called))
-            matched = (SvIOK(value) || SvNOK(value))
+        else if (SvROK(called))
+            matched = S_case_pattern_values_equal(aTHX_ called, value);
+        else if (SvIsBOOL(called))
+            matched = SvIsBOOL(value) && SvTRUE(value) == SvTRUE(called);
+        else if (!SvPOK(called) && SvNIOK(called))
+            matched = ((!SvPOK(value) && SvNIOK(value) && !SvIsBOOL(value))
+                       || SvAMAGIC(value))
                 && do_ncmp(value, called) == 0;
         else
-            matched = sv_streq_flags(value, called, SV_GMAGIC);
-        SvREFCNT_dec_NN(called);
+            matched = (SvPOK(value) || SvAMAGIC(value)) && !SvIsBOOL(value)
+                && sv_streq_flags(value, called, 0);
         return matched;
     }
 
@@ -9145,7 +9110,7 @@ PP(pp_casedispatch)
     }
     if (SvPOK(DEFSV)) {
         /* Character counts preserve equality across UTF-8 upgrades. */
-        const STRLEN len = sv_len_utf8_nomg(DEFSV);
+        const STRLEN len = IN_BYTES ? SvCUR(DEFSV) : sv_len_utf8_nomg(DEFSV);
         if (!dispatch->pv_has_bounds
             || (len >= dispatch->pv_minlen && len <= dispatch->pv_maxlen)) {
             if (dispatch->strategy == CASE_DISPATCH_HV)

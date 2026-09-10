@@ -1,5 +1,24 @@
 # Case/match coverage review — September 9, 2026
 
+## Resolution update — September 10
+
+All eleven confirmed implementation problem groups below have been fixed.
+The original report and failing counts are retained as historical evidence,
+not as the current test status. Additional regressions cover byte-mode
+dispatch and captures, one-time overload conversion, and computed scalar
+kind comparisons. Cross-build and sanitizer validation remain follow-ups.
+
+Validation on the current nonthreaded, non-DEBUGGING `-O3` build:
+
+- All 367 applicable case/match tests pass, including the expanded
+  176-assertion review file. The thread-only file skips in this build.
+- Full harness: PASS, 3,084 files and 1,393,802 tests in 177 seconds.
+  This includes the porting checks and generated-file consistency tests.
+- Command: `TEST_JOBS=16 make -j10 test_harness`.
+- Full log: workspace `tmp/case-fixes-full.log`.
+
+## Original review
+
 This review compares `pod/perlcasematch.pod`, the implementation, and the
 tests after commit `da987fd99f`. It does not change runtime or compiler code.
 The user requested additional tests to expose gaps before implementing fixes.
