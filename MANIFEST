@@ -6381,7 +6381,8 @@ pod/perlbook.pod			Perl book information
 pod/perlboot.pod
 pod/perlbot.pod
 pod/perlcall.pod			Perl calling conventions from C
-pod/perlcasematch.pod			Experimental case and data-shape matching syntax
+pod/perlcasematch.pod			Case and data-shape matching reference
+pod/perlcasematchtut.pod		Case and data-shape matching tutorial
 pod/perlcheat.pod			Perl cheat sheet
 pod/perlclass.pod			Perl class syntax
 pod/perlclassguts.pod			Internals of class syntax

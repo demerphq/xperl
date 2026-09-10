@@ -877,6 +877,9 @@ C<defer>.
 
 =head2 Experimental Data-Shape Matching
 
+For a step-by-step introduction, see L<perlcasematchtut>. The full reference
+is L<perlcasematch>.
+
 The experimental C<case_match> feature provides a data-shape matching
 alternative to the older C<given>/C<when> construct.  It is enabled with
 

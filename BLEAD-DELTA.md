@@ -344,7 +344,19 @@ This feature is independent of Perl's older `given`/`when` mechanism.  The two
 constructs are alternatives for conditional code, but `case`/`match` has no
 fall-through semantics and does not reuse the `given`/`when` execution model.
 
-Related POD: [`pod/perlcasematch.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlcasematch.pod) is the beginner-oriented feature guide.  [`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlsyn.pod) documents the syntax and current semantics, while [`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod) documents its diagnostics.  [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod) and [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod) record its experimental status and release notes.
+Related POD:
+[`pod/perlcasematchtut.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlcasematchtut.pod)
+teaches the feature step by step, while
+[`pod/perlcasematch.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlcasematch.pod)
+is its detailed reference. Both are written for readers learning data-shape
+matching and link to each other.
+[`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlsyn.pod)
+summarizes the syntax, and
+[`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod)
+documents the diagnostics.
+[`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod)
+and [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod)
+record experimental status and release notes.
 
 The implementation is tested in [`t/comp/case_match.t`](https://github.com/demerphq/perl5/blob/xperl/main/t/comp/case_match.t) and demonstrated in [`t/comp/case_match_examples.t`](https://github.com/demerphq/perl5/blob/xperl/main/t/comp/case_match_examples.t), with design notes in [`planning/perl-pattern-matching.md`](https://github.com/demerphq/perl5/blob/xperl/main/planning/perl-pattern-matching.md).  Dispatch benchmarks are kept in [`planning/scripts/case_dispatch_compare.pl`](https://github.com/demerphq/perl5/blob/xperl/main/planning/scripts/case_dispatch_compare.pl), [`planning/scripts/case_dispatch_weight.pl`](https://github.com/demerphq/perl5/blob/xperl/main/planning/scripts/case_dispatch_weight.pl), and [`planning/scripts/case_given_compare.pl`](https://github.com/demerphq/perl5/blob/xperl/main/planning/scripts/case_given_compare.pl).
 

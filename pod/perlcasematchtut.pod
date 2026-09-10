@@ -1,0 +1,592 @@
+=encoding utf8
+
+=head1 NAME
+
+perlcasematchtut - tutorial for experimental case and data-shape matching
+
+=head1 DESCRIPTION
+
+This document is a practical introduction to the experimental C<case_match>
+feature.  It assumes that you know basic Perl, but does not assume that you
+have used data-shape or pattern matching before.
+
+Data-shape matching asks two questions at once: does a value have the shape we
+want, and which parts of it should receive names?  In more technical terms it
+combines structural matching with destructuring. Many languages call this
+pattern matching; here we say C<data-shape matching> to distinguish it from
+regular-expression matching.
+
+The feature is strongly influenced by Elixir's C<case> expression, but its
+syntax and exact semantics are Perl-specific.
+
+Enable it with:
+
+    use feature qw(case_match say);
+
+The feature is experimental, so its syntax and behavior may change.
+
+For the complete syntax, precise matching rules, and edge cases, see
+L<perlcasematch>.
+
+=head1 YOUR FIRST CASE
+
+A C<case> examines one subject and tries its C<match> clauses from top to
+bottom.  The first matching clause runs.  Clauses do not fall through.
+
+    for my $value (1, 2, 3) {
+        case ($value) {
+            match (1) { say "one" }
+            match (2) { say "two" }
+            match (_) { say "something else" }
+        }
+    }
+
+This prints:
+
+    one
+    two
+    something else
+
+The underscore is a wildcard.  It matches any value and does not give that
+value a name, so it is useful as a final default clause.
+
+The left side of C<match> is a I<data shape>.  It resembles ordinary Perl
+syntax, but it is not an ordinary expression.  It describes what the subject
+must look like.
+
+The rest of this document often shows individual C<match> clauses.  Assume
+that they occur inside a C<case>.
+
+=head1 BINDING VALUES TO NAMES
+
+A scalar name in a data shape matches any value and gives that value a name:
+
+    case ($person) {
+        match ({ name => $name, ... }) {
+            say "hello, $name";
+        }
+    }
+
+C<$name> is a new lexical variable belonging to that clause.  You do not
+write C<my $name> first.
+
+An unpinned name always introduces a new binding, even if an outer scope has a
+variable with the same spelling:
+
+    my $name = "outside";
+
+    case ("Ada") {
+        match ($name) { say $name }       # Ada
+    }
+
+    say $name;                            # outside
+
+Bindings may also appear inside larger shapes, which is where they become
+most useful. Each capture name may be declared only once within a clause:
+C<[$x, $x]> is an error, not a test that two values are equal. Use two names
+and compare them in a guard, which we will introduce below. Separate clauses
+may use the same capture names.
+
+=head1 MATCHING ARRAYS
+
+An array shape matches an array reference.  Without C<...>, the number of
+elements must match exactly:
+
+    case ($value) {
+        match ([ $x, $y ]) {
+            say "point: $x, $y";
+        }
+        match (_) {
+            say "not a two-element array";
+        }
+    }
+
+An empty shape, C<[]>, matches an empty array reference and nothing else.
+It is different from C<undef> or an empty hash reference.
+
+Literal values and bindings can be mixed:
+
+    match ([ "point", $x, $y ]) {
+        say "point: $x, $y";
+    }
+
+Array shapes can contain other shapes:
+
+    match ([ [ $x1, $y1 ], [ $x2, $y2 ] ]) {
+        say "two points";
+    }
+
+=head2 Allowing extra array elements
+
+An ellipsis allows extra elements at the beginning or end:
+
+    match ([ $first, ... ])
+    match ([ ..., $last ])
+
+With ellipses at both ends, the middle part is searched for as one consecutive
+subsequence:
+
+    case ([ "skip", "start", 10, "end", "start", 20, "end" ]) {
+        match ([ ..., "start", $middle, "end", ... ]) {
+            say $middle;                  # 10
+        }
+    }
+
+The first matching subsequence is used.
+
+=head2 Capturing the remaining tail
+
+An array binding at the end captures all remaining elements:
+
+    match ([ 1, 2, @rest ]) {
+        say "the rest is @rest";
+    }
+
+You can require a minimum number of remaining elements:
+
+    match ([ 1, 2, @rest:3 ]) {
+        say "at least three elements remain";
+    }
+
+The tail can be empty. Its elements are copies, not aliases to the original
+array slots. References in the tail still point to the same underlying data.
+A tail binding cannot be combined with an ellipsis.
+
+=head1 MATCHING HASHES
+
+A hash shape matches a hash reference.  Without C<...>, it is an exact shape:
+
+    case ({ x => 3, y => 4 }) {
+        match ({ x => $x, y => $y }) {
+            say "point: $x, $y";
+        }
+    }
+
+A trailing ellipsis permits additional keys:
+
+    case ({ name => "Ada", age => 37, city => "London" }) {
+        match ({ name => $name, age => $age, ... }) {
+            say "$name is $age";
+        }
+    }
+
+This exact-versus-open distinction is important.  The shape
+
+    { name => $name }
+
+matches a hash containing I<only> C<name>, while
+
+    { name => $name, ... }
+
+matches a hash that contains C<name> and may contain other keys as well.
+
+Array and hash shapes can be nested freely:
+
+    match ({ point => [ $x, $y ], ... }) {
+        say "point: $x, $y";
+    }
+
+An empty hash shape, C<{}>, matches only a hash with no keys. A present key
+whose value is C<undef> is different from a missing key.
+
+=head1 GUARDS
+
+Sometimes the shape is not enough.  Add C<if> followed by an ordinary Perl
+expression to make a guard:
+
+    case ($person) {
+        match ({ name => $name, age => $age, ... } if $age < 18) {
+            say "$name is a minor";
+        }
+        match ({ name => $name, ... }) {
+            say "no minor classification for $name";
+        }
+    }
+
+The complete data shape is matched first.  Its bindings are then available to
+the guard.  If the guard is false, that clause is skipped and matching
+continues with the next clause.
+
+A guard is ordinary code, so it can perform normal computations and call
+functions. It can also compare values captured under different names:
+
+    case (["Ada", "Ada"]) {
+        match ([$first, $second] if $first eq $second) {
+            say "same name: $first";
+        }
+    }
+
+Here the shape captures two values; the guard checks whether they are equal.
+The earlier age example assumes a numeric age when present. A record with
+no age can reach the fallback clause without being classified as an adult.
+
+=head1 PINNING EXISTING VALUES
+
+Normally C<$name> in a data shape creates a new binding.  To compare against
+an existing lexical scalar instead, prefix it with C<^>:
+
+    my $wanted = "ok";
+
+    case ($record) {
+        match ({ status => ^$wanted, ... }) {
+            say "wanted status";
+        }
+    }
+
+This is called I<pinning>. Pins do not declare captures, so the same pin can
+be used more than once, as in C<[^$wanted, ^$wanted]>.
+
+Pinned values are snapshotted when the surrounding C<case> begins, so every
+clause sees the same value.
+
+=head2 Naming the subject and pinning several values
+
+The subject itself can receive a case-local name with C<as>:
+
+    case (read_record() as $record) {
+        match ({ type => "ok", ... }) {
+            use_record($record);
+        }
+    }
+
+A C<with> clause is useful when several existing or computed values should be
+available as pins:
+
+    my $wanted_version = 3;
+
+    case ($record)
+    with (expected_type() as $wanted_type, $wanted_version) {
+        match ({ type    => $wanted_type,
+                 version => $wanted_version,
+                 ... }) {
+            use_record($record);
+        }
+    }
+
+Names introduced by C<with> are pinned rather than new match bindings.
+
+=head1 SCALAR VALUES
+
+Literal strings and literal numbers are different data-shape kinds:
+
+    case ($value) {
+        match (1)   { say "the number one" }
+        match ("1") { say "the string one" }
+    }
+
+Matching does not silently turn one kind into the other.
+
+Undefined values can be matched directly:
+
+    match (undef) { say "no value" }
+
+=head2 Booleans
+
+Lower-case C<true> and C<false> match actual boolean values:
+
+    use builtin qw(true false);
+
+    case ($value) {
+        match (true)  { say "boolean true" }
+        match (false) { say "boolean false" }
+        match (_)     { say "not a boolean" }
+    }
+
+Upper-case C<TRUE> and C<FALSE> instead use Perl truth semantics:
+
+    case ($value) {
+        match (TRUE)  { say "truthy" }
+        match (FALSE) { say "falsey" }
+    }
+
+Thus C<"yes"> matches C<TRUE>, but it does not match lower-case C<true>.
+
+=head2 Common scalar criteria
+
+Criteria can describe the kind of scalar you expect:
+
+=over
+
+=item C<DefinedVal()>
+
+Any defined value.
+
+=item C<ScalarVal()>
+
+Any non-reference scalar, including C<undef>.
+
+=item C<RefVal()>
+
+Any reference, including an object.
+
+=item C<ObjectVal()>
+
+Any blessed reference.
+
+=item C<Int()>
+
+A native integer value.
+
+=item C<Float()>
+
+A native floating-point value.
+
+=item C<Num()>
+
+A native integer or floating-point value.
+
+=item C<IntStr()>, C<FloatStr()>, C<NumStr()>
+
+Numeric values or strings containing the corresponding kind of number.
+
+=back
+
+Most criteria can also bind the matched value:
+
+    case ($value) {
+        match (Int($number))       { say "integer $number" }
+        match (ObjectVal($object)) { use_object($object) }
+    }
+
+The reference documentation describes the complete criterion set, including
+C<NumEq()> and C<Strict(...)>, and the precise rules for numeric-looking
+strings.
+
+=head1 REFERENCES AND OBJECTS
+
+A backslash describes a scalar-reference shape:
+
+    my $number = 42;
+    my $reference = \$number;
+
+    case ($reference) {
+        match (\$value) {
+            say "the referenced value is $value";
+        }
+    }
+
+This is different from C<RefVal($reference)>.  C<RefVal> binds the reference
+itself; C<\$value> follows a scalar reference and binds its referent.
+
+A blessed reference can be matched by placing its exact class name before an
+array, hash, or scalar-reference shape:
+
+    my $point = bless { x => 3, y => 4 }, 'Point';
+
+    case ($point) {
+        match (Point { x => $x, y => $y }) {
+            say "point: $x, $y";
+        }
+    }
+
+Class-qualified shapes inspect the object's underlying structure directly;
+they do not call accessors.  In the current feature, the class name must match
+exactly rather than through inheritance or roles.
+
+For objects created with Perl's C<class> feature, field names include their
+sigils:
+
+    use experimental 'class';
+
+    class Position {
+        field $x :param;
+        field $y :param;
+    }
+
+    case (Position->new(x => 3, y => 4)) {
+        match (Position { '$x' => $x, '$y' => $y }) {
+            say "position: $x, $y";
+        }
+    }
+
+=head1 REGULAR EXPRESSIONS
+
+A regular expression can be used as a data shape:
+
+    case ($text) {
+        match (/^user: (\w+)$/) {
+            say "user is $1";
+        }
+        match (/^person: (?<person>\w+)$/) {
+            say "person is $person";
+        }
+    }
+
+A named regex capture also creates a clause-local scalar binding, which makes
+it convenient to use alongside other data-shape bindings:
+
+    case ([ "Ada", "42" ]) {
+        match ([ /^(?<name>\w+)$/, /^(?<id>\d+)$/ ]) {
+            say "$name has id $id";
+        }
+    }
+
+Static regular expressions are supported directly in shapes.  For dynamic
+regular-expression logic, use a guard instead:
+
+    match (_ if $subject =~ /thing-$re-thing/) {
+        ...
+    }
+
+See L<perlcasematch> for the exact capture and regex restrictions.
+
+=head1 CONCATENATED STRING SHAPES
+
+A string shape can combine literal fragments with bindings:
+
+    case ($text) {
+        match ("x_" . $middle . "_z") {
+            say "middle is $middle";
+        }
+    }
+
+The subject C<x_middle_z> binds C<$middle> to C<middle>.
+
+Several captures are allowed when literal or pinned text separates them:
+
+    match ("a" . $first . "b" . $second . "c") {
+        say "first=$first second=$second";
+    }
+
+Captures are matched from left to right and use the shortest text that allows
+the next fixed fragment to match.  Empty captures are allowed.
+
+=head1 EXPLICIT SUBJECT CONVERSION
+
+To convert the subject before matching, use one of
+the explicit subject conversions:
+
+    case (ToInteger "12") {
+        match (12) { say "integer twelve" }
+    }
+
+    case (ToFloat "2.5") {
+        match (2.5) { say "floating-point two and a half" }
+    }
+
+    case (ToString 12) {
+        match ("12") { say "string twelve" }
+    }
+
+The subject is evaluated once and converted before the clauses are tested.
+References and C<undef> pass through unchanged.
+
+=head1 USING A CASE AS A VALUE
+
+A selected clause produces the value of its last evaluated expression.  If no
+clause matches, C<case> produces C<undef> in scalar context and an empty list
+in list context.
+
+Because C<case> is statement syntax, wrap it in C<do { ... }> when using its
+result in an assignment:
+
+    my $description = do {
+        case ($value) {
+            match (1) { "one" }
+            match (2) { "two" }
+            match (_) { "something else" }
+        }
+    };
+
+=head1 A COMPLETE EXAMPLE
+
+The following example combines the main ideas from this tutorial. It is a
+shorter version of the demonstration in F<t/comp/case_match_examples.t>:
+
+    use feature qw(case_match say);
+
+    my $wanted_status = "ok";
+
+    for my $value (
+        "prefix_middle_suffix",
+        [ "point", 3, 4 ],
+        [ { name => "Ada" }, { name => "Lin" } ],
+        { status => "ok", code => 200, source => "cache" },
+        { status => "ok", code => 500 },
+        "something else",
+    ) {
+        case ($value) {
+            match ("prefix_" . $inner . "_suffix") {
+                say "inside <$inner>";
+            }
+            match ([ "point", $x, $y ]) {
+                say "point ($x,$y)";
+            }
+            match ([ { name => $first }, { name => $second } ]) {
+                say "names: $first and $second";
+            }
+            match ({ status => ^$wanted_status, code => $code, ... }
+                   if $code < 400) {
+                say "accepted status: $code";
+            }
+            match ({ status => $status, ... }) {
+                say "other record with status: $status";
+            }
+            match (_) {
+                say "unrecognised value";
+            }
+        }
+    }
+
+This prints:
+
+    inside <middle>
+    point (3,4)
+    names: Ada and Lin
+    accepted status: 200
+    other record with status: ok
+    unrecognised value
+
+The record with code C<500> has the wanted status, but its guard fails, so the
+next broader hash clause is tried.  Clause order therefore matters: put more
+specific shapes before more general ones.
+
+The demonstration test in the source tree includes more combinations,
+including open-array searches, array tails, regex captures, and references,
+and checks the expected results.
+
+=head1 WHERE TO GO NEXT
+
+The reference goes into more detail about less common cases. In particular,
+consult these sections when you need the exact semantics of:
+
+=over
+
+=item *
+
+Matching order, including tied, magical, overloaded, or mutating values:
+L<perlcasematch/Checking constraints before collecting captures>.
+
+=item *
+
+L<Unique capture names|perlcasematch/Capture names> and
+L<pinned-value comparison|perlcasematch/Naming and pinning>.
+
+=item *
+
+Numeric string criteria, C<NumEq()>, and C<Strict(...)>:
+L<perlcasematch/Numeric value criteria>.
+
+=item *
+
+L<Open-array searches|perlcasematch/Arrays> and
+L<tail-binding edge cases|perlcasematch/Array tail bindings>.
+
+=item *
+
+Regex capture publication and restoration:
+L<perlcasematch/REGULAR-EXPRESSION SHAPES>.
+
+=item *
+
+Exact object and class-qualified matching behavior:
+L<perlcasematch/Class-qualified shapes>.
+
+=back
+
+=head1 SEE ALSO
+
+L<perlcasematch>, L<perlsyn/Experimental Data-Shape Matching>, L<perlfunc>,
+L<perldelta>
+
+=cut

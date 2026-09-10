@@ -2,35 +2,44 @@
 
 =head1 NAME
 
-perlcasematch - a gentle introduction to experimental case and data-shape
-matching
+perlcasematch - reference for experimental case and data-shape matching
 
 =head1 DESCRIPTION
 
-This document introduces the experimental C<case_match> feature.  It assumes
-that you know a little Perl, but it does not assume that you have used
-data-shape matching before.
+This document is the reference for the experimental C<case_match> feature.
+It describes the accepted data-shape forms and their precise matching,
+binding, ordering, and edge-case semantics.
 
-Data-shape matching asks two questions at once: does a value have the shape we
-want, and which parts of it should receive names?  In more technical terms it
-combines structural matching with destructuring.  Many languages call this
-"pattern matching".  Here we use C<data-shape matching> to distinguish it
-from regular-expression matching.
+For a progressive introduction with examples aimed at first-time users, see
+L<perlcasematchtut>.
 
 Enable the feature with:
 
     use feature qw(case_match say);
 
 The feature is experimental, so its syntax and behavior may change.
+The examples below assume these features are enabled. Examples beginning
+with C<match> are clause fragments to place inside a C<case>.
 
-=head1 THE BASIC IDEA
+Data-shape matching combines structural matching with destructuring: it
+checks the structure of a value and gives names to selected parts. Here
+C<data shape> distinguishes this description from a regular expression.
+
+Data-shape descriptions are not ordinary Perl expressions.  They use familiar
+Perl punctuation to describe the structure and values a subject must contain,
+and may introduce clause-local bindings.  Guards, by contrast, are ordinary
+Perl expressions.
+
+=head1 CASE AND MATCH CLAUSES
 
 A C<case> examines one subject and tries its C<match> clauses from top to
 bottom.  The first matching clause runs.  Clauses do not fall through.
+Parentheses around the subject and each clause's data shape are required.
+A C<match> clause must be inside a C<case>. Its body must be a block, not a
+bare expression following an arrow.
+
 The outer case body contains only C<match> clauses.  Each clause's attached
 block may contain statements, loops, and nested cases.
-
-    use feature qw(case_match say);
 
     for my $value (1, 2, 3) {
         case ($value) {
@@ -45,9 +54,6 @@ This prints:
     one
     two
     something else
-
-The later examples assume these features are enabled.  Examples beginning
-with C<match> are clause fragments to place inside a C<case>.
 
 The underscore is a wildcard.  It matches any value and does not create a
 binding, so it is useful as a final default clause.
@@ -79,7 +85,7 @@ This is called a binding.  The variable is local to that clause, and you do
 not write a separate C<my> declaration for it:
 
     case ($person) {
-        match ({ name => $name, age => $age } if $age < 18) {
+        match ({ name => $name, age => $age, ... } if $age < 18) {
             say "$name is a minor";
         }
         match ({ name => $name, salary => $salary, ... }) {
@@ -108,7 +114,7 @@ instead of filled in.
     }
     say $name;                       # outside: unchanged
 
-=head2 Naming and pinning
+=head2 Capture names
 
 Each capture name may be declared only once in a clause's data shape.
 Using C<[$x, $x]> or C<[$x, 'x' . $x]> is a compile-time error, even when
@@ -129,6 +135,8 @@ than once. The guard and the clause's block may also refer to a capture
 as many times as needed. Regex named captures follow the separate rules
 in L</REGULAR-EXPRESSION SHAPES>.
 
+=head2 Naming and pinning
+
 The subject can be given a case-local name with C<as>:
 
     case (read_record() as $record) {
@@ -141,6 +149,8 @@ an outer variable with the same name.
 
 A C<with> clause pins existing values.  Each item may be a variable or an
 expression followed by C<as> and a scalar name:
+
+    my $wanted_version = 3;
 
     case ($record)
     with (expected_type() as $wanted, $wanted_version) {
@@ -162,6 +172,12 @@ An existing scalar can also be pinned directly with C<^$name>:
 
 The value is snapshotted when the surrounding case begins, so all clauses see
 the same pinned value even if a guard or clause body later changes the scalar.
+Pinned references compare by identity: they must refer to the same thing,
+not merely print the same way. Two undefined values compare equal, but an
+undefined value never equals a defined value, including the empty string.
+Other non-reference values are compared as strings. A repeated pin repeats
+the comparison; it does not declare a capture.
+
 Only an existing scalar lexical may follow the caret.  Outside a data-shape
 description, the caret keeps its ordinary meaning.
 
@@ -205,8 +221,8 @@ order. Reading the enclosing structure comes first, because the matcher
 needs to know what it can inspect. Capture-only reads wait until structural
 matching succeeds, even when they are nested inside other structures.
 
-Some captures also impose requirements. C<Int($x)> checks a type, and
-C<[$x, $x]> compares two values. These need observations during matching.
+Some captures also impose requirements. For example, C<Int($x)> checks
+a type and therefore needs to observe the value during matching.
 Regex and concatenation captures also retain results of their checks.
 Those observations are reused rather than repeating the checks when
 bindings are placed in the clause's lexical variables.
@@ -311,8 +327,8 @@ The call is made in scalar context if structural checking reaches it.
 An earlier failed requirement can skip the call. An open-array search may
 call it again for another candidate; it is not cached across candidates.
 Calls with arguments are rejected because the left side of C<match> is not
-general expression syntax. Use a guard for ordinary computation or a value that
-needs arguments.
+general expression syntax. Use a guard for ordinary computation or a value
+that needs arguments.
 
 =head2 Value-kind criteria
 
@@ -359,15 +375,9 @@ so putting C<RefVal()> first would prevent the object clause from running.
 The target is a clause-local binding and cannot also be pinned by C<with>.
 Using a criterion without an argument performs only the type check.
 
-Repeating a scalar binding requires the values to agree. References agree
-only when they refer to the same thing, not merely when they print the same
-way. This applies both to C<[$item, $item]> and to typed bindings such as
-C<[RefVal($item), RefVal($item)]>.
-
-Two undefined values also agree, but an undefined value never agrees with
-a defined value, including the empty string. Other non-reference values
-are compared as strings. These rules also apply when comparing a value
-with a pinned scalar.
+A typed capture is also a declaration: the same target cannot occur again
+elsewhere in the clause's data shape. Use distinct captures and a guard
+when their values must agree.
 
 =head2 Numeric value criteria
 
@@ -589,7 +599,7 @@ Hash shapes inspect quoted fields, array shapes inspect positional values,
 and scalar-reference shapes can bind their referents.  For an object created
 with C<class>, use the field names including their sigils:
 
-    use feature 'class';
+    use experimental 'class';
 
     class Position {
         field $x :param;
@@ -709,10 +719,10 @@ that reaches the next literal or pinned fragment.  Prefix-only and suffix-only
 forms such as C<"x" . $suffix> and C<$prefix . "z"> are supported.  Empty
 captures are allowed.
 
-Each unpinned capture name may occur only once in a concatenation.  Adjacent
-unpinned captures, repeated capture names, and fragments separated only by an
-empty literal are rejected because they do not provide an unambiguous
-boundary.
+Each unpinned capture name may occur only once in the whole clause's data
+shape, including its concatenations. Adjacent captures, or captures separated
+only by empty fixed text, are rejected because they have no boundary to
+determine how the text should be divided.
 
 Concatenation is the only structural expression currently supported.  Calls
 with arguments, arithmetic, and other unsupported expressions will throw an
@@ -752,66 +762,9 @@ An undefined value remains undefined, and references pass through unchanged:
         match ([ $x, $y ]) { say "still an array: $x, $y" }
     }
 
-=head1 A COMPLETE EXAMPLE
-
-This shorter version of the demonstration in F<t/comp/case_match_examples.t>
-classifies a mixture of strings, arrays, and hashes.  It combines extraction,
-pinning, and a guard in one case:
-
-    use feature qw(case_match say);
-
-    my $wanted_status = "ok";
-
-    for my $value (
-        "prefix_middle_suffix",
-        [ "point", 3, 4 ],
-        [ { name => "Ada" }, { name => "Lin" } ],
-        { status => "ok", code => 200, source => "cache" },
-        { status => "ok", code => 500 },
-        "something else",
-    ) {
-        case ($value) {
-            match ("prefix_" . $inner . "_suffix") {
-                say "inside <$inner>";
-            }
-            match ([ "point", $x, $y ]) {
-                say "point ($x,$y)";
-            }
-            match ([ { name => $first }, { name => $second } ]) {
-                say "names: $first and $second";
-            }
-            match ({ status => ^$wanted_status, code => $code, ... }
-                   if $code < 400) {
-                say "accepted status: $code";
-            }
-            match ({ status => $status, ... }) {
-                say "other status: $status";
-            }
-            match (_) {
-                say "unrecognised value";
-            }
-        }
-    }
-
-This prints:
-
-    inside <middle>
-    point (3,4)
-    names: Ada and Lin
-    accepted status: 200
-    other status: ok
-    unrecognised value
-
-The record with code C<500> passes the pinned status check, but its guard
-fails.  Matching continues with the broader status clause.  Putting that
-broader clause first would prevent the guarded clause from being reached.
-
-The demonstration test in the source tree includes more combinations,
-including open-array searches, array tails, regex captures, and references,
-and checks the expected results.
-
 =head1 SEE ALSO
 
-L<perlsyn/Experimental Data-Shape Matching>, L<perlfunc>, L<perldelta>
+L<perlcasematchtut>, L<perlsyn/Experimental Data-Shape Matching>, L<perlfunc>,
+L<perldelta>
 
 =cut

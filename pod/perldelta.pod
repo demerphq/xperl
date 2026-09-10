@@ -29,6 +29,9 @@ here, but most should go in the L</Performance Enhancements> section.
 
 =head2 Experimental data-shape matching
 
+The documentation is now split into L<perlcasematchtut>, a progressive
+tutorial, and L<perlcasematch>, the detailed language reference.
+
 Declaring the same capture name twice within one clause is now a compile-time
 error, including across nested shapes and different capture forms. Repeated
 pins remain valid, and regex named-capture rules are unchanged. Use distinct
