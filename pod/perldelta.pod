@@ -32,7 +32,7 @@ here, but most should go in the L</Performance Enhancements> section.
 The documentation is now split into L<perlcasematchtut>, a progressive
 tutorial, and L<perlcasematch>, the detailed language reference.
 
-Declaring the same capture name twice within one clause is now a compile-time
+Declaring the same capture name twice within one match clause is now a compile-time
 error, including across nested shapes and different capture forms. Repeated
 pins remain valid, and regex named-capture rules are unchanged. Use distinct
 capture names and a guard to require equal values.
@@ -88,14 +88,14 @@ pins, and its case-local C<as> syntax does not require the separate
 C<namespaces> feature.
 
 Data shapes may also use zero-argument function and method calls as scalar
-values.  Calls are made in scalar context when their clause is tried; calls
+values. Calls are made in scalar context when their match clause is tried; calls
 with arguments remain unsupported.  Repeating a constant data shape produces
-a C<syntax> warning because the later clause can never match; the first clause
+a C<syntax> warning because the later match clause can never match; the first match clause
 remains selected.  The warning includes the repeated constant and its source
 location.
 
-Clause-local captures retain ordinary lexical lifetime when kept alive by
-closures or references, including when a guard rejects a clause.  Nested
+Match-clause-local captures retain ordinary lexical lifetime when kept alive by
+closures or references, including when a guard rejects a match clause. Nested
 regex shapes bind each regex's named captures independently.  Array shapes
 and capture sets no longer have a fixed 64-element limit.  Slurp minima are
 checked against C<2**32 - 1> before decimal accumulation can overflow.

@@ -886,8 +886,8 @@ alternative to the older C<given>/C<when> construct.  It is enabled with
     use feature 'case_match';
 
 A C<case> evaluates its subject once and tries its C<match> clauses in source
-order.  The first matching clause runs; there is no fall-through.  The wildcard
-data shape C<_> matches any value and is useful as a final clause:
+order. The first match clause that matches runs; there is no fall-through. The wildcard
+data shape C<_> matches any value and is useful as a final match clause:
 
     case ($value) {
         match ([$first, $second]) { use_pair($first, $second) }
@@ -902,7 +902,7 @@ C<ToFloat>, or C<ToString>:
     }
 
 These forms apply integer, floating-point, or string conversion to the
-subject once, before any clause is tested.  The type word is part of the case
+subject once, before any match clause is tested. The type word is part of the case
 syntax, not a call to a user-defined function.  It applies to the complete
 subject expression, so these two forms are equivalent:
 
@@ -941,7 +941,7 @@ C<NumEq(0)> matches strings such as C<"0000"> and C<"0.0">, while a value such
 as C<"A"> is treated as zero with Perl's usual numeric warning.
 
 Zero-argument function and method calls may also supply a scalar data-shape
-value.  They are called in scalar context when their clause is tried:
+value. They are called in scalar context when their match clause is tried:
 
     sub current_version { 3 }
     case ($version) {
@@ -976,7 +976,7 @@ operands are not currently supported.
 
 A regular expression can also be used as a data shape.  Its ordinary capture
 variables remain available, and a named capture such as C<(?<name>...)> also
-creates the clause-local scalar C<$name>.  A named capture that does not
+creates the match-clause-local scalar C<$name>. A named capture that does not
 participate in the successful match is bound to C<undef>.
 
 Array and hash-reference data shapes may contain nested data shapes.  A
@@ -1013,7 +1013,7 @@ data shape by prefixing it with C<^>:
     }
 
 In a C<match (...)> data shape, C<^$name> compares with the existing lexical's
-value instead of introducing a clause-local binding.  The value is captured
+value instead of introducing a match-clause-local binding. The value is captured
 when the surrounding C<case> begins.  This is a pattern-only meaning of the
 caret; ordinary Perl expressions, including guards, retain the normal caret
 operators.

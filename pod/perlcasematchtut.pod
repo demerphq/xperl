@@ -31,7 +31,7 @@ L<perlcasematch>.
 =head1 YOUR FIRST CASE
 
 A C<case> examines one subject and tries its C<match> clauses from top to
-bottom.  The first matching clause runs.  Clauses do not fall through.
+bottom. The first match clause that matches runs. Match clauses do not fall through.
 
     for my $value (1, 2, 3) {
         case ($value) {
@@ -48,7 +48,7 @@ This prints:
     something else
 
 The underscore is a wildcard.  It matches any value and does not give that
-value a name, so it is useful as a final default clause.
+value a name, so it is useful as a final default match clause.
 
 The left side of C<match> is a I<data shape>.  It resembles ordinary Perl
 syntax, but it is not an ordinary expression.  It describes what the subject
@@ -67,7 +67,7 @@ A scalar name in a data shape matches any value and gives that value a name:
         }
     }
 
-C<$name> is a new lexical variable belonging to that clause.  You do not
+C<$name> is a new lexical variable belonging to that match clause. You do not
 write C<my $name> first.
 
 An unpinned name always introduces a new binding, even if an outer scope has a
@@ -82,9 +82,9 @@ variable with the same spelling:
     say $name;                            # outside
 
 Bindings may also appear inside larger shapes, which is where they become
-most useful. Each capture name may be declared only once within a clause:
+most useful. Each capture name may be declared only once within a match clause:
 C<[$x, $x]> is an error, not a test that two values are equal. Use two names
-and compare them in a guard, which we will introduce below. Separate clauses
+and compare them in a guard, which we will introduce below. Separate match clauses
 may use the same capture names.
 
 =head1 MATCHING ARRAYS
@@ -204,8 +204,8 @@ expression to make a guard:
     }
 
 The complete data shape is matched first.  Its bindings are then available to
-the guard.  If the guard is false, that clause is skipped and matching
-continues with the next clause.
+the guard. If the guard is false, that match clause is skipped and matching
+continues with the next match clause.
 
 A guard is ordinary code, so it can perform normal computations and call
 functions. It can also compare values captured under different names:
@@ -218,7 +218,7 @@ functions. It can also compare values captured under different names:
 
 Here the shape captures two values; the guard checks whether they are equal.
 The earlier age example assumes a numeric age when present. A record with
-no age can reach the fallback clause without being classified as an adult.
+no age can reach the fallback match clause without being classified as an adult.
 
 =head1 PINNING EXISTING VALUES
 
@@ -237,7 +237,7 @@ This is called I<pinning>. Pins do not declare captures, so the same pin can
 be used more than once, as in C<[^$wanted, ^$wanted]>.
 
 Pinned values are snapshotted when the surrounding C<case> begins, so every
-clause sees the same value.
+match clause sees the same value.
 
 =head2 Naming the subject and pinning several values
 
@@ -412,7 +412,7 @@ A regular expression can be used as a data shape:
         }
     }
 
-A named regex capture also creates a clause-local scalar binding, which makes
+A named regex capture also creates a match-clause-local scalar binding, which makes
 it convenient to use alongside other data-shape bindings:
 
     case ([ "Ada", "42" ]) {
@@ -468,13 +468,13 @@ the explicit subject conversions:
         match ("12") { say "string twelve" }
     }
 
-The subject is evaluated once and converted before the clauses are tested.
+The subject is evaluated once and converted before the match clauses are tested.
 References and C<undef> pass through unchanged.
 
 =head1 USING A CASE AS A VALUE
 
-A selected clause produces the value of its last evaluated expression.  If no
-clause matches, C<case> produces C<undef> in scalar context and an empty list
+A selected match clause produces the value of its last evaluated expression. If no
+match clause matches, C<case> produces C<undef> in scalar context and an empty list
 in list context.
 
 Because C<case> is statement syntax, wrap it in C<do { ... }> when using its
@@ -538,7 +538,7 @@ This prints:
     unrecognised value
 
 The record with code C<500> has the wanted status, but its guard fails, so the
-next broader hash clause is tried.  Clause order therefore matters: put more
+next broader hash match clause is tried. Match-clause order therefore matters: put more
 specific shapes before more general ones.
 
 The demonstration test in the source tree includes more combinations,

@@ -127,24 +127,25 @@ case ($value) {
 ```
 
 The `case` expression evaluates one subject.  Its `match` clauses are then
-considered from top to bottom, and only the first successful clause runs.  A
-clause does not fall through to the next clause.  The body of a clause is an
+considered from top to bottom, and only the first successful match clause runs.
+A match clause does not fall through to the next match clause. The body of a
+match clause is an
 ordinary Perl block, but the outer `case` body may contain only direct
-`match` clauses.  A wildcard written as `match (_)` always succeeds and is the
-usual way to write a default clause.  Without a successful clause, `case`
+`match` clauses. A wildcard written as `match (_)` always succeeds and is the
+usual way to write a default match clause. Without a successful match clause, `case`
 returns `undef` in scalar context and an empty list in list context.
 
 The text inside `match (...)` is a small data-shape language, not an ordinary
 Perl expression.  Perl-like punctuation makes arrays, hashes, literals, and
 names easy to recognize, but the text describes a shape rather than computing
 a value.  A name such as `$number` is a new scalar binding local to the
-clause's block.  Bindings become visible to the guard after the whole shape
+match clause's block. Bindings become visible to the guard after the whole shape
 matches; the block runs only if the guard also succeeds.  Closures and
-references can keep bound variables alive after the clause ends, just as
+references can keep bound variables alive after the match clause ends, just as
 they can keep ordinary lexical variables alive.
 
 Zero-argument function and method calls may supply scalar values in a data
-shape.  They are called in scalar context when their clause is tried.  Calls
+shape. They are called in scalar context when their match clause is tried. Calls
 with arguments remain unsupported; ordinary Perl computation belongs in a
 guard after `if`.
 
@@ -162,10 +163,10 @@ references still refer to the same objects. Pins
 distinguish undefined values from defined ones, including empty strings;
 two undefined values compare equal.
 
-Each capture name may be declared only once within a clause's data shape,
+Each capture name may be declared only once within a match clause's data shape,
 including across nested containers and different capture forms. To compare
 two captured values, use distinct names and a guard, such as
-`match ([$x, $y] if $x eq $y)`. Repeated pins remain valid. Separate clauses
+`match ([$x, $y] if $x eq $y)`. Repeated pins remain valid. Separate match clauses
 can reuse capture names, and regex named captures retain their own rules.
 
 The matcher checks literal and structural requirements before capture-only
@@ -183,11 +184,11 @@ qualifiers, such as `match(Point {})` for an object with no fields.
 
 Regular-expression values can be used as scalar matching
 criteria.  Regular-expression shapes update Perl's ordinary capture variables
-and make named captures available as clause-local scalar bindings.  For
+and make named captures available as match-clause-local scalar bindings. For
 example, `match (/^user: (?<name>[[:word:]]+)$/) { say $name }` binds `$name`
 when the subject matches; a named capture that does not participate is bound
 to `undef`.  Each regex in a nested shape contributes its own named bindings.
-Reusing a name across separate regexes in one clause warns: only the first
+Reusing a name across separate regexes in one match clause warns: only the first
 regex supplies that lexical binding.  Duplicate names within a single regex
 use the usual first-participating-capture rule without this warning.
 The ordinary regex capture variables still describe the most recent match.
@@ -280,7 +281,7 @@ case ($pair) {
 }
 ```
 
-Captures in class-qualified shapes are new clause-local variables, available
+Captures in class-qualified shapes are new match-clause-local variables, available
 in the guard and body.  They can share names with class fields or outer
 variables without overwriting them.
 
@@ -298,7 +299,7 @@ or related pattern form.
 An optional `if` introduces an ordinary Perl guard.  The guard runs after the
 data shape has matched and may use the tentative bindings.  Guards are
 unrestricted Perl expressions: they may call functions, have side effects, or
-throw exceptions.  A false guard rejects the clause and discards its bindings.
+throw exceptions. A false guard rejects the match clause and discards its bindings.
 
 `case` also supports a subject name and pinned values:
 
@@ -326,8 +327,8 @@ case ($record) {
 ```
 
 Here `^$wanted` compares with the value of the existing lexical instead of
-creating a clause-local binding.  The value is captured when the surrounding
-`case` begins, and the same snapshot is used by every clause.  This caret
+creating a match-clause-local binding. The value is captured when the surrounding
+`case` begins, and the same snapshot is used by every match clause. This caret
 meaning exists only inside a `match (...)` data shape; ordinary Perl caret
 operators retain their normal behavior elsewhere, including in guards.
 
@@ -335,10 +336,10 @@ For a case made entirely from simple constants and no guards, the compiler can
 select a specialized dispatch representation.  The current implementations
 include linear, binary-search, and hash-based constant lookup.  These are
 performance choices, not different language features: source order, the first
-successful clause, and default-clause behavior remain the same.  Repeating a
-constant data shape emits a `syntax` warning because the later clause can
+successful match clause, and default-match-clause behavior remain the same.
+Repeating a constant data shape emits a `syntax` warning because the later match clause can
 never match.  The warning includes the repeated constant and its source
-location; the first clause remains selected.
+location; the first match clause remains selected.
 
 This feature is independent of Perl's older `given`/`when` mechanism.  The two
 constructs are alternatives for conditional code, but `case`/`match` has no

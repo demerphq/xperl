@@ -19,7 +19,7 @@ Enable the feature with:
 
 The feature is experimental, so its syntax and behavior may change.
 The examples below assume these features are enabled. Examples beginning
-with C<match> are clause fragments to place inside a C<case>.
+with C<match> are match-clause fragments to place inside a C<case>.
 
 Data-shape matching combines structural matching with destructuring: it
 checks the structure of a value and gives names to selected parts. Here
@@ -27,18 +27,19 @@ C<data shape> distinguishes this description from a regular expression.
 
 Data-shape descriptions are not ordinary Perl expressions.  They use familiar
 Perl punctuation to describe the structure and values a subject must contain,
-and may introduce clause-local bindings.  Guards, by contrast, are ordinary
+and may introduce match-clause-local bindings. Guards, by contrast, are ordinary
 Perl expressions.
 
 =head1 CASE AND MATCH CLAUSES
 
 A C<case> examines one subject and tries its C<match> clauses from top to
-bottom.  The first matching clause runs.  Clauses do not fall through.
-Parentheses around the subject and each clause's data shape are required.
+bottom. The first match clause that matches runs. Match clauses do not fall
+through. Parentheses around the subject and each match clause's data shape are
+required.
 A C<match> clause must be inside a C<case>. Its body must be a block, not a
 bare expression following an arrow.
 
-The outer case body contains only C<match> clauses.  Each clause's attached
+The outer case body contains only C<match> clauses. Each match clause's attached
 block may contain statements, loops, and nested cases.
 
     for my $value (1, 2, 3) {
@@ -56,11 +57,11 @@ This prints:
     something else
 
 The underscore is a wildcard.  It matches any value and does not create a
-binding, so it is useful as a final default clause.
+binding, so it is useful as a final default match clause.
 
-If no clause matches, C<case> returns C<undef> in scalar context and an empty
+If no match clause matches, C<case> returns C<undef> in scalar context and an empty
 list in list context.  Otherwise, it returns the value of the last evaluated
-expression in the selected clause:
+expression in the selected match clause:
 
     my $description = do {
         case (2) {
@@ -81,7 +82,7 @@ is an ordinary expression used as a guard.
 =head1 BINDINGS, PINS, AND GUARDS
 
 A scalar name in a data-shape description gives a matched value a name.
-This is called a binding.  The variable is local to that clause, and you do
+This is called a binding. The variable is local to that match clause, and you do
 not write a separate C<my> declaration for it:
 
     case ($person) {
@@ -95,11 +96,11 @@ not write a separate C<my> declaration for it:
 
 Once the complete shape matches, its bindings are available to the guard.
 If the guard succeeds, the attached block runs with those bindings.  If the
-shape or guard fails, the clause's bindings are discarded and the next
-clause is tried.
+shape or guard fails, the match clause's bindings are discarded and the next
+match clause is tried.
 
 Bindings have the usual lexical lifetime.  A closure or reference can keep a
-bound variable alive after the clause ends, just as it can keep a variable
+bound variable alive after the match clause ends, just as it can keep a variable
 declared with C<my> alive.  This also applies if a guard stores a closure
 elsewhere before returning false or throwing an exception.
 
@@ -116,10 +117,10 @@ instead of filled in.
 
 =head2 Capture names
 
-Each capture name may be declared only once in a clause's data shape.
+Each capture name may be declared only once in a match clause's data shape.
 Using C<[$x, $x]> or C<[$x, 'x' . $x]> is a compile-time error, even when
 the two values would be equal. This rule also applies across nested
-containers and to typed captures and array-tail captures. Separate clauses
+containers and to typed captures and array-tail captures. Separate match clauses
 may use the same names.
 
 To compare two captured values, give them different names and use a guard:
@@ -131,7 +132,7 @@ To compare two captured values, give them different names and use a guard:
     }
 
 Pins are comparisons, not declarations, so a pinned name may occur more
-than once. The guard and the clause's block may also refer to a capture
+than once. The guard and the match clause's block may also refer to a capture
 as many times as needed. Regex named captures follow the separate rules
 in L</REGULAR-EXPRESSION SHAPES>.
 
@@ -170,8 +171,8 @@ An existing scalar can also be pinned directly with C<^$name>:
         match ({ type => ^$wanted, ... }) { use_record($record) }
     }
 
-The value is snapshotted when the surrounding case begins, so all clauses see
-the same pinned value even if a guard or clause body later changes the scalar.
+The value is snapshotted when the surrounding case begins, so all match clauses see
+the same pinned value even if a guard or match-clause body later changes the scalar.
 Pinned references compare by identity: they must refer to the same thing,
 not merely print the same way. Two undefined values compare equal, but an
 undefined value never equals a defined value, including the empty string.
@@ -193,18 +194,18 @@ A guard is an ordinary expression checked after the structural match:
     }
 
 Guards are unrestricted expressions.  They may have side effects or throw an
-exception.  A false guard discards that clause's tentative bindings and allows
-the next clause to be tried.  An exception is propagated normally, with the
+exception. A false guard discards that match clause's tentative bindings and allows
+the next match clause to be tried. An exception is propagated normally, with the
 tentative bindings discarded.
 
 For an open-array search, the guard tests the first structurally matching
-subsequence. If it is false, matching moves to the next clause; it does not
-search for another subsequence within the same clause. Concatenated string
+subsequence. If it is false, matching moves to the next match clause; it does not
+search for another subsequence within the same match clause. Concatenated string
 shapes likewise do not retry longer captures when a guard fails.
 
 =head2 Checking constraints before collecting captures
 
-A clause checks its requirements before collecting values that are only
+A match clause checks its requirements before collecting values that are only
 being captured. For example:
 
     case ([10, 20, 42]) {
@@ -225,12 +226,12 @@ Some captures also impose requirements. For example, C<Int($x)> checks
 a type and therefore needs to observe the value during matching.
 Regex and concatenation captures also retain results of their checks.
 Those observations are reused rather than repeating the checks when
-bindings are placed in the clause's lexical variables.
+bindings are placed in the match clause's lexical variables.
 
 This order applies to tied values, overloaded operations and pattern calls
 too. Do not assume that such callbacks run from left to right as written
 in the shape. A failed literal requirement can prevent a call from running.
-User code in the guard and clause block retains its normal behavior.
+User code in the guard and match-clause block retains its normal behavior.
 
 Values retained during checking stay alive, but are not frozen: a callback
 that overwrites the same scalar can change its value before publication.
@@ -370,13 +371,13 @@ check succeeds:
     }
 
 Put the more specific criterion first.  Every object is also a reference,
-so putting C<RefVal()> first would prevent the object clause from running.
+so putting C<RefVal()> first would prevent the object match clause from running.
 
-The target is a clause-local binding and cannot also be pinned by C<with>.
+The target is a match-clause-local binding and cannot also be pinned by C<with>.
 Using a criterion without an argument performs only the type check.
 
 A typed capture is also a declaration: the same target cannot occur again
-elsewhere in the clause's data shape. Use distinct captures and a guard
+elsewhere in the match clause's data shape. Use distinct captures and a guard
 when their values must agree.
 
 =head2 Numeric value criteria
@@ -526,9 +527,9 @@ must have exactly those keys.  A trailing C<...> permits extra keys:
         }
     }
 
-This prints C<record with extra keys: 42>.  The first clause fails because
-the subject also has a C<source> key.  Removing that key makes the first
-clause match instead.
+This prints C<record with extra keys: 42>. The first match clause fails because
+the subject also has a C<source> key. Removing that key makes the first match
+clause succeed instead.
 
 A present key whose value is C<undef> is different from a missing key.
 For a tied hash, the shape checks C<EXISTS> before reading the value with
@@ -568,7 +569,7 @@ C<N> remaining elements while capturing the complete tail:
 
 C<N> is a nonnegative integer from C<0> through C<2**32 - 1>, written as
 decimal digits.  Larger minima are compile-time errors.  If fewer than
-C<N> elements remain, the clause does not match. For example,
+C<N> elements remain, the match clause does not match. For example,
 C<[1, 2, 3, 4]> has only two elements after C<1> and
 C<2>, so it does not match C<[1, 2, @rest:3]>.
 
@@ -614,7 +615,7 @@ with C<class>, use the field names including their sigils:
 
 This prints C<position: 3, 4>.  The quoted C<'$x'> and C<'$y'> identify
 the fields, including their sigils.  The unquoted C<$x> and C<$y> are new
-clause-local variables that receive those fields' values.  They are also
+match-clause-local variables that receive those fields' values. They are also
 available in a guard and do not overwrite outer variables with the same names.
 
 The class name must match exactly in this version; inheritance and role
@@ -627,7 +628,7 @@ references retain their identity.
 
 The matcher uses the fetched value for both a nested type check and its
 binding; publishing that binding does not fetch the tied source again.
-If your guard or clause body reads the tied source itself, that is a
+If your guard or match-clause body reads the tied source itself, that is a
 separate ordinary read and may return a different value.
 
 =head1 REGULAR-EXPRESSION SHAPES
@@ -644,7 +645,7 @@ A regular expression can be used as a data shape:
     }
 
 Numbered captures and the usual named-capture variables remain available in
-the clause.  A named capture also creates a clause-local scalar binding.  If
+the match clause. A named capture also creates a match-clause-local scalar binding. If
 a named group does not participate in a successful match, its binding is
 C<undef>.
 
@@ -661,15 +662,15 @@ bindings:
 The ordinary capture variables, such as C<$1> and C<%+>, describe the most
 recent successful regex match; they are not combined across expressions.
 
-Named clause bindings are copies of the captured text. Use these lexical
+Named match-clause-local bindings are copies of the captured text. Use these lexical
 variables when you need to keep the text across further matching or recursive
 calls. The ordinary capture variables still follow the regex engine's rules;
-they are not independent copies belonging to each clause invocation.
+they are not independent copies belonging to each match-clause invocation.
 
 Give captures in separate regexes different names if you want to use all
-their values.  If several regexes in one clause use the same capture name,
+their values. If several regexes in one match clause use the same capture name,
 the compiler issues a C<syntax> warning. Only the first regex in source order
-supplies the clause-local variable; later captures with that name are not
+supplies the match-clause-local variable; later captures with that name are not
 visible through it, even if constraint scheduling executes a later regex first.
 This also applies when the first regex's named group did not participate:
 the variable stays C<undef>, even if a later regex captures a value.
@@ -679,7 +680,7 @@ For example, C</(?E<lt>numE<gt>one)|(?E<lt>numE<gt>two)/> binds C<$num> to
 C<"two"> when matching C<"two">.  The regex engine chooses the first
 participating capture with that name, just as it does for C<$+{num}>.
 
-The clause can use the captures from its successful match.  When the case
+The match clause can use the captures from its successful match. When the case
 ends, the previous values of C<$1>, C<$2>, C<%+>, C<%->, and the other regex
 match variables are restored.
 
@@ -719,7 +720,7 @@ that reaches the next literal or pinned fragment.  Prefix-only and suffix-only
 forms such as C<"x" . $suffix> and C<$prefix . "z"> are supported.  Empty
 captures are allowed.
 
-Each unpinned capture name may occur only once in the whole clause's data
+Each unpinned capture name may occur only once in the whole match clause's data
 shape, including its concatenations. Adjacent captures, or captures separated
 only by empty fixed text, are rejected because they have no boundary to
 determine how the text should be divided.
@@ -739,7 +740,7 @@ The grammar provides three explicit subject conversions:
     case (ToFloat   $value) { ... }
     case (ToString  $value) { ... }
 
-The subject is evaluated once and converted before any clause is tested.
+The subject is evaluated once and converted before any match clause is tested.
 These subject conversions let you choose how strings and numbers should be
 treated:
 
