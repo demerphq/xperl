@@ -6128,7 +6128,9 @@ PP(pp_entercase)
     PERL_CONTEXT *cx;
     const U8 gimme = GIMME_V;
     SV * const origsv = DEFSV;
-    SV *subject = rpp_pop_1_norc();
+    /* The pop transfers ownership. Keep it exception-safe while fetching
+     * magic and making the independent case snapshot. */
+    SV *subject = sv_2mortal(rpp_pop_1_norc());
 
     SvGETMAGIC(subject);
     {
@@ -8329,20 +8331,18 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             return FALSE;
         if (fields) {
             if (SvTYPE(SvRV(value)) == SVt_PVOBJ)
-                logical = Perl_class_object_to_hash(aTHX_ value);
+                logical = sv_2mortal(Perl_class_object_to_hash(aTHX_ value));
             matched = S_case_pattern_match_object_fields(aTHX_
                 fields, logical ? logical : value, bindings, nbindings);
         }
         else {
             if (node->object_shape->op->op_type == OP_ANONHASH
                 && SvTYPE(SvRV(value)) == SVt_PVOBJ)
-                logical = Perl_class_object_to_hash(aTHX_ value);
+                logical = sv_2mortal(Perl_class_object_to_hash(aTHX_ value));
             matched = S_case_pattern_match(aTHX_ node->object_shape,
                                             logical ? logical : value,
                                             NULL, bindings, nbindings);
         }
-        if (logical)
-            SvREFCNT_dec(logical);
         return matched;
     }
 
@@ -8381,13 +8381,11 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
         else {
             if (shape_node->op->op_type == OP_ANONHASH
                 && SvTYPE(SvRV(value)) == SVt_PVOBJ)
-                logical = Perl_class_object_to_hash(aTHX_ value);
+                logical = sv_2mortal(Perl_class_object_to_hash(aTHX_ value));
             matched = S_case_pattern_match(aTHX_ shape_node,
                                             logical ? logical : value,
                                             NULL, bindings, nbindings);
         }
-        if (logical)
-            SvREFCNT_dec(logical);
         return matched;
     }
 
@@ -8400,6 +8398,10 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
          * SCALAR reference and \\$x matches a reference to one.  A scalar
          * target binds the referent, not the outer reference. */
         if (!referent_pattern || !SvROK(value))
+            return FALSE;
+        if (SvTYPE(SvRV(value)) >= SVt_PVAV
+            || isGV_with_GP(SvRV(value))
+            || SvTYPE(SvRV(value)) == SVt_REGEXP)
             return FALSE;
         if (pattern->op_type == OP_SREFGEN
             && referent_pattern->op->op_type == OP_PADSV
