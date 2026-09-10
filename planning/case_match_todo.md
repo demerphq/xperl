@@ -44,6 +44,8 @@ Audit related subject and temporary-binding lifetimes, and add mutation,
 exception and sanitizer coverage. See the reproducer and analysis in
 [`case_match_followup_review_20260910.md`](case_match_followup_review_20260910.md).
 The tail-copy fix does not resolve ordinary borrowed scalar captures.
+Further callback probes and repair options are recorded in
+[`case_match_capture_lifetime_analysis.md`](case_match_capture_lifetime_analysis.md).
 
 ### Integer versus float distinctions and HV equality — DEFERRED
 
