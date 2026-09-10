@@ -6195,21 +6195,41 @@ PP(pp_leavecase)
 
 struct case_binding {
     PADOFFSET padix;
-    SV *value;
-    bool owned;
+    SSize_t value_ix;
     bool is_array;
     bool clear_on_exit;
 };
 
 static PERL_CONTEXT *S_case_context(pTHX);
 
-static void
-S_case_free_bindings(pTHX_ struct case_binding *bindings, size_t first, size_t last)
+struct case_capture_owner {
+    AV *values;
+    size_t reserve;
+};
+
+/* The mortal AV owns every retained reference, including abandoned search
+ * candidates. Indices survive AV growth and callbacks; array pointers do not.
+ * Callers lend VALUE; newly constructed values must already be mortal. */
+static SSize_t
+S_case_retain_capture(pTHX_ struct case_capture_owner *owner, SV *value)
 {
-    size_t i;
-    for (i = first; i < last; i++)
-        if (bindings[i].owned)
-            SvREFCNT_dec_NN(bindings[i].value);
+    AV *av = owner->values;
+    SSize_t ix;
+    if (!av) {
+        owner->values = av = MUTABLE_AV(sv_2mortal(MUTABLE_SV(newAV())));
+        if (owner->reserve > (size_t)SSize_t_MAX)
+            Perl_croak(aTHX_ "Too many case captures");
+        if (owner->reserve)
+            av_extend(av, (SSize_t)owner->reserve - 1);
+    }
+    if (AvFILLp(av) == SSize_t_MAX)
+        Perl_croak(aTHX_ "Too many case captures");
+    ix = AvFILLp(av) + 1;
+    if (ix > AvMAX(av))
+        av_extend(av, ix);
+    AvARRAY(av)[ix] = SvREFCNT_inc(value);
+    AvFILLp(av) = ix;
+    return ix;
 }
 
 static bool
@@ -6420,7 +6440,7 @@ static bool
 S_case_pattern_concat_match(pTHX_ const struct case_pattern_node *node,
                              SV *value, SV *pattern_value,
                              struct case_binding *bindings,
-                             size_t *nbindings)
+                             size_t *nbindings, struct case_capture_owner *owner)
 {
     const struct case_pattern_node **parts = NULL;
     SV **fixed_values = NULL;
@@ -6535,8 +6555,8 @@ S_case_pattern_concat_match(pTHX_ const struct case_pattern_node *node,
                 SV *captured = newSVpvn_flags(subject + cursor, capture_len,
                                                SvUTF8(text) ? SVf_UTF8 : 0);
                 bindings[*nbindings].padix = padix;
-                bindings[*nbindings].value = captured;
-                bindings[*nbindings].owned = TRUE;
+                bindings[*nbindings].value_ix = S_case_retain_capture(aTHX_
+                    owner, sv_2mortal(captured));
                 bindings[*nbindings].is_array = FALSE;
                 bindings[*nbindings].clear_on_exit =
                     S_case_pattern_unwrap(part)->binding_local;
@@ -8220,11 +8240,13 @@ S_case_rollback_bindings(pTHX_ PERL_CONTEXT *cx)
 static bool
 S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                       SV *pattern_value,
-                      struct case_binding *bindings, size_t *nbindings);
+                      struct case_binding *bindings, size_t *nbindings,
+                      struct case_capture_owner *owner);
 
 static void
 S_case_pattern_bind_regex(pTHX_ const struct case_pattern_node *node,
-                          struct case_binding *bindings, size_t *nbindings);
+                          struct case_binding *bindings, size_t *nbindings,
+                          struct case_capture_owner *owner);
 
 static const struct case_pattern_node *
 S_case_pattern_find_shape_node(const struct case_pattern_node *node)
@@ -8267,7 +8289,8 @@ static bool
 S_case_pattern_match_object_fields(pTHX_ const struct case_pattern_node *node,
                                     SV *value,
                                     struct case_binding *bindings,
-                                    size_t *nbindings)
+                                    size_t *nbindings,
+                                    struct case_capture_owner *owner)
 {
     HV *hv;
     size_t pairs = 0;
@@ -8275,7 +8298,7 @@ S_case_pattern_match_object_fields(pTHX_ const struct case_pattern_node *node,
 
     if (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVHV)
         return FALSE;
-    hv = MUTABLE_HV(SvRV(value));
+    hv = MUTABLE_HV(sv_2mortal(SvREFCNT_inc(SvRV(value))));
     {
         U32 i;
         for (i = 0; i < node->nchild; i++) {
@@ -8302,7 +8325,7 @@ S_case_pattern_match_object_fields(pTHX_ const struct case_pattern_node *node,
                 return FALSE;
             he = hv_fetch_ent(hv, cSVOPx_sv(keynode->op), FALSE, 0);
             if (!he || !S_case_pattern_match(aTHX_ valnode, HeVAL(he),
-                                              NULL, bindings, nbindings))
+                                              NULL, bindings, nbindings, owner))
                 return FALSE;
             pairs++;
         }
@@ -8322,11 +8345,16 @@ S_case_pattern_match_object_fields(pTHX_ const struct case_pattern_node *node,
 static bool
 S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                       SV *pattern_value,
-                      struct case_binding *bindings, size_t *nbindings)
+                      struct case_binding *bindings, size_t *nbindings,
+                      struct case_capture_owner *owner)
 {
     const OP *pattern;
     const OP *kid;
 
+    /* User callbacks may remove this slot from its parent. Retain the SV
+     * across the entire recursive invocation; do not snapshot ordinary
+     * scalars, so in-place updates remain observable. */
+    sv_2mortal(SvREFCNT_inc(value));
     if (SvGMAGICAL(value)) {
         /* Capture the fetched value, not the tied scalar that supplied it.
          * Further recursion and binding publication must use this same
@@ -8353,7 +8381,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             if (SvTYPE(SvRV(value)) == SVt_PVOBJ)
                 logical = sv_2mortal(Perl_class_object_to_hash(aTHX_ value));
             matched = S_case_pattern_match_object_fields(aTHX_
-                fields, logical ? logical : value, bindings, nbindings);
+                fields, logical ? logical : value, bindings, nbindings, owner);
         }
         else {
             if (node->object_shape->op->op_type == OP_ANONHASH
@@ -8361,7 +8389,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                 logical = sv_2mortal(Perl_class_object_to_hash(aTHX_ value));
             matched = S_case_pattern_match(aTHX_ node->object_shape,
                                             logical ? logical : value,
-                                            NULL, bindings, nbindings);
+                                            NULL, bindings, nbindings, owner);
         }
         return matched;
     }
@@ -8397,14 +8425,14 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             || (shape_node->op->op_type == OP_NULL
                 && shape_node->op->op_targ == OP_LIST))
             matched = S_case_pattern_match_object_fields(aTHX_
-                shape_node, value, bindings, nbindings);
+                shape_node, value, bindings, nbindings, owner);
         else {
             if (shape_node->op->op_type == OP_ANONHASH
                 && SvTYPE(SvRV(value)) == SVt_PVOBJ)
                 logical = sv_2mortal(Perl_class_object_to_hash(aTHX_ value));
             matched = S_case_pattern_match(aTHX_ shape_node,
                                             logical ? logical : value,
-                                            NULL, bindings, nbindings);
+                                            NULL, bindings, nbindings, owner);
         }
         return matched;
     }
@@ -8425,7 +8453,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             return FALSE;
         return S_case_pattern_match(aTHX_
             referent_pattern, SvRV(value),
-            NULL, bindings, nbindings);
+            NULL, bindings, nbindings, owner);
     }
 
     if (pattern->op_type == OP_ENTERSUB) {
@@ -8505,10 +8533,9 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             for (i = 0; i < *nbindings; i++)
                 if (bindings[i].padix == padix)
                     return S_case_pattern_values_equal(aTHX_
-                        bindings[i].value, value);
+                        AvARRAY(owner->values)[bindings[i].value_ix], value);
             bindings[*nbindings].padix = padix;
-            bindings[*nbindings].value = value;
-            bindings[*nbindings].owned = FALSE;
+            bindings[*nbindings].value_ix = S_case_retain_capture(aTHX_ owner, value);
             bindings[*nbindings].is_array = FALSE;
             bindings[*nbindings].clear_on_exit = target_node
                 ? target_node->binding_local : TRUE;
@@ -8520,7 +8547,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
     if (pattern->op_type == OP_CONCAT
         || pattern->op_type == OP_MULTICONCAT) {
         return S_case_pattern_concat_match(aTHX_ node, value, pattern_value,
-                                            bindings, nbindings);
+                                            bindings, nbindings, owner);
     }
 
     if (pattern->op_type == OP_CONST) {
@@ -8557,11 +8584,10 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
         for (i = 0; i < *nbindings; i++) {
             if (bindings[i].padix == padix)
                 return S_case_pattern_values_equal(aTHX_
-                    bindings[i].value, value);
+                    AvARRAY(owner->values)[bindings[i].value_ix], value);
         }
         bindings[*nbindings].padix = padix;
-        bindings[*nbindings].value = value;
-        bindings[*nbindings].owned = FALSE;
+        bindings[*nbindings].value_ix = S_case_retain_capture(aTHX_ owner, value);
         bindings[*nbindings].is_array = FALSE;
         bindings[*nbindings].clear_on_exit = node->binding_local;
         (*nbindings)++;
@@ -8582,7 +8608,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
          * PL_curpm. */
         if (matched) {
             PL_curpm = pattern_pm;
-            S_case_pattern_bind_regex(aTHX_ node, bindings, nbindings);
+            S_case_pattern_bind_regex(aTHX_ node, bindings, nbindings, owner);
         }
         return matched;
     }
@@ -8599,7 +8625,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
 
         if (SvROK(value) == 0 || SvTYPE(SvRV(value)) != SVt_PVAV)
             return FALSE;
-        av = MUTABLE_AV(SvRV(value));
+        av = MUTABLE_AV(sv_2mortal(SvREFCNT_inc(SvRV(value))));
         for (childix = 0; childix < node->nchild; childix++)
         {
             const struct case_pattern_node *child = node->child[childix];
@@ -8664,14 +8690,13 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                             : NULL;
                         if (!S_case_pattern_match(aTHX_ fixed[i], svp ? *svp : &PL_sv_undef,
                                                            pattern_svp ? *pattern_svp : NULL,
-                                                           bindings, nbindings)) {
+                                                           bindings, nbindings, owner)) {
                             ok = FALSE;
                             break;
                         }
                     }
                     if (ok)
                         return TRUE;
-                    S_case_free_bindings(aTHX_ bindings, saved, *nbindings);
                     *nbindings = saved;
                 }
                 return FALSE;
@@ -8686,7 +8711,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                     : NULL;
                 if (!S_case_pattern_match(aTHX_ fixed[i], svp ? *svp : &PL_sv_undef,
                                                    pattern_svp ? *pattern_svp : NULL,
-                                                   bindings, nbindings))
+                                                   bindings, nbindings, owner))
                     return FALSE;
             }
             if (slurp) {
@@ -8701,8 +8726,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                 bindings[*nbindings].padix = slurp->binding_padix != NOT_IN_PAD
                     ? slurp->binding_padix
                     : cUNOPx(slurp->op)->op_first->op_targ;
-                bindings[*nbindings].value = SvREFCNT_inc_simple_NN((SV *)rest);
-                bindings[*nbindings].owned = TRUE;
+                bindings[*nbindings].value_ix = S_case_retain_capture(aTHX_ owner, (SV *)rest);
                 bindings[*nbindings].is_array = TRUE;
                 bindings[*nbindings].clear_on_exit = TRUE;
                 (*nbindings)++;
@@ -8719,7 +8743,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
 
         if (SvROK(value) == 0 || SvTYPE(SvRV(value)) != SVt_PVHV)
             return FALSE;
-        hv = MUTABLE_HV(SvRV(value));
+        hv = MUTABLE_HV(sv_2mortal(SvREFCNT_inc(SvRV(value))));
         /* Coverage, not the number of syntactic pairs, determines exactness.
          * Runtime keys may coincide; both value constraints still apply,
          * but they cover only one subject key.  Do not diagnose collisions. */
@@ -8777,7 +8801,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                     ? hv_fetch_ent(pattern_hv, keysv, FALSE, 0) : NULL;
                 if (!he || !S_case_pattern_match(aTHX_ valnode, HeVAL(he),
                                                   pattern_he ? HeVAL(pattern_he) : NULL,
-                                                  bindings, nbindings))
+                                                  bindings, nbindings, owner))
                     return FALSE;
             }
             (void)hv_store_ent(covered, keysv, SvREFCNT_inc(&PL_sv_yes), 0);
@@ -8803,7 +8827,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
 static void
 S_case_pattern_bind_regex(pTHX_ const struct case_pattern_node *node,
                            struct case_binding *bindings,
-                           size_t *nbindings)
+                           size_t *nbindings, struct case_capture_owner *owner)
 {
     SSize_t i;
 
@@ -8831,8 +8855,8 @@ S_case_pattern_bind_regex(pTHX_ const struct case_pattern_node *node,
         if (j < *nbindings)
             continue;
         bindings[*nbindings].padix = (PADOFFSET)SvUV(*padix_svp);
-        bindings[*nbindings].value = captured;
-        bindings[*nbindings].owned = TRUE;
+        bindings[*nbindings].value_ix = S_case_retain_capture(aTHX_
+            owner, sv_2mortal(captured));
         bindings[*nbindings].is_array = FALSE;
         bindings[*nbindings].clear_on_exit = TRUE;
         (*nbindings)++;
@@ -8844,6 +8868,8 @@ PP(pp_casematch)
     struct case_binding local_bindings[64];
     struct case_binding *bindings = local_bindings;
     size_t nbindings = 0;
+    struct case_capture_owner capture_owner = { NULL, 0 };
+    struct case_capture_owner *owner = &capture_owner;
     PERL_CONTEXT *cx = S_case_context(aTHX);
     const struct case_pattern_aux *aux =
         (const struct case_pattern_aux *)cUNOP_AUXx(PL_op)->op_aux;
@@ -8852,6 +8878,7 @@ PP(pp_casematch)
         ? aux->root : NULL;
     if (!pattern)
         Perl_croak(aTHX_ "missing compiled case pattern");
+    owner->reserve = aux->binding_capacity;
     if (aux->binding_capacity > C_ARRAY_LENGTH(local_bindings)) {
         /* Mortal storage also releases the buffer if matching throws. */
         SV *storage = sv_2mortal(newSV(
@@ -8874,54 +8901,53 @@ PP(pp_casematch)
         matched = SvPOK(DEFSV)
             ? sv_streq_flags(DEFSV, cSVOPx_sv(pattern->op), SV_GMAGIC)
             : S_case_pattern_match(aTHX_ pattern, DEFSV, *PL_stack_sp,
-                                   bindings, &nbindings);
+                                   bindings, &nbindings, owner);
     else if (aux->always_matches || S_case_pattern_is_wildcard(aTHX_ aux))
         matched = TRUE;
     else
         matched = S_case_pattern_match(aTHX_
             pattern, DEFSV, *PL_stack_sp,
-            bindings, &nbindings);
+            bindings, &nbindings, owner);
     size_t i;
 
     if (cx && CxTYPE(cx) == CXt_CASE) {
         S_case_discard_bindings(aTHX_ cx);
         if (matched && nbindings) {
-            AV *pending = newAV();
+            AV *pending = MUTABLE_AV(sv_2mortal(MUTABLE_SV(newAV())));
             for (i = 0; i < nbindings; i++) {
                 av_push(pending, newSVuv((UV)bindings[i].padix));
                 if (bindings[i].is_array) {
-                    AV *old = newAV();
+                    AV *old = MUTABLE_AV(sv_2mortal(MUTABLE_SV(newAV())));
                     S_case_set_array(aTHX_ (SV *)old,
                                      MUTABLE_AV(PAD_SV(bindings[i].padix)));
-                    av_push(pending, newRV_noinc((SV *)old));
+                    av_push(pending, newRV_inc((SV *)old));
                     av_push(pending, newSViv(1));
                     av_push(pending, newSViv(bindings[i].clear_on_exit));
                     S_case_set_array(aTHX_ PAD_SV(bindings[i].padix),
-                                     MUTABLE_AV(bindings[i].value));
+                                     MUTABLE_AV(AvARRAY(owner->values)[bindings[i].value_ix]));
                 }
                 else {
                     av_push(pending, newSVsv(PAD_SV(bindings[i].padix)));
                     av_push(pending, newSViv(0));
                     av_push(pending, newSViv(bindings[i].clear_on_exit));
-                    sv_setsv(PAD_SV(bindings[i].padix), bindings[i].value);
+                    sv_setsv(PAD_SV(bindings[i].padix), AvARRAY(owner->values)[bindings[i].value_ix]);
                 }
             }
-            cx->blk_case.case_bindings = pending;
+            cx->blk_case.case_bindings = MUTABLE_AV(SvREFCNT_inc(pending));
         }
     }
     else if (matched) {
         for (i = 0; i < nbindings; i++) {
             if (bindings[i].is_array)
                 S_case_set_array(aTHX_ PAD_SV(bindings[i].padix),
-                                 MUTABLE_AV(bindings[i].value));
+                                 MUTABLE_AV(AvARRAY(owner->values)[bindings[i].value_ix]));
             else
-                sv_setsv(PAD_SV(bindings[i].padix), bindings[i].value);
+                sv_setsv(PAD_SV(bindings[i].padix), AvARRAY(owner->values)[bindings[i].value_ix]);
         }
     }
 
     rpp_popfree_1_NN();
     rpp_push_IMM(boolSV(matched));
-    S_case_free_bindings(aTHX_ bindings, 0, nbindings);
     return NORMAL;
 }
 

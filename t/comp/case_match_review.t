@@ -694,4 +694,38 @@ check_case('repeated and pinned equality distinguishes undef from empty strings'
     }
 }, join("\n", (('different') x 9), (('equal') x 9), 'literal undef'));
 
+check_case('pattern callbacks cannot destroy retained captures', q{
+    package Box { sub DESTROY { } }
+    my @values = (bless({}, 'Box'), 1);
+    sub remove_first { delete $values[0]; 1 }
+    case (\@values) {
+        match ([$captured, remove_first()]) { say ref $captured }
+    }
+}, 'Box');
+
+check_case('pattern calls retain the current scalar and nested container', q{
+    my @values = ([1, 2]);
+    sub remove_container { $values[0] = undef; 1 }
+    case (\@values) {
+        match ([[remove_container(), 2]]) { say 'hit' }
+        match (_) { say 'miss' }
+    }
+}, 'hit');
+
+check_case('exception releases captures retained before a callback', q{
+    package Box {
+        our $destroyed = 0;
+        sub DESTROY { ++$destroyed }
+    }
+    my @values = (bless({}, 'Box'), 1);
+    sub fail { delete $values[0]; die "expected\n" }
+    eval {
+        case (\@values) {
+            match ([$captured, fail()]) { say 'wrong' }
+        }
+    };
+    say $@ eq "expected\n" ? 'caught' : 'wrong error';
+    say $Box::destroyed;
+}, "caught\n1");
+
 done_testing();
