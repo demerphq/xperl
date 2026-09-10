@@ -1818,6 +1818,18 @@ different nested hashes are checked independently.
 
 (F) A hash pattern contained more than one ellipsis.
 
+=item hash pattern requires key/value pairs
+
+(F) A hash data shape has a key without a value, or uses an ellipsis where
+a value is required. Write complete key/value pairs before any trailing
+ellipsis. See L<perlcasematch/Hashes>.
+
+=item hash pattern keys must be constants, pins, or zero-argument calls
+
+(F) A hash data shape uses an unsupported key expression. An unpinned
+capture cannot supply a key: pin an existing scalar with C<with> or C<^>,
+or supply a constant or zero-argument call. See L<perlcasematch/Hashes>.
+
 =item hash pattern ellipsis must be last
 
 (F) A hash pattern used an ellipsis anywhere other than at its end.
