@@ -216,3 +216,6 @@ GTAGS
 # Ignore any project local ccache dir.
 .ccache
 
+
+planning/*.log
+
