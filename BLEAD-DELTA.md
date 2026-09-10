@@ -157,6 +157,8 @@ Nested matching uses the same distinctions as top-level dispatch, and
 equivalent byte and UTF-8 strings compare consistently. Sparse array slots
 match as `undef` without filling the original array. Repeated reference
 bindings, including typed bindings, require reference identity.
+Hash shapes distinguish absent keys from keys containing `undef`, including
+when the subject is tied.
 Regular-expression values can be used as scalar matching
 criteria.  Regular-expression shapes update Perl's ordinary capture variables
 and make named captures available as clause-local scalar bindings.  For

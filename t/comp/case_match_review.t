@@ -56,6 +56,24 @@ for my $mode (qw(none array-linear array-binary hv auto)) {
         }
     }, "miss\ntwo\nmiss\nfour\nmiss\nsix\nmiss");
 
+    check_case("$mode: signed bounds preserve unsigned hits", q{
+        my $maximum = ~0;
+        my $literal = sprintf '%u', $maximum;
+        my $matcher = eval 'sub { my ($value) = @_; case ($value) {'
+            . 'match (-1) { "negative" } match (' . $literal
+            . ') { "unsigned" } match (_) { "miss" } } }';
+        die $@ if $@;
+        say $matcher->($_) for (-2, -1, 0, $maximum - 1, $maximum);
+    }, "miss\nnegative\nmiss\nmiss\nunsigned");
+
+    check_case("$mode: unsigned values exceed wholly negative bounds", q{
+        case (~0) {
+            match (-4) { say 'wrong' }
+            match (-1) { say 'wrong' }
+            match (_) { say 'miss' }
+        }
+    }, 'miss');
+
     check_case("$mode: byte and UTF-8 representations compare by characters", q{
         my $text = chr(233);
         for (1 .. 2) {
@@ -531,5 +549,70 @@ check_case('computed scalar values use the same kind rules as literals', q{
         }
     }
 }, "number\nstring");
+
+for my $qualifier ('', 'Box ') {
+    check_case("${qualifier}hash shapes distinguish missing keys from undef", q{
+        package Values {
+            our ($exists, $fetches) = (0, 0);
+            sub TIEHASH { bless {}, shift }
+            sub EXISTS { ++$exists; $_[1] eq 'present' }
+            sub FETCH { ++$fetches; undef }
+            sub FIRSTKEY { 'present' }
+            sub NEXTKEY { undef }
+        }
+        tie my %values, 'Values';
+        my $subject = bless \%values, 'Box';
+    } . '
+        case ($subject) {
+            match (' . $qualifier . '{missing=>undef,...}) { say "wrong" }
+            match (_) { say "absent" }
+        }
+        case ($subject) {
+            match (' . $qualifier . '{missing=>undef}) { say "wrong" }
+            match (_) { say "absent" }
+        }
+        case ($subject) {
+            match (' . $qualifier . '{present=>undef,...}) { say "present" }
+        }
+        case ($subject) {
+            match (' . $qualifier . '{present=>undef}) { say "present" }
+        }
+        say "$Values::exists,$Values::fetches";
+    ', "absent\nabsent\npresent\npresent\n4,2");
+}
+
+check_case('false guard advances clauses rather than restarting open search', q{
+    my @seen;
+    case ([1, 2, 3]) {
+        match ([..., $item, ...] if do { push @seen, $item; $item == 2 }) {
+            say 'wrong retry';
+        }
+        match (_) { say 'next clause' }
+    }
+    say join ',', @seen;
+}, "next clause\n1");
+
+check_case('recursive regex shapes follow ordinary regex capture behavior', q{
+    my (@ordinary, @shapes);
+    sub ordinary {
+        my ($n) = @_;
+        "$n" =~ /(?<digits>\d+)/;
+        my $digits = $+{digits};
+        ordinary($n - 1) if $n;
+        push @ordinary, "$digits,$1";
+    }
+    sub shaped {
+        my ($n) = @_;
+        case ("$n") {
+            match (/(?<digits>\d+)/) {
+                shaped($n - 1) if $n;
+                push @shapes, "$digits,$1";
+            }
+        }
+    }
+    ordinary(2);
+    shaped(2);
+    say join(';', @ordinary) eq join(';', @shapes) ? 'same' : 'different';
+}, 'same');
 
 done_testing();

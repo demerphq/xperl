@@ -8291,6 +8291,11 @@ S_case_pattern_match_object_fields(pTHX_ const struct case_pattern_node *node,
             valnode = node->child[++i];
             if (keynode->op->op_type != OP_CONST)
                 return FALSE;
+            /* A tied FETCH can return undef even when the key is absent.
+             * A hash shape requires presence, not just a matching value. */
+            if (SvRMAGICAL(hv) && mg_find((const SV *)hv, PERL_MAGIC_tied)
+                && !hv_exists_ent(hv, cSVOPx_sv(keynode->op), 0))
+                return FALSE;
             he = hv_fetch_ent(hv, cSVOPx_sv(keynode->op), FALSE, 0);
             if (!he || !S_case_pattern_match(aTHX_ valnode, HeVAL(he),
                                               NULL, bindings, nbindings))
@@ -8757,6 +8762,9 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             }
             if (!keysv || !valop)
                 return FALSE;
+            if (SvRMAGICAL(hv) && mg_find((const SV *)hv, PERL_MAGIC_tied)
+                && !hv_exists_ent(hv, keysv, 0))
+                return FALSE;
             he = hv_fetch_ent(hv, keysv, FALSE, 0);
             {
                 HE *pattern_he = pattern_hv
@@ -8979,15 +8987,15 @@ S_case_dispatch_iv_in_bounds(const struct case_dispatch_aux *dispatch,
     if (dispatch->iv_min_is_uv
         ? (is_uv ? uv < dispatch->iv_min_uv
                  : iv < 0 || (UV)iv < dispatch->iv_min_uv)
-        : (is_uv ? dispatch->iv_min_iv < 0
-                       || uv < (UV)dispatch->iv_min_iv
+        : (is_uv ? dispatch->iv_min_iv >= 0
+                       && uv < (UV)dispatch->iv_min_iv
                  : iv < dispatch->iv_min_iv))
         return FALSE;
     if (dispatch->iv_max_is_uv
         ? (is_uv ? uv > dispatch->iv_max_uv
                  : iv >= 0 && (UV)iv > dispatch->iv_max_uv)
-        : (is_uv ? dispatch->iv_max_iv >= 0
-                       && uv > (UV)dispatch->iv_max_iv
+        : (is_uv ? dispatch->iv_max_iv < 0
+                       || uv > (UV)dispatch->iv_max_iv
                  : iv > dispatch->iv_max_iv))
         return FALSE;
     return TRUE;

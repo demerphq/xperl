@@ -162,6 +162,11 @@ exception.  A false guard discards that clause's tentative bindings and allows
 the next clause to be tried.  An exception is propagated normally, with the
 tentative bindings discarded.
 
+For an open-array search, the guard tests the first structurally matching
+subsequence. If it is false, matching moves to the next clause; it does not
+search for another subsequence within the same clause. Concatenated string
+shapes likewise do not retry longer captures when a guard fails.
+
 =head1 SCALAR DATA SHAPES
 
 =head2 Literal strings and numbers
@@ -443,6 +448,10 @@ This prints C<record with extra keys: 42>.  The first clause fails because
 the subject also has a C<source> key.  Removing that key makes the first
 clause match instead.
 
+A present key whose value is C<undef> is different from a missing key.
+For a tied hash, the shape checks C<EXISTS> before reading the value with
+C<FETCH>; a missing key does not match even if C<FETCH> would return undef.
+
 Repeating a constant key in the same hash shape is a compile-time error.
 For example, C<{ x => 1, x => 1 }> is not a valid shape.  Separate nested
 hash shapes may each use the same key.
@@ -475,8 +484,8 @@ C<N> remaining elements while capturing the complete tail:
 
 C<N> is a nonnegative integer from C<0> through C<2**32 - 1>, written as
 decimal digits.  Larger minima are compile-time errors.  If fewer than
-C<N> elements remain, the clause does not
-match.  For example, C<[1, 2, 3, 4]> has only two elements after C<1> and
+C<N> elements remain, the clause does not match. For example,
+C<[1, 2, 3, 4]> has only two elements after C<1> and
 C<2>, so it does not match C<[1, 2, @rest:3]>.
 
 A tail binding, also called a slurp, cannot be combined with an ellipsis or
@@ -560,6 +569,11 @@ bindings:
 
 The ordinary capture variables, such as C<$1> and C<%+>, describe the most
 recent successful regex match; they are not combined across expressions.
+
+Named clause bindings are copies of the captured text. Use these lexical
+variables when you need to keep the text across further matching or recursive
+calls. The ordinary capture variables still follow the regex engine's rules;
+they are not independent copies belonging to each clause invocation.
 
 Give captures in separate regexes different names if you want to use all
 their values.  If several regexes in one clause use the same capture name,

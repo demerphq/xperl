@@ -29,6 +29,10 @@ here, but most should go in the L</Performance Enhancements> section.
 
 =head2 Experimental data-shape matching
 
+Mixed signed/unsigned dispatch bounds no longer reject valid unsigned
+matches. Tied hash shapes check key existence before fetching a value, so
+a missing key cannot satisfy an C<undef> value shape.
+
 Case/match now consistently preserves string-versus-number distinctions
 after numeric caching, handles sparse array slots as C<undef>, and compares
 equivalent byte and UTF-8 string representations correctly. Repeated typed
