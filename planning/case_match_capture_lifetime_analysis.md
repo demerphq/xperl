@@ -1,8 +1,19 @@
 # Case/match: borrowed capture lifetime analysis
 
-Reviewed after `41e8545b84`, using the current threaded DEBUGGING build.
-This is analysis only: no runtime changes or new build configuration.
-The issue remains deferred and high priority in `case_match_todo.md`.
+Originally reviewed after `41e8545b84` using a threaded DEBUGGING build.
+The analysis below describes the implementation before the ownership fix.
+
+**Status: implemented and validated.** Commits `6b778208fc` and `193542e2a7`
+introduce the lazy mortal AV owner, traversal retention, exception-safe
+publication storage and constraint-first capture collection. The chosen
+contract retains ordinary SVs rather than snapshotting them: callbacks can
+still change their values, but removing a source slot cannot free a retained
+SV. The snapshot recommendation below was superseded by that decision.
+
+Full threaded DEBUGGING and nonthreaded production suites, plus focused
+ASan/LSan tests, passed. See
+[`case_match_constraint_first.md`](case_match_constraint_first.md)
+for the final behavior and exact validation results.
 
 ## Summary
 

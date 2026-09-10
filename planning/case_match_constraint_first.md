@@ -16,17 +16,38 @@ live subsequent reads. Missing array slots are undef; missing keys are absent.
 
 ## Implementation stages
 
-1. COMPLETE (initial stage): Regression tests, indexed AV ownership,
-   exception-safe publication storage and traversal retention. Threaded
-   DEBUGGING focused suite passes 417 tests. The initial reservation uses
-   the existing clause capacity; enclosing-case reservation follows with
-   compiled scheduling metadata. Sanitizer validation remains outstanding.
-2. IMPLEMENTED: Compiled constraint ranks and deferred capture locations,
+1. COMPLETE: Regression tests, indexed AV ownership, exception-safe
+   publication storage and traversal retention (`6b778208fc`).
+2. COMPLETE: Compiled constraint ranks and deferred capture locations,
    including nested shapes, repeated bindings and cached regex observations.
-   Enclosing-case capacity is now used for initial owner reservation.
-3. IN PROGRESS: Update user docs/deltas and validate focused, porting, full, threaded,
-   nonthreaded and sanitizer suites. Record exact configurations and results.
+   Enclosing-case capacity is used for initial owner reservation
+   (`193542e2a7`).
+3. COMPLETE: User guide, release delta, blead delta, diagnostics and planning
+   records updated; validation results are recorded below.
 
-The HV numeric-domain issue remains deferred. No parser syntax changes are
-planned. Keep stages in incremental buildable commits. Presizing is a
-reservation, not a limit; append paths must safely handle growth and overflow.
+## Completed validation — September 10, 2026
+
+- Threaded DEBUGGING, `-g3 -ggdb3`: full harness PASS, 3,084 files and
+  1,406,315 tests, 507 seconds; completed at 12:53:24.
+- Threaded DEBUGGING with AddressSanitizer, `-g -O1`: focused case/match
+  harness PASS, 6 files and 439 tests, 7 seconds; completed at 13:02:54.
+  Tests used `PERL_DESTRUCT_LEVEL=2` and
+  `ASAN_OPTIONS=detect_leaks=1:abort_on_error=1`. No ASan or LSan errors
+  were reported. Leak detection was disabled during Configure and make.
+- Nonthreaded, non-DEBUGGING, `-O3`: full harness PASS, 3,084 files and
+  1,394,063 tests, 168 seconds; completed at 13:25:39.
+- Porting suite PASS, 40 files and 53,257 tests. Regeneration with the
+  system Perl also completed successfully before the full validation runs.
+
+The final configurations and builds were run by the user, sequentially in
+the main checkout. Results above were verified from their logs. Earlier
+interrupted parallel validation attempts are not counted as passes.
+Sanitizer coverage is the focused suite, not the entire core harness.
+
+## Remaining design follow-ups
+
+The HV numeric-domain issue remains deferred. Final decisions on tail
+aliasing versus copying and retained scalar observations versus snapshots
+remain in `case_match_todo.md`. These are separate from the completed
+lifetime-safety implementation. No parser syntax was changed. Presizing
+is a reservation, not a limit; append paths handle growth and overflow.

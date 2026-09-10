@@ -7,10 +7,13 @@ The eleven problem groups in
 The expanded regression suite covers native scalar provenance, encoding and
 byte mode, sparse arrays, reference identity, one-fetch capture binding,
 hash-key validation, invalid referent kinds, and subject/field-view ownership.
-Broader sanitizer and cross-build validation remain separate follow-ups;
-the current build is nonthreaded, non-DEBUGGING, and optimized with `-O3`.
-The full harness passes: 3,084 files, 1,393,802 tests. All 367 applicable
-case/match tests pass; thread-specific tests are skipped in this build.
+The subsequent capture-ownership and constraint-first implementation is
+also complete. Full suites pass on threaded DEBUGGING (1,406,315 tests)
+and nonthreaded production (1,394,063 tests) builds, each across 3,084 files.
+Focused ASan/LSan validation passes all 439 tests with full destruction
+enabled. See
+[`case_match_constraint_first.md`](case_match_constraint_first.md)
+for configurations, completion times and the validation scope.
 
 This document records the remaining work for the experimental
 `case_match` feature on the `xperl/case_match` branch.  It is intentionally
@@ -29,23 +32,22 @@ Status labels mean: `COMPLETE` is implemented and has focused coverage;
 extensions or broader hardening; `OPEN` is unfinished; and `DEFERRED` is
 intentionally postponed.
 
-## Deferred correctness and numeric-semantics review
+## Capture correctness and numeric-semantics review
 
-### Borrowed capture lifetime across pattern calls — DEFERRED, HIGH PRIORITY
+### Capture lifetime across pattern calls — COMPLETE
 
-A later pattern call can remove or replace a source element whose SV an
-earlier capture still borrows. Before publication, that capture can lose its
-value or trigger an internal error. This remains an unresolved correctness
-issue; deferral does not make the behavior supported or safe.
+Tentative captures now use indices into a lazy mortal owner AV. Recursive
+values and containers remain alive across callbacks, and publication storage
+has exception-safe ownership. Capture-only reads wait for structural success.
+Mutation, exception, growth and sanitizer regressions pass. Source scalar
+updates remain observable by design; retention is not snapshotting.
 
-When resumed, establish ownership of tentative captures across callbacks,
-backtracking, exceptions and publication, preserving reference identity.
-Audit related subject and temporary-binding lifetimes, and add mutation,
-exception and sanitizer coverage. See the reproducer and analysis in
+The original issue and investigation are preserved for historical context in
 [`case_match_followup_review_20260910.md`](case_match_followup_review_20260910.md).
-The tail-copy fix does not resolve ordinary borrowed scalar captures.
 Further callback probes and repair options are recorded in
 [`case_match_capture_lifetime_analysis.md`](case_match_capture_lifetime_analysis.md).
+The final implementation and validation record is
+[`case_match_constraint_first.md`](case_match_constraint_first.md).
 
 ### Integer versus float distinctions and HV equality — DEFERRED
 

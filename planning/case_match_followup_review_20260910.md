@@ -27,9 +27,11 @@ issues are left unchanged for the user's review.
 
 ### 1. Borrowed captures can be invalidated by a pattern call — high priority
 
-**Status: DEFERRED, HIGH PRIORITY.** Tracked in
-[`case_match_todo.md`](case_match_todo.md); no ownership fix is included in
-the subsequent tail-copy and undefined-equality changes.
+**Status: COMPLETE.** The later capture-owner and constraint-first changes
+retain values across callbacks and provide exception-safe cleanup. Ordinary
+SVs are retained, not frozen. The analysis below records the original bug;
+see [`case_match_constraint_first.md`](case_match_constraint_first.md)
+for the implemented contract and completed cross-build validation.
 
 This can lose the captured reference or raise an internal copy error:
 
@@ -130,7 +132,14 @@ system Perl. It is not evidence of a case/match-specific regression.
 The new test compares the two code paths instead of asserting different
 regex semantics for cases.
 
-## Reproducers and coverage still needed
+## Original follow-up coverage and reproducers
+
+The coverage discussion below records the review before implementation.
+Capture lifetime is now fixed and the opt-in reproducer uses a typed capture
+to require observation before the mutating callback. HV numeric equality
+remains deferred; its failing tests are still intentionally outside the
+default harness. Current validation is recorded in
+[`case_match_constraint_first.md`](case_match_constraint_first.md).
 
 Run the opt-in failing regressions from the repository root:
 
@@ -150,7 +159,7 @@ combination with those states. Repeat under DEBUGGING and ASan/LSan after
 the ownership design is fixed. Current validation uses the nonthreaded,
 non-DEBUGGING `-O3` interpreter; no fresh sanitizer build was configured.
 
-## Validation
+## Validation at the time of the original review
 
 The updated core review file passes all 204 assertions. The porting suite
 passes all 53,265 tests across 40 files. The full suite passes all 1,393,830
