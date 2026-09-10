@@ -78,6 +78,11 @@ candidate values across domains with an exactness-preserving fallback.
 
 ### 3. Tail bindings currently alias source slots
 
+**Resolved in follow-up:** tail bindings now copy element values, retaining
+reference identity without slot aliasing. The final alias-versus-copy design
+decision is tracked in `case_match_todo.md`. The example and analysis below
+describe the behavior before that fix.
+
 ```perl
 my $source = [1, 2];
 case ($source) {
@@ -94,6 +99,11 @@ Add tests for writes, deletion, escaped closures, tied elements and referenced
 objects under that contract.
 
 ### 4. Equality for repeated ordinary scalar bindings is underspecified
+
+**Resolved in follow-up:** undefined and defined values compare unequal;
+two undefined values compare equal. Defined non-reference values retain
+string equality. Tests cover repeated bindings and both pin spellings.
+The paragraph below records the original finding.
 
 `match([$item,$item])` currently treats undef and the empty string as equal.
 References have the now-documented identity rule, but ordinary scalars use

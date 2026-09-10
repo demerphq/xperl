@@ -157,6 +157,11 @@ Nested matching uses the same distinctions as top-level dispatch, and
 equivalent byte and UTF-8 strings compare consistently. Sparse array slots
 match as `undef` without filling the original array. Repeated reference
 bindings, including typed bindings, require reference identity.
+Tail bindings copy element values without aliasing source slots; captured
+references still refer to the same objects. Repeated bindings and pins
+distinguish undefined values from defined ones, including empty strings;
+two undefined values compare equal.
+
 Hash shapes distinguish absent keys from keys containing `undef`, including
 when the subject is tied.
 Regular-expression values can be used as scalar matching

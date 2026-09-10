@@ -615,4 +615,83 @@ check_case('recursive regex shapes follow ordinary regex capture behavior', q{
     say join(';', @ordinary) eq join(';', @shapes) ? 'same' : 'different';
 }, 'same');
 
+check_case('tail bindings copy source slots in both directions', q{
+    my $source = [1, 2, 3];
+    my $saved;
+    case ($source) {
+        match ([1, @tail:2]) {
+            $tail[0] = 20;
+            $source->[2] = 30;
+            say join ',', @tail;
+            say join ',', @$source;
+            $saved = sub { join ',', @tail };
+            delete $tail[1];
+        }
+    }
+    @$source = (9);
+    say $saved->();
+}, "20,3\n1,2,30\n20");
+
+check_case('tail copies preserve reference identity without slot aliases', q{
+    my $object = bless { value => 1 }, 'Box';
+    my $source = [$object];
+    case ($source) {
+        match ([@tail]) {
+            say $tail[0] == $object ? 'same object' : 'wrong';
+            $tail[0]{value} = 2;
+            $tail[0] = undef;
+            say $source->[0]{value};
+        }
+    }
+}, "same object\n2");
+
+check_case('tail copies fetch tied elements once and do not retain magic', q{
+    package Values {
+        our ($fetches, $stores) = (0, 0);
+        sub TIEARRAY { bless {}, shift }
+        sub FETCHSIZE { 2 }
+        sub FETCH { ++$fetches; $_[1] + 10 }
+        sub STORE { ++$stores }
+    }
+    tie my @source, 'Values';
+    case (\@source) {
+        match ([@tail]) {
+            say join ',', @tail;
+            say join ',', @tail;
+            $tail[0] = 99;
+        }
+    }
+    say "$Values::fetches,$Values::stores";
+}, "10,11\n10,11\n2,0");
+
+check_case('a false guard cannot modify source slots through its tail', q{
+    my $source = [1, 2];
+    case ($source) {
+        match ([@tail] if do { $tail[0] = 99; 0 }) { say 'wrong' }
+        match ([1, 2]) { say 'unchanged' }
+    }
+}, 'unchanged');
+
+check_case('repeated and pinned equality distinguishes undef from empty strings', q{
+    for my $pair ([undef, ''], ['', undef], ['a', 'b'],
+                 [undef, undef], ['', ''], [0, '0']) {
+        case ($pair) {
+            match ([$x, $x]) { say 'equal' }
+            match (_) { say 'different' }
+        }
+        my ($pin, $subject) = @$pair;
+        case ($subject) with ($pin) {
+            match ($pin) { say 'equal' }
+            match (_) { say 'different' }
+        }
+        case ($subject) {
+            match (^$pin) { say 'equal' }
+            match (_) { say 'different' }
+        }
+    }
+    case (undef) {
+        match (undef) { say 'literal undef' }
+    }
+}, join("\n", (('different') x 9), (('equal') x 9), 'literal undef'));
+
 done_testing();

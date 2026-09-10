@@ -6248,9 +6248,13 @@ S_case_pattern_pin_value(pTHX_ PADOFFSET padix)
 static bool
 S_case_pattern_values_equal(pTHX_ SV *left, SV *right)
 {
+    SvGETMAGIC(left);
+    SvGETMAGIC(right);
+    if (!SvOK(left) || !SvOK(right))
+        return !SvOK(left) && !SvOK(right);
     if (SvROK(left) || SvROK(right))
         return SvROK(left) && SvROK(right) && SvRV(left) == SvRV(right);
-    return sv_streq_flags(left, right, SV_GMAGIC);
+    return sv_streq_flags(left, right, 0);
 }
 
 static bool
@@ -8686,16 +8690,18 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                     return FALSE;
             }
             if (slurp) {
-                AV *rest = newAV();
+                /* Copy values, not source slots. Keep the partial tail mortal
+                 * in case fetching/copying a magical element throws. */
+                AV *rest = MUTABLE_AV(sv_2mortal((SV *)newAV()));
                 SSize_t restix;
                 for (restix = (SSize_t)nfixed; restix < nvalues; restix++) {
                     SV **svp = av_fetch(av, restix, FALSE);
-                    av_push(rest, svp ? SvREFCNT_inc(*svp) : newSV(0));
+                    av_push(rest, svp ? newSVsv(*svp) : newSV(0));
                 }
                 bindings[*nbindings].padix = slurp->binding_padix != NOT_IN_PAD
                     ? slurp->binding_padix
                     : cUNOPx(slurp->op)->op_first->op_targ;
-                bindings[*nbindings].value = (SV *)rest;
+                bindings[*nbindings].value = SvREFCNT_inc_simple_NN((SV *)rest);
                 bindings[*nbindings].owned = TRUE;
                 bindings[*nbindings].is_array = TRUE;
                 bindings[*nbindings].clear_on_exit = TRUE;

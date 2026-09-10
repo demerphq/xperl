@@ -305,6 +305,11 @@ only when they refer to the same thing, not merely when they print the same
 way. This applies both to C<[$item, $item]> and to typed bindings such as
 C<[RefVal($item), RefVal($item)]>.
 
+Two undefined values also agree, but an undefined value never agrees with
+a defined value, including the empty string. Other non-reference values
+are compared as strings. These rules also apply when comparing a value
+with a pinned scalar.
+
 =head2 Numeric value criteria
 
 Numeric criteria distinguish native numeric values from numeric-looking
@@ -490,6 +495,13 @@ C<2>, so it does not match C<[1, 2, @rest:3]>.
 
 A tail binding, also called a slurp, cannot be combined with an ellipsis or
 another slurp.
+
+The tail contains copies of the element values, not aliases to the source
+slots. Assigning to C<$rest[0]> does not change the source element, and
+assigning to the source element does not change C<$rest[0]>. References
+still point to the same objects or aggregates; this is not a deep copy.
+For example, changing a field through a captured reference changes the
+same object that the source refers to.
 
 =head2 Class-qualified shapes
 

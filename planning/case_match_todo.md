@@ -31,6 +31,14 @@ intentionally postponed.
 
 ## Documentation-derived design questions
 
+### Tail capture copying versus aliasing — OPEN
+
+Tail bindings currently copy element values rather than alias source slots.
+References retain their referent identity; aggregates are not deep-copied.
+Before settling the API, decide once and for all whether tail bindings
+should continue to copy or should alias instead. Until that decision,
+implementation, tests and documentation must consistently use copying.
+
 These questions were extracted from the case/match guide and do not change
 the current documented spellings.
 
