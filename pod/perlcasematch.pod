@@ -110,6 +110,25 @@ instead of filled in.
 
 =head2 Naming and pinning
 
+Each capture name may be declared only once in a clause's data shape.
+Using C<[$x, $x]> or C<[$x, 'x' . $x]> is a compile-time error, even when
+the two values would be equal. This rule also applies across nested
+containers and to typed captures and array-tail captures. Separate clauses
+may use the same names.
+
+To compare two captured values, give them different names and use a guard:
+
+    case (["Ada", "Ada"]) {
+        match ([$first, $second] if $first eq $second) {
+            say "same name: $first";
+        }
+    }
+
+Pins are comparisons, not declarations, so a pinned name may occur more
+than once. The guard and the clause's block may also refer to a capture
+as many times as needed. Regex named captures follow the separate rules
+in L</REGULAR-EXPRESSION SHAPES>.
+
 The subject can be given a case-local name with C<as>:
 
     case (read_record() as $record) {

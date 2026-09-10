@@ -29,6 +29,11 @@ here, but most should go in the L</Performance Enhancements> section.
 
 =head2 Experimental data-shape matching
 
+Declaring the same capture name twice within one clause is now a compile-time
+error, including across nested shapes and different capture forms. Repeated
+pins remain valid, and regex named-capture rules are unchanged. Use distinct
+capture names and a guard to require equal values.
+
 Empty array and hash shapes, C<match ([])> and C<match ({})>, now match
 empty containers. They also work in nested and class-qualified shapes.
 
@@ -51,13 +56,13 @@ matches. Tied hash shapes check key existence before fetching a value, so
 a missing key cannot satisfy an C<undef> value shape.
 
 Array tail captures copy element values instead of aliasing source slots.
-Repeated scalar captures and pinned comparisons distinguish C<undef> from
+Pinned comparisons distinguish C<undef> from
 the empty string, while two undefined values still compare equal.
 
 Case/match now consistently preserves string-versus-number distinctions
 after numeric caching, handles sparse array slots as C<undef>, and compares
-equivalent byte and UTF-8 string representations correctly. Repeated typed
-reference captures use identity. Malformed hash shapes are diagnosed during
+equivalent byte and UTF-8 string representations correctly. Pinned
+references use identity. Malformed hash shapes are diagnosed during
 compilation. Subject and native field-view ownership fixes prevent leaks,
 and scalar-reference shapes reject non-scalar referents without attempting
 invalid copies.

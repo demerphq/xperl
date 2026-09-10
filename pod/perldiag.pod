@@ -1808,6 +1808,14 @@ be combined with an ellipsis.
 (F) The minimum length requested for an array slurpy target exceeds the
 supported maximum of C<2**32 - 1>.
 
+=item duplicate capture %s in a match clause
+
+(F) A capture name was declared more than once in a clause's data shape.
+Give the captures different names and compare them in a guard if needed.
+Repeated pinned values are allowed because they do not declare captures.
+Regex named captures follow their separate naming rules. See
+L<perlcasematch>.
+
 =item duplicate key "%s" in a case hash pattern
 
 (F) A hash data shape specified the same constant key more than once.

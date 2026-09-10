@@ -1637,7 +1637,7 @@ my $concat_repeated = eval q{
     }
     1;
 };
-print $@ =~ /repeated capture names are not allowed/
+print $@ =~ /duplicate capture \$concat_first in a match clause/
     ? "ok 117 - repeated concatenation captures are rejected\n"
     : "not ok 117 - repeated concatenation captures are rejected\n";
 

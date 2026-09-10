@@ -42,7 +42,7 @@ my %exceptions = (
         ^\s*(?:
             require\s+'\./test\.pl'
             | use\s+(?:
-                generator | bytes | feature\s+'class' | overload[^;]*
+                generator | bytes | utf8 | feature\s+'class' | overload[^;]*
                 | builtin\s+qw\((?:weaken|true\s+false)\)
             )
         );

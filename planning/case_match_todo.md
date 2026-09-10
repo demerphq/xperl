@@ -7,8 +7,14 @@ The post-scheduler review is recorded in
 Its regex source-order and hash-wildcard fixes passed the full threaded
 DEBUGGING suite (1,406,121 tests). Empty exact container shapes are now
 complete: case/match plus Deparse-core passed 4,400 tests, and the porting
-suite passed 53,264 tests on the threaded DEBUGGING build. Mixed capture
-producer equality and nested-search semantics remain separate open items.
+suite passed 53,264 tests on the threaded DEBUGGING build.
+
+Duplicate capture names are now rejected at compile time within each clause;
+pins and regex named captures retain their separate rules. Case/match plus
+Deparse-core passed 4,400 tests, and porting passed 53,273 tests under
+threaded DEBUGGING. The old nested-search reproducer reused a capture
+name and is now invalid; reassess that item using legal shapes before treating
+it as outstanding implementation work.
 
 The eleven problem groups in
 [`case_match_coverage_review.md`](case_match_coverage_review.md) are fixed.

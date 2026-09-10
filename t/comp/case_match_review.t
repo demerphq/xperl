@@ -259,23 +259,6 @@ check_case('user guard reads remain separate from matcher reads', q{
     say tied($value)->[0];
 }, "3\n3");
 
-for my $criterion ('', 'RefVal', 'ObjectVal', 'DefinedVal') {
-    my $capture = $criterion ? "$criterion(\$item)" : '$item';
-    check_case("repeated $capture requires reference identity", '
-        package SameText {
-            use overload q{""} => sub { "same" }, fallback => 1;
-        }
-        my $first = bless {}, "SameText";
-        my $second = bless {}, "SameText";
-        for my $pair ([$first, $first], [$first, $second]) {
-            case ($pair) {
-                match ([' . $capture . ',' . $capture . ']) { say "same" }
-                match (_) { say "different" }
-            }
-        }
-    ', "same\ndifferent");
-}
-
 check_case('sparse slots match undef without filling source holes', q{
     my @values;
     $values[2] = 1;
@@ -672,13 +655,9 @@ check_case('a false guard cannot modify source slots through its tail', q{
     }
 }, 'unchanged');
 
-check_case('repeated and pinned equality distinguishes undef from empty strings', q{
+check_case('pinned equality distinguishes undef from empty strings', q{
     for my $pair ([undef, ''], ['', undef], ['a', 'b'],
                  [undef, undef], ['', ''], [0, '0']) {
-        case ($pair) {
-            match ([$x, $x]) { say 'equal' }
-            match (_) { say 'different' }
-        }
         my ($pin, $subject) = @$pair;
         case ($subject) with ($pin) {
             match ($pin) { say 'equal' }
@@ -692,7 +671,7 @@ check_case('repeated and pinned equality distinguishes undef from empty strings'
     case (undef) {
         match (undef) { say 'literal undef' }
     }
-}, join("\n", (('different') x 9), (('equal') x 9), 'literal undef'));
+}, join("\n", (('different') x 6), (('equal') x 6), 'literal undef'));
 
 check_case('pattern callbacks cannot destroy retained captures', q{
     package Box { sub DESTROY { } }
@@ -783,7 +762,7 @@ check_case('constraint observations are reused when publishing captures', q{
     }
     tie my @values, 'Values';
     case (\@values) {
-        match ([Int($x), $x]) { say $x }
+        match ([Int($x), Int($y)] if $x == $y) { say $x }
     }
     say $Values::reads;
 }, "12\n2");
@@ -802,10 +781,11 @@ check_case('literal hash constraints precede capture-only fetches', q{
     say join ',', @Values::reads;
 }, "12\ntag,value");
 
-check_case('owner grows across rejected equality candidates', q{
-    my @values = (1 .. 1000, 1000);
-    case (\@values) {
-        match ([..., $x, $x, ...]) { say $x }
+check_case('owner grows across rejected pinned candidates', q{
+    my @values = (1 .. 1001);
+    my $last = 1001;
+    case (\@values) with ($last) {
+        match ([..., Int($x), $last, ...]) { say $x }
     }
 }, '1000');
 
@@ -823,7 +803,7 @@ check_case('retained constraints observe in-place changes but survive deletion',
     my @values = (1, 1, 2);
     sub change { $values[0] = 2; 1 }
     case (\@values) {
-        match ([$x, change(), $x]) { say $x }
+        match ([Int($x), change(), 2]) { say $x }
     }
 }, '2');
 
@@ -900,7 +880,7 @@ check_case('reordered regex names preserve original capture across candidates', 
     say scalar @warnings;
 }, "a\n1");
 
-check_case('scalar equality matrix agrees for repeated and pinned shapes', q{
+check_case('scalar equality matrix agrees for both pin forms', q{
     my $array = [];
     my $hash = {};
     my @values = (undef, '', 0, '0', 1, '1', 'word', $array, $hash);
@@ -910,10 +890,10 @@ check_case('scalar equality matrix agrees for repeated and pinned shapes', q{
                 ? !defined($a) && !defined($b)
                 : ref($a) || ref($b)
                     ? ref($a) && ref($b) && $a == $b : $a eq $b;
-            my $actual = do { case ([$a, $b]) {
-                match ([$x, $x]) { 1 } match (_) { 0 }
+            my $actual = do { case ($b) {
+                match (^$a) { 1 } match (_) { 0 }
             } };
-            die 'repeated mismatch' if !!$actual != !!$expected;
+            die 'caret mismatch' if !!$actual != !!$expected;
             my $pinned = do { case ($b) with ($a) {
                 match ($a) { 1 } match (_) { 0 }
             } };
@@ -1036,5 +1016,60 @@ check_case('empty shape constraints skip unrelated capture fetches', q{
         match (_)       { say 'miss' }
     }
 }, 'miss');
+
+check_case('duplicate capture declarations are rejected across shape kinds', q{
+    for my $shape (
+        '[$x, $x]',
+        '[$x, "x" . $x]',
+        '["x" . $x, $x]',
+        '{a => $x, b => [$x]}',
+        '[RefVal($x), $x]',
+        '[ObjectVal($x), ObjectVal($x)]',
+        '[DefinedVal($x), DefinedVal($x)]',
+        '[Int($x), Float($x)]',
+        '[[ @tail ], [ @tail ]]',
+        '[Box {a => $x}, Box {b => $x}]',
+    ) {
+        eval 'case ([]) { match (' . $shape . ') { die "executed" } }';
+        die "wrong error: $@" unless
+            $@ =~ /duplicate capture [\$\@](?:x|tail) in a match clause/;
+        say 'rejected';
+    }
+}, join("\n", ('rejected') x 10));
+
+check_case('pins, guards, and separate clauses can reuse variable names', q{
+    my $x = 'a';
+    case (['a', 'a']) with ($x) {
+        match ([$x, $x]) { say 'with' }
+    }
+    case (['a', 'a']) {
+        match ([^$x, ^$x]) { say 'caret' }
+    }
+    case (['a', 'a']) {
+        match ([$x, $y] if $x eq $y) { say "$x,$x" }
+    }
+    case (['b']) {
+        match ([$x] if 0) { say 'wrong' }
+        match ([$x])      { say $x }
+    }
+}, "with\ncaret\na,a\nb");
+
+check_case('duplicate captures report the name and offending source line', q{
+    use utf8;
+    eval qq{#line 40 "duplicate-shape"
+case ([]) {
+    match ([\$résultat,
+            \$résultat]) { }
+}};
+    die "wrong diagnostic: $@" unless
+        $@ =~ /duplicate capture \$résultat in a match clause at duplicate-shape line 42/;
+    say 'located';
+}, 'located');
+
+check_case('scalar and array captures with the same basename are distinct', q{
+    case ([1, 2, 3]) {
+        match ([$items, @items]) { say "$items:@items" }
+    }
+}, '1:2 3');
 
 done_testing();

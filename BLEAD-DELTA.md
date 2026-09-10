@@ -155,12 +155,18 @@ actual boolean values; uppercase `TRUE` and `FALSE` test ordinary truthiness.
 Numeric caching does not turn a string into a numeric data-shape kind.
 Nested matching uses the same distinctions as top-level dispatch, and
 equivalent byte and UTF-8 strings compare consistently. Sparse array slots
-match as `undef` without filling the original array. Repeated reference
-bindings, including typed bindings, require reference identity.
+match as `undef` without filling the original array. Pinned references
+require reference identity.
 Tail bindings copy element values without aliasing source slots; captured
-references still refer to the same objects. Repeated bindings and pins
+references still refer to the same objects. Pins
 distinguish undefined values from defined ones, including empty strings;
 two undefined values compare equal.
+
+Each capture name may be declared only once within a clause's data shape,
+including across nested containers and different capture forms. To compare
+two captured values, use distinct names and a guard, such as
+`match ([$x, $y] if $x eq $y)`. Repeated pins remain valid. Separate clauses
+can reuse capture names, and regex named captures retain their own rules.
 
 The matcher checks literal and structural requirements before capture-only
 reads, rather than collecting captures strictly from left to right. For

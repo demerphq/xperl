@@ -88,7 +88,18 @@ regex-order and hash-wildcard regressions reproduced their defects.
 
 ## Remaining findings
 
-### 1. Mixed capture producers can make equality order-dependent — OPEN
+### 1. Duplicate capture declarations — COMPLETE
+
+Decision: ordinary capture names must be unique within a clause. Repeated
+pins are allowed, and regex named captures retain their separate rules.
+The lexer now rejects duplicate declarations before optimization, reporting
+the name and the offending source location. Tests cover mixed capture forms,
+nesting, array tails, Unicode diagnostics, pins, and clause-local scope.
+The threaded DEBUGGING build passes case/match plus Deparse-core (4,400
+tests) and all 40 porting files (53,273 tests). The porting run finished
+September 10 at 15:59:51. A full-suite rerun remains outstanding.
+
+The following describes the superseded behavior that prompted the change:
 
 An ordinary capture and a concatenation capture using the same name do
 not consistently enforce agreement:
@@ -104,9 +115,10 @@ The probe printed `hit:b`. Reversing the shape and corresponding subject
 made it miss. Concatenation capture insertion can append a second binding
 for the same pad slot without comparing the previously recorded value.
 
-Decide whether mixed capture producers must enforce equality or whether
-some combinations should be rejected. Then cover ordinary, typed, regex,
-and concatenation captures in both orders. This has not been fixed.
+Both examples are now compile-time errors. Existing repeated-capture equality
+tests have been replaced with rejection tests, explicit guard comparisons,
+or pin comparisons as appropriate. Runtime ownership stress tests retain
+their original purpose using unique typed captures and pinned constraints.
 
 ### 2. Empty exact array and hash shapes — COMPLETE
 
@@ -131,6 +143,10 @@ These runs finished September 10 at 15:05:27 and 15:06:36, respectively.
 The full suite has not been rerun after the empty-shape change.
 
 ### 3. Nested searches commit locally rather than backtracking — OPEN
+
+The original example below now violates the unique-capture rule and is
+rejected at compile time. Reassess whether there is a remaining actionable
+issue using legal shapes before proposing any nested-backtracking changes.
 
 ```perl
 case ([[1, 2], 2]) {

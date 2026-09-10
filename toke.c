@@ -10864,8 +10864,13 @@ S_pending_ident(pTHX)
 
     /* A scalar or array name in a case pattern is a pattern binding, not an access to
      * an ordinary Perl lexical.  The surrounding match clause already supplies
-     * the lexical scope.  Keep a small parser-local name map so repeated
-     * occurrences of a binding refer to the same pad entry, while using
+     * the lexical scope. Keep a parser-local name map to reject a second
+     * declaration anywhere in this clause's shape, including across nested
+     * containers and different capture forms. Do this before optimization
+     * can fold away an occurrence. Pins are references, not declarations,
+     * and bypass this check; guards and bodies are outside in_case_pattern.
+     * Regex named captures are handled separately by pattern preparation.
+     * Use
      * padadd_NO_DUP_CHECK to make a clause-local binding quiet when it shadows
      * a lexical in the surrounding scope. */
     if (PL_parser->in_case_pattern
@@ -10893,8 +10898,9 @@ S_pending_ident(pTHX)
               && hv_exists(PL_parser->case_pattern_pins,
                            (const char *)&existing, sizeof(existing)))) {
             if (found)
-                off = (PADOFFSET)SvUV(*found);
-            else {
+                Perl_croak(aTHX_ "duplicate capture %" UTF8f " in a match clause",
+                    UTF8fARG(UTF, tokenbuf_len, PL_tokenbuf));
+            {
                 off = pad_add_name_pvn(PL_tokenbuf, tokenbuf_len,
                                        padadd_NO_DUP_CHECK, NULL, NULL);
                 (void)hv_store(PL_parser->case_pattern_vars,
