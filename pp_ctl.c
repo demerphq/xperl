@@ -6631,6 +6631,19 @@ static void
 S_case_pattern_scan_call(pTHX_ const OP *op, const OP **target,
                          const OP **invocant, U32 *nargs);
 
+static bool
+S_case_pattern_empty_fields(const OP *op)
+{
+    /* In the indirect-call representation of Class {}, the braces produce
+     * SCOPE(STUB), not an empty hash constructor. Recognize only this exact
+     * empty block; a standalone stub is not a supported data shape. */
+    const OP *kid;
+    if (!op || op->op_type != OP_SCOPE || !(op->op_flags & OPf_KIDS))
+        return FALSE;
+    kid = cUNOPx(op)->op_first;
+    return kid && kid->op_type == OP_STUB && !OpSIBLING(kid);
+}
+
 static const OP *
 S_case_pattern_find_shape_op(const OP *op)
 {
@@ -6638,7 +6651,10 @@ S_case_pattern_find_shape_op(const OP *op)
 
     if (!op)
         return NULL;
+    if (S_case_pattern_empty_fields(op))
+        return op;
     if (op->op_type == OP_ANONHASH || op->op_type == OP_ANONLIST
+        || op->op_type == OP_EMPTYAVHV
         || op->op_type == OP_REFGEN || op->op_type == OP_SREFGEN
         || op->op_type == OP_LIST
         || (op->op_type == OP_NULL && op->op_targ == OP_LIST))
@@ -7068,6 +7084,8 @@ S_case_pattern_validate_object_fields(pTHX_ const OP *op)
     bool open = FALSE;
     HV *keys = MUTABLE_HV(sv_2mortal(MUTABLE_SV(newHV())));
 
+    if (S_case_pattern_empty_fields(op))
+        return;
     if (!op || (op->op_type != OP_LIST
                 && !(op->op_type == OP_NULL && op->op_targ == OP_LIST)))
         Perl_croak(aTHX_ "invalid object field pattern");
@@ -7270,7 +7288,8 @@ S_case_pattern_validate(pTHX_ const OP *op)
         const OP *shape_op = NULL;
         if (S_case_pattern_object_call(aTHX_ op, &class_op, &shape_op)) {
             const OP *fields = S_case_pattern_find_shape_op(shape_op);
-            if (fields && (fields->op_type == OP_LIST
+            if (fields && (S_case_pattern_empty_fields(fields)
+                           || fields->op_type == OP_LIST
                            || (fields->op_type == OP_NULL
                                && fields->op_targ == OP_LIST)))
                 S_case_pattern_validate_object_fields(aTHX_ fields);
@@ -7441,6 +7460,7 @@ S_case_pattern_validate(pTHX_ const OP *op)
     case OP_MATCH:
     case OP_ANONLIST:
     case OP_ANONHASH:
+    case OP_EMPTYAVHV:
         break;
     default:
         Perl_croak(aTHX_ "unsupported case pattern expression");
@@ -7581,7 +7601,7 @@ S_case_schedule_constraints(struct case_pattern_node *node,
         node->constraint_rank = CASE_CONSTRAINT_LITERAL;
     else if (node->object_shape || op->op_type == OP_ANONLIST
              || op->op_type == OP_ANONHASH || op->op_type == OP_REFGEN
-             || op->op_type == OP_SREFGEN)
+             || op->op_type == OP_SREFGEN || op->op_type == OP_EMPTYAVHV)
         node->constraint_rank = CASE_CONSTRAINT_SHAPE;
     else if (op->op_type == OP_PADSV
              && S_case_capture_occurrences(root, node->binding_padix) == 1)
@@ -8385,6 +8405,10 @@ S_case_pattern_find_shape_node(const struct case_pattern_node *node)
 
     if (!node)
         return NULL;
+    if (S_case_pattern_empty_fields(node->op)) {
+        assert(node->nchild == 1 && node->child[0]->nchild == 0);
+        return node->child[0];
+    }
     if (node->op->op_type == OP_LIST
         || (node->op->op_type == OP_NULL && node->op->op_targ == OP_LIST))
         return node;
@@ -8572,7 +8596,10 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                 fields, logical ? logical : value, bindings, nbindings, owner);
         }
         else {
-            if (node->object_shape->op->op_type == OP_ANONHASH
+            if ((node->object_shape->op->op_type == OP_ANONHASH
+                 || (node->object_shape->op->op_type == OP_EMPTYAVHV
+                     && (node->object_shape->op->op_private
+                         & OPpEMPTYAVHV_IS_HV)))
                 && SvTYPE(SvRV(value)) == SVt_PVOBJ)
                 logical = sv_2mortal(Perl_class_object_to_hash(aTHX_ value));
             matched = S_case_pattern_match(aTHX_ node->object_shape,
@@ -8615,7 +8642,9 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             matched = S_case_pattern_match_object_fields(aTHX_
                 shape_node, value, bindings, nbindings, owner);
         else {
-            if (shape_node->op->op_type == OP_ANONHASH
+            if ((shape_node->op->op_type == OP_ANONHASH
+                 || (shape_node->op->op_type == OP_EMPTYAVHV
+                     && (shape_node->op->op_private & OPpEMPTYAVHV_IS_HV)))
                 && SvTYPE(SvRV(value)) == SVt_PVOBJ)
                 logical = sv_2mortal(Perl_class_object_to_hash(aTHX_ value));
             matched = S_case_pattern_match(aTHX_ shape_node,
@@ -8807,7 +8836,13 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
         return matched;
     }
 
-    if (pattern->op_type == OP_ANONLIST) {
+    /* Empty constructors are BASEOPs, not childless LISTOPs. The compiled
+     * shape already records zero children, so reuse the normal container
+     * matching paths without reading an op_first from these operations.
+     * This also preserves tied FETCHSIZE/key-iteration semantics. */
+    if (pattern->op_type == OP_ANONLIST
+        || (pattern->op_type == OP_EMPTYAVHV
+            && !(pattern->op_private & OPpEMPTYAVHV_IS_HV))) {
         AV *av;
         struct case_pattern_node * const *fixed = node->child;
         size_t nfixed = 0;
@@ -8914,7 +8949,9 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
         }
     }
 
-    if (pattern->op_type == OP_ANONHASH) {
+    if (pattern->op_type == OP_ANONHASH
+        || (pattern->op_type == OP_EMPTYAVHV
+            && (pattern->op_private & OPpEMPTYAVHV_IS_HV))) {
         HV *hv;
         HV *pattern_hv = NULL;
         HV *covered;

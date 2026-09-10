@@ -29,6 +29,9 @@ here, but most should go in the L</Performance Enhancements> section.
 
 =head2 Experimental data-shape matching
 
+Empty array and hash shapes, C<match ([])> and C<match ({})>, now match
+empty containers. They also work in nested and class-qualified shapes.
+
 Duplicate named captures in separate shape regexes now consistently bind
 from the first regex in source order, even when constraint scheduling changes
 execution order. Hash wildcard values check key presence without fetching

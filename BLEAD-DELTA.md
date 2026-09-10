@@ -171,6 +171,10 @@ cleanup, including exception unwinding.
 
 Hash shapes distinguish absent keys from keys containing `undef`, including
 when the subject is tied.
+Empty shapes `match([])` and `match({})` require an empty array or hash,
+respectively. They also work inside larger shapes and with exact class
+qualifiers, such as `match(Point {})` for an object with no fields.
+
 Regular-expression values can be used as scalar matching
 criteria.  Regular-expression shapes update Perl's ordinary capture variables
 and make named captures available as clause-local scalar bindings.  For

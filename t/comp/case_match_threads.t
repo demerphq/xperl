@@ -13,7 +13,21 @@ if ($@) {
     skip_all('threads are not available');
 }
 
-plan(6);
+plan(7);
+
+my $empty = threads->create(sub {
+    my @results;
+    for my $v ([], {}, [1], {a => 1}) {
+        case ($v) {
+            match ([]) { push @results, 'array' }
+            match ({}) { push @results, 'hash' }
+            match (_)  { push @results, 'full' }
+        }
+    }
+    return join ',', @results;
+});
+is($empty->join, 'array,hash,full,full',
+   'empty container shapes survive thread cloning');
 
 sub regex_closure {
     case (['a', 'b']) {

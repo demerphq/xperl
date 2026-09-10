@@ -453,6 +453,9 @@ exactly the listed number of elements:
 
     match ([ $x, $y ]) { say "point: $x, $y" }
 
+With no elements listed, C<match ([])> matches only an empty array
+reference. It does not match an empty hash reference or C<undef>.
+
 For arrays, C<...> may appear at the beginning, at the end, or at both ends:
 
     match ([ $first, ... ])
@@ -476,6 +479,11 @@ does not fill these holes in the original array. A tail binding includes
 the undefined values, preserving their positions in the captured tail.
 
 =head2 Hashes
+
+C<match ({})> matches an empty hash reference. Even a single key whose
+value is C<undef> makes that hash nonempty. Empty array and hash shapes
+also work inside larger shapes, such as C<[[], {}]>, and with a class
+name, such as C<Point {}> for a C<Point> object with no fields.
 
 A hash shape lists keys that must be present.  Without an ellipsis, the hash
 must have exactly those keys.  A trailing C<...> permits extra keys:

@@ -952,4 +952,89 @@ for my $qualifier ('', 'Box ') {
     ', "hit\nmiss\n2");
 }
 
+check_case('empty shapes distinguish container kinds and reject contents', q{
+    for my $v ([], {}, [undef], {a => undef}, undef, '', 0, sub {}) {
+        case ($v) {
+            match ([]) { say 'array' }
+            match ({}) { say 'hash' }
+            match (_)  { say 'miss' }
+        }
+    }
+}, "array\nhash\n" . join("\n", ('miss') x 6));
+
+check_case('empty shapes nest and participate in open-array searches', q{
+    case ([1, [[], {}], 2]) {
+        match ([..., [[], {}], ...]) { say 'nested' }
+    }
+    case ({a => [], b => {}}) {
+        match ({a => [], b => {}}) { say 'fields' }
+    }
+    case ([]) {
+        match ([] if 0) { say 'wrong' }
+        match ([])     { say 'guard' }
+    }
+}, "nested\nfields\nguard");
+
+check_case('class-qualified empty shapes require the exact class and kind', q{
+    for my $v (bless([], 'Box'), bless({}, 'Box'),
+               bless([1], 'Box'), bless({a => 1}, 'Box'),
+               bless([], 'Other'), [], {}) {
+        case ($v) {
+            match (Box []) { say 'array' }
+            match (Box {}) { say 'hash' }
+            match (_)      { say 'miss' }
+        }
+    }
+}, "array\nhash\n" . join("\n", ('miss') x 5));
+
+check_case('empty native-class shapes use the field view', q{
+    use feature 'class';
+    no warnings 'experimental::class';
+    class Empty {}
+    class Full { field $x = 1; }
+    case (Empty->new) {
+        match (Empty {}) { say 'empty' }
+    }
+    case (Full->new) {
+        match (Full {}) { say 'wrong' }
+        match (_)       { say 'full' }
+    }
+}, "empty\nfull");
+
+check_case('empty tied shapes inspect size or keys but never fetch values', q{
+    {
+        package Array;
+        sub TIEARRAY { bless [$_[1]], $_[0] }
+        sub FETCHSIZE { $_[0][0] }
+        sub FETCH { die 'unexpected array FETCH' }
+        package Hash;
+        sub TIEHASH { bless [$_[1]], $_[0] }
+        sub FIRSTKEY { $_[0][0] ? 'key' : undef }
+        sub NEXTKEY { undef }
+        sub FETCH { die 'unexpected hash FETCH' }
+    }
+    for my $size (0, 1) {
+        tie my @a, 'Array', $size;
+        tie my %h, 'Hash', $size;
+        for my $v (\@a, \%h) {
+            case ($v) {
+                match ([]) { say 'array' }
+                match ({}) { say 'hash' }
+                match (_)  { say 'full' }
+            }
+        }
+    }
+}, "array\nhash\nfull\nfull");
+
+check_case('empty shape constraints skip unrelated capture fetches', q{
+    { package Value; sub TIEARRAY { bless {}, shift }
+      sub FETCHSIZE { 2 }
+      sub FETCH { die 'capture fetched' if $_[1] == 0; [1] } }
+    tie my @values, 'Value';
+    case (\@values) {
+        match ([$x, []]) { say 'wrong' }
+        match (_)       { say 'miss' }
+    }
+}, 'miss');
+
 done_testing();

@@ -2,6 +2,14 @@
 
 ## September 10 correctness follow-up
 
+The post-scheduler review is recorded in
+[`case_match_post_scheduler_review.md`](case_match_post_scheduler_review.md).
+Its regex source-order and hash-wildcard fixes passed the full threaded
+DEBUGGING suite (1,406,121 tests). Empty exact container shapes are now
+complete: case/match plus Deparse-core passed 4,400 tests, and the porting
+suite passed 53,264 tests on the threaded DEBUGGING build. Mixed capture
+producer equality and nested-search semantics remain separate open items.
+
 The eleven problem groups in
 [`case_match_coverage_review.md`](case_match_coverage_review.md) are fixed.
 The expanded regression suite covers native scalar provenance, encoding and

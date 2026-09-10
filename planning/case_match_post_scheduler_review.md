@@ -108,16 +108,27 @@ Decide whether mixed capture producers must enforce equality or whether
 some combinations should be rejected. Then cover ordinary, typed, regex,
 and concatenation captures in both orders. This has not been fixed.
 
-### 2. Empty exact array and hash shapes are rejected — OPEN
+### 2. Empty exact array and hash shapes — COMPLETE
 
 The probes `match([])` and `match({})` produced an unsupported-expression
 error, whereas open shapes `[...]` and `{...}` worked.
 
 Empty anonymous containers use `OP_EMPTYAVHV`, with
 `OPpEMPTYAVHV_IS_HV` distinguishing hashes. The shape validator does not
-accept that representation. Supporting it requires consistent treatment
-in validation, compilation, matching, and class-qualified shapes; merely
-allowing the opcode is insufficient. This has not been fixed.
+accepted that representation. The fix recognizes it in validation,
+class-shape discovery, constraint scheduling, and the normal container
+matching paths. Class-qualified empty braces also require recognition of
+the indirect-call parser's exact `SCOPE(STUB)` representation; this does
+not make arbitrary empty expressions valid shapes.
+
+Regression tests cover empty/nonempty containers, wrong referent kinds,
+nested shapes, open-array searches, guards, exact class checks, native
+class fields, tied containers without value fetches, constraint-first
+capture avoidance, and thread cloning. On the threaded DEBUGGING build,
+all six case/match files plus Deparse-core passed (4,400 tests), followed
+by all 40 porting files (53,264 tests), including regeneration checks.
+These runs finished September 10 at 15:05:27 and 15:06:36, respectively.
+The full suite has not been rerun after the empty-shape change.
 
 ### 3. Nested searches commit locally rather than backtracking — OPEN
 
