@@ -29,6 +29,37 @@ Status labels mean: `COMPLETE` is implemented and has focused coverage;
 extensions or broader hardening; `OPEN` is unfinished; and `DEFERRED` is
 intentionally postponed.
 
+## Deferred correctness and numeric-semantics review
+
+### Borrowed capture lifetime across pattern calls — DEFERRED, HIGH PRIORITY
+
+A later pattern call can remove or replace a source element whose SV an
+earlier capture still borrows. Before publication, that capture can lose its
+value or trigger an internal error. This remains an unresolved correctness
+issue; deferral does not make the behavior supported or safe.
+
+When resumed, establish ownership of tentative captures across callbacks,
+backtracking, exceptions and publication, preserving reference identity.
+Audit related subject and temporary-binding lifetimes, and add mutation,
+exception and sanitizer coverage. See the reproducer and analysis in
+[`case_match_followup_review_20260910.md`](case_match_followup_review_20260910.md).
+The tail-copy fix does not resolve ordinary borrowed scalar captures.
+
+### Integer versus float distinctions and HV equality — DEFERRED
+
+As part of deciding whether matching should distinguish integers and floats,
+assess the consequences of Perl's scalar type tracking for every backend.
+Currently forced HV dispatch distinguishes integer and floating-point keys:
+`1.0` misses `match(1)` and `1` misses `match(1.0)`, unlike the other backends.
+Keep this discrepancy recorded rather than changing numeric semantics now.
+
+Reconciling the representations may be impractical within this feature's
+scope. HV dispatch is retained for performance comparisons, is not the
+automatic default, and may be removed because of its performance. Revisit
+its equality behavior only alongside the numeric-type decision and the
+decision whether to retain that backend. Preserve the existing opt-in
+reproducers for comparison; do not treat the discrepancy as fixed.
+
 ## Documentation-derived design questions
 
 ### Tail capture copying versus aliasing — OPEN

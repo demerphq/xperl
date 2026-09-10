@@ -27,6 +27,10 @@ issues are left unchanged for the user's review.
 
 ### 1. Borrowed captures can be invalidated by a pattern call — high priority
 
+**Status: DEFERRED, HIGH PRIORITY.** Tracked in
+[`case_match_todo.md`](case_match_todo.md); no ownership fix is included in
+the subsequent tail-copy and undefined-equality changes.
+
 This can lose the captured reference or raise an internal copy error:
 
 ```perl
@@ -61,6 +65,12 @@ pending-binding AVs and slurp AVs during callbacks. These are source-level
 cleanup concerns, not separately demonstrated leaks in this review.
 
 ### 2. HV numeric keys do not implement the other backends' equality
+
+**Status: DEFERRED.** The user has parked this under the integer-versus-float
+semantics decision in [`case_match_todo.md`](case_match_todo.md). HV dispatch
+is currently retained for algorithm comparisons and may be removed for
+performance reasons. The analysis below records the discrepancy and possible
+fix considerations, not a commitment to implement a fix.
 
 With `PERL_CASE_DISPATCH=hv`, a native `1.0` misses `match(1)`, and native
 `1` misses `match(1.0)`. The unoptimized, linear, and binary implementations
