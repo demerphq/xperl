@@ -6940,7 +6940,7 @@ S_case_pattern_prepare_regex(pTHX_ const OP *pattern, HV *seen)
 }
 
 static void
-S_case_pattern_compile_regex(pTHX_ struct case_pattern_node *node)
+S_case_pattern_compile_regex(pTHX_ struct case_pattern_node *node, HV *seen)
 {
     REGEXP *re;
     SV *names_ref;
@@ -6951,9 +6951,9 @@ S_case_pattern_compile_regex(pTHX_ struct case_pattern_node *node)
 
     if (!node || !PL_parser)
         return;
-    S_case_pattern_compile_regex(aTHX_ node->object_shape);
+    S_case_pattern_compile_regex(aTHX_ node->object_shape, seen);
     for (childix = 0; childix < node->nchild; childix++)
-        S_case_pattern_compile_regex(aTHX_ node->child[childix]);
+        S_case_pattern_compile_regex(aTHX_ node->child[childix], seen);
     if (node->op->op_type != OP_MATCH)
         return;
     re = PM_GETRE(cPMOPx(node->op));
@@ -6972,6 +6972,13 @@ S_case_pattern_compile_regex(pTHX_ struct case_pattern_node *node)
 
         if (!name_svp || !*name_svp)
             continue;
+        /* Bind duplicate names from the first regex in SOURCE order. The
+         * constraint scheduler may execute a later nested regex first, so
+         * runtime insertion order cannot decide which regex owns the name.
+         * This does not change the engine's own duplicate-group handling. */
+        if (hv_exists_ent(seen, *name_svp, 0))
+            continue;
+        (void)hv_store_ent(seen, *name_svp, SvREFCNT_inc(&PL_sv_yes), 0);
         padname = newSVpvn("$", 1);
         sv_catsv(padname, *name_svp);
         padix_svp = hv_fetch(PL_parser->case_pattern_vars,
@@ -7601,7 +7608,8 @@ Perl_case_pattern_compile(pTHX_ const OP *pattern)
     aux->root = S_case_pattern_compile_node(aTHX_ pattern, FALSE);
     aux->static_pins = newAV();
     S_case_pattern_note_static_pins(aTHX_ pattern, aux->static_pins);
-    S_case_pattern_compile_regex(aTHX_ aux->root);
+    S_case_pattern_compile_regex(aTHX_ aux->root,
+        MUTABLE_HV(sv_2mortal(MUTABLE_SV(newHV()))));
     aux->binding_capacity = S_case_pattern_binding_capacity(aTHX_ aux->root);
     aux->case_capture_capacity = aux->binding_capacity;
     S_case_schedule_constraints(aux->root, aux->root);
@@ -8407,6 +8415,14 @@ S_case_pattern_find_op_node(const struct case_pattern_node *node, const OP *op)
     return NULL;
 }
 
+static bool
+S_case_node_is_wildcard(pTHX_ const struct case_pattern_node *node)
+{
+    const OP *op = S_case_pattern_unwrap(node)->op;
+    return op->op_type == OP_CONST && (op->op_private & OPpCONST_BARE)
+        && strEQ(SvPV_nolen_const(cSVOPx_sv(op)), "_");
+}
+
 static U8
 S_case_match_rank(pTHX_ const struct case_pattern_node *node)
 {
@@ -8424,9 +8440,7 @@ S_case_match_array_item(pTHX_ const struct case_pattern_node *node,
                          struct case_capture_owner *owner)
 {
     SV **svp;
-    const OP *op = S_case_pattern_unwrap(node)->op;
-    if (op->op_type == OP_CONST && (op->op_private & OPpCONST_BARE)
-        && strEQ(SvPV_nolen_const(cSVOPx_sv(op)), "_"))
+    if (S_case_node_is_wildcard(aTHX_ node))
         return TRUE;
     if (!owner->collecting
         && S_case_match_rank(aTHX_ node) == CASE_CONSTRAINT_CAPTURE) {
@@ -8477,6 +8491,12 @@ S_case_pattern_match_object_fields(pTHX_ const struct case_pattern_node *node,
                 continue;
             if (keynode->op->op_type != OP_CONST)
                 return FALSE;
+            if (S_case_node_is_wildcard(aTHX_ valnode)) {
+                if (!hv_exists_ent(hv, cSVOPx_sv(keynode->op), 0))
+                    return FALSE;
+                pairs++;
+                continue;
+            }
             if (rank == CASE_CONSTRAINT_CAPTURE) {
                 if (!hv_exists_ent(hv, cSVOPx_sv(keynode->op), 0))
                     return FALSE;
@@ -8955,6 +8975,12 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             }
             if (!keysv || !valop)
                 return FALSE;
+            if (S_case_node_is_wildcard(aTHX_ valnode)) {
+                if (!hv_exists_ent(hv, keysv, 0))
+                    return FALSE;
+                (void)hv_store_ent(covered, keysv, SvREFCNT_inc(&PL_sv_yes), 0);
+                continue;
+            }
             if (S_case_match_rank(aTHX_ valnode) == CASE_CONSTRAINT_CAPTURE) {
                 if (!hv_exists_ent(hv, keysv, 0))
                     return FALSE;

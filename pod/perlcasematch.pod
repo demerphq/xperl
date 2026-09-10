@@ -288,9 +288,11 @@ subroutine:
         match (Version->number()) { say "known version" }
     }
 
-The call is made in scalar context when the clause is tried.  Calls with
-arguments are rejected because the left side of C<match> is not general
-expression syntax.  Use a guard for ordinary computation or a value that
+The call is made in scalar context if structural checking reaches it.
+An earlier failed requirement can skip the call. An open-array search may
+call it again for another candidate; it is not cached across candidates.
+Calls with arguments are rejected because the left side of C<match> is not
+general expression syntax. Use a guard for ordinary computation or a value that
 needs arguments.
 
 =head2 Value-kind criteria
@@ -494,6 +496,8 @@ clause match instead.
 A present key whose value is C<undef> is different from a missing key.
 For a tied hash, the shape checks C<EXISTS> before reading the value with
 C<FETCH>; a missing key does not match even if C<FETCH> would return undef.
+With a wildcard value, as in C<{ name => _, ... }>, only the key's presence
+is required. Its value is not fetched.
 
 Repeating a constant key in the same hash shape is a compile-time error.
 For example, C<{ x => 1, x => 1 }> is not a valid shape.  Separate nested
@@ -627,9 +631,10 @@ they are not independent copies belonging to each clause invocation.
 
 Give captures in separate regexes different names if you want to use all
 their values.  If several regexes in one clause use the same capture name,
-the compiler issues a C<syntax> warning.  Only the first regex supplies the
-clause-local variable; later captures with that name are not visible through
-it.  This also applies when the first regex's named group did not participate:
+the compiler issues a C<syntax> warning. Only the first regex in source order
+supplies the clause-local variable; later captures with that name are not
+visible through it, even if constraint scheduling executes a later regex first.
+This also applies when the first regex's named group did not participate:
 the variable stays C<undef>, even if a later regex captures a value.
 
 Repeated names I<within a single regex> work as usual, without this warning.

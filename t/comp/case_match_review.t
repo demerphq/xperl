@@ -861,4 +861,95 @@ check_case('many deferred captures use independent metadata and grow safely', q{
     die $@ if $@;
 }, '101');
 
+check_case('duplicate regex names select source order across scheduling ranks', q{
+    my @warnings;
+    local $SIG{__WARN__} = sub { push @warnings, @_ };
+    eval q{
+        case (['a', ['b']]) {
+            match ([/(?<x>a)/, [/(?<x>b)/]]) { say "$x,$+{x}" }
+        }
+    };
+    die $@ if $@;
+    say @warnings == 1
+        && $warnings[0] =~ /only the first regex maps/ ? 'warned' : 'wrong warning';
+}, "a,a\nwarned");
+
+check_case('nonparticipating first regex capture survives reordered execution', q{
+    my @warnings;
+    local $SIG{__WARN__} = sub { push @warnings, @_ };
+    eval q{
+        case (['a', ['b']]) {
+            match ([/(?:a|(?<x>z))/, [/(?<x>b)/]]) {
+                say defined($x) ? 'wrong' : 'undef';
+            }
+        }
+    };
+    die $@ if $@;
+    say scalar @warnings;
+}, "undef\n1");
+
+check_case('reordered regex names preserve original capture across candidates', q{
+    my @warnings;
+    local $SIG{__WARN__} = sub { push @warnings, @_ };
+    eval q{
+        case (['no', ['b'], 'a', ['b']]) {
+            match ([..., /(?<x>a)/, [/(?<x>b)/], ...]) { say $x }
+        }
+    };
+    die $@ if $@;
+    say scalar @warnings;
+}, "a\n1");
+
+check_case('scalar equality matrix agrees for repeated and pinned shapes', q{
+    my $array = [];
+    my $hash = {};
+    my @values = (undef, '', 0, '0', 1, '1', 'word', $array, $hash);
+    for my $a (@values) {
+        for my $b (@values) {
+            my $expected = !defined($a) || !defined($b)
+                ? !defined($a) && !defined($b)
+                : ref($a) || ref($b)
+                    ? ref($a) && ref($b) && $a == $b : $a eq $b;
+            my $actual = do { case ([$a, $b]) {
+                match ([$x, $x]) { 1 } match (_) { 0 }
+            } };
+            die 'repeated mismatch' if !!$actual != !!$expected;
+            my $pinned = do { case ($b) with ($a) {
+                match ($a) { 1 } match (_) { 0 }
+            } };
+            die 'pinned mismatch' if !!$pinned != !!$expected;
+        }
+    }
+    say '81 pairs';
+}, '81 pairs');
+
+check_case('shape call failures propagate exception objects unchanged', q{
+    my $error = bless {}, 'Failure';
+    sub fail { die $error }
+    eval { case ([1]) { match ([fail()]) { die 'wrong' } } };
+    say ref($@) eq 'Failure' && $@ == $error ? 'same exception' : 'wrong';
+}, 'same exception');
+
+for my $qualifier ('', 'Box ') {
+    check_case("${qualifier}hash wildcard checks presence without fetching", q{
+        package Values {
+            our $exists = 0;
+            sub TIEHASH { bless {}, shift }
+            sub EXISTS { ++$exists; $_[1] eq 'present' }
+            sub FETCH { die 'wildcard fetched' }
+        }
+        tie my %values, 'Values';
+        my $subject = bless \%values, 'Box';
+    } . '
+        case ($subject) {
+            match (' . $qualifier . '{present => _, ...}) { say "hit" }
+        }
+        case ($subject) {
+            match (' . $qualifier . '{absent => _, ...}) { say "wrong" }
+            match (_) { say "miss" }
+        }
+        say $Values::exists;
+    ', "hit\nmiss\n2");
+}
+
 done_testing();
