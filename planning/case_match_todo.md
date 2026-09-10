@@ -72,6 +72,12 @@ Before settling the API, decide once and for all whether tail bindings
 should continue to copy or should alias instead. Until that decision,
 implementation, tests and documentation must consistently use copying.
 
+Also settle retention versus snapshotting for scalar observations made by
+constraints. The current runtime retains the original SV until publication,
+so in-place callback assignments remain visible; it does not freeze the
+observed value. Distinguish this choice from aliasing the final pad scalar:
+publication still copies into that scalar.
+
 These questions were extracted from the case/match guide and do not change
 the current documented spellings.
 

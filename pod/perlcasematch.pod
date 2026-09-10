@@ -167,6 +167,44 @@ subsequence. If it is false, matching moves to the next clause; it does not
 search for another subsequence within the same clause. Concatenated string
 shapes likewise do not retry longer captures when a guard fails.
 
+=head2 Checking constraints before collecting captures
+
+A clause checks its requirements before collecting values that are only
+being captured. For example:
+
+    case ([10, 20, 42]) {
+        match ([..., $previous, 42, ...]) { say $previous }
+    }
+
+The matcher looks for C<42> with a preceding element, then captures that
+element. This prints C<20>. It does not fetch a candidate's preceding element
+just to discard it when the C<42> requirement fails.
+
+At each array or hash level, literal requirements precede other nested
+requirements and tests. Requirements within the same group retain source
+order. Reading the enclosing structure comes first, because the matcher
+needs to know what it can inspect. Capture-only reads wait until structural
+matching succeeds, even when they are nested inside other structures.
+
+Some captures also impose requirements. C<Int($x)> checks a type, and
+C<[$x, $x]> compares two values. These need observations during matching.
+Regex and concatenation captures also retain results of their checks.
+Those observations are reused rather than repeating the checks when
+bindings are placed in the clause's lexical variables.
+
+This order applies to tied values, overloaded operations and pattern calls
+too. Do not assume that such callbacks run from left to right as written
+in the shape. A failed literal requirement can prevent a call from running.
+User code in the guard and clause block retains its normal behavior.
+
+Values retained during checking stay alive, but are not frozen: a callback
+that overwrites the same scalar can change its value before publication.
+Capture-only reads see the contents present when they run. Array searches
+keep their initial candidate range, so appending elements in a callback
+does not extend the search. Later reads see current contents; missing array
+slots behave as C<undef>, and missing hash keys remain absent. The matcher
+does not repeat earlier successful checks after a callback changes data.
+
 =head1 SCALAR DATA SHAPES
 
 =head2 Literal strings and numbers

@@ -21,9 +21,10 @@ live subsequent reads. Missing array slots are undef; missing keys are absent.
    DEBUGGING focused suite passes 417 tests. The initial reservation uses
    the existing clause capacity; enclosing-case reservation follows with
    compiled scheduling metadata. Sanitizer validation remains outstanding.
-2. OPEN: Compiled constraint scheduling and deferred capture collection,
+2. IMPLEMENTED: Compiled constraint ranks and deferred capture locations,
    including nested shapes, repeated bindings and cached regex observations.
-3. OPEN: Update user docs/deltas and validate focused, porting, full, threaded,
+   Enclosing-case capacity is now used for initial owner reservation.
+3. IN PROGRESS: Update user docs/deltas and validate focused, porting, full, threaded,
    nonthreaded and sanitizer suites. Record exact configurations and results.
 
 The HV numeric-domain issue remains deferred. No parser syntax changes are

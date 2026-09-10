@@ -699,7 +699,7 @@ check_case('pattern callbacks cannot destroy retained captures', q{
     my @values = (bless({}, 'Box'), 1);
     sub remove_first { delete $values[0]; 1 }
     case (\@values) {
-        match ([$captured, remove_first()]) { say ref $captured }
+        match ([RefVal($captured), remove_first()]) { say ref $captured }
     }
 }, 'Box');
 
@@ -721,11 +721,144 @@ check_case('exception releases captures retained before a callback', q{
     sub fail { delete $values[0]; die "expected\n" }
     eval {
         case (\@values) {
-            match ([$captured, fail()]) { say 'wrong' }
+            match ([RefVal($captured), fail()]) { say 'wrong' }
         }
     };
     say $@ eq "expected\n" ? 'caught' : 'wrong error';
     say $Box::destroyed;
 }, "caught\n1");
+
+check_case('open arrays check literal anchors before fetching captures', q{
+    package Values {
+        our @reads;
+        sub TIEARRAY { bless {}, shift }
+        sub FETCHSIZE { 3 }
+        sub FETCH { push @reads, $_[1]; (10, 20, 42)[$_[1]] }
+    }
+    tie my @values, 'Values';
+    case (\@values) {
+        match ([..., $x, 42, ...]) { say $x }
+    }
+    say join ',', @Values::reads;
+}, "20\n1,2,1");
+
+check_case('literal failure skips pattern calls and capture-only reads', q{
+    sub unexpected { die 'must not call' }
+    case ([1, 9]) {
+        match ([unexpected(), 7]) { say 'wrong' }
+        match (_) { say 'miss' }
+    }
+    package Values {
+        sub TIEARRAY { bless {}, shift }
+        sub FETCHSIZE { 2 }
+        sub FETCH { die 'capture fetched' if $_[1] == 0; 9 }
+    }
+    tie my @values, 'Values';
+    case (\@values) {
+        match ([$x, 7]) { say 'wrong' }
+        match (_) { say 'miss' }
+    }
+}, "miss\nmiss");
+
+check_case('nested captures wait for outer constraints', q{
+    package Values {
+        sub TIEARRAY { bless {}, shift }
+        sub FETCHSIZE { 1 }
+        sub FETCH { die 'nested capture fetched' }
+    }
+    tie my @values, 'Values';
+    sub reject { 0 }
+    case ([\@values, 1]) {
+        match ([[$x], reject()]) { say 'wrong' }
+        match (_) { say 'miss' }
+    }
+}, 'miss');
+
+check_case('constraint observations are reused when publishing captures', q{
+    package Values {
+        our $reads = 0;
+        sub TIEARRAY { bless {}, shift }
+        sub FETCHSIZE { 2 }
+        sub FETCH { ++$reads; 12 }
+    }
+    tie my @values, 'Values';
+    case (\@values) {
+        match ([Int($x), $x]) { say $x }
+    }
+    say $Values::reads;
+}, "12\n2");
+
+check_case('literal hash constraints precede capture-only fetches', q{
+    package Values {
+        our @reads;
+        sub TIEHASH { bless {}, shift }
+        sub EXISTS { 1 }
+        sub FETCH { push @reads, $_[1]; $_[1] eq 'tag' ? 'yes' : 12 }
+    }
+    tie my %values, 'Values';
+    case (\%values) {
+        match ({ value => $x, tag => 'yes', ... }) { say $x }
+    }
+    say join ',', @Values::reads;
+}, "12\ntag,value");
+
+check_case('owner grows across rejected equality candidates', q{
+    my @values = (1 .. 1000, 1000);
+    case (\@values) {
+        match ([..., $x, $x, ...]) { say $x }
+    }
+}, '1000');
+
+check_case('wildcards do not fetch array elements', q{
+    package Values {
+        sub TIEARRAY { bless {}, shift }
+        sub FETCHSIZE { 2 }
+        sub FETCH { die 'wildcard fetched' if $_[1] == 0; 42 }
+    }
+    tie my @values, 'Values';
+    case (\@values) { match ([_, 42]) { say 'hit' } }
+}, 'hit');
+
+check_case('retained constraints observe in-place changes but survive deletion', q{
+    my @values = (1, 1, 2);
+    sub change { $values[0] = 2; 1 }
+    case (\@values) {
+        match ([$x, change(), $x]) { say $x }
+    }
+}, '2');
+
+check_case('array candidates do not chase callback appends', q{
+    my @values = (1, 2);
+    our $calls = 0;
+    sub extend { ++$calls; push @values, 99; 99 }
+    case (\@values) {
+        match ([..., extend(), ...]) { say 'wrong' }
+        match (_) { say 'miss' }
+    }
+    say $calls;
+}, "miss\n2");
+
+check_case('callback exceptions after owned regex and concat captures unwind', q{
+    sub fail { die "expected\n" }
+    for (1 .. 20) {
+        eval {
+            case (['abc', 'prefix_tail', 1]) {
+                match ([/(?<word>abc)/, 'prefix_' . $tail, fail()]) {
+                    die 'wrong';
+                }
+            }
+        };
+        die 'wrong error' unless $@ eq "expected\n";
+    }
+    say 'caught';
+}, 'caught');
+
+check_case('many deferred captures use independent metadata and grow safely', q{
+    my $pattern = join ',', map { '$v' . $_ } 1 .. 100;
+    my $code = 'case ([1 .. 100]) { match ([' . $pattern
+        . ']) { say $v1 + $v100 } }';
+    eval $code;
+    die $@ if $@;
+}, '101');
 
 done_testing();

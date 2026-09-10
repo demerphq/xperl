@@ -29,6 +29,15 @@ here, but most should go in the L</Performance Enhancements> section.
 
 =head2 Experimental data-shape matching
 
+Structural requirements now precede capture-only reads, including in nested
+shapes. Literal constraints are checked before other requirements at each
+aggregate level. This changes the observable order of tied and overloaded
+operations and pattern calls; see L<perlcasematch>.
+
+Tentative captures and traversal values are retained across callbacks.
+An exception-safe owner releases captured values on normal temporary cleanup
+or unwinding. Retention preserves scalar lifetime, not a frozen value.
+
 Mixed signed/unsigned dispatch bounds no longer reject valid unsigned
 matches. Tied hash shapes check key existence before fetching a value, so
 a missing key cannot satisfy an C<undef> value shape.

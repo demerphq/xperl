@@ -162,6 +162,13 @@ references still refer to the same objects. Repeated bindings and pins
 distinguish undefined values from defined ones, including empty strings;
 two undefined values compare equal.
 
+The matcher checks literal and structural requirements before capture-only
+reads, rather than collecting captures strictly from left to right. For
+example, `[ ..., $previous, 42, ... ]` checks for `42` before reading its
+preceding element for `$previous`. This ordering also applies to callbacks.
+Retained values survive callbacks and are released through normal temporary
+cleanup, including exception unwinding.
+
 Hash shapes distinguish absent keys from keys containing `undef`, including
 when the subject is tied.
 Regular-expression values can be used as scalar matching

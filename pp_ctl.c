@@ -6205,7 +6205,53 @@ static PERL_CONTEXT *S_case_context(pTHX);
 struct case_capture_owner {
     AV *values;
     size_t reserve;
+    struct case_capture_request *requests;
+    size_t nrequests;
+    size_t request_capacity;
+    bool collecting;
 };
+
+enum case_constraint_rank {
+    CASE_CONSTRAINT_INVALID = 0,
+    CASE_CONSTRAINT_LITERAL,
+    CASE_CONSTRAINT_SHAPE,
+    CASE_CONSTRAINT_TEST,
+    CASE_CONSTRAINT_CAPTURE
+};
+
+enum case_capture_location {
+    CASE_CAPTURE_INVALID = 0,
+    CASE_CAPTURE_ARRAY,
+    CASE_CAPTURE_HASH,
+    CASE_CAPTURE_VALUE,
+    CASE_CAPTURE_TAIL
+};
+
+struct case_capture_request {
+    const struct case_pattern_node *node;
+    SV *source;
+    SV *key;
+    SSize_t index;
+    SSize_t end;
+    enum case_capture_location kind;
+};
+
+static void
+S_case_defer_capture(pTHX_ struct case_capture_owner *owner,
+                      const struct case_pattern_node *node, SV *source,
+                      SV *key, SSize_t index, SSize_t end,
+                      enum case_capture_location kind)
+{
+    struct case_capture_request *request;
+    assert(owner->nrequests < owner->request_capacity);
+    request = &owner->requests[owner->nrequests++];
+    request->node = node;
+    request->source = sv_2mortal(SvREFCNT_inc(source));
+    request->key = key ? sv_2mortal(SvREFCNT_inc(key)) : NULL;
+    request->index = index;
+    request->end = end;
+    request->kind = kind;
+}
 
 /* The mortal AV owns every retained reference, including abandoned search
  * candidates. Indices survive AV growth and callbacks; array pointers do not.
@@ -7501,6 +7547,45 @@ S_case_pattern_binding_capacity(pTHX_ const struct case_pattern_node *node)
     return count;
 }
 
+static size_t
+S_case_capture_occurrences(const struct case_pattern_node *node, PADOFFSET padix)
+{
+    size_t count;
+    U32 i;
+    if (!node)
+        return 0;
+    count = node->op->op_type == OP_PADSV && node->binding_padix == padix;
+    count += S_case_capture_occurrences(node->object_shape, padix);
+    for (i = 0; i < node->nchild; i++)
+        count += S_case_capture_occurrences(node->child[i], padix);
+    return count;
+}
+
+static void
+S_case_schedule_constraints(struct case_pattern_node *node,
+                            const struct case_pattern_node *root)
+{
+    const OP *op;
+    U32 i;
+    if (!node)
+        return;
+    op = node->op;
+    if (op->op_type == OP_CONST || op->op_type == OP_UNDEF)
+        node->constraint_rank = CASE_CONSTRAINT_LITERAL;
+    else if (node->object_shape || op->op_type == OP_ANONLIST
+             || op->op_type == OP_ANONHASH || op->op_type == OP_REFGEN
+             || op->op_type == OP_SREFGEN)
+        node->constraint_rank = CASE_CONSTRAINT_SHAPE;
+    else if (op->op_type == OP_PADSV
+             && S_case_capture_occurrences(root, node->binding_padix) == 1)
+        node->constraint_rank = CASE_CONSTRAINT_CAPTURE;
+    else
+        node->constraint_rank = CASE_CONSTRAINT_TEST;
+    S_case_schedule_constraints(node->object_shape, root);
+    for (i = 0; i < node->nchild; i++)
+        S_case_schedule_constraints(node->child[i], root);
+}
+
 UNOP_AUX_item *
 Perl_case_pattern_compile(pTHX_ const OP *pattern)
 {
@@ -7518,6 +7603,8 @@ Perl_case_pattern_compile(pTHX_ const OP *pattern)
     S_case_pattern_note_static_pins(aTHX_ pattern, aux->static_pins);
     S_case_pattern_compile_regex(aTHX_ aux->root);
     aux->binding_capacity = S_case_pattern_binding_capacity(aTHX_ aux->root);
+    aux->case_capture_capacity = aux->binding_capacity;
+    S_case_schedule_constraints(aux->root, aux->root);
     aux->kind = CASE_PATTERN_COMPLEX;
     if (pattern->op_type == OP_UNDEF)
         aux->kind = CASE_PATTERN_SIMPLE_UNDEF;
@@ -7994,6 +8081,39 @@ S_case_dispatch_default_is_noop(const OP *target, const OP *leavecasematch)
     return op == leavecasematch;
 }
 
+/* Traverse clause conditions, not their bodies or nested cases. Every
+ * clause reserves enough owner slots for the enclosing case; retries may
+ * still grow that reservation. This applies even without dispatch tables. */
+static size_t
+S_case_reserve_captures(pTHX_ OP *op, size_t reserve)
+{
+    size_t total = 0;
+    OP *kid;
+    if (!op || op->op_type == OP_LEAVECASE)
+        return 0;
+    if (op->op_type == OP_CASEMATCH) {
+        struct case_pattern_aux *aux =
+            (struct case_pattern_aux *)cUNOP_AUXx(op)->op_aux;
+        if (reserve)
+            aux->case_capture_capacity = reserve;
+        return aux->binding_capacity;
+    }
+    if (op->op_type == OP_LEAVECASEMATCH) {
+        OP *enter = cUNOPx(op)->op_first;
+        return enter ? S_case_reserve_captures(aTHX_
+            cUNOPx(enter)->op_first, reserve) : 0;
+    }
+    if (!(op->op_flags & OPf_KIDS))
+        return 0;
+    for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid)) {
+        size_t count = S_case_reserve_captures(aTHX_ kid, reserve);
+        if (count > (size_t)SSize_t_MAX - total)
+            Perl_croak(aTHX_ "Too many case captures");
+        total += count;
+    }
+    return total;
+}
+
 UNOP_AUX_item *
 Perl_case_dispatch_compile(pTHX_ OP *body)
 {
@@ -8008,6 +8128,8 @@ Perl_case_dispatch_compile(pTHX_ OP *body)
 
     if (!body || body->op_type != OP_LINESEQ)
         return NULL;
+    (void)S_case_reserve_captures(aTHX_ body,
+        S_case_reserve_captures(aTHX_ body, 0));
     S_case_dispatch_warn_duplicates(aTHX_ body);
     for (kid = cLISTOPx(body)->op_first; kid; kid = OpSIBLING(kid)) {
         struct case_pattern_aux *pattern_aux;
@@ -8285,6 +8407,38 @@ S_case_pattern_find_op_node(const struct case_pattern_node *node, const OP *op)
     return NULL;
 }
 
+static U8
+S_case_match_rank(pTHX_ const struct case_pattern_node *node)
+{
+    node = S_case_pattern_unwrap(node);
+    if (node->constraint_rank == CASE_CONSTRAINT_CAPTURE
+        && S_case_pattern_pad_is_pinned(aTHX_ node->binding_padix))
+        return CASE_CONSTRAINT_TEST;
+    return node->constraint_rank;
+}
+
+static bool
+S_case_match_array_item(pTHX_ const struct case_pattern_node *node,
+                         AV *av, SSize_t index, SV *pattern_value,
+                         struct case_binding *bindings, size_t *nbindings,
+                         struct case_capture_owner *owner)
+{
+    SV **svp;
+    const OP *op = S_case_pattern_unwrap(node)->op;
+    if (op->op_type == OP_CONST && (op->op_private & OPpCONST_BARE)
+        && strEQ(SvPV_nolen_const(cSVOPx_sv(op)), "_"))
+        return TRUE;
+    if (!owner->collecting
+        && S_case_match_rank(aTHX_ node) == CASE_CONSTRAINT_CAPTURE) {
+        S_case_defer_capture(aTHX_ owner, node, (SV *)av, NULL, index, 0,
+                             CASE_CAPTURE_ARRAY);
+        return TRUE;
+    }
+    svp = av_fetch(av, index, FALSE);
+    return S_case_pattern_match(aTHX_ node, svp ? *svp : &PL_sv_undef,
+                                 pattern_value, bindings, nbindings, owner);
+}
+
 static bool
 S_case_pattern_match_object_fields(pTHX_ const struct case_pattern_node *node,
                                     SV *value,
@@ -8301,6 +8455,9 @@ S_case_pattern_match_object_fields(pTHX_ const struct case_pattern_node *node,
     hv = MUTABLE_HV(sv_2mortal(SvREFCNT_inc(SvRV(value))));
     {
         U32 i;
+        U8 rank;
+        for (rank = CASE_CONSTRAINT_LITERAL;
+             rank <= CASE_CONSTRAINT_CAPTURE; rank++) {
         for (i = 0; i < node->nchild; i++) {
             const struct case_pattern_node *keynode = node->child[i];
             const struct case_pattern_node *valnode;
@@ -8313,11 +8470,21 @@ S_case_pattern_match_object_fields(pTHX_ const struct case_pattern_node *node,
                 open = TRUE;
                 continue;
             }
-            if (open || i + 1 >= node->nchild)
+            if (i + 1 >= node->nchild)
                 return FALSE;
             valnode = node->child[++i];
+            if (S_case_match_rank(aTHX_ valnode) != rank)
+                continue;
             if (keynode->op->op_type != OP_CONST)
                 return FALSE;
+            if (rank == CASE_CONSTRAINT_CAPTURE) {
+                if (!hv_exists_ent(hv, cSVOPx_sv(keynode->op), 0))
+                    return FALSE;
+                S_case_defer_capture(aTHX_ owner, valnode, (SV *)hv,
+                    cSVOPx_sv(keynode->op), 0, 0, CASE_CAPTURE_HASH);
+                pairs++;
+                continue;
+            }
             /* A tied FETCH can return undef even when the key is absent.
              * A hash shape requires presence, not just a matching value. */
             if (SvRMAGICAL(hv) && mg_find((const SV *)hv, PERL_MAGIC_tied)
@@ -8328,6 +8495,7 @@ S_case_pattern_match_object_fields(pTHX_ const struct case_pattern_node *node,
                                               NULL, bindings, nbindings, owner))
                 return FALSE;
             pairs++;
+        }
         }
     }
     if (open)
@@ -8570,6 +8738,12 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
         size_t i;
         const PADOFFSET padix = node->binding_padix;
         PERL_CONTEXT *cx = S_case_context(aTHX);
+        if (!owner->collecting
+            && S_case_match_rank(aTHX_ node) == CASE_CONSTRAINT_CAPTURE) {
+            S_case_defer_capture(aTHX_ owner, node, value, NULL, 0, 0,
+                                 CASE_CAPTURE_VALUE);
+            return TRUE;
+        }
         if (cx && CxTYPE(cx) == CXt_CASE && cx->blk_case.case_pins) {
             AV *pins = cx->blk_case.case_pins;
             SSize_t j;
@@ -8677,61 +8851,46 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             if (!leading_open && !trailing_open && nvalues != (SSize_t)nfixed)
                 if (!slurp)
                     return FALSE;
-            if (leading_open && trailing_open) {
-                /* Try candidates from left to right.  Bindings made by a
-                 * rejected candidate must not affect the next candidate. */
-                for (first = 0; first <= last; first++) {
-                    const size_t saved = *nbindings;
-                    bool ok = TRUE;
+            /* Candidate order remains leftmost-first, but each candidate
+             * checks its anchors and other constraints before capture-only
+             * locations are queued. No capture fetch is needed for a miss. */
+            if (leading_open && !trailing_open)
+                first = last;
+            else if (!leading_open)
+                last = first;
+            for (; first <= last; first++) {
+                const size_t saved = *nbindings;
+                const size_t saved_requests = owner->nrequests;
+                U8 rank;
+                bool ok = TRUE;
+                for (rank = CASE_CONSTRAINT_LITERAL;
+                     ok && rank <= CASE_CONSTRAINT_CAPTURE; rank++) {
                     for (i = 0; i < nfixed; i++) {
-                        SV **svp = av_fetch(av, first + (SSize_t)i, FALSE);
-                        SV **pattern_svp = pattern_av
+                        SV **pattern_svp;
+                        if (S_case_match_rank(aTHX_ fixed[i]) != rank)
+                            continue;
+                        pattern_svp = pattern_av
                             ? av_fetch(pattern_av, i + (leading_open ? 1 : 0), FALSE)
                             : NULL;
-                        if (!S_case_pattern_match(aTHX_ fixed[i], svp ? *svp : &PL_sv_undef,
-                                                           pattern_svp ? *pattern_svp : NULL,
-                                                           bindings, nbindings, owner)) {
+                        if (!S_case_match_array_item(aTHX_ fixed[i], av,
+                                first + (SSize_t)i,
+                                pattern_svp ? *pattern_svp : NULL,
+                                bindings, nbindings, owner)) {
                             ok = FALSE;
                             break;
                         }
                     }
-                    if (ok)
-                        return TRUE;
-                    *nbindings = saved;
                 }
-                return FALSE;
-            }
-
-            if (leading_open)
-                first = last;
-            for (i = 0; i < nfixed; i++) {
-                SV **svp = av_fetch(av, first + (SSize_t)i, FALSE);
-                SV **pattern_svp = pattern_av
-                    ? av_fetch(pattern_av, i + (leading_open ? 1 : 0), FALSE)
-                    : NULL;
-                if (!S_case_pattern_match(aTHX_ fixed[i], svp ? *svp : &PL_sv_undef,
-                                                   pattern_svp ? *pattern_svp : NULL,
-                                                   bindings, nbindings, owner))
-                    return FALSE;
-            }
-            if (slurp) {
-                /* Copy values, not source slots. Keep the partial tail mortal
-                 * in case fetching/copying a magical element throws. */
-                AV *rest = MUTABLE_AV(sv_2mortal((SV *)newAV()));
-                SSize_t restix;
-                for (restix = (SSize_t)nfixed; restix < nvalues; restix++) {
-                    SV **svp = av_fetch(av, restix, FALSE);
-                    av_push(rest, svp ? newSVsv(*svp) : newSV(0));
+                if (ok) {
+                    if (slurp)
+                        S_case_defer_capture(aTHX_ owner, slurp, (SV *)av,
+                            NULL, (SSize_t)nfixed, nvalues, CASE_CAPTURE_TAIL);
+                    return TRUE;
                 }
-                bindings[*nbindings].padix = slurp->binding_padix != NOT_IN_PAD
-                    ? slurp->binding_padix
-                    : cUNOPx(slurp->op)->op_first->op_targ;
-                bindings[*nbindings].value_ix = S_case_retain_capture(aTHX_ owner, (SV *)rest);
-                bindings[*nbindings].is_array = TRUE;
-                bindings[*nbindings].clear_on_exit = TRUE;
-                (*nbindings)++;
+                *nbindings = saved;
+                owner->nrequests = saved_requests;
             }
-            return TRUE;
+            return FALSE;
         }
     }
 
@@ -8753,6 +8912,9 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             pattern_hv = MUTABLE_HV(SvRV(pattern_value));
         {
             U32 childix;
+            U8 rank;
+            for (rank = CASE_CONSTRAINT_LITERAL;
+                 rank <= CASE_CONSTRAINT_CAPTURE; rank++) {
             for (childix = 0; childix < node->nchild; childix++)
         {
             const struct case_pattern_node *keynode;
@@ -8766,16 +8928,17 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             if (kid->op_type == OP_CONST
                 && (kid->op_flags & OPf_SPECIAL)
                 && strEQ(SvPV_nolen_const(cSVOPx_sv(kid)), "...")) {
-                if (open)
-                    return FALSE;
                 open = TRUE;
                 continue;
             }
-            if (open)
-                return FALSE;
             keynode = node->child[childix++];
             valnode = childix < node->nchild ? node->child[childix] : NULL;
             valop = valnode ? valnode->op : NULL;
+            if (!valop)
+                return FALSE;
+            if ((keynode->op->op_type == OP_CONST
+                 ? S_case_match_rank(aTHX_ valnode) : CASE_CONSTRAINT_TEST) != rank)
+                continue;
             keysv = (keynode->op->op_type == OP_CONST)
                 ? cSVOPx_sv(keynode->op) : NULL;
             if (!keysv) {
@@ -8792,6 +8955,14 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             }
             if (!keysv || !valop)
                 return FALSE;
+            if (S_case_match_rank(aTHX_ valnode) == CASE_CONSTRAINT_CAPTURE) {
+                if (!hv_exists_ent(hv, keysv, 0))
+                    return FALSE;
+                S_case_defer_capture(aTHX_ owner, valnode, (SV *)hv,
+                    keysv, 0, 0, CASE_CAPTURE_HASH);
+                (void)hv_store_ent(covered, keysv, SvREFCNT_inc(&PL_sv_yes), 0);
+                continue;
+            }
             if (SvRMAGICAL(hv) && mg_find((const SV *)hv, PERL_MAGIC_tied)
                 && !hv_exists_ent(hv, keysv, 0))
                 return FALSE;
@@ -8805,6 +8976,7 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                     return FALSE;
             }
             (void)hv_store_ent(covered, keysv, SvREFCNT_inc(&PL_sv_yes), 0);
+        }
         }
         }
         if (open)
@@ -8863,12 +9035,66 @@ S_case_pattern_bind_regex(pTHX_ const struct case_pattern_node *node,
     }
 }
 
+/* Resolve only the winning candidate's capture locations. Pattern checks
+ * and regex execution have already happened; never repeat them here. */
+static bool
+S_case_collect_captures(pTHX_ struct case_capture_owner *owner,
+                         struct case_binding *bindings, size_t *nbindings)
+{
+    size_t i;
+    owner->collecting = TRUE;
+    for (i = 0; i < owner->nrequests; i++) {
+        const struct case_capture_request *request = &owner->requests[i];
+        SV *value = request->source;
+        SV **svp;
+        HE *he;
+        if (request->kind == CASE_CAPTURE_ARRAY) {
+            svp = av_fetch(MUTABLE_AV(value), request->index, FALSE);
+            value = svp ? *svp : &PL_sv_undef;
+        }
+        else if (request->kind == CASE_CAPTURE_HASH) {
+            HV *hv = MUTABLE_HV(value);
+            if (SvRMAGICAL(hv) && mg_find((const SV *)hv, PERL_MAGIC_tied)
+                && !hv_exists_ent(hv, request->key, 0))
+                return FALSE;
+            he = hv_fetch_ent(hv, request->key, FALSE, 0);
+            if (!he)
+                return FALSE;
+            value = HeVAL(he);
+        }
+        else if (request->kind == CASE_CAPTURE_TAIL) {
+            AV *rest = MUTABLE_AV(sv_2mortal(MUTABLE_SV(newAV())));
+            SSize_t j;
+            const struct case_pattern_node *slurp = request->node;
+            for (j = request->index; j < request->end; j++) {
+                svp = av_fetch(MUTABLE_AV(value), j, FALSE);
+                av_push(rest, svp ? newSVsv(*svp) : newSV(0));
+            }
+            bindings[*nbindings].padix = slurp->binding_padix != NOT_IN_PAD
+                ? slurp->binding_padix : cUNOPx(slurp->op)->op_first->op_targ;
+            bindings[*nbindings].value_ix =
+                S_case_retain_capture(aTHX_ owner, (SV *)rest);
+            bindings[*nbindings].is_array = TRUE;
+            bindings[*nbindings].clear_on_exit = TRUE;
+            (*nbindings)++;
+            continue;
+        }
+        else
+            assert(request->kind == CASE_CAPTURE_VALUE);
+        if (!S_case_pattern_match(aTHX_ request->node, value, NULL,
+                                   bindings, nbindings, owner))
+            return FALSE;
+    }
+    return TRUE;
+}
+
 PP(pp_casematch)
 {
     struct case_binding local_bindings[64];
+    struct case_capture_request local_requests[64];
     struct case_binding *bindings = local_bindings;
     size_t nbindings = 0;
-    struct case_capture_owner capture_owner = { NULL, 0 };
+    struct case_capture_owner capture_owner = { NULL, 0, NULL, 0, 0, FALSE };
     struct case_capture_owner *owner = &capture_owner;
     PERL_CONTEXT *cx = S_case_context(aTHX);
     const struct case_pattern_aux *aux =
@@ -8878,12 +9104,17 @@ PP(pp_casematch)
         ? aux->root : NULL;
     if (!pattern)
         Perl_croak(aTHX_ "missing compiled case pattern");
-    owner->reserve = aux->binding_capacity;
+    owner->reserve = aux->case_capture_capacity;
+    owner->requests = local_requests;
+    owner->request_capacity = aux->binding_capacity;
     if (aux->binding_capacity > C_ARRAY_LENGTH(local_bindings)) {
         /* Mortal storage also releases the buffer if matching throws. */
         SV *storage = sv_2mortal(newSV(
             aux->binding_capacity * sizeof(struct case_binding)));
         bindings = (struct case_binding *)SvPVX(storage);
+        storage = sv_2mortal(newSV(
+            aux->binding_capacity * sizeof(struct case_capture_request)));
+        owner->requests = (struct case_capture_request *)SvPVX(storage);
     }
     bool matched;
     if (cx && cx->blk_case.case_dispatch_active && aux->dispatch)
@@ -8910,6 +9141,10 @@ PP(pp_casematch)
             bindings, &nbindings, owner);
     size_t i;
 
+    if (matched && owner->nrequests)
+        matched = S_case_collect_captures(aTHX_ owner, bindings, &nbindings);
+    /* Recursive callbacks can grow the context stack. */
+    cx = S_case_context(aTHX);
     if (cx && CxTYPE(cx) == CXt_CASE) {
         S_case_discard_bindings(aTHX_ cx);
         if (matched && nbindings) {
@@ -8933,6 +9168,7 @@ PP(pp_casematch)
                     sv_setsv(PAD_SV(bindings[i].padix), AvARRAY(owner->values)[bindings[i].value_ix]);
                 }
             }
+            cx = S_case_context(aTHX);
             cx->blk_case.case_bindings = MUTABLE_AV(SvREFCNT_inc(pending));
         }
     }

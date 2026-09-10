@@ -1,9 +1,9 @@
 #!./perl
 
-# Opt-in regressions for issues requiring an internals/design review.
+# Opt-in regressions from the internals/design review.
 # Run from the repository root with:
 #   ./perl -Ilib planning/scripts/case-match-review-open.t
-# These tests intentionally fail until the associated issues are resolved.
+# The capture lifetime regression now passes; HV equality remains deferred.
 BEGIN {
     chdir 't' if -d 't';
     require './test.pl';
@@ -26,7 +26,7 @@ check_program('a pattern call cannot invalidate an earlier capture', q{
     my @values = (bless({}, 'Object'), 1);
     sub remove_first { shift @values; 1 }
     case (\@values) {
-        match ([$captured, remove_first()]) { say ref $captured }
+        match ([RefVal($captured), remove_first()]) { say ref $captured }
     }
 }, 'Object');
 

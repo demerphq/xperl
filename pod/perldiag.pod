@@ -7435,6 +7435,12 @@ the default of 1000.
 (F) You have too many capture groups in your regex pattern. You need to rework
 your pattern to use less capture groups.
 
+=item Too many case captures
+
+(F) A case/match capture reservation or retained-value count exceeds the
+maximum array index supported by this build. Reduce the size of the case
+or the number of candidate observations it retains.
+
 =item Too many )'s
 
 (A) You've accidentally run your script through B<csh> instead of Perl.

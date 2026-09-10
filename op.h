@@ -243,6 +243,7 @@ struct case_pattern_node {
     U32 nchild;
     PADOFFSET binding_padix;
     bool binding_local;
+    U8 constraint_rank; /* prerequisites/literals before tests and captures */
     const SV *object_class;
     struct case_pattern_node *object_shape;
     AV *regex_names; /* this regex's named captures and lexical targets */
@@ -260,6 +261,7 @@ struct case_pattern_aux {
     U32 dispatch_clause;
     AV *static_pins; /* pad indexes pinned by ^ in this pattern */
     size_t binding_capacity; /* upper bound for one tentative match */
+    size_t case_capture_capacity; /* reservation across the enclosing case */
     bool always_matches; /* wildcard or identity pattern */
 };
 
