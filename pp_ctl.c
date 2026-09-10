@@ -7058,22 +7058,24 @@ S_case_pattern_numeric_match(pTHX_ SV *value, U8 criterion)
     int number_type;
     bool integer_string;
     bool float_string;
+    const bool native_number = SvNIOK(value) && !SvPOK(value)
+        && !SvIsBOOL(value) && !SvROK(value);
 
     if (kind == CASE_PATTERN_CRITERION_INT)
-        return SvIOK(value);
+        return native_number && SvIOK(value);
     if (kind == CASE_PATTERN_CRITERION_FLOAT)
-        return SvNOK(value);
+        return native_number && SvNOK(value);
     if (kind == CASE_PATTERN_CRITERION_NUM)
-        return SvIOK(value) || SvNOK(value);
+        return native_number;
 
-    if (SvIOK(value) || SvNOK(value)) {
+    if (native_number) {
         if (kind == CASE_PATTERN_CRITERION_INTSTR)
             return SvIOK(value);
         if (kind == CASE_PATTERN_CRITERION_FLOATSTR)
             return SvNOK(value);
         return TRUE;
     }
-    if (!SvPOK(value) || SvROK(value))
+    if (!SvPOK(value) || SvROK(value) || SvIsBOOL(value))
         return FALSE;
 
     start = SvPV_nomg_const(value, len);
@@ -8313,7 +8315,13 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
     const OP *pattern;
     const OP *kid;
 
-    SvGETMAGIC(value);
+    if (SvGMAGICAL(value)) {
+        /* Capture the fetched value, not the tied scalar that supplied it.
+         * Further recursion and binding publication must use this same
+         * observation; user code in guards remains free to fetch again. */
+        SvGETMAGIC(value);
+        value = sv_2mortal(newSVsv_flags(value, 0));
+    }
     node = S_case_pattern_unwrap(node);
     pattern = node->op;
 
@@ -8484,7 +8492,8 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
                 S_case_pattern_find_op_node(node, target);
             for (i = 0; i < *nbindings; i++)
                 if (bindings[i].padix == padix)
-                    return sv_eq(bindings[i].value, value);
+                    return S_case_pattern_values_equal(aTHX_
+                        bindings[i].value, value);
             bindings[*nbindings].padix = padix;
             bindings[*nbindings].value = value;
             bindings[*nbindings].owned = FALSE;
@@ -8509,12 +8518,13 @@ S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
             return TRUE;
         if (SvIsBOOL(pattern_sv))
             return SvIsBOOL(value) && (SvTRUE(value) == SvTRUE(pattern_sv));
-        if (pattern->op_flags & OPf_SPECIAL || SvIOK(pattern_sv)
-            || SvNOK(pattern_sv)) {
-            return (SvIOK(value) || SvNOK(value))
+        if (!SvPOK(pattern_sv) && SvNIOK(pattern_sv)) {
+            return ((!SvPOK(value) && SvNIOK(value) && !SvIsBOOL(value))
+                    || SvAMAGIC(value))
                 && do_ncmp(value, pattern_sv) == 0;
         }
-        return sv_streq_flags(value, pattern_sv, SV_GMAGIC);
+        return (SvPOK(value) || SvAMAGIC(value)) && !SvIsBOOL(value)
+            && sv_streq_flags(value, pattern_sv, 0);
     }
 
     if (pattern->op_type == OP_PADSV) {
@@ -8844,7 +8854,8 @@ PP(pp_casematch)
         matched = SvIsBOOL(DEFSV)
             && (SvTRUE(DEFSV) == SvTRUE(cSVOPx_sv(pattern->op)));
     else if (aux->kind == CASE_PATTERN_SIMPLE_NUM)
-        matched = (SvIOK(DEFSV) || SvNOK(DEFSV))
+        matched = ((!SvPOK(DEFSV) && SvNIOK(DEFSV) && !SvIsBOOL(DEFSV))
+                   || SvAMAGIC(DEFSV))
             && do_ncmp(DEFSV, cSVOPx_sv(pattern->op)) == 0;
     else if (aux->kind == CASE_PATTERN_SIMPLE_STR)
         matched = SvPOK(DEFSV)
@@ -9066,7 +9077,7 @@ PP(pp_casedispatch)
         if (bool_clause != CASE_DISPATCH_NO_CLAUSE && bool_clause < best)
             best = bool_clause;
     }
-    if (SvIOK(DEFSV) || SvNOK(DEFSV)) {
+    if (!SvPOK(DEFSV) && SvNIOK(DEFSV) && !SvIsBOOL(DEFSV)) {
         if (dispatch->iv_values || dispatch->iv_table) {
             if (S_case_dispatch_iv_in_bounds(dispatch, DEFSV)) {
                 if (dispatch->strategy == CASE_DISPATCH_HV)
