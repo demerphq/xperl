@@ -2253,16 +2253,13 @@ S_gv_magicalize(pTHX_ GV *gv, HV *stash, const char *name, STRLEN len,
                 }
                 break;
               case '\022':
-                if (memEQs(name, len, "\022E_SUPERLINEAR_CACHE_DELAY"))
+                if (memEQs(name, len, "\022E_SUPERLINEAR_CACHE_DELAY") ||
+                    memEQs(name, len, "\022NG"))
                     goto magicalize;
                 break;
               case '\023':
                 if (memEQs(name, len, "\023AFE_LOCALES"))
                     goto ro_magicalize;
-                break;
-              case '\022':
-                if (stash == PL_defstash && memEQs(name, len, "\022NG"))
-                    goto magicalize;
                 break;
               case '\024':	/* ${^TAINT} */
                 if (memEQs(name, len, "\024AINT"))
