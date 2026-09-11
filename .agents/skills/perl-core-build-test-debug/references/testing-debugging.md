@@ -16,12 +16,26 @@ After building the tree, run project Perl scripts with the built interpreter and
 
 ```sh
 ./perl -Ilib some_script.pl
-./perl -I. -Ilib t/porting/perlagentskills.t
 ```
 
 Do not use bare `./perl some_script.pl` for project scripts that need core modules; without `-Ilib`, `@INC` may point at install paths that do not exist yet.
 
 Do not assume this is correct for every platform; check `README.*`, `hints/`, and `Cross/` for platform-specific work.
+
+For the shared `perldev` workspace, keep disposable build and profiling data
+under `./tmp/`, and use the workspace ccache at
+`/home/demerphq/git_tree/perldev/.ccache` (or an equivalent absolute path when
+working from another checkout).
+
+When working under tmux, run slow `make`, regeneration, and broad-test
+commands in a separate window so interactive diagnosis and status checks remain
+available without interrupting the long-running job.
+
+Use the canonical make targets in documentation and skills rather than local
+shell aliases: `make test_harness` for the broad test suite and
+`make test_porting` for the porting checks.  For a faster parallel harness run,
+use the documented form `TEST_JOBS=N make -jN test_harness`; for porting checks,
+use `TEST_JOBS=N make -jN test_porting`.
 
 ## Running the Built Perl
 
@@ -92,6 +106,13 @@ make manisort
 - `make regen_headers` / `make regen-headers`: header-focused regeneration; the underscore spelling is kept for compatibility, and both appear in `Makefile.SH`.
 - `make regen_perly` / `make regen-perly`: parser regeneration for `perly` artifacts from `perly.y` via `regen_perly.pl`.
 - `make manisort`: preferred manifest sorting target; do not call `Porting/manisort` directly as the first choice.
+
+After adding files to `MANIFEST`, run `make manisort` before running the
+manifest and porting checks.  A manifest-order failure and a
+`pod_rules.t`/MANIFEST failure often have the same cause and should be checked
+together.  If a changed `Makefile.PL` causes the first `make` to regenerate
+the Makefile and stop with a request to rerun, rerun the same make command;
+that first pass is configuration refresh, not a final build result.
 
 ## Porting Tests
 
@@ -199,3 +220,6 @@ ccache --clear                 # clear the global/default cache
 - Check environment sensitivity: locale, threads, parallelism, current directory, and randomization.
 - For generated-file failures, identify the generator and rerun regen before editing output by hand.
 - For platform failures, search `README.*`, `hints/`, and existing skip/todo logic.
+- When reading a long-running tmux test or build, capture the current pane and
+  confirm the command and final prompt before diagnosing a failure; scrollback
+  can contain an earlier failed invocation.

@@ -35,5 +35,23 @@ asks for a different approach.
 ## Agent Skills
 
 Repository-specific skill files live in `.agents/skills`. Read the relevant
-skill before editing the associated subsystem. The skill tree is documented in
-`pod/perlagentskills.pod`.
+skill before editing the associated subsystem.
+
+When updating skills, use the sibling `../perl_skillz/sync-agent-skills`
+utility to verify or update the legacy mirror.
+
+## Core API design
+
+When adding experimental core functionality, prefer a builtin function over a
+new keyword whenever ordinary function-call syntax is sufficient. Reserve
+keywords for constructs that require parser or compiler context. When a
+feature needs both special syntax and associated callable builtins, provide a
+small wrapper pragma that enables the feature and imports the builtins
+together; keep the underlying feature and builtin mechanisms independently
+usable.
+
+## Companion instructions
+
+`CLAUDE.md` is a concise pointer to this file and should not contain new
+guidance; `AGENTS.md` contains the full repository guidance and is the place
+to make changes.

@@ -8,3 +8,8 @@ its referenced files as needed.
 
 The `.agents/skills` tree is the canonical skill source. There is no separate
 `.claude/skills` mirror in this repository.
+
+## Companion instructions
+
+This file is a concise pointer and should not contain new guidance; see
+`AGENTS.md` for the full repository guidance and make changes there instead.
