@@ -6098,7 +6098,8 @@ EXTCONST char* const PL_block_type[]  INIT({
                                                 "FORMAT",
                                                 "EVAL",
                                                 "SUBST",
-                                                "DEFER"
+                                                "DEFER",
+                                                "CASE"
                                           }
                                          );
 

@@ -50,6 +50,7 @@ my %feature = (
         try
         defer
         generator
+        case_match
         module_true
         class
         keyword_any

@@ -20,9 +20,35 @@ my %exceptions = (
     filter_exception => "require './test.pl'",
     hints => "require './test.pl'",
     parser => 'use DieDieDie',
- parser_run => "require './test.pl'",
- proto => 'use strict',
+    parser_run => "require './test.pl'",
+    proto => 'use strict',
     namespaces => qr/^\s*(?:use|require)\s+.*;\s*$/m,
+    case_match => qr/^\s*use (?:v5\.45\.3|strict|warnings|overload[^;]*|experimental 'class'|feature (?:'case_match'|qw\(case_match namespaces\))|builtin qw\(true false\));/m,
+    case_match_examples => qr/^\s*(?:require '\.\/test\.pl'|use (?:feature 'case_match'|builtin qw\(true false\)));/m,
+    case_match_hardening => qr/^\s*(?:require (?:'\.\/test\.pl'|Scalar::Util)|use (?:feature 'case_match'|overload[^;]*));/m,
+    case_match_hardening_tail => qr{
+        ^\s*(?:
+            require\s+(?:'\./test\.pl'|Scalar::Util)
+            | use\s+(?:
+                strict | utf8 | experimental\s+'class' | overload[^;]*
+                | Scalar::Util[^;]*
+                | warnings\s+FATAL\s*=>\s*'syntax'
+                | feature\s+(?:'case_match'|qw\(case_match\s+say(?:\s+class)?\))
+                | builtin\s+qw\(true\s+false\)
+            )
+        );
+    }mx,
+    case_match_numeric => qr/^\s*(?:require '\.\/test\.pl'|use (?:strict|warnings|feature 'case_match'));/m,
+    case_match_threads => qr/^\s*(?:require '\.\/test\.pl'|use feature 'case_match');/m,
+    case_match_review => qr{
+        ^\s*(?:
+            require\s+'\./test\.pl'
+            | use\s+(?:
+                generator | bytes | utf8 | feature\s+'class' | overload[^;]*
+                | builtin\s+qw\((?:weaken|true\s+false)\)
+            )
+        );
+    }mx,
  );
 
 while (my $file = <$fh>) {

@@ -86,6 +86,29 @@ my %feature_kw = (
     __NAMESPACE__       => 'namespaces',
     yield               => 'generator',
     gen                 => 'generator',
+    case                => 'case_match',
+    match               => 'case_match',
+    with                => 'case_match',
+    ToInteger           => 'case_match',
+    ToFloat             => 'case_match',
+    ToString            => 'case_match',
+    DefinedVal          => 'case_match',
+    RefVal              => 'case_match',
+    ScalarVal           => 'case_match',
+    ObjectVal           => 'case_match',
+    Int                 => 'case_match',
+    Float               => 'case_match',
+    IntStr              => 'case_match',
+    FloatStr            => 'case_match',
+    Num                 => 'case_match',
+    NumStr              => 'case_match',
+    Strict              => 'case_match',
+    NumEq               => 'case_match',
+    TRUE                => 'case_match',
+    FALSE               => 'case_match',
+    namespace           => 'namespaces',
+    as                  => 'namespaces',
+    __NAMESPACE__       => 'namespaces',
 );
 
 my %pos = map { ($_ => 1) } @{$by_strength{'+'}};
@@ -159,7 +182,24 @@ __END__
 +CHECK
 +DESTROY
 +END
+-ToFloat
+-FloatStr
+-Float
+-FALSE
+-DefinedVal
+-IntStr
+-Int
+-Num
+-NumEq
+-NumStr
+-ObjectVal
 +INIT
+-ToInteger
+-RefVal
+-ScalarVal
+-ToString
+-TRUE
+-Strict
 +UNITCHECK
 -abs
 -as
@@ -256,6 +296,8 @@ __END__
 -getsockname
 -getsockopt
 +given
++case
++match
 +glob
 -gmtime
 +goto
@@ -416,6 +458,7 @@ __END__
 -warn
 +when
 +while
++with
 -write
 -x
 -xor
