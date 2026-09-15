@@ -1571,6 +1571,8 @@ static const char * const context_name[] = {
     "eval",
     "substitution",
     "defer block",
+    "case",
+    "case/match clause",
 };
 
 static I32
@@ -1602,6 +1604,7 @@ S_dopoptolabel(pTHX_ const char *label, STRLEN len, U32 flags)
         case CXt_LOOP_LAZYSV:
         case CXt_LOOP_LIST:
         case CXt_LOOP_ARY:
+        case CXt_CASE:
           {
             STRLEN cx_label_len = 0;
             U32 cx_label_flags = 0;
@@ -1814,6 +1817,10 @@ S_dopoptogivenfor(pTHX_ I32 startingblock)
             DEBUG_l( deb("(dopoptogivenfor(): found given at cx=%ld)\n",
                          (long)i));
             return i;
+        case CXt_CASE:
+            DEBUG_l( deb("(dopoptogivenfor(): found case at cx=%ld)\n",
+                         (long)i));
+            return i;
         case CXt_LOOP_PLAIN:
             assert(!(cx->cx_type & CXp_FOR_DEF));
             break;
@@ -1901,6 +1908,12 @@ Perl_dounwind(pTHX_ I32 cxix)
             break;
         case CXt_GIVEN:
             cx_popgiven(cx);
+            break;
+        case CXt_CASE:
+            cx_popcase(cx);
+            break;
+        case CXt_CASEMATCH:
+            cx_popcasematch(cx);
             break;
         case CXt_BLOCK:
         case CXt_NULL:
@@ -3285,6 +3298,17 @@ PP(pp_last)
 
     cx = S_unwind_loop(aTHX);
 
+    if (CxTYPE(cx) == CXt_CASE) {
+        rpp_popfree_to_NN(PL_stack_base + cx->blk_oldsp);
+        TAINT_NOT;
+        CX_LEAVE_SCOPE(cx);
+        cx_popcase(cx);
+        cx_popblock(cx);
+        nextop = cx->blk_case.leave_op->op_next;
+        CX_POP(cx);
+        return nextop;
+    }
+
     assert(CxTYPE_is_LOOP(cx));
     rpp_popfree_to_NN(PL_stack_base
                 + (CxTYPE(cx) == CXt_LOOP_LIST
@@ -3313,6 +3337,19 @@ PP(pp_next)
     if (!((PL_op->op_flags & OPf_SPECIAL) && CxTYPE_is_LOOP(cx)))
         cx = S_unwind_loop(aTHX);
 
+    if (CxTYPE(cx) == CXt_CASE) {
+        rpp_popfree_to_NN(PL_stack_base + cx->blk_oldsp);
+        TAINT_NOT;
+        CX_LEAVE_SCOPE(cx);
+        cx_popcase(cx);
+        cx_popblock(cx);
+        {
+            OP * const nextop = cx->blk_case.leave_op->op_next;
+            CX_POP(cx);
+            return nextop;
+        }
+    }
+
     cx_topblock(cx);
     PL_curcop = cx->blk_oldcop;
     PERL_ASYNC_CHECK();
@@ -3322,6 +3359,18 @@ PP(pp_next)
 PP(pp_redo)
 {
     PERL_CONTEXT *cx = S_unwind_loop(aTHX);
+
+    if (CxTYPE(cx) == CXt_CASE) {
+        OP * const redo_op = cx->blk_case.redo_op;
+        rpp_popfree_to_NN(PL_stack_base + cx->blk_oldsp);
+        FREETMPS;
+        CX_LEAVE_SCOPE(cx);
+        cx_popcase(cx);
+        cx_popblock(cx);
+        CX_POP(cx);
+        return redo_op;
+    }
+
     OP* redo_op = cx->blk_loop.my_op->op_redoop;
 
     if (redo_op->op_type == OP_ENTER) {
@@ -3816,6 +3865,8 @@ PP(pp_goto)
             case CXt_LOOP_ARY:
             case CXt_GIVEN:
             case CXt_WHEN:
+            case CXt_CASE:
+            case CXt_CASEMATCH:
                 gotoprobe = OpSIBLING(cx->blk_oldcop);
                 break;
             case CXt_SUBST:
@@ -6044,13 +6095,46 @@ PP(pp_entergiven)
     PERL_CONTEXT *cx;
     const U8 gimme = GIMME_V;
     SV *origsv = DEFSV;
-    
-    assert(!PL_op->op_targ); /* used to be set for lexical $_ */
-    GvSV(PL_defgv) = rpp_pop_1_norc();
+    SV *subject = rpp_pop_1_norc();
+
+    if (PL_op->op_targ) {
+        SvGETMAGIC(subject);
+        {
+            SV *snapshot = newSV(0);
+            sv_setsv_nomg(snapshot, subject);
+            subject = snapshot;
+        }
+    }
+    else
+        assert(!PL_op->op_targ); /* used to be set for lexical $_ */
+    GvSV(PL_defgv) = subject;
 
     cx = cx_pushblock(CXt_GIVEN, gimme, PL_stack_sp, PL_savestack_ix);
     cx_pushgiven(cx, origsv);
+    cx->blk_givwhen.is_case = PL_op->op_targ != 0;
 
+    return NORMAL;
+}
+
+PP(pp_entercase)
+{
+    PERL_CONTEXT *cx;
+    const U8 gimme = GIMME_V;
+    SV * const origsv = DEFSV;
+    /* The pop transfers ownership. Keep it exception-safe while fetching
+     * magic and making the independent case snapshot. */
+    SV *subject = sv_2mortal(rpp_pop_1_norc());
+
+    SvGETMAGIC(subject);
+    {
+        SV *snapshot = newSV(0);
+        sv_setsv_nomg(snapshot, subject);
+        subject = snapshot;
+    }
+    GvSV(PL_defgv) = subject;
+
+    cx = cx_pushblock(CXt_CASE, gimme, PL_stack_sp, PL_savestack_ix);
+    cx_pushcase(cx, origsv);
     return NORMAL;
 }
 
@@ -6076,6 +6160,3470 @@ PP(pp_leavegiven)
     cx_popblock(cx);
     CX_POP(cx);
 
+    return NORMAL;
+}
+
+PP(pp_leavecase)
+{
+    PERL_CONTEXT *cx;
+    U8 gimme;
+    SV **oldsp;
+
+    cx = CX_CUR();
+    assert(CxTYPE(cx) == CXt_CASE);
+    oldsp = PL_stack_base + cx->blk_oldsp;
+    gimme = cx->blk_gimme;
+
+    if (gimme == G_VOID)
+        rpp_popfree_to_NN(oldsp);
+    else
+        leave_adjust_stacks(oldsp, oldsp, gimme, 1);
+
+    CX_LEAVE_SCOPE(cx);
+    cx_popcase(cx);
+    cx_popblock(cx);
+    CX_POP(cx);
+    return NORMAL;
+}
+
+struct case_binding {
+    PADOFFSET padix;
+    SSize_t value_ix;
+    bool is_array;
+    bool clear_on_exit;
+};
+
+static PERL_CONTEXT *S_case_context(pTHX);
+
+struct case_capture_owner {
+    AV *values;
+    size_t reserve;
+    struct case_capture_request *requests;
+    size_t nrequests;
+    size_t request_capacity;
+    bool collecting;
+};
+
+enum case_constraint_rank {
+    CASE_CONSTRAINT_INVALID = 0,
+    CASE_CONSTRAINT_LITERAL,
+    CASE_CONSTRAINT_SHAPE,
+    CASE_CONSTRAINT_TEST,
+    CASE_CONSTRAINT_CAPTURE
+};
+
+enum case_capture_location {
+    CASE_CAPTURE_INVALID = 0,
+    CASE_CAPTURE_ARRAY,
+    CASE_CAPTURE_HASH,
+    CASE_CAPTURE_VALUE,
+    CASE_CAPTURE_TAIL
+};
+
+struct case_capture_request {
+    const struct case_pattern_node *node;
+    SV *source;
+    SV *key;
+    SSize_t index;
+    SSize_t end;
+    enum case_capture_location kind;
+};
+
+static void
+S_case_defer_capture(pTHX_ struct case_capture_owner *owner,
+                      const struct case_pattern_node *node, SV *source,
+                      SV *key, SSize_t index, SSize_t end,
+                      enum case_capture_location kind)
+{
+    struct case_capture_request *request;
+    assert(owner->nrequests < owner->request_capacity);
+    request = &owner->requests[owner->nrequests++];
+    request->node = node;
+    request->source = sv_2mortal(SvREFCNT_inc(source));
+    request->key = key ? sv_2mortal(SvREFCNT_inc(key)) : NULL;
+    request->index = index;
+    request->end = end;
+    request->kind = kind;
+}
+
+/* The mortal AV owns every retained reference, including abandoned search
+ * candidates. Indices survive AV growth and callbacks; array pointers do not.
+ * Callers lend VALUE; newly constructed values must already be mortal. */
+static SSize_t
+S_case_retain_capture(pTHX_ struct case_capture_owner *owner, SV *value)
+{
+    AV *av = owner->values;
+    SSize_t ix;
+    if (!av) {
+        owner->values = av = MUTABLE_AV(sv_2mortal(MUTABLE_SV(newAV())));
+        if (owner->reserve > (size_t)SSize_t_MAX)
+            Perl_croak(aTHX_ "Too many case captures");
+        if (owner->reserve)
+            av_extend(av, (SSize_t)owner->reserve - 1);
+    }
+    if (AvFILLp(av) == SSize_t_MAX)
+        Perl_croak(aTHX_ "Too many case captures");
+    ix = AvFILLp(av) + 1;
+    if (ix > AvMAX(av))
+        av_extend(av, ix);
+    AvARRAY(av)[ix] = SvREFCNT_inc(value);
+    AvFILLp(av) = ix;
+    return ix;
+}
+
+static bool
+S_case_pattern_pad_is_pinned(pTHX_ PADOFFSET padix)
+{
+    PERL_CONTEXT *cx = S_case_context(aTHX);
+    if (cx && CxTYPE(cx) == CXt_CASE && cx->blk_case.case_pins) {
+        AV *pins = cx->blk_case.case_pins;
+        SSize_t j;
+        for (j = 0; j + 1 <= av_len(pins); j += 2) {
+            SV **pinix = av_fetch(pins, j, FALSE);
+            if (pinix && SvUV(*pinix) == (UV)padix)
+                return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+static SV *
+S_case_pattern_pin_value(pTHX_ PADOFFSET padix)
+{
+    PERL_CONTEXT *cx = S_case_context(aTHX);
+    if (cx && CxTYPE(cx) == CXt_CASE && cx->blk_case.case_pins) {
+        AV *pins = cx->blk_case.case_pins;
+        SSize_t j;
+        for (j = 0; j + 1 <= av_len(pins); j += 2) {
+            SV **pinix = av_fetch(pins, j, FALSE);
+            SV **pinvalue = av_fetch(pins, j + 1, FALSE);
+            if (pinix && SvUV(*pinix) == (UV)padix)
+                return pinvalue ? *pinvalue : NULL;
+        }
+    }
+    return NULL;
+}
+
+static bool
+S_case_pattern_values_equal(pTHX_ SV *left, SV *right)
+{
+    SvGETMAGIC(left);
+    SvGETMAGIC(right);
+    if (!SvOK(left) || !SvOK(right))
+        return !SvOK(left) && !SvOK(right);
+    if (SvROK(left) || SvROK(right))
+        return SvROK(left) && SvROK(right) && SvRV(left) == SvRV(right);
+    return sv_streq_flags(left, right, 0);
+}
+
+static bool
+S_case_pattern_exact_class(pTHX_ SV *value, const SV *classname)
+{
+    HV *wanted;
+    STRLEN classlen;
+    const char *classpv;
+
+    if (!SvROK(value) || !SvOBJECT(SvRV(value)))
+        return FALSE;
+    classpv = SvPVX_const(classname);
+    classlen = SvCUR(classname);
+    wanted = gv_stashpvn(classpv, classlen, 0);
+    return wanted && SvSTASH(SvRV(value)) == wanted;
+}
+
+static void
+S_case_pattern_mark_concat(pTHX_ OP *pattern, bool in_concat)
+{
+    OP *kid;
+    if (!pattern)
+        return;
+    if (pattern->op_type == OP_CONCAT) {
+        pattern->op_private |= OPpCONCAT_PATTERN;
+        in_concat = TRUE;
+    }
+    if (!(pattern->op_flags & OPf_KIDS))
+        return;
+    for (kid = cUNOPx(pattern)->op_first; kid; kid = OpSIBLING(kid)) {
+        S_case_pattern_mark_concat(aTHX_ kid, in_concat);
+    }
+}
+
+void
+Perl_case_pattern_preserve_concat(pTHX_ OP *pattern)
+{
+    PERL_ARGS_ASSERT_CASE_PATTERN_PRESERVE_CONCAT;
+    S_case_pattern_mark_concat(aTHX_ pattern, FALSE);
+}
+
+static const struct case_pattern_node *
+S_case_pattern_unwrap(const struct case_pattern_node *node)
+{
+    const OP *op;
+    if (!node)
+        return NULL;
+    op = node->op;
+    if (op && op->op_type == OP_NULL && node->nchild == 1)
+        return node->child[0];
+    return node;
+}
+
+static size_t
+S_case_pattern_concat_count(const struct case_pattern_node *node)
+{
+    const struct case_pattern_node *part;
+    size_t count = 0;
+    U32 i;
+
+    node = S_case_pattern_unwrap(node);
+    if (!node || !node->op)
+        return 0;
+    if (node->op->op_type != OP_CONCAT
+        && node->op->op_type != OP_MULTICONCAT)
+        return 1;
+    for (i = 0; i < node->nchild; i++) {
+        part = node->child[i];
+        count += S_case_pattern_concat_count(part);
+    }
+    return count;
+}
+
+static bool
+S_case_pattern_concat_flatten(const struct case_pattern_node *node,
+                              const struct case_pattern_node **parts,
+                              size_t max, size_t *nparts)
+{
+    U32 i;
+
+    node = S_case_pattern_unwrap(node);
+    if (!node || !node->op)
+        return FALSE;
+    if (node->op->op_type == OP_CONCAT
+        || node->op->op_type == OP_MULTICONCAT) {
+        for (i = 0; i < node->nchild; i++)
+            if (!S_case_pattern_concat_flatten(node->child[i], parts,
+                                               max, nparts))
+                return FALSE;
+        return TRUE;
+    }
+    if (*nparts >= max)
+        return FALSE;
+    parts[(*nparts)++] = node;
+    return TRUE;
+}
+
+static bool
+S_case_pattern_concat_is_capture(pTHX_ const struct case_pattern_node *node)
+{
+    const OP *op;
+
+    node = S_case_pattern_unwrap(node);
+    op = node ? node->op : NULL;
+    return op && op->op_type == OP_PADSV
+        && !S_case_pattern_pad_is_pinned(aTHX_ op->op_targ);
+}
+
+static SV *
+S_case_pattern_concat_fixed_value(pTHX_ const struct case_pattern_node *node)
+{
+    const OP *op;
+    SV *value;
+
+    node = S_case_pattern_unwrap(node);
+    op = node ? node->op : NULL;
+    if (!op)
+        return NULL;
+    if (op->op_type == OP_CONST
+        && !(op->op_private & OPpCONST_BARE))
+        return newSVsv(cSVOPx_sv(op));
+    if (op->op_type == OP_PADSV
+        && S_case_pattern_pad_is_pinned(aTHX_ op->op_targ)) {
+        value = S_case_pattern_pin_value(aTHX_ op->op_targ);
+        return value ? newSVsv(value) : newSVsv(&PL_sv_undef);
+    }
+    if (op->op_type == OP_CASECOERCE
+        && (op->op_private & CASE_PATTERN_CRITERION_MASK)
+            == CASE_PATTERN_CRITERION_PIN) {
+        const OP *target = (op->op_flags & OPf_KIDS)
+            ? cUNOPx(op)->op_first : NULL;
+        if (target && target->op_type == OP_PADSV) {
+            value = S_case_pattern_pin_value(aTHX_ target->op_targ);
+            return value ? newSVsv(value) : newSVsv(&PL_sv_undef);
+        }
+    }
+    return NULL;
+}
+
+static bool
+S_case_pattern_concat_find(const char *subject, STRLEN subject_len,
+                           STRLEN start, const char *needle,
+                           STRLEN needle_len, STRLEN *found)
+{
+    STRLEN pos;
+
+    if (!needle_len) {
+        *found = start;
+        return TRUE;
+    }
+    if (needle_len > subject_len || start > subject_len - needle_len)
+        return FALSE;
+    for (pos = start; pos <= subject_len - needle_len; pos++) {
+        if (memEQ(subject + pos, needle, needle_len)) {
+            *found = pos;
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+static bool
+S_case_pattern_concat_match(pTHX_ const struct case_pattern_node *node,
+                             SV *value, SV *pattern_value,
+                             struct case_binding *bindings,
+                             size_t *nbindings, struct case_capture_owner *owner)
+{
+    const struct case_pattern_node **parts = NULL;
+    SV **fixed_values = NULL;
+    size_t nparts = S_case_pattern_concat_count(node);
+    size_t capacity = nparts;
+    size_t i, j, cursor = 0;
+    const char *subject;
+    STRLEN subject_len;
+    bool matched = FALSE;
+    SV *text;
+    SV *workspace;
+
+    PERL_UNUSED_VAR(pattern_value);
+
+    if ((!SvPOK(value) && !SvAMAGIC(value)) || SvIsBOOL(value))
+        return FALSE;
+    text = sv_newmortal();
+    sv_copypv(text, value);
+    if (IN_BYTES)
+        SvUTF8_off(text);
+    else
+        sv_utf8_upgrade(text);
+
+    if (!nparts)
+        Perl_croak(aTHX_ "unsupported case pattern concatenation expression");
+    workspace = sv_2mortal(newSV(capacity * sizeof(*parts)));
+    parts = (const struct case_pattern_node **)SvPVX(workspace);
+    workspace = sv_2mortal(newSV(capacity * sizeof(*fixed_values)));
+    fixed_values = (SV **)SvPVX(workspace);
+    Zero(fixed_values, capacity, SV *);
+    nparts = 0;
+    if (!S_case_pattern_concat_flatten(node, parts, capacity, &nparts))
+        Perl_croak(aTHX_ "unsupported case pattern concatenation expression");
+    subject = SvPV_nomg_const(text, subject_len);
+
+    /* Materialize each fixed fragment once. Normalize encodings before
+     * byte-wise searching so equal characters have equal representations;
+     * never upgrade the original pin or subject. Under 'use bytes', retain
+     * the ordinary byte interpretation instead. */
+    for (i = 0; i < nparts; i++) {
+        SV *raw;
+        if (S_case_pattern_concat_is_capture(aTHX_ parts[i]))
+            continue;
+        raw = S_case_pattern_concat_fixed_value(aTHX_ parts[i]);
+        if (!raw)
+            Perl_croak(aTHX_ "unsupported case pattern concatenation component");
+        sv_2mortal(raw);
+        fixed_values[i] = sv_newmortal();
+        sv_copypv(fixed_values[i], raw);
+        if (IN_BYTES)
+            SvUTF8_off(fixed_values[i]);
+        else
+            sv_utf8_upgrade(fixed_values[i]);
+    }
+
+    /* Validate all capture boundaries before creating tentative bindings.
+     * This also makes malformed patterns fail without leaving partially
+     * constructed binding state behind. */
+    for (i = 0; i < nparts; i++) {
+        if (!S_case_pattern_concat_is_capture(aTHX_ parts[i]))
+            continue;
+        for (j = 0; j < i; j++) {
+            if (S_case_pattern_concat_is_capture(aTHX_ parts[j])
+                && S_case_pattern_unwrap(parts[j])->binding_padix
+                    == S_case_pattern_unwrap(parts[i])->binding_padix)
+                Perl_croak(aTHX_
+                    "repeated capture names are not allowed in a case pattern concatenation");
+        }
+        for (j = i + 1; j < nparts; j++) {
+            STRLEN boundary_len;
+            if (S_case_pattern_concat_is_capture(aTHX_ parts[j]))
+                Perl_croak(aTHX_
+                    "adjacent captures are not allowed in a case pattern concatenation");
+            (void)SvPV(fixed_values[j], boundary_len);
+            if (boundary_len)
+                break;
+        }
+    }
+    for (i = 0; i < nparts; i++) {
+        const struct case_pattern_node *part = parts[i];
+        if (S_case_pattern_concat_is_capture(aTHX_ part)) {
+            size_t next = i + 1;
+            STRLEN end = subject_len;
+            SV *boundary = NULL;
+            const char *boundary_pv;
+            STRLEN boundary_len;
+
+            /* Empty fixed fragments do not establish a boundary.  Skip them
+             * while looking ahead so that capture pairs separated only by an
+             * empty literal are rejected just like directly adjacent pairs. */
+            while (next < nparts) {
+                if (S_case_pattern_concat_is_capture(aTHX_ parts[next]))
+                    Perl_croak(aTHX_
+                        "adjacent captures are not allowed in a case pattern concatenation");
+                boundary = fixed_values[next];
+                boundary_pv = SvPV(boundary, boundary_len);
+                if (boundary_len)
+                    break;
+                boundary = NULL;
+                next++;
+            }
+            if (next < nparts) {
+                if (!S_case_pattern_concat_find(subject, subject_len, cursor,
+                                                 boundary_pv, boundary_len,
+                                                 &end)) {
+                    goto out;
+                }
+            }
+            {
+                const PADOFFSET padix = S_case_pattern_unwrap(part)->binding_padix;
+                const STRLEN capture_len = end - cursor;
+                SV *captured = newSVpvn_flags(subject + cursor, capture_len,
+                                               SvUTF8(text) ? SVf_UTF8 : 0);
+                bindings[*nbindings].padix = padix;
+                bindings[*nbindings].value_ix = S_case_retain_capture(aTHX_
+                    owner, sv_2mortal(captured));
+                bindings[*nbindings].is_array = FALSE;
+                bindings[*nbindings].clear_on_exit =
+                    S_case_pattern_unwrap(part)->binding_local;
+                (*nbindings)++;
+                cursor = end;
+            }
+        }
+        else {
+            SV *fragment = fixed_values[i];
+            const char *fragment_pv;
+            STRLEN fragment_len;
+            fragment_pv = SvPV(fragment, fragment_len);
+            if (cursor > subject_len || fragment_len > subject_len - cursor
+                || !memEQ(subject + cursor, fragment_pv, fragment_len)) {
+                goto out;
+            }
+            cursor += fragment_len;
+        }
+    }
+    matched = cursor == subject_len;
+out:
+    return matched;
+}
+
+static void
+S_case_pattern_scan_call(pTHX_ const OP *op, const OP **target,
+                         const OP **invocant, U32 *nargs);
+
+static bool
+S_case_pattern_empty_fields(const OP *op)
+{
+    /* In the indirect-call representation of Class {}, the braces produce
+     * SCOPE(STUB), not an empty hash constructor. Recognize only this exact
+     * empty block; a standalone stub is not a supported data shape. */
+    const OP *kid;
+    if (!op || op->op_type != OP_SCOPE || !(op->op_flags & OPf_KIDS))
+        return FALSE;
+    kid = cUNOPx(op)->op_first;
+    return kid && kid->op_type == OP_STUB && !OpSIBLING(kid);
+}
+
+static const OP *
+S_case_pattern_find_shape_op(const OP *op)
+{
+    const OP *kid;
+
+    if (!op)
+        return NULL;
+    if (S_case_pattern_empty_fields(op))
+        return op;
+    if (op->op_type == OP_ANONHASH || op->op_type == OP_ANONLIST
+        || op->op_type == OP_EMPTYAVHV
+        || op->op_type == OP_REFGEN || op->op_type == OP_SREFGEN
+        || op->op_type == OP_LIST
+        || (op->op_type == OP_NULL && op->op_targ == OP_LIST))
+        return op;
+    if (!(op->op_flags & OPf_KIDS))
+        return NULL;
+    for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid)) {
+        const OP *shape = S_case_pattern_find_shape_op(kid);
+        if (shape)
+            return shape;
+    }
+    return NULL;
+}
+
+static bool
+S_case_pattern_object_call(pTHX_ const OP *op, const OP **class_op,
+                           const OP **shape_op)
+{
+    const OP *target = NULL;
+    const OP *invocant = NULL;
+    U32 nargs = 0;
+
+    if (!op || op->op_type != OP_ENTERSUB)
+        return FALSE;
+    S_case_pattern_scan_call(aTHX_ cUNOPx(op)->op_first,
+                             &target, &invocant, &nargs);
+    if (!target || target->op_type != OP_METHOD_NAMED || !invocant
+        || !S_case_pattern_find_shape_op(invocant))
+        return FALSE;
+    *class_op = target;
+    *shape_op = invocant;
+    PERL_UNUSED_VAR(nargs);
+    return TRUE;
+}
+
+static struct case_pattern_node *
+S_case_pattern_compile_node(pTHX_ const OP *op, bool preserve_lists)
+{
+    const OP *kid;
+    U32 nchild = 0;
+    U32 i = 0;
+    struct case_pattern_node *node;
+
+    if (!op)
+        return NULL;
+
+    if (op->op_type == OP_NULL && (op->op_flags & OPf_KIDS)
+        && (!preserve_lists || op->op_targ != OP_LIST))
+        return S_case_pattern_compile_node(aTHX_ cUNOPx(op)->op_first,
+                                           preserve_lists);
+
+    {
+        const OP *class_op = NULL;
+        const OP *shape_op = NULL;
+        if (S_case_pattern_object_call(aTHX_ op, &class_op, &shape_op)) {
+            node = (struct case_pattern_node *)PerlMemShared_calloc(
+                1, sizeof(struct case_pattern_node));
+            node->op = op;
+            node->object_class = cSVOPx_sv(class_op);
+            node->object_shape = S_case_pattern_compile_node(aTHX_ shape_op,
+                                                              TRUE);
+            return node;
+        }
+    }
+
+    if (op->op_flags & OPf_KIDS) {
+        for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid))
+            nchild++;
+    }
+
+    node = (struct case_pattern_node *)PerlMemShared_calloc(
+        1, sizeof(struct case_pattern_node));
+    node->op = op;
+    node->binding_padix = NOT_IN_PAD;
+    node->binding_local = FALSE;
+    if (op->op_type == OP_PADSV || op->op_type == OP_PADAV) {
+        node->binding_padix = op->op_targ;
+        node->binding_local = TRUE;
+    }
+    node->nchild = nchild;
+    if (nchild) {
+        const bool shape_preserve = preserve_lists
+            || (op->op_type == OP_CASECOERCE
+                && (op->op_private & CASE_PATTERN_CRITERION_MASK)
+                    == CASE_PATTERN_CRITERION_OBJECT);
+        node->child = (struct case_pattern_node **)
+            PerlMemShared_malloc(nchild * sizeof(struct case_pattern_node *));
+        for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid), i++)
+            node->child[i] = S_case_pattern_compile_node(aTHX_ kid,
+                                                         shape_preserve);
+    }
+    return node;
+}
+
+static void
+S_case_pattern_note_static_pins(pTHX_ const OP *op, AV *pins)
+{
+    const OP *kid;
+
+    if (!op)
+        return;
+    if (op->op_type == OP_CASECOERCE
+        && (op->op_private & CASE_PATTERN_CRITERION_MASK)
+            == CASE_PATTERN_CRITERION_PIN) {
+        const OP *target = (op->op_flags & OPf_KIDS)
+            ? cUNOPx(op)->op_first : NULL;
+        if (target && target->op_type == OP_PADSV)
+            av_push(pins, newSVuv((UV)target->op_targ));
+        return;
+    }
+    if (!(op->op_flags & OPf_KIDS))
+        return;
+    for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid))
+        S_case_pattern_note_static_pins(aTHX_ kid, pins);
+}
+
+static struct case_pattern_aux *
+S_case_pattern_find_aux(const OP *op)
+{
+    const OP *kid;
+
+    if (!op || op->op_type == OP_ENTERCASE)
+        return NULL;
+    if (op->op_type == OP_CASEMATCH)
+        return (struct case_pattern_aux *)cUNOP_AUXx(op)->op_aux;
+    if (!(op->op_flags & OPf_KIDS))
+        return NULL;
+    for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid)) {
+        struct case_pattern_aux *aux = S_case_pattern_find_aux(kid);
+        if (aux)
+            return aux;
+    }
+    return NULL;
+}
+
+OP *
+Perl_case_pattern_static_pins(pTHX_ OP *body)
+{
+    OP *list = NULL;
+    const OP *kid;
+
+    PERL_ARGS_ASSERT_CASE_PATTERN_STATIC_PINS;
+
+    if (body && body->op_type == OP_SCOPE
+        && (body->op_flags & OPf_KIDS))
+        body = cUNOPx(body)->op_first;
+    if (body && (body->op_type == OP_LINESEQ
+                 || body->op_type == OP_LIST)) {
+        for (kid = cLISTOPx(body)->op_first; kid; kid = OpSIBLING(kid)) {
+            struct case_pattern_aux *aux = NULL;
+            AV *pins;
+            SSize_t i;
+            aux = S_case_pattern_find_aux(kid);
+            if (!aux || aux->magic != CASE_PATTERN_AUX_MAGIC
+                || !aux->static_pins)
+                continue;
+            pins = aux->static_pins;
+            for (i = 0; i <= av_len(pins); i++) {
+                SV **padix = av_fetch(pins, i, FALSE);
+                if (padix) {
+                    OP *pin = newOP(OP_PADSV, 0);
+                    pin->op_targ = (PADOFFSET)SvUV(*padix);
+                    list = op_append_elem(OP_LIST, list, pin);
+                }
+            }
+        }
+    }
+    return list;
+}
+
+static void S_case_pattern_prepare_regex(pTHX_ const OP *pattern, HV *seen);
+static void S_case_pattern_validate(pTHX_ const OP *op);
+
+static void
+S_case_pattern_rebind(pTHX_ OP *op, HV *padmap)
+{
+    OP *kid;
+
+    if (!op)
+        return;
+    if (op->op_type == OP_PADSV || op->op_type == OP_PADAV
+        || op->op_type == OP_PADHV || op->op_type == OP_PADANY) {
+        SV **replacement = hv_fetch(padmap, (const char *)&op->op_targ,
+                                    sizeof(op->op_targ), FALSE);
+        if (replacement)
+            op->op_targ = (PADOFFSET)SvUV(*replacement);
+    }
+    if (op->op_flags & OPf_KIDS)
+        for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid))
+            S_case_pattern_rebind(aTHX_ kid, padmap);
+}
+
+void
+Perl_case_pattern_prepare(pTHX_ OP *pattern)
+{
+    PERL_ARGS_ASSERT_CASE_PATTERN_PREPARE;
+    if (!PL_parser || !PL_parser->case_pattern_vars)
+        return;
+
+    /* Class-qualified hash shapes pass through an indirect-object block.
+     * That temporary scope may have closed some capture declarations.
+     * Declare replacements in the match clause before parsing its guard and
+     * body, and update the shape's pad references by identity, never by
+     * searching older declarations with the same spelling. */
+    {
+        HV *padmap = NULL;
+        HE *he;
+        hv_iterinit(PL_parser->case_pattern_vars);
+        while ((he = hv_iternext(PL_parser->case_pattern_vars))) {
+            SV *padix = HeVAL(he);
+            const PADOFFSET oldpad = (PADOFFSET)SvUV(padix);
+            PADNAME *name = PAD_COMPNAME(oldpad);
+            if (COP_SEQ_RANGE_LOW(name) != PERL_PADSEQ_INTRO
+                && COP_SEQ_RANGE_HIGH(name) != PERL_PADSEQ_INTRO) {
+                PADOFFSET newpad = pad_add_name_pvn(HeKEY(he), HeKLEN(he),
+                    padadd_NO_DUP_CHECK | (HeKUTF8(he) ? SVf_UTF8 : 0),
+                    NULL, NULL);
+                if (!padmap)
+                    padmap = MUTABLE_HV(sv_2mortal(MUTABLE_SV(newHV())));
+                (void)hv_store(padmap, (const char *)&oldpad, sizeof(oldpad),
+                               newSVuv((UV)newpad), 0);
+                sv_setuv(padix, (UV)newpad);
+            }
+        }
+        if (padmap)
+            S_case_pattern_rebind(aTHX_ pattern, padmap);
+    }
+    /* Validate while the parser still has the with-clause pin map; it is
+     * discarded before the guard/body and final optree construction. */
+    S_case_pattern_validate(aTHX_ pattern);
+    S_case_pattern_prepare_regex(aTHX_ pattern,
+        MUTABLE_HV(sv_2mortal(MUTABLE_SV(newHV()))));
+}
+
+static void
+S_case_pattern_prepare_regex(pTHX_ const OP *pattern, HV *seen)
+{
+    REGEXP *re;
+    SV *names_ref;
+    AV *names;
+    SSize_t i;
+    const OP *kid;
+
+    if (!pattern || !PL_parser->in_case_pattern)
+        return;
+    if (pattern->op_type != OP_MATCH) {
+        if (pattern->op_flags & OPf_KIDS)
+            for (kid = cUNOPx(pattern)->op_first; kid; kid = OpSIBLING(kid))
+                S_case_pattern_prepare_regex(aTHX_ kid, seen);
+        return;
+    }
+    re = PM_GETRE(cPMOPx(pattern));
+    if (!re)
+        return;
+    if (RX_EXTFLAGS(re) & RXf_EVAL_SEEN)
+        Perl_croak(aTHX_
+            "regex code blocks are not supported in case patterns");
+    names_ref = CALLREG_NAMED_BUFF_ALL(re, RXapif_ALL | RXapif_REGNAMES);
+    if (!names_ref || !SvROK(names_ref)) {
+        SvREFCNT_dec(names_ref);
+        return;
+    }
+    sv_2mortal(names_ref);
+    names = MUTABLE_AV(SvRV(names_ref));
+    for (i = 0; i <= av_len(names); i++) {
+        SV **name_svp = av_fetch(names, i, FALSE);
+        SV *padname;
+        PADOFFSET padix;
+
+        if (!name_svp || !*name_svp)
+            continue;
+        /* REGNAMES returns each name once per regex, even when several
+         * groups share it.  Only collisions between separate regexes need
+         * a warning: the engine selects the participating group within a
+         * regex, but the clause publishes only its first binding per name.
+         * Keep this separate from case_pattern_vars, which also contains
+         * ordinary destructuring targets. */
+        if (hv_exists_ent(seen, *name_svp, 0))
+            ck_warner_d(packWARN(WARN_SYNTAX),
+                "Named capture '%" SVf "' occurs in multiple regexes in a match clause; "
+                "only the first regex maps to its lexical variable; "
+                "later captures are not visible through that variable",
+                SVfARG(*name_svp));
+        else
+            (void)hv_store_ent(seen, *name_svp, newSViv(1), 0);
+        padname = newSVpvn("$", 1);
+        sv_catsv(padname, *name_svp);
+        if (hv_exists(PL_parser->case_pattern_vars,
+                      SvPV_nolen(padname), SvCUR(padname))) {
+            SvREFCNT_dec_NN(padname);
+            continue;
+        }
+        padix = pad_add_name_sv(padname, padadd_NO_DUP_CHECK, NULL, NULL);
+        (void)hv_store(PL_parser->case_pattern_vars,
+                       SvPV_nolen(padname), SvCUR(padname),
+                       newSVuv((UV)padix), 0);
+        SvREFCNT_dec_NN(padname);
+    }
+}
+
+static void
+S_case_pattern_compile_regex(pTHX_ struct case_pattern_node *node, HV *seen)
+{
+    REGEXP *re;
+    SV *names_ref;
+    AV *names;
+    SSize_t i;
+
+    U32 childix;
+
+    if (!node || !PL_parser)
+        return;
+    S_case_pattern_compile_regex(aTHX_ node->object_shape, seen);
+    for (childix = 0; childix < node->nchild; childix++)
+        S_case_pattern_compile_regex(aTHX_ node->child[childix], seen);
+    if (node->op->op_type != OP_MATCH)
+        return;
+    re = PM_GETRE(cPMOPx(node->op));
+    if (!re)
+        return;
+    names_ref = CALLREG_NAMED_BUFF_ALL(re, RXapif_ALL | RXapif_REGNAMES);
+    if (!names_ref || !SvROK(names_ref)) {
+        SvREFCNT_dec(names_ref);
+        return;
+    }
+    names = MUTABLE_AV(SvRV(names_ref));
+    for (i = 0; i <= av_len(names); i++) {
+        SV **name_svp = av_fetch(names, i, FALSE);
+        SV *padname;
+        SV **padix_svp;
+
+        if (!name_svp || !*name_svp)
+            continue;
+        /* Bind duplicate names from the first regex in SOURCE order. The
+         * constraint scheduler may execute a later nested regex first, so
+         * runtime insertion order cannot decide which regex owns the name.
+         * This does not change the engine's own duplicate-group handling. */
+        if (hv_exists_ent(seen, *name_svp, 0))
+            continue;
+        (void)hv_store_ent(seen, *name_svp, SvREFCNT_inc(&PL_sv_yes), 0);
+        padname = newSVpvn("$", 1);
+        sv_catsv(padname, *name_svp);
+        padix_svp = hv_fetch(PL_parser->case_pattern_vars,
+                             SvPV_nolen(padname), SvCUR(padname), FALSE);
+        if (!padix_svp) {
+            SvREFCNT_dec_NN(padname);
+            continue;
+        }
+        if (!node->regex_names) {
+            node->regex_names = newAV();
+            node->regex_padixes = newAV();
+        }
+        av_push(node->regex_names, newSVsv(*name_svp));
+        av_push(node->regex_padixes, newSVsv(*padix_svp));
+        SvREFCNT_dec_NN(padname);
+    }
+    SvREFCNT_dec_NN(names_ref);
+}
+
+static bool
+S_case_pattern_is_ellipsis(pTHX_ const OP *op)
+{
+    return op->op_type == OP_CONST
+        && (op->op_flags & OPf_SPECIAL)
+        && strEQ(SvPV_nolen_const(cSVOPx_sv(op)), "...");
+}
+
+static bool
+S_case_pattern_is_slurp(const OP *op)
+{
+    return op->op_type == OP_CASECOERCE
+        && cUNOPx(op)->op_first
+        && cUNOPx(op)->op_first->op_type == OP_PADAV;
+}
+
+static void
+S_case_pattern_validate_concat(pTHX_ const OP *op)
+{
+    const OP *kid;
+
+    if (!op)
+        Perl_croak(aTHX_ "unsupported case pattern concatenation expression");
+    if (op->op_type == OP_NULL && (op->op_flags & OPf_KIDS)) {
+        S_case_pattern_validate_concat(aTHX_ cUNOPx(op)->op_first);
+        return;
+    }
+    if (op->op_type == OP_CONCAT || op->op_type == OP_MULTICONCAT) {
+        if (!(op->op_flags & OPf_KIDS))
+            Perl_croak(aTHX_ "unsupported case pattern concatenation expression");
+        for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid))
+            S_case_pattern_validate_concat(aTHX_ kid);
+        return;
+    }
+    if (op->op_type == OP_CONST
+        && !(op->op_private & OPpCONST_BARE))
+        return;
+    if (op->op_type == OP_PADSV)
+        return;
+    if (op->op_type == OP_CASECOERCE
+        && (op->op_private & CASE_PATTERN_CRITERION_MASK)
+            == CASE_PATTERN_CRITERION_PIN) {
+        const OP *target = (op->op_flags & OPf_KIDS)
+            ? cUNOPx(op)->op_first : NULL;
+        if (target && target->op_type == OP_PADSV)
+            return;
+    }
+    Perl_croak(aTHX_ "unsupported case pattern concatenation expression");
+}
+
+static void
+S_case_pattern_note_hash_key(pTHX_ HV *keys, const OP *key)
+{
+    if (key->op_type == OP_CONST) {
+        SV *name = cSVOPx_sv(key);
+        if (hv_exists_ent(keys, name, 0))
+            Perl_croak(aTHX_ "duplicate key \"%" SVf "\" in a case hash pattern",
+                       SVfARG(name));
+        (void)hv_store_ent(keys, name, SvREFCNT_inc(&PL_sv_yes), 0);
+    }
+}
+
+static void
+S_case_pattern_validate_object_fields(pTHX_ const OP *op)
+{
+    const OP *kid;
+    bool need_value = FALSE;
+    bool open = FALSE;
+    HV *keys = MUTABLE_HV(sv_2mortal(MUTABLE_SV(newHV())));
+
+    if (S_case_pattern_empty_fields(op))
+        return;
+    if (!op || (op->op_type != OP_LIST
+                && !(op->op_type == OP_NULL && op->op_targ == OP_LIST)))
+        Perl_croak(aTHX_ "invalid object field pattern");
+    for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid)) {
+        if (kid->op_type == OP_PUSHMARK
+            || (kid->op_type == OP_NULL && kid->op_targ == OP_PUSHMARK))
+            continue;
+        if (S_case_pattern_is_ellipsis(aTHX_ kid)) {
+            if (need_value || open)
+                Perl_croak(aTHX_ "object ellipsis must follow field pairs");
+            open = TRUE;
+            continue;
+        }
+        if (open)
+            Perl_croak(aTHX_ "object fields cannot follow an ellipsis");
+        if (!need_value) {
+            if (kid->op_type != OP_CONST)
+                Perl_croak(aTHX_ "object field names must be constants");
+            S_case_pattern_note_hash_key(aTHX_ keys, kid);
+            need_value = TRUE;
+        }
+        else {
+            S_case_pattern_validate(aTHX_ kid);
+            need_value = FALSE;
+        }
+    }
+    if (need_value)
+        Perl_croak(aTHX_ "object field pattern requires key/value pairs");
+}
+
+static bool
+S_case_pattern_canonical_number(const char *start, const char *end)
+{
+    const char *digits;
+
+    if (start < end && (*start == '+' || *start == '-'))
+        start++;
+    digits = start;
+    while (digits < end && isDIGIT((U8)*digits))
+        digits++;
+    return digits - start <= 1 || *start != '0';
+}
+
+static bool
+S_case_pattern_numeric_match(pTHX_ SV *value, U8 criterion)
+{
+    const bool strict = (criterion & CASE_PATTERN_CRITERION_STRICT) != 0;
+    const U8 kind = criterion & CASE_PATTERN_CRITERION_MASK;
+    const char *start;
+    const char *end;
+    STRLEN len;
+    UV integer_value;
+    int number_type;
+    bool integer_string;
+    bool float_string;
+    const bool native_number = SvNIOK(value) && !SvPOK(value)
+        && !SvIsBOOL(value) && !SvROK(value);
+
+    if (kind == CASE_PATTERN_CRITERION_INT)
+        return native_number && SvIOK(value);
+    if (kind == CASE_PATTERN_CRITERION_FLOAT)
+        return native_number && SvNOK(value);
+    if (kind == CASE_PATTERN_CRITERION_NUM)
+        return native_number;
+
+    if (native_number) {
+        if (kind == CASE_PATTERN_CRITERION_INTSTR)
+            return SvIOK(value);
+        if (kind == CASE_PATTERN_CRITERION_FLOATSTR)
+            return SvNOK(value);
+        return TRUE;
+    }
+    if (!SvPOK(value) || SvROK(value) || SvIsBOOL(value))
+        return FALSE;
+
+    start = SvPV_nomg_const(value, len);
+    end = start + len;
+    while (start < end && isSPACE((U8)*start))
+        start++;
+    while (end > start && isSPACE((U8)end[-1]))
+        end--;
+    if (start == end || (strict && (start != SvPVX_const(value)
+                                    || end != SvPVX_const(value) + SvCUR(value))))
+        return FALSE;
+
+    number_type = grok_number(start, end - start, &integer_value);
+    if (!number_type || (number_type & IS_NUMBER_TRAILING))
+        return FALSE;
+    integer_string = !(number_type & IS_NUMBER_NOT_INT);
+    float_string = !integer_string;
+    if (strict && !S_case_pattern_canonical_number(start, end))
+        return FALSE;
+
+    if (kind == CASE_PATTERN_CRITERION_INTSTR) {
+        return integer_string;
+    }
+    if (kind == CASE_PATTERN_CRITERION_FLOATSTR) {
+        return float_string;
+    }
+    return integer_string || float_string;
+}
+
+static bool
+S_case_pattern_strict_numeq(pTHX_ SV *value)
+{
+    const char *start;
+    STRLEN len;
+    STRLEN n;
+
+    if (!SvPOK(value) || SvROK(value))
+        return TRUE;
+    start = SvPV_nomg_const(value, len);
+    if (!len || isSPACE((U8)start[0]))
+        return FALSE;
+    for (n = len; n; n--) {
+        int number_type = grok_number(start, n, NULL);
+        if (number_type && !(number_type & IS_NUMBER_TRAILING))
+            return TRUE;
+    }
+    return FALSE;
+}
+
+static void
+S_case_pattern_scan_call(pTHX_ const OP *op, const OP **target,
+                         const OP **invocant, U32 *nargs)
+{
+    for (; op; op = OpHAS_SIBLING(op) ? OpSIBLING(op) : NULL) {
+        if (op->op_type == OP_PUSHMARK)
+            continue;
+        if (op->op_type == OP_NULL && op->op_targ == OP_RV2CV) {
+            if (*target)
+                Perl_croak(aTHX_ "case pattern calls must have no arguments");
+            *target = op;
+            continue;
+        }
+        if (op->op_type == OP_NULL || op->op_type == OP_LIST) {
+            S_case_pattern_scan_call(aTHX_ cUNOPx(op)->op_first,
+                                     target, invocant, nargs);
+            continue;
+        }
+        if (op->op_type == OP_RV2CV
+            || op->op_type == OP_METHOD_NAMED
+            || op->op_type == OP_METHOD) {
+            if (*target)
+                Perl_croak(aTHX_ "case pattern calls must have no arguments");
+            *target = op;
+            continue;
+        }
+        *invocant = op;
+        (*nargs)++;
+    }
+}
+
+static CV *
+S_case_pattern_call_cv(pTHX_ const OP *target)
+{
+    if (target->op_type == OP_RV2CV)
+        return rv2cv_op_cv((OP *)target, RV2CVOPCV_RETURN_STUB);
+    if (target->op_type == OP_NULL && target->op_targ == OP_RV2CV) {
+        const OP *rvop = cUNOPx(target)->op_first;
+        while (rvop && rvop->op_type == OP_NULL)
+            rvop = cUNOPx(rvop)->op_first;
+        if (!rvop)
+            return NULL;
+        if (rvop->op_type == OP_GV) {
+            GV *gv = cGVOPx_gv(rvop);
+            if (isGV(gv))
+                return GvCVu(gv);
+            if (SvROK((SV *)gv) && SvTYPE(SvRV((SV *)gv)) == SVt_PVCV)
+                return MUTABLE_CV(SvRV((SV *)gv));
+            else {
+                STRLEN len;
+                const char *name = SvPV_const((SV *)gv, len);
+                GV *realgv = gv_fetchpvn_flags(name, len,
+                    GV_ADD, SVt_PVCV);
+                if (realgv && isGV(realgv) && GvCVu(realgv))
+                    return GvCVu(realgv);
+                return NULL;
+            }
+        }
+        if (rvop->op_type == OP_CONST && SvROK(cSVOPx_sv(rvop)))
+            return MUTABLE_CV(SvRV(cSVOPx_sv(rvop)));
+    }
+    return NULL;
+}
+
+static void
+S_case_pattern_validate(pTHX_ const OP *op)
+{
+    const OP *kid;
+    if (!op)
+        return;
+
+    if (op->op_type == OP_REGCOMP)
+        Perl_croak(aTHX_
+            "dynamic regexes are only allowed in match guard clauses");
+
+    if (op->op_type == OP_ENTERSUB) {
+        const OP *class_op = NULL;
+        const OP *shape_op = NULL;
+        if (S_case_pattern_object_call(aTHX_ op, &class_op, &shape_op)) {
+            const OP *fields = S_case_pattern_find_shape_op(shape_op);
+            if (fields && (S_case_pattern_empty_fields(fields)
+                           || fields->op_type == OP_LIST
+                           || (fields->op_type == OP_NULL
+                               && fields->op_targ == OP_LIST)))
+                S_case_pattern_validate_object_fields(aTHX_ fields);
+            else
+                S_case_pattern_validate(aTHX_ shape_op);
+            return;
+        }
+    }
+
+    if (op->op_type == OP_ENTERSUB) {
+        const OP *call_target = NULL;
+        const OP *call_invocant = NULL;
+        U32 nargs = 0;
+
+        S_case_pattern_scan_call(aTHX_ cUNOPx(op)->op_first,
+                                 &call_target, &call_invocant, &nargs);
+        if (!call_target
+            || ((call_target->op_type == OP_RV2CV
+                 || (call_target->op_type == OP_NULL
+                     && call_target->op_targ == OP_RV2CV)) && nargs)
+            || (call_target->op_type != OP_RV2CV
+                && !(call_target->op_type == OP_NULL
+                     && call_target->op_targ == OP_RV2CV)
+                && nargs != 1))
+            Perl_croak(aTHX_ "unsupported case pattern call");
+        PERL_UNUSED_VAR(call_invocant);
+        return;
+    }
+    if (op->op_type == OP_CASECOERCE
+        && (op->op_private & CASE_PATTERN_CRITERION_MASK)
+            == CASE_PATTERN_CRITERION_NUMEQ) {
+        const OP *arg = (op->op_flags & OPf_KIDS)
+            ? cUNOPx(op)->op_first : NULL;
+        if (!arg || (arg->op_type != OP_CONST && arg->op_type != OP_UNDEF))
+            Perl_croak(aTHX_ "NumEq() requires a literal argument in a match pattern");
+    }
+    if (op->op_type == OP_CASECOERCE
+        && (op->op_private & CASE_PATTERN_CRITERION_MASK)
+            == CASE_PATTERN_CRITERION_OBJECT) {
+        const OP *args = (op->op_flags & OPf_KIDS)
+            ? cUNOPx(op)->op_first : NULL;
+        const OP *arg;
+        const OP *shape = NULL;
+        if (args && args->op_type == OP_LIST) {
+            arg = cLISTOPx(args)->op_first;
+            if (arg && (arg->op_type == OP_PUSHMARK
+                        || (arg->op_type == OP_NULL
+                            && arg->op_targ == OP_PUSHMARK)))
+                arg = OpSIBLING(arg);
+            if (arg)
+                shape = OpSIBLING(arg);
+        }
+        if (!args || args->op_type != OP_LIST || !shape)
+            Perl_croak(aTHX_ "invalid object pattern");
+        if (shape->op_type == OP_ANONHASH || shape->op_type == OP_LIST)
+            S_case_pattern_validate_object_fields(aTHX_ shape);
+        else
+            S_case_pattern_validate(aTHX_ shape);
+        return;
+    }
+    if (op->op_type == OP_CONCAT || op->op_type == OP_MULTICONCAT) {
+        S_case_pattern_validate_concat(aTHX_ op);
+        return;
+    }
+    if (op->op_type == OP_NULL && (op->op_flags & OPf_KIDS)) {
+        S_case_pattern_validate(aTHX_ cUNOPx(op)->op_first);
+        return;
+    }
+
+    if (op->op_type == OP_ANONLIST) {
+        U32 logical_ix = 0;
+        U32 ellipses = 0;
+        U32 slurps = 0;
+        U32 nchild = 0;
+        for (kid = cLISTOPx(op)->op_first; kid; kid = OpSIBLING(kid)) {
+            if (kid->op_type == OP_PUSHMARK)
+                continue;
+            nchild++;
+            if (S_case_pattern_is_ellipsis(aTHX_ kid))
+                ellipses++;
+            else if (S_case_pattern_is_slurp(kid))
+                slurps++;
+        }
+        if (ellipses > 2 || (ellipses == 2 && nchild < 3))
+            Perl_croak(aTHX_ "array pattern has invalid ellipsis placement");
+        if (slurps > 1)
+            Perl_croak(aTHX_ "array pattern may contain only one slurp");
+        for (kid = cLISTOPx(op)->op_first; kid; kid = OpSIBLING(kid)) {
+            if (kid->op_type == OP_PUSHMARK)
+                continue;
+            if (S_case_pattern_is_ellipsis(aTHX_ kid)) {
+                if (logical_ix != 0 && logical_ix != nchild - 1)
+                    Perl_croak(aTHX_ "array pattern ellipsis must be at an edge");
+                logical_ix++;
+                continue;
+            }
+            if (S_case_pattern_is_slurp(kid)) {
+                if (logical_ix != nchild - 1 || ellipses)
+                    Perl_croak(aTHX_ "array slurp must be the final pattern element and cannot use an ellipsis");
+                logical_ix++;
+                continue;
+            }
+            S_case_pattern_validate(aTHX_ kid);
+            logical_ix++;
+        }
+        return;
+    }
+
+    if (op->op_type == OP_ANONHASH) {
+        U32 ellipses = 0;
+        U32 logical_ix = 0;
+        U32 nchild = 0;
+        HV *keys = MUTABLE_HV(sv_2mortal(MUTABLE_SV(newHV())));
+        for (kid = cLISTOPx(op)->op_first; kid; kid = OpSIBLING(kid)) {
+            if (kid->op_type == OP_PUSHMARK)
+                continue;
+            nchild++;
+            if (S_case_pattern_is_ellipsis(aTHX_ kid))
+                ellipses++;
+        }
+        if (ellipses > 1)
+            Perl_croak(aTHX_ "hash pattern may contain only one ellipsis");
+        if ((nchild - ellipses) & 1)
+            Perl_croak(aTHX_ "hash pattern requires key/value pairs");
+        for (kid = cLISTOPx(op)->op_first; kid; kid = OpSIBLING(kid)) {
+            if (kid->op_type == OP_PUSHMARK)
+                continue;
+            if (S_case_pattern_is_ellipsis(aTHX_ kid)) {
+                if (logical_ix != nchild - 1)
+                    Perl_croak(aTHX_ "hash pattern ellipsis must be last");
+                logical_ix++;
+                continue;
+            }
+            if (!(logical_ix & 1)) {
+                const bool pinned = kid->op_type == OP_PADSV
+                    && PL_parser && PL_parser->case_pattern_pins
+                    && hv_exists(PL_parser->case_pattern_pins,
+                        (const char *)&kid->op_targ, sizeof(kid->op_targ));
+                if (PL_parser && PL_parser->in_case_pattern
+                    && kid->op_type != OP_CONST && kid->op_type != OP_ENTERSUB
+                    && !pinned
+                    && !(kid->op_type == OP_CASECOERCE
+                         && (kid->op_private & CASE_PATTERN_CRITERION_MASK)
+                             == CASE_PATTERN_CRITERION_PIN))
+                    Perl_croak(aTHX_ "hash pattern keys must be constants, pins, or zero-argument calls");
+                S_case_pattern_note_hash_key(aTHX_ keys, kid);
+            }
+            S_case_pattern_validate(aTHX_ kid);
+            logical_ix++;
+        }
+        return;
+    }
+
+    /* The left side of match is a data-shape language, not an arbitrary Perl
+     * expression.  Keep this list explicit: falling through to the generic
+     * dynamic-leaf handling would silently give unsupported operators the
+     * wrong meaning. */
+    switch (op->op_type) {
+    case OP_CONST:
+    case OP_UNDEF:
+    case OP_PADSV:
+    case OP_PADAV:
+    case OP_CASECOERCE:
+    case OP_REFGEN:
+    case OP_SREFGEN:
+    case OP_CONCAT:
+    case OP_MULTICONCAT:
+    case OP_MATCH:
+    case OP_ANONLIST:
+    case OP_ANONHASH:
+    case OP_EMPTYAVHV:
+        break;
+    default:
+        Perl_croak(aTHX_ "unsupported case pattern expression");
+    }
+
+    if (op->op_flags & OPf_KIDS)
+        for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid))
+            S_case_pattern_validate(aTHX_ kid);
+}
+
+/* Return the value of a zero-argument function or class-method call used as
+ * a data-shape constant.  The parser leaves these calls as ordinary
+ * OP_ENTERSUB trees; keeping the call here means that their Perl dispatch
+ * semantics remain unchanged while the rest of the pattern remains inert. */
+static SV *
+S_case_pattern_call(pTHX_ const OP *op)
+{
+    const OP *target = NULL;
+    const OP *invocant = NULL;
+    U32 nargs = 0;
+    SV *result = sv_newmortal();
+
+    S_case_pattern_scan_call(aTHX_ cUNOPx(op)->op_first,
+                             &target, &invocant, &nargs);
+
+    if (!target
+        || ((target->op_type == OP_RV2CV
+             || (target->op_type == OP_NULL && target->op_targ == OP_RV2CV))
+            && nargs)
+        || (target->op_type != OP_RV2CV
+            && !(target->op_type == OP_NULL && target->op_targ == OP_RV2CV)
+            && nargs != 1))
+        Perl_croak(aTHX_ "case pattern calls must have no arguments");
+
+    if (target->op_type == OP_RV2CV
+        || (target->op_type == OP_NULL && target->op_targ == OP_RV2CV)) {
+        CV *cv = S_case_pattern_call_cv(aTHX_ target);
+        if (!cv)
+            Perl_croak(aTHX_ "case pattern call has no callable target");
+        {
+            dSP;
+            I32 count;
+            ENTER;
+            SAVETMPS;
+            PUSHMARK(SP);
+            PUTBACK;
+            count = call_sv(MUTABLE_SV(cv), G_SCALAR);
+            SPAGAIN;
+            if (count)
+                sv_setsv(result, TOPs);
+            PUTBACK;
+            FREETMPS;
+            LEAVE;
+        }
+    }
+    else {
+        if (!invocant || invocant->op_type != OP_CONST
+            || target->op_type != OP_METHOD_NAMED)
+            Perl_croak(aTHX_ "unsupported case pattern method call");
+        {
+            dSP;
+            I32 count;
+            ENTER;
+            SAVETMPS;
+            PUSHMARK(SP);
+            XPUSHs(cSVOPx_sv(invocant));
+            PUTBACK;
+            count = call_method(SvPV_nolen_const(cSVOPx_sv(target)), G_SCALAR);
+            SPAGAIN;
+            if (count)
+                sv_setsv(result, TOPs);
+            PUTBACK;
+            FREETMPS;
+            LEAVE;
+        }
+    }
+
+    return SvREFCNT_inc_NN(result);
+}
+
+static void
+S_case_pattern_free_node(pTHX_ struct case_pattern_node *node)
+{
+    U32 i;
+
+    if (!node)
+        return;
+    S_case_pattern_free_node(aTHX_ node->object_shape);
+    for (i = 0; i < node->nchild; i++)
+        S_case_pattern_free_node(aTHX_ node->child[i]);
+    SvREFCNT_dec((SV *)node->regex_names);
+    SvREFCNT_dec((SV *)node->regex_padixes);
+    PerlMemShared_free(node->child);
+    PerlMemShared_free(node);
+}
+
+/* Each node can contribute at most one ordinary binding.  Counting all
+ * nodes is conservative, including pins and constants, and avoids imposing
+ * an arbitrary semantic limit on captures. */
+static size_t
+S_case_pattern_binding_capacity(pTHX_ const struct case_pattern_node *node)
+{
+    size_t count = 1;
+    U32 i;
+    if (!node)
+        return 0;
+    count += node->regex_names ? (size_t)av_count(node->regex_names) : 0;
+    count += S_case_pattern_binding_capacity(aTHX_ node->object_shape);
+    for (i = 0; i < node->nchild; i++)
+        count += S_case_pattern_binding_capacity(aTHX_ node->child[i]);
+    return count;
+}
+
+static size_t
+S_case_capture_occurrences(const struct case_pattern_node *node, PADOFFSET padix)
+{
+    size_t count;
+    U32 i;
+    if (!node)
+        return 0;
+    count = node->op->op_type == OP_PADSV && node->binding_padix == padix;
+    count += S_case_capture_occurrences(node->object_shape, padix);
+    for (i = 0; i < node->nchild; i++)
+        count += S_case_capture_occurrences(node->child[i], padix);
+    return count;
+}
+
+static void
+S_case_schedule_constraints(struct case_pattern_node *node,
+                            const struct case_pattern_node *root)
+{
+    const OP *op;
+    U32 i;
+    if (!node)
+        return;
+    op = node->op;
+    if (op->op_type == OP_CONST || op->op_type == OP_UNDEF)
+        node->constraint_rank = CASE_CONSTRAINT_LITERAL;
+    else if (node->object_shape || op->op_type == OP_ANONLIST
+             || op->op_type == OP_ANONHASH || op->op_type == OP_REFGEN
+             || op->op_type == OP_SREFGEN || op->op_type == OP_EMPTYAVHV)
+        node->constraint_rank = CASE_CONSTRAINT_SHAPE;
+    else if (op->op_type == OP_PADSV
+             && S_case_capture_occurrences(root, node->binding_padix) == 1)
+        node->constraint_rank = CASE_CONSTRAINT_CAPTURE;
+    else
+        node->constraint_rank = CASE_CONSTRAINT_TEST;
+    S_case_schedule_constraints(node->object_shape, root);
+    for (i = 0; i < node->nchild; i++)
+        S_case_schedule_constraints(node->child[i], root);
+}
+
+UNOP_AUX_item *
+Perl_case_pattern_compile(pTHX_ const OP *pattern)
+{
+    struct case_pattern_aux *aux;
+
+    PERL_ARGS_ASSERT_CASE_PATTERN_COMPILE;
+
+    S_case_pattern_validate(aTHX_ pattern);
+    aux = (struct case_pattern_aux *)PerlMemShared_calloc(
+        1, sizeof(struct case_pattern_aux));
+    aux->magic = CASE_PATTERN_AUX_MAGIC;
+    aux->pattern = (OP *)pattern;
+    aux->root = S_case_pattern_compile_node(aTHX_ pattern, FALSE);
+    aux->static_pins = newAV();
+    S_case_pattern_note_static_pins(aTHX_ pattern, aux->static_pins);
+    S_case_pattern_compile_regex(aTHX_ aux->root,
+        MUTABLE_HV(sv_2mortal(MUTABLE_SV(newHV()))));
+    aux->binding_capacity = S_case_pattern_binding_capacity(aTHX_ aux->root);
+    aux->case_capture_capacity = aux->binding_capacity;
+    S_case_schedule_constraints(aux->root, aux->root);
+    aux->kind = CASE_PATTERN_COMPLEX;
+    if (pattern->op_type == OP_UNDEF)
+        aux->kind = CASE_PATTERN_SIMPLE_UNDEF;
+    else if (pattern->op_type == OP_CONST
+             && SvIsBOOL(cSVOPx_sv(pattern)))
+        aux->kind = CASE_PATTERN_SIMPLE_BOOL;
+    else if (pattern->op_type == OP_CONST
+             && !(pattern->op_private & OPpCONST_BARE)
+             && (SvIOK(cSVOPx_sv(pattern)) || SvNOK(cSVOPx_sv(pattern))))
+        aux->kind = CASE_PATTERN_SIMPLE_NUM;
+    else if (pattern->op_type == OP_CONST
+             && !(pattern->op_private & OPpCONST_BARE))
+        aux->kind = CASE_PATTERN_SIMPLE_STR;
+    return (UNOP_AUX_item *)aux;
+}
+
+void
+Perl_case_pattern_free(pTHX_ UNOP_AUX_item *items)
+{
+    struct case_pattern_aux *aux = (struct case_pattern_aux *)items;
+    PERL_ARGS_ASSERT_CASE_PATTERN_FREE;
+    PERL_UNUSED_CONTEXT;
+
+    /* `pattern` owns the OPs referenced by the node graph.  Tear the graph
+     * down before releasing that tree, and release dispatch only through its
+     * separate clause/op reference count.  This is also why the node graph
+     * never takes an OP or class-SV reference of its own. */
+    if (aux && aux->magic == CASE_PATTERN_AUX_MAGIC) {
+        S_case_pattern_free_node(aTHX_ aux->root);
+        op_free(aux->pattern);
+        SvREFCNT_dec((SV *)aux->static_pins);
+        if (aux->dispatch)
+            Perl_case_dispatch_free(aTHX_ (UNOP_AUX_item *)aux->dispatch);
+        PerlMemShared_free(aux);
+    }
+}
+
+static bool
+S_case_pattern_is_wildcard(pTHX_ const struct case_pattern_aux *aux)
+{
+    const OP *pattern;
+
+    if (!aux || !aux->root || aux->root->nchild)
+        return FALSE;
+    pattern = aux->root->op;
+    return pattern->op_type == OP_CONST
+        && (pattern->op_private & OPpCONST_BARE)
+        && strEQ(SvPV_nolen_const(cSVOPx_sv(pattern)), "_");
+}
+
+static bool
+S_case_pattern_has_subject_capture(
+    pTHX_ const struct case_pattern_node *node,
+    PADOFFSET subject_padix, bool root)
+{
+    U32 i;
+    const OP *op;
+
+    PERL_UNUSED_CONTEXT;
+    if (!node || !(op = node->op))
+        return FALSE;
+
+    /* An explicit pin is already a comparison with the subject value.  It
+     * is not an implicit capture, even when it names the case subject. */
+    if (op->op_type == OP_CASECOERCE
+        && (op->op_private & CASE_PATTERN_CRITERION_MASK)
+            == CASE_PATTERN_CRITERION_PIN)
+        return FALSE;
+
+    if (op->op_type == OP_PADSV && op->op_targ == subject_padix)
+        return !root;
+
+    for (i = 0; i < node->nchild; i++)
+        if (S_case_pattern_has_subject_capture(aTHX_ node->child[i],
+                                               subject_padix, FALSE))
+            return TRUE;
+    return FALSE;
+}
+
+static void
+S_case_pattern_croak_subject_capture(pTHX_ PADOFFSET subject_padix)
+{
+    const PADNAME *name = PAD_COMPNAME(subject_padix);
+
+    Perl_croak(aTHX_
+        "The case subject %" UTF8f " is implicitly pinned; "
+        "this match clause can never match",
+        UTF8fARG(PadnameUTF8(name), PadnameLEN(name), PadnamePV(name)));
+}
+
+static void
+S_case_pattern_mark_identity_walk(pTHX_ OP *op, PADOFFSET subject_padix)
+{
+    OP *kid;
+
+    PERL_UNUSED_CONTEXT;
+    if (!op || op->op_type == OP_ENTERCASE)
+        return;
+    if (op->op_type == OP_CASEMATCH) {
+        struct case_pattern_aux *aux =
+            (struct case_pattern_aux *)cUNOP_AUXx(op)->op_aux;
+        const struct case_pattern_node *root = aux &&
+            aux->magic == CASE_PATTERN_AUX_MAGIC ? aux->root : NULL;
+        const OP *pattern = root ? root->op : NULL;
+
+        while (pattern && pattern->op_type == OP_NULL
+               && (pattern->op_flags & OPf_KIDS))
+            pattern = cUNOPx(pattern)->op_first;
+        if (aux && aux->magic == CASE_PATTERN_AUX_MAGIC
+            && pattern && pattern->op_type == OP_PADSV
+            && pattern->op_targ == subject_padix)
+            aux->always_matches = TRUE;
+        else if (aux && aux->magic == CASE_PATTERN_AUX_MAGIC
+                 && S_case_pattern_has_subject_capture(aTHX_ aux->root,
+                                                       subject_padix, TRUE))
+            S_case_pattern_croak_subject_capture(aTHX_ subject_padix);
+        return;
+    }
+    if (!(op->op_flags & OPf_KIDS))
+        return;
+    for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid))
+        S_case_pattern_mark_identity_walk(aTHX_ kid, subject_padix);
+}
+
+void
+Perl_case_pattern_mark_identity(pTHX_ OP *body, const OP *subject)
+{
+    PERL_ARGS_ASSERT_CASE_PATTERN_MARK_IDENTITY;
+
+    if (!body || !subject || subject->op_type != OP_PADSV)
+        return;
+    S_case_pattern_mark_identity_walk(aTHX_ body, subject->op_targ);
+}
+
+static bool
+S_case_dispatch_clause(pTHX_ const OP *op, struct case_pattern_aux **auxp,
+                    OP **targetp)
+{
+    const OP *entercasematch;
+    const OP *condition;
+    const struct case_pattern_aux *aux;
+
+    PERL_UNUSED_CONTEXT;
+    if (op->op_type != OP_LEAVECASEMATCH)
+        return FALSE;
+    entercasematch = cUNOPx(op)->op_first;
+    if (!entercasematch || entercasematch->op_type != OP_ENTERCASEMATCH)
+        return FALSE;
+    condition = cUNOPx(entercasematch)->op_first;
+    if (!condition || condition->op_type != OP_CASEMATCH)
+        return FALSE;
+    aux = (const struct case_pattern_aux *)cUNOP_AUXx(condition)->op_aux;
+    if (!aux || aux->magic != CASE_PATTERN_AUX_MAGIC
+        || (aux->kind == CASE_PATTERN_COMPLEX
+            && !S_case_pattern_is_wildcard(aTHX_ aux))
+        || !aux->root)
+        return FALSE;
+    *auxp = (struct case_pattern_aux *)aux;
+    if (targetp)
+        *targetp = (OP *)entercasematch;
+    return TRUE;
+}
+
+static bool
+S_case_dispatch_push(pTHX_ AV **valuesp, AV **clausesp, SV *value, U32 clause,
+                     U32 capacity, U8 kind)
+{
+    SSize_t i;
+
+    /* Optimized dispatch tables retain only the earliest source clause for a
+     * value.  This makes the table's values unique, so a linear probe can
+     * stop as soon as it finds a match. */
+    if (*valuesp) {
+        for (i = 0; i <= av_len(*valuesp); i++) {
+            SV **old = av_fetch(*valuesp, i, FALSE);
+            if (old && (kind == CASE_PATTERN_SIMPLE_NUM
+                        ? do_ncmp(*old, value) == 0
+                        : sv_cmp(*old, value) == 0))
+                return TRUE;
+        }
+    }
+    if (!*valuesp) {
+        *valuesp = newAV();
+        if (capacity)
+            av_extend(*valuesp, (SSize_t)capacity - 1);
+    }
+    if (!*clausesp) {
+        *clausesp = newAV();
+        if (capacity)
+            av_extend(*clausesp, (SSize_t)capacity - 1);
+    }
+    av_push(*valuesp, SvREFCNT_inc_simple_NN(value));
+    av_push(*clausesp, newSVuv((UV)clause));
+    return FALSE;
+}
+
+static void
+S_case_dispatch_add_iv_bound(struct case_dispatch_aux *dispatch, SV *value)
+{
+    const bool is_uv = SvUOK(value);
+    const IV iv = SvIVX(value);
+    const UV uv = SvUVX(value);
+
+    if (!dispatch->iv_has_bounds) {
+        dispatch->iv_has_bounds = TRUE;
+        dispatch->iv_min_is_uv = is_uv;
+        dispatch->iv_max_is_uv = is_uv;
+        dispatch->iv_min_iv = iv;
+        dispatch->iv_max_iv = iv;
+        dispatch->iv_min_uv = uv;
+        dispatch->iv_max_uv = uv;
+        return;
+    }
+    if (is_uv) {
+        if (dispatch->iv_min_is_uv) {
+            if (uv < dispatch->iv_min_uv)
+                dispatch->iv_min_uv = uv;
+        }
+        else if (iv >= 0 && uv < (UV)dispatch->iv_min_iv) {
+            dispatch->iv_min_is_uv = TRUE;
+            dispatch->iv_min_uv = uv;
+        }
+        if (dispatch->iv_max_is_uv) {
+            if (uv > dispatch->iv_max_uv)
+                dispatch->iv_max_uv = uv;
+        }
+        else if (iv < 0 || uv > (UV)dispatch->iv_max_iv) {
+            dispatch->iv_max_is_uv = TRUE;
+            dispatch->iv_max_uv = uv;
+        }
+    }
+    else {
+        if (dispatch->iv_min_is_uv) {
+            if (iv < 0 || (UV)iv < dispatch->iv_min_uv) {
+                dispatch->iv_min_is_uv = FALSE;
+                dispatch->iv_min_iv = iv;
+            }
+        }
+        else if (iv < dispatch->iv_min_iv)
+            dispatch->iv_min_iv = iv;
+        if (dispatch->iv_max_is_uv) {
+            if (iv < 0 || (UV)iv > dispatch->iv_max_uv) {
+                dispatch->iv_max_is_uv = FALSE;
+                dispatch->iv_max_iv = iv;
+            }
+        }
+        else if (iv > dispatch->iv_max_iv)
+            dispatch->iv_max_iv = iv;
+    }
+}
+
+static void
+S_case_dispatch_add_nv_bound(struct case_dispatch_aux *dispatch, SV *value)
+{
+    const NV nv = SvNVX(value);
+
+    if (!dispatch->nv_has_bounds) {
+        dispatch->nv_min = nv;
+        dispatch->nv_max = nv;
+        dispatch->nv_has_bounds = TRUE;
+    }
+    else {
+        if (nv < dispatch->nv_min)
+            dispatch->nv_min = nv;
+        if (nv > dispatch->nv_max)
+            dispatch->nv_max = nv;
+    }
+}
+
+static U8
+S_case_dispatch_strategy(U32 clause_count)
+{
+    const char *mode = PerlEnv_getenv("PERL_CASE_DISPATCH");
+
+    /* The hash backend is deliberately retained as a forced benchmarking
+     * mode.  Its key construction and lookup overhead make it a poor default
+     * on the representative workloads, so automatic dispatch uses the typed,
+     * sorted arrays instead. */
+    if (!mode || strEQ(mode, "auto"))
+        return clause_count < 16 ? CASE_DISPATCH_ARRAY_LINEAR
+                              : CASE_DISPATCH_ARRAY_BINARY;
+    if (strEQ(mode, "array-binary"))
+        return CASE_DISPATCH_ARRAY_BINARY;
+    if (strEQ(mode, "array-linear"))
+        return CASE_DISPATCH_ARRAY_LINEAR;
+    if (strEQ(mode, "none"))
+        return CASE_DISPATCH_NONE;
+    if (strEQ(mode, "hv"))
+        return CASE_DISPATCH_HV;
+    return CASE_DISPATCH_ARRAY_LINEAR;
+}
+
+static void
+S_case_dispatch_key(pTHX_ SV *key, SV *value, U8 kind)
+{
+    const char *prefix = kind == CASE_PATTERN_SIMPLE_NUM
+        ? (SvNOK(value) ? "n:" : "i:") : "s:";
+    if (UNLIKELY(!SvPOK(key) || SvLEN(key) < 3))
+        sv_setpvn(key, prefix, 2);
+    else {
+        SvPOK_only(key);
+        Copy(prefix, SvPVX_mutable(key), 2, char);
+        SvCUR_set(key, 2);
+        SvPVX_mutable(key)[2] = '\0';
+    }
+    SvUTF8_off(key); /* the reused prefix is always plain ASCII */
+    sv_catsv(key, value);
+    if (IN_BYTES)
+        SvUTF8_off(key);
+}
+
+static bool
+S_case_dispatch_store(pTHX_ HV **tablep, SV *value, U8 kind, U32 clause)
+{
+    SV *key;
+    bool duplicate;
+
+    if (!*tablep)
+        *tablep = newHV();
+    key = newSVpvn("", 0);
+    S_case_dispatch_key(aTHX_ key, value, kind);
+    duplicate = hv_fetch_ent(*tablep, key, FALSE, 0) != NULL;
+    if (!duplicate)
+        (void)hv_store_ent(*tablep, key, newSVuv((UV)clause), 0);
+    SvREFCNT_dec_NN(key);
+    return duplicate;
+}
+
+static void
+S_case_dispatch_warn_duplicate(pTHX_ SV *value, U8 kind,
+                               const COP *first_cop, const COP *duplicate_cop)
+{
+    const char *value_text;
+    const char *first_file = first_cop ? CopFILE(first_cop) : "<unknown>";
+    const char *duplicate_file = duplicate_cop
+        ? CopFILE(duplicate_cop) : "<unknown>";
+    const line_t first_line = first_cop ? CopLINE(first_cop) : NOLINE;
+    const line_t duplicate_line = duplicate_cop
+        ? CopLINE(duplicate_cop) : NOLINE;
+    const char *first_location = form("%s line %" LINE_Tf,
+        first_file, first_line);
+    const char *duplicate_location = form("%s line %" LINE_Tf,
+        duplicate_file, duplicate_line);
+
+    if (kind == CASE_PATTERN_SIMPLE_UNDEF)
+        value_text = "undef";
+    else if (kind == CASE_PATTERN_SIMPLE_BOOL)
+        value_text = SvTRUE(value) ? "true" : "false";
+    else
+        value_text = SvPV_nolen_const(value);
+    ck_warner_d(packWARN(WARN_SYNTAX),
+        "duplicate case pattern constant %s will never match; duplicate at "
+        "%s, first at %s", value_text, duplicate_location, first_location);
+}
+
+static void
+S_case_dispatch_warn_duplicates(pTHX_ OP *body)
+{
+    AV *iv_values = NULL;
+    AV *iv_clauses = NULL;
+    AV *nv_values = NULL;
+    AV *nv_clauses = NULL;
+    AV *pv_values = NULL;
+    AV *pv_clauses = NULL;
+    bool undef_seen = FALSE;
+    bool bool_seen[2] = { FALSE, FALSE };
+    const COP *undef_cop = NULL;
+    const COP *bool_cop[2] = { NULL, NULL };
+    AV *iv_sources = NULL;
+    AV *nv_sources = NULL;
+    AV *pv_sources = NULL;
+    const COP *cop = NULL;
+    OP *kid;
+
+    for (kid = cLISTOPx(body)->op_first; kid; kid = OpSIBLING(kid)) {
+        struct case_pattern_aux *pattern_aux;
+        const OP *pattern;
+        SV *value;
+        bool duplicate;
+
+        if (OP_TYPE_IS_COP_NN(kid)) {
+            cop = cCOPx(kid);
+            continue;
+        }
+        if (!S_case_dispatch_clause(aTHX_ kid, &pattern_aux, NULL))
+            continue;
+        if (S_case_pattern_is_wildcard(aTHX_ pattern_aux))
+            break;
+        pattern = pattern_aux->root->op;
+        if (pattern_aux->kind == CASE_PATTERN_SIMPLE_UNDEF) {
+            duplicate = undef_seen;
+            undef_seen = TRUE;
+            if (duplicate)
+                S_case_dispatch_warn_duplicate(aTHX_ NULL,
+                    CASE_PATTERN_SIMPLE_UNDEF, undef_cop, cop);
+            else
+                undef_cop = cop;
+            continue;
+        }
+        value = cSVOPx_sv(pattern);
+        if (pattern_aux->kind == CASE_PATTERN_SIMPLE_BOOL) {
+            const U32 bool_ix = SvTRUE(value) ? 1 : 0;
+            duplicate = bool_seen[bool_ix];
+            bool_seen[bool_ix] = TRUE;
+            if (duplicate)
+                S_case_dispatch_warn_duplicate(aTHX_ value,
+                    CASE_PATTERN_SIMPLE_BOOL, bool_cop[bool_ix], cop);
+            else
+                bool_cop[bool_ix] = cop;
+        }
+        else if (pattern_aux->kind == CASE_PATTERN_SIMPLE_NUM) {
+            AV **sourcesp = SvNOK(value) ? &nv_sources : &iv_sources;
+            AV *sources = *sourcesp;
+            SSize_t i;
+            const COP *first_cop = NULL;
+
+            if (SvNOK(value))
+                duplicate = S_case_dispatch_push(aTHX_ &nv_values,
+                    &nv_clauses, value, 0, 0, CASE_PATTERN_SIMPLE_NUM);
+            else
+                duplicate = S_case_dispatch_push(aTHX_ &iv_values,
+                    &iv_clauses, value, 0, 0, CASE_PATTERN_SIMPLE_NUM);
+            if (duplicate) {
+                for (i = 0; i <= av_len(sources); i++) {
+                    SV **old = av_fetch(SvNOK(value)
+                        ? nv_values : iv_values, i, FALSE);
+                    if (old && do_ncmp(*old, value) == 0) {
+                        SV **source = av_fetch(sources, i, FALSE);
+                        if (source)
+                            first_cop = INT2PTR(const COP *, SvUVX(*source));
+                        break;
+                    }
+                }
+                S_case_dispatch_warn_duplicate(aTHX_ value,
+                    CASE_PATTERN_SIMPLE_NUM, first_cop, cop);
+            }
+            else {
+                if (!sources)
+                    sources = *sourcesp = newAV();
+                av_push(sources, newSVuv(PTR2UV(cop)));
+            }
+        }
+        else {
+            AV *sources = pv_sources;
+            SSize_t i;
+            const COP *first_cop = NULL;
+            duplicate = S_case_dispatch_push(aTHX_ &pv_values,
+                &pv_clauses, value, 0, 0, CASE_PATTERN_SIMPLE_STR);
+            if (duplicate) {
+                for (i = 0; i <= av_len(pv_values); i++) {
+                    SV **old = av_fetch(pv_values, i, FALSE);
+                    if (old && sv_cmp(*old, value) == 0) {
+                        SV **source = av_fetch(sources, i, FALSE);
+                        if (source)
+                            first_cop = INT2PTR(const COP *, SvUVX(*source));
+                        break;
+                    }
+                }
+                S_case_dispatch_warn_duplicate(aTHX_ value,
+                    CASE_PATTERN_SIMPLE_STR, first_cop, cop);
+            }
+            else {
+                if (!sources)
+                    sources = pv_sources = newAV();
+                av_push(sources, newSVuv(PTR2UV(cop)));
+            }
+        }
+    }
+    SvREFCNT_dec((SV *)iv_values);
+    SvREFCNT_dec((SV *)iv_clauses);
+    SvREFCNT_dec((SV *)nv_values);
+    SvREFCNT_dec((SV *)nv_clauses);
+    SvREFCNT_dec((SV *)pv_values);
+    SvREFCNT_dec((SV *)pv_clauses);
+    SvREFCNT_dec((SV *)iv_sources);
+    SvREFCNT_dec((SV *)nv_sources);
+    SvREFCNT_dec((SV *)pv_sources);
+}
+
+static void
+S_case_dispatch_sort(pTHX_ AV *values, AV *clauses, U8 kind)
+{
+    SSize_t i, j, count;
+    SV **value_array;
+    SV **clause_array;
+
+    if (!values || !clauses)
+        return;
+    count = av_len(values) + 1;
+    value_array = AvARRAY(values);
+    clause_array = AvARRAY(clauses);
+    for (i = 1; i < count; i++) {
+        SV *value = value_array[i];
+        SV *clause = clause_array[i];
+        for (j = i; j > 0; j--) {
+            const I32 cmp = kind == CASE_PATTERN_SIMPLE_NUM
+                ? do_ncmp(value_array[j - 1], value)
+                : sv_cmp(value_array[j - 1], value);
+            if (cmp <= 0)
+                break;
+            value_array[j] = value_array[j - 1];
+            clause_array[j] = clause_array[j - 1];
+        }
+        value_array[j] = value;
+        clause_array[j] = clause;
+    }
+}
+
+static bool
+S_case_dispatch_default_is_noop(const OP *target, const OP *leavecasematch)
+{
+    const OP *op = target ? target->op_next : NULL;
+    U32 steps = 0;
+
+    while (op && op != leavecasematch && steps++ < 8) {
+        if (op->op_type != OP_NEXTSTATE && op->op_type != OP_STUB
+            && op->op_type != OP_NULL && op->op_type != OP_UNSTACK
+            && op->op_type != OP_SCOPE)
+            return FALSE;
+        op = op->op_next;
+    }
+    return op == leavecasematch;
+}
+
+/* Traverse clause conditions, not their bodies or nested cases. Every
+ * clause reserves enough owner slots for the enclosing case; retries may
+ * still grow that reservation. This applies even without dispatch tables. */
+static size_t
+S_case_reserve_captures(pTHX_ OP *op, size_t reserve)
+{
+    size_t total = 0;
+    OP *kid;
+    if (!op || op->op_type == OP_LEAVECASE)
+        return 0;
+    if (op->op_type == OP_CASEMATCH) {
+        struct case_pattern_aux *aux =
+            (struct case_pattern_aux *)cUNOP_AUXx(op)->op_aux;
+        if (reserve)
+            aux->case_capture_capacity = reserve;
+        return aux->binding_capacity;
+    }
+    if (op->op_type == OP_LEAVECASEMATCH) {
+        OP *enter = cUNOPx(op)->op_first;
+        return enter ? S_case_reserve_captures(aTHX_
+            cUNOPx(enter)->op_first, reserve) : 0;
+    }
+    if (!(op->op_flags & OPf_KIDS))
+        return 0;
+    for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid)) {
+        size_t count = S_case_reserve_captures(aTHX_ kid, reserve);
+        if (count > (size_t)SSize_t_MAX - total)
+            Perl_croak(aTHX_ "Too many case captures");
+        total += count;
+    }
+    return total;
+}
+
+UNOP_AUX_item *
+Perl_case_dispatch_compile(pTHX_ OP *body)
+{
+    struct case_dispatch_aux *dispatch;
+    OP *kid;
+    U32 nclause = 0;
+    U32 clause_count;
+    bool eligible = TRUE;
+    bool has_constant = FALSE;
+
+    PERL_ARGS_ASSERT_CASE_DISPATCH_COMPILE;
+
+    if (!body || body->op_type != OP_LINESEQ)
+        return NULL;
+    (void)S_case_reserve_captures(aTHX_ body,
+        S_case_reserve_captures(aTHX_ body, 0));
+    S_case_dispatch_warn_duplicates(aTHX_ body);
+    for (kid = cLISTOPx(body)->op_first; kid; kid = OpSIBLING(kid)) {
+        struct case_pattern_aux *pattern_aux;
+        if (OP_TYPE_IS_COP_NN(kid))
+            continue;
+        if (!S_case_dispatch_clause(aTHX_ kid, &pattern_aux, NULL)) {
+            eligible = FALSE;
+            break;
+        }
+        nclause++;
+        if (S_case_pattern_is_wildcard(aTHX_ pattern_aux))
+            break;
+        has_constant = TRUE;
+    }
+    if (!eligible || !nclause || !has_constant)
+        return NULL;
+    clause_count = nclause;
+
+    dispatch = (struct case_dispatch_aux *)PerlMemShared_calloc(
+        1, sizeof(struct case_dispatch_aux));
+    dispatch->magic = CASE_DISPATCH_AUX_MAGIC;
+    dispatch->refcnt = 1;
+    dispatch->strategy = S_case_dispatch_strategy(clause_count);
+    dispatch->undef_clause = CASE_DISPATCH_NO_CLAUSE;
+    dispatch->bool_clause[0] = CASE_DISPATCH_NO_CLAUSE;
+    dispatch->bool_clause[1] = CASE_DISPATCH_NO_CLAUSE;
+    dispatch->default_clause = CASE_DISPATCH_NO_CLAUSE;
+    dispatch->clause_count = clause_count;
+    dispatch->clause_targets = (OP **)PerlMemShared_calloc(
+        clause_count, sizeof(OP *));
+    if (dispatch->strategy == CASE_DISPATCH_NONE) {
+        PerlMemShared_free(dispatch->clause_targets);
+        PerlMemShared_free(dispatch);
+        return NULL;
+    }
+
+    nclause = 0;
+    for (kid = cLISTOPx(body)->op_first; kid; kid = OpSIBLING(kid)) {
+        struct case_pattern_aux *pattern_aux;
+        const OP *pattern;
+        SV *value;
+        bool duplicate;
+
+        if (OP_TYPE_IS_COP_NN(kid))
+            continue;
+        OP *target;
+        (void)S_case_dispatch_clause(aTHX_ kid, &pattern_aux, &target);
+        pattern = pattern_aux->root->op;
+        pattern_aux->dispatch = dispatch;
+        pattern_aux->dispatch_clause = nclause++;
+        dispatch->clause_targets[pattern_aux->dispatch_clause] = target;
+        dispatch->refcnt++;
+
+        if (pattern_aux->kind == CASE_PATTERN_SIMPLE_UNDEF) {
+            duplicate = dispatch->undef_clause != CASE_DISPATCH_NO_CLAUSE;
+            if (!duplicate)
+                dispatch->undef_clause = pattern_aux->dispatch_clause;
+            continue;
+        }
+        if (S_case_pattern_is_wildcard(aTHX_ pattern_aux)) {
+            if (dispatch->default_clause == CASE_DISPATCH_NO_CLAUSE) {
+                dispatch->default_clause = pattern_aux->dispatch_clause;
+                dispatch->default_noop =
+                    S_case_dispatch_default_is_noop(target, kid);
+            }
+            break;
+        }
+        value = cSVOPx_sv(pattern);
+        if (pattern_aux->kind == CASE_PATTERN_SIMPLE_BOOL) {
+            const U32 bool_ix = SvTRUE(value) ? 1 : 0;
+            duplicate = dispatch->bool_clause[bool_ix] != CASE_DISPATCH_NO_CLAUSE;
+            if (!duplicate)
+                dispatch->bool_clause[bool_ix] = pattern_aux->dispatch_clause;
+        }
+        else if (pattern_aux->kind == CASE_PATTERN_SIMPLE_NUM) {
+            if (SvNOK(value))
+                S_case_dispatch_add_nv_bound(dispatch, value);
+            else
+                S_case_dispatch_add_iv_bound(dispatch, value);
+            if (dispatch->strategy == CASE_DISPATCH_HV)
+                duplicate = S_case_dispatch_store(aTHX_
+                    SvNOK(value) ? &dispatch->nv_table : &dispatch->iv_table,
+                    value, CASE_PATTERN_SIMPLE_NUM, pattern_aux->dispatch_clause);
+            else if (SvNOK(value))
+                duplicate = S_case_dispatch_push(aTHX_ &dispatch->nv_values,
+                    &dispatch->nv_clauses, value, pattern_aux->dispatch_clause,
+                    clause_count, CASE_PATTERN_SIMPLE_NUM);
+            else
+                duplicate = S_case_dispatch_push(aTHX_ &dispatch->iv_values,
+                    &dispatch->iv_clauses, value, pattern_aux->dispatch_clause,
+                    clause_count, CASE_PATTERN_SIMPLE_NUM);
+        }
+        else {
+            const STRLEN len = IN_BYTES ? SvCUR(value) : sv_len_utf8_nomg(value);
+            if (dispatch->strategy == CASE_DISPATCH_HV)
+                duplicate = S_case_dispatch_store(aTHX_ &dispatch->pv_table, value,
+                    CASE_PATTERN_SIMPLE_STR, pattern_aux->dispatch_clause);
+            else
+                duplicate = S_case_dispatch_push(aTHX_ &dispatch->pv_values,
+                    &dispatch->pv_clauses, value, pattern_aux->dispatch_clause,
+                    clause_count, CASE_PATTERN_SIMPLE_STR);
+            if (!dispatch->pv_has_bounds) {
+                dispatch->pv_minlen = len;
+                dispatch->pv_maxlen = len;
+                dispatch->pv_has_bounds = TRUE;
+            }
+            else {
+                if (len < dispatch->pv_minlen)
+                    dispatch->pv_minlen = len;
+                if (len > dispatch->pv_maxlen)
+                    dispatch->pv_maxlen = len;
+            }
+        }
+    }
+
+    if (dispatch->strategy == CASE_DISPATCH_ARRAY_BINARY) {
+        S_case_dispatch_sort(aTHX_ dispatch->iv_values, dispatch->iv_clauses,
+            CASE_PATTERN_SIMPLE_NUM);
+        S_case_dispatch_sort(aTHX_ dispatch->nv_values, dispatch->nv_clauses,
+            CASE_PATTERN_SIMPLE_NUM);
+        S_case_dispatch_sort(aTHX_ dispatch->pv_values, dispatch->pv_clauses,
+            CASE_PATTERN_SIMPLE_STR);
+    }
+
+    return (UNOP_AUX_item *)dispatch;
+}
+
+void
+Perl_case_dispatch_free(pTHX_ UNOP_AUX_item *items)
+{
+    struct case_dispatch_aux *dispatch = (struct case_dispatch_aux *)items;
+
+    PERL_ARGS_ASSERT_CASE_DISPATCH_FREE;
+    PERL_UNUSED_CONTEXT;
+    if (!dispatch || dispatch->magic != CASE_DISPATCH_AUX_MAGIC)
+        return;
+    /* The initial reference belongs to OP_CASEDISPATCH; each pattern clause
+     * adds one while the dispatch table is built.  The optree owns all OP
+     * pointers, while the ordinary AVs own the retained table values. */
+    if (--dispatch->refcnt)
+        return;
+    SvREFCNT_dec((SV *)dispatch->iv_values);
+    SvREFCNT_dec((SV *)dispatch->iv_clauses);
+    SvREFCNT_dec((SV *)dispatch->nv_values);
+    SvREFCNT_dec((SV *)dispatch->nv_clauses);
+    SvREFCNT_dec((SV *)dispatch->pv_values);
+    SvREFCNT_dec((SV *)dispatch->pv_clauses);
+    SvREFCNT_dec((SV *)dispatch->iv_table);
+    SvREFCNT_dec((SV *)dispatch->nv_table);
+    SvREFCNT_dec((SV *)dispatch->pv_table);
+    PerlMemShared_free(dispatch->clause_targets);
+    PerlMemShared_free(dispatch);
+}
+
+static PERL_CONTEXT *
+S_case_context(pTHX)
+{
+    I32 i;
+    PERL_UNUSED_CONTEXT;
+    for (i = cxstack_ix; i >= 0; i--) {
+        PERL_CONTEXT *cx = &cxstack[i];
+        if (CxTYPE(cx) == CXt_CASE)
+            return cx;
+    }
+    return NULL;
+}
+
+static void
+S_case_discard_bindings(pTHX_ PERL_CONTEXT *cx)
+{
+    if (cx->blk_case.case_bindings) {
+        SvREFCNT_dec((SV *)cx->blk_case.case_bindings);
+        cx->blk_case.case_bindings = NULL;
+    }
+}
+
+static void
+S_case_set_array(pTHX_ SV *target, AV *source)
+{
+    SSize_t i;
+    av_clear(MUTABLE_AV(target));
+    for (i = 0; i <= av_len(source); i++) {
+        SV **svp = av_fetch(source, i, FALSE);
+        if (svp)
+            av_push(MUTABLE_AV(target), SvREFCNT_inc(*svp));
+    }
+}
+
+static void
+S_case_commit_bindings(pTHX_ PERL_CONTEXT *cx)
+{
+    AV *bindings = cx->blk_case.case_bindings;
+
+    if (!bindings)
+        return;
+    assert(!cx->blk_case.case_committed_bindings);
+    cx->blk_case.case_committed_bindings = bindings;
+    cx->blk_case.case_bindings = NULL;
+}
+
+static void
+S_case_rollback_bindings(pTHX_ PERL_CONTEXT *cx)
+{
+    AV *bindings = cx->blk_case.case_bindings;
+    SSize_t i;
+
+    if (!bindings)
+        return;
+    for (i = 0; i + 3 <= av_len(bindings); i += 4) {
+        SV **padix_sv = av_fetch(bindings, i, FALSE);
+        SV **old_value_sv = av_fetch(bindings, i + 1, FALSE);
+        SV **is_array_sv = av_fetch(bindings, i + 2, FALSE);
+        if (padix_sv && old_value_sv && is_array_sv) {
+            SV *target = PAD_SV((PADOFFSET)SvUV(*padix_sv));
+            /* A guard can publish a closure even when it rejects the
+             * clause. Restore the pad, not the lexical the closure owns. */
+            if (SvREFCNT(target) > 1 || SvOBJECT(target)) {
+                SV *replacement = SvTRUE(*is_array_sv)
+                    ? MUTABLE_SV(newAV()) : newSV_type(SVt_NULL);
+                PAD_SVl((PADOFFSET)SvUV(*padix_sv)) = replacement;
+                SvREFCNT_dec(target);
+                target = replacement;
+            }
+            if (SvTRUE(*is_array_sv))
+                S_case_set_array(aTHX_ target, MUTABLE_AV(SvRV(*old_value_sv)));
+            else
+                sv_setsv(target, *old_value_sv);
+        }
+    }
+    S_case_discard_bindings(aTHX_ cx);
+}
+
+static bool
+S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
+                      SV *pattern_value,
+                      struct case_binding *bindings, size_t *nbindings,
+                      struct case_capture_owner *owner);
+
+static void
+S_case_pattern_bind_regex(pTHX_ const struct case_pattern_node *node,
+                          struct case_binding *bindings, size_t *nbindings,
+                          struct case_capture_owner *owner);
+
+static const struct case_pattern_node *
+S_case_pattern_find_shape_node(const struct case_pattern_node *node)
+{
+    U32 i;
+
+    if (!node)
+        return NULL;
+    if (S_case_pattern_empty_fields(node->op)) {
+        assert(node->nchild == 1 && node->child[0]->nchild == 0);
+        return node->child[0];
+    }
+    if (node->op->op_type == OP_LIST
+        || (node->op->op_type == OP_NULL && node->op->op_targ == OP_LIST))
+        return node;
+    for (i = 0; i < node->nchild; i++) {
+        const struct case_pattern_node *shape =
+            S_case_pattern_find_shape_node(node->child[i]);
+        if (shape)
+            return shape;
+    }
+    return NULL;
+}
+
+static const struct case_pattern_node *
+S_case_pattern_find_op_node(const struct case_pattern_node *node, const OP *op)
+{
+    U32 i;
+
+    if (!node)
+        return NULL;
+    if (node->op == op)
+        return node;
+    for (i = 0; i < node->nchild; i++) {
+        const struct case_pattern_node *found =
+            S_case_pattern_find_op_node(node->child[i], op);
+        if (found)
+            return found;
+    }
+    return NULL;
+}
+
+static bool
+S_case_node_is_wildcard(pTHX_ const struct case_pattern_node *node)
+{
+    const OP *op = S_case_pattern_unwrap(node)->op;
+    return op->op_type == OP_CONST && (op->op_private & OPpCONST_BARE)
+        && strEQ(SvPV_nolen_const(cSVOPx_sv(op)), "_");
+}
+
+static U8
+S_case_match_rank(pTHX_ const struct case_pattern_node *node)
+{
+    node = S_case_pattern_unwrap(node);
+    if (node->constraint_rank == CASE_CONSTRAINT_CAPTURE
+        && S_case_pattern_pad_is_pinned(aTHX_ node->binding_padix))
+        return CASE_CONSTRAINT_TEST;
+    return node->constraint_rank;
+}
+
+static bool
+S_case_match_array_item(pTHX_ const struct case_pattern_node *node,
+                         AV *av, SSize_t index, SV *pattern_value,
+                         struct case_binding *bindings, size_t *nbindings,
+                         struct case_capture_owner *owner)
+{
+    SV **svp;
+    if (S_case_node_is_wildcard(aTHX_ node))
+        return TRUE;
+    if (!owner->collecting
+        && S_case_match_rank(aTHX_ node) == CASE_CONSTRAINT_CAPTURE) {
+        S_case_defer_capture(aTHX_ owner, node, (SV *)av, NULL, index, 0,
+                             CASE_CAPTURE_ARRAY);
+        return TRUE;
+    }
+    svp = av_fetch(av, index, FALSE);
+    return S_case_pattern_match(aTHX_ node, svp ? *svp : &PL_sv_undef,
+                                 pattern_value, bindings, nbindings, owner);
+}
+
+static bool
+S_case_pattern_match_object_fields(pTHX_ const struct case_pattern_node *node,
+                                    SV *value,
+                                    struct case_binding *bindings,
+                                    size_t *nbindings,
+                                    struct case_capture_owner *owner)
+{
+    HV *hv;
+    size_t pairs = 0;
+    bool open = FALSE;
+
+    if (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVHV)
+        return FALSE;
+    hv = MUTABLE_HV(sv_2mortal(SvREFCNT_inc(SvRV(value))));
+    {
+        U32 i;
+        U8 rank;
+        for (rank = CASE_CONSTRAINT_LITERAL;
+             rank <= CASE_CONSTRAINT_CAPTURE; rank++) {
+        for (i = 0; i < node->nchild; i++) {
+            const struct case_pattern_node *keynode = node->child[i];
+            const struct case_pattern_node *valnode;
+            HE *he;
+            if (keynode->op->op_type == OP_PUSHMARK
+                || (keynode->op->op_type == OP_NULL
+                    && keynode->op->op_targ == OP_PUSHMARK))
+                continue;
+            if (S_case_pattern_is_ellipsis(aTHX_ keynode->op)) {
+                open = TRUE;
+                continue;
+            }
+            if (i + 1 >= node->nchild)
+                return FALSE;
+            valnode = node->child[++i];
+            if (S_case_match_rank(aTHX_ valnode) != rank)
+                continue;
+            if (keynode->op->op_type != OP_CONST)
+                return FALSE;
+            if (S_case_node_is_wildcard(aTHX_ valnode)) {
+                if (!hv_exists_ent(hv, cSVOPx_sv(keynode->op), 0))
+                    return FALSE;
+                pairs++;
+                continue;
+            }
+            if (rank == CASE_CONSTRAINT_CAPTURE) {
+                if (!hv_exists_ent(hv, cSVOPx_sv(keynode->op), 0))
+                    return FALSE;
+                S_case_defer_capture(aTHX_ owner, valnode, (SV *)hv,
+                    cSVOPx_sv(keynode->op), 0, 0, CASE_CAPTURE_HASH);
+                pairs++;
+                continue;
+            }
+            /* A tied FETCH can return undef even when the key is absent.
+             * A hash shape requires presence, not just a matching value. */
+            if (SvRMAGICAL(hv) && mg_find((const SV *)hv, PERL_MAGIC_tied)
+                && !hv_exists_ent(hv, cSVOPx_sv(keynode->op), 0))
+                return FALSE;
+            he = hv_fetch_ent(hv, cSVOPx_sv(keynode->op), FALSE, 0);
+            if (!he || !S_case_pattern_match(aTHX_ valnode, HeVAL(he),
+                                              NULL, bindings, nbindings, owner))
+                return FALSE;
+            pairs++;
+        }
+        }
+    }
+    if (open)
+        return TRUE;
+    if (SvRMAGICAL(hv) && mg_find((const SV *)hv, PERL_MAGIC_tied)) {
+        size_t count = 0;
+        (void)hv_iterinit(hv);
+        while (hv_iternext(hv))
+            count++;
+        return pairs == count;
+    }
+    return pairs == (size_t)HvUSEDKEYS(hv);
+}
+
+static bool
+S_case_pattern_match(pTHX_ const struct case_pattern_node *node, SV *value,
+                      SV *pattern_value,
+                      struct case_binding *bindings, size_t *nbindings,
+                      struct case_capture_owner *owner)
+{
+    const OP *pattern;
+    const OP *kid;
+
+    /* User callbacks may remove this slot from its parent. Retain the SV
+     * across the entire recursive invocation; do not snapshot ordinary
+     * scalars, so in-place updates remain observable. */
+    sv_2mortal(SvREFCNT_inc(value));
+    if (SvGMAGICAL(value)) {
+        /* Capture the fetched value, not the tied scalar that supplied it.
+         * Further recursion and binding publication must use this same
+         * observation; user code in guards remains free to fetch again. */
+        SvGETMAGIC(value);
+        value = sv_2mortal(newSVsv_flags(value, 0));
+    }
+    node = S_case_pattern_unwrap(node);
+    pattern = node->op;
+
+    if (pattern->op_type == OP_UNDEF)
+        return !SvOK(value);
+
+    if (node->object_shape) {
+        const struct case_pattern_node *fields =
+            S_case_pattern_find_shape_node(node->object_shape);
+        SV *logical = NULL;
+        bool matched;
+
+        if (!node->object_class
+            || !S_case_pattern_exact_class(aTHX_ value, node->object_class))
+            return FALSE;
+        if (fields) {
+            if (SvTYPE(SvRV(value)) == SVt_PVOBJ)
+                logical = sv_2mortal(Perl_class_object_to_hash(aTHX_ value));
+            matched = S_case_pattern_match_object_fields(aTHX_
+                fields, logical ? logical : value, bindings, nbindings, owner);
+        }
+        else {
+            if ((node->object_shape->op->op_type == OP_ANONHASH
+                 || (node->object_shape->op->op_type == OP_EMPTYAVHV
+                     && (node->object_shape->op->op_private
+                         & OPpEMPTYAVHV_IS_HV)))
+                && SvTYPE(SvRV(value)) == SVt_PVOBJ)
+                logical = sv_2mortal(Perl_class_object_to_hash(aTHX_ value));
+            matched = S_case_pattern_match(aTHX_ node->object_shape,
+                                            logical ? logical : value,
+                                            NULL, bindings, nbindings, owner);
+        }
+        return matched;
+    }
+
+    if (pattern->op_type == OP_CASECOERCE
+        && (pattern->op_private & CASE_PATTERN_CRITERION_MASK)
+            == CASE_PATTERN_CRITERION_OBJECT) {
+        const struct case_pattern_node *args = node->nchild
+            ? node->child[0] : NULL;
+        const struct case_pattern_node *class_node;
+        const struct case_pattern_node *shape_node;
+        SV *logical = NULL;
+        bool matched;
+
+        if (!args || args->op->op_type != OP_LIST || args->nchild < 2)
+            return FALSE;
+        {
+            U32 argix = 0;
+            if (args->child[argix]->op->op_type == OP_PUSHMARK
+                || (args->child[argix]->op->op_type == OP_NULL
+                    && args->child[argix]->op->op_targ == OP_PUSHMARK))
+                argix++;
+            if (argix + 1 >= args->nchild)
+                return FALSE;
+            class_node = args->child[argix];
+            shape_node = args->child[argix + 1];
+        }
+        if (!class_node || class_node->op->op_type != OP_CONST
+            || !S_case_pattern_exact_class(aTHX_ value,
+                cSVOPx_sv(class_node->op)))
+            return FALSE;
+        if (shape_node->op->op_type == OP_LIST
+            || (shape_node->op->op_type == OP_NULL
+                && shape_node->op->op_targ == OP_LIST))
+            matched = S_case_pattern_match_object_fields(aTHX_
+                shape_node, value, bindings, nbindings, owner);
+        else {
+            if ((shape_node->op->op_type == OP_ANONHASH
+                 || (shape_node->op->op_type == OP_EMPTYAVHV
+                     && (shape_node->op->op_private & OPpEMPTYAVHV_IS_HV)))
+                && SvTYPE(SvRV(value)) == SVt_PVOBJ)
+                logical = sv_2mortal(Perl_class_object_to_hash(aTHX_ value));
+            matched = S_case_pattern_match(aTHX_ shape_node,
+                                            logical ? logical : value,
+                                            NULL, bindings, nbindings, owner);
+        }
+        return matched;
+    }
+
+    if (pattern->op_type == OP_REFGEN || pattern->op_type == OP_SREFGEN) {
+        const struct case_pattern_node *referent_pattern =
+            node->nchild ? node->child[0] : NULL;
+
+        /* A reference constructor in a data shape describes the reference
+         * itself.  Descend through nested REFGENs so that \$x matches a
+         * SCALAR reference and \\$x matches a reference to one.  A scalar
+         * target binds the referent, not the outer reference. */
+        if (!referent_pattern || !SvROK(value))
+            return FALSE;
+        if (SvTYPE(SvRV(value)) >= SVt_PVAV
+            || isGV_with_GP(SvRV(value))
+            || SvTYPE(SvRV(value)) == SVt_REGEXP)
+            return FALSE;
+        return S_case_pattern_match(aTHX_
+            referent_pattern, SvRV(value),
+            NULL, bindings, nbindings, owner);
+    }
+
+    if (pattern->op_type == OP_ENTERSUB) {
+        SV *called = sv_2mortal(S_case_pattern_call(aTHX_ pattern));
+        bool matched;
+
+        if (!SvOK(called))
+            matched = !SvOK(value);
+        else if (SvROK(called))
+            matched = S_case_pattern_values_equal(aTHX_ called, value);
+        else if (SvIsBOOL(called))
+            matched = SvIsBOOL(value) && SvTRUE(value) == SvTRUE(called);
+        else if (!SvPOK(called) && SvNIOK(called))
+            matched = ((!SvPOK(value) && SvNIOK(value) && !SvIsBOOL(value))
+                       || SvAMAGIC(value))
+                && do_ncmp(value, called) == 0;
+        else
+            matched = (SvPOK(value) || SvAMAGIC(value)) && !SvIsBOOL(value)
+                && sv_streq_flags(value, called, 0);
+        return matched;
+    }
+
+    if (pattern->op_type == OP_CASECOERCE
+        && !S_case_pattern_is_slurp(pattern)
+        && pattern->op_private >= 4) {
+        bool matched;
+        const OP *target = (pattern->op_flags & OPf_KIDS)
+            ? cUNOPx(pattern)->op_first : NULL;
+        const U8 criterion = pattern->op_private & CASE_PATTERN_CRITERION_MASK;
+        if (criterion == CASE_PATTERN_CRITERION_PIN) {
+            SV *pinvalue = target && target->op_type == OP_PADSV
+                ? S_case_pattern_pin_value(aTHX_ target->op_targ) : NULL;
+            return pinvalue && S_case_pattern_values_equal(aTHX_
+                pinvalue, value);
+        }
+        if (criterion == CASE_PATTERN_CRITERION_INT
+            || criterion == CASE_PATTERN_CRITERION_FLOAT
+            || criterion == CASE_PATTERN_CRITERION_INTSTR
+            || criterion == CASE_PATTERN_CRITERION_FLOATSTR
+            || criterion == CASE_PATTERN_CRITERION_NUM
+            || criterion == CASE_PATTERN_CRITERION_NUMSTR) {
+            matched = S_case_pattern_numeric_match(aTHX_ value, pattern->op_private);
+        }
+        else if (criterion == CASE_PATTERN_CRITERION_NUMEQ) {
+            const OP *arg = target;
+            if (!arg || (arg->op_type != OP_CONST && arg->op_type != OP_UNDEF))
+                Perl_croak(aTHX_ "NumEq() requires a literal argument in a match pattern");
+            if ((pattern->op_private & CASE_PATTERN_CRITERION_STRICT)
+                && !S_case_pattern_strict_numeq(aTHX_ value))
+                return FALSE;
+            matched = do_ncmp(value,
+                              arg->op_type == OP_CONST
+                              ? cSVOPx_sv(arg) : &PL_sv_undef) == 0;
+            return matched;
+        }
+        else if (criterion == CASE_PATTERN_CRITERION_DEFINEDVAL)
+            matched = SvOK(value);
+        else if (criterion == CASE_PATTERN_CRITERION_TRUE)
+            matched = SvTRUE(value);
+        else if (criterion == CASE_PATTERN_CRITERION_FALSE)
+            matched = !SvTRUE(value);
+        else if (criterion == CASE_PATTERN_CRITERION_REFVAL)
+            matched = SvROK(value);
+        else if (criterion == CASE_PATTERN_CRITERION_SCALARVAL)
+            matched = !SvROK(value);
+        else
+            matched = SvROK(value) && SvOBJECT(SvRV(value));
+        if (!matched || !target)
+            return matched;
+        if (target->op_type != OP_PADSV)
+            return FALSE;
+        {
+            size_t i;
+            const PADOFFSET padix = target->op_targ;
+            const struct case_pattern_node *target_node =
+                S_case_pattern_find_op_node(node, target);
+            for (i = 0; i < *nbindings; i++)
+                if (bindings[i].padix == padix)
+                    return S_case_pattern_values_equal(aTHX_
+                        AvARRAY(owner->values)[bindings[i].value_ix], value);
+            bindings[*nbindings].padix = padix;
+            bindings[*nbindings].value_ix = S_case_retain_capture(aTHX_ owner, value);
+            bindings[*nbindings].is_array = FALSE;
+            bindings[*nbindings].clear_on_exit = target_node
+                ? target_node->binding_local : TRUE;
+            (*nbindings)++;
+        }
+        return TRUE;
+    }
+
+    if (pattern->op_type == OP_CONCAT
+        || pattern->op_type == OP_MULTICONCAT) {
+        return S_case_pattern_concat_match(aTHX_ node, value, pattern_value,
+                                            bindings, nbindings, owner);
+    }
+
+    if (pattern->op_type == OP_CONST) {
+        SV *pattern_sv = cSVOPx_sv(pattern);
+        if (pattern->op_private & OPpCONST_BARE
+            && strEQ(SvPV_nolen_const(pattern_sv), "_"))
+            return TRUE;
+        if (SvIsBOOL(pattern_sv))
+            return SvIsBOOL(value) && (SvTRUE(value) == SvTRUE(pattern_sv));
+        if (!SvPOK(pattern_sv) && SvNIOK(pattern_sv)) {
+            return ((!SvPOK(value) && SvNIOK(value) && !SvIsBOOL(value))
+                    || SvAMAGIC(value))
+                && do_ncmp(value, pattern_sv) == 0;
+        }
+        return (SvPOK(value) || SvAMAGIC(value)) && !SvIsBOOL(value)
+            && sv_streq_flags(value, pattern_sv, 0);
+    }
+
+    if (pattern->op_type == OP_PADSV) {
+        size_t i;
+        const PADOFFSET padix = node->binding_padix;
+        PERL_CONTEXT *cx = S_case_context(aTHX);
+        if (!owner->collecting
+            && S_case_match_rank(aTHX_ node) == CASE_CONSTRAINT_CAPTURE) {
+            S_case_defer_capture(aTHX_ owner, node, value, NULL, 0, 0,
+                                 CASE_CAPTURE_VALUE);
+            return TRUE;
+        }
+        if (cx && CxTYPE(cx) == CXt_CASE && cx->blk_case.case_pins) {
+            AV *pins = cx->blk_case.case_pins;
+            SSize_t j;
+            for (j = 0; j + 1 <= av_len(pins); j += 2) {
+                SV **pinix = av_fetch(pins, j, FALSE);
+                SV **pinvalue = av_fetch(pins, j + 1, FALSE);
+                if (pinix && pinvalue && SvUV(*pinix) == (UV)padix)
+                    return S_case_pattern_values_equal(aTHX_
+                        *pinvalue, value);
+            }
+        }
+        for (i = 0; i < *nbindings; i++) {
+            if (bindings[i].padix == padix)
+                return S_case_pattern_values_equal(aTHX_
+                    AvARRAY(owner->values)[bindings[i].value_ix], value);
+        }
+        bindings[*nbindings].padix = padix;
+        bindings[*nbindings].value_ix = S_case_retain_capture(aTHX_ owner, value);
+        bindings[*nbindings].is_array = FALSE;
+        bindings[*nbindings].clear_on_exit = node->binding_local;
+        (*nbindings)++;
+        return TRUE;
+    }
+
+    if (pattern->op_type == OP_MATCH) {
+        PMOP *pattern_pm = cPMOPx(pattern);
+        PMOP *matcher = S_make_matcher(aTHX_ PM_GETRE(pattern_pm));
+        const bool matched = S_matcher_matches_sv(aTHX_ matcher, value);
+
+        S_destroy_matcher(aTHX_ matcher);
+        /* Keep the retained pattern PMOP current while the clause body can
+         * inspect the ordinary regexp captures ($1, %+ and friends).  The
+         * temporary matcher owns no capture state of its own; it only
+         * provides the stacked operand needed by pp_match().  This must be
+         * done after its temporary scope is left, because that scope restores
+         * PL_curpm. */
+        if (matched) {
+            PL_curpm = pattern_pm;
+            S_case_pattern_bind_regex(aTHX_ node, bindings, nbindings, owner);
+        }
+        return matched;
+    }
+
+    /* Empty constructors are BASEOPs, not childless LISTOPs. The compiled
+     * shape already records zero children, so reuse the normal container
+     * matching paths without reading an op_first from these operations.
+     * This also preserves tied FETCHSIZE/key-iteration semantics. */
+    if (pattern->op_type == OP_ANONLIST
+        || (pattern->op_type == OP_EMPTYAVHV
+            && !(pattern->op_private & OPpEMPTYAVHV_IS_HV))) {
+        AV *av;
+        struct case_pattern_node * const *fixed = node->child;
+        size_t nfixed = 0;
+        bool leading_open = FALSE;
+        bool trailing_open = FALSE;
+        const struct case_pattern_node *slurp = NULL;
+        size_t i;
+        U32 childix;
+
+        if (SvROK(value) == 0 || SvTYPE(SvRV(value)) != SVt_PVAV)
+            return FALSE;
+        av = MUTABLE_AV(sv_2mortal(SvREFCNT_inc(SvRV(value))));
+        for (childix = 0; childix < node->nchild; childix++)
+        {
+            const struct case_pattern_node *child = node->child[childix];
+            kid = child->op;
+            if (kid->op_type == OP_PUSHMARK) {
+                fixed++;
+                continue;
+            }
+            if (kid->op_type == OP_CONST
+                && (kid->op_flags & OPf_SPECIAL)
+                && strEQ(SvPV_nolen_const(cSVOPx_sv(kid)), "...")) {
+                if (nfixed == 0) {
+                    if (leading_open)
+                        return FALSE;
+                    leading_open = TRUE;
+                    fixed++;
+                }
+                else if (trailing_open)
+                    return FALSE;
+                else
+                    trailing_open = TRUE;
+                continue;
+            }
+            if (S_case_pattern_is_slurp(kid)) {
+                if (slurp || trailing_open || leading_open
+                    || childix + 1 != node->nchild)
+                    return FALSE;
+                slurp = child;
+                continue;
+            }
+            if (trailing_open)
+                return FALSE;
+            nfixed++;
+        }
+
+        {
+            const SSize_t nvalues = AvFILL(av) + 1;
+            AV *pattern_av = pattern_value && SvROK(pattern_value)
+                && SvTYPE(SvRV(pattern_value)) == SVt_PVAV
+                ? MUTABLE_AV(SvRV(pattern_value)) : NULL;
+            SSize_t first = leading_open ? 0 : 0;
+            SSize_t last = nvalues - (SSize_t)nfixed;
+
+            if (nvalues < (SSize_t)nfixed)
+                return FALSE;
+            if (slurp && (UV)(nvalues - (SSize_t)nfixed)
+                    < (UV)(U32)slurp->op->op_targ)
+                return FALSE;
+            if (!leading_open && !trailing_open && nvalues != (SSize_t)nfixed)
+                if (!slurp)
+                    return FALSE;
+            /* Candidate order remains leftmost-first, but each candidate
+             * checks its anchors and other constraints before capture-only
+             * locations are queued. No capture fetch is needed for a miss. */
+            if (leading_open && !trailing_open)
+                first = last;
+            else if (!leading_open)
+                last = first;
+            for (; first <= last; first++) {
+                const size_t saved = *nbindings;
+                const size_t saved_requests = owner->nrequests;
+                U8 rank;
+                bool ok = TRUE;
+                for (rank = CASE_CONSTRAINT_LITERAL;
+                     ok && rank <= CASE_CONSTRAINT_CAPTURE; rank++) {
+                    for (i = 0; i < nfixed; i++) {
+                        SV **pattern_svp;
+                        if (S_case_match_rank(aTHX_ fixed[i]) != rank)
+                            continue;
+                        pattern_svp = pattern_av
+                            ? av_fetch(pattern_av, i + (leading_open ? 1 : 0), FALSE)
+                            : NULL;
+                        if (!S_case_match_array_item(aTHX_ fixed[i], av,
+                                first + (SSize_t)i,
+                                pattern_svp ? *pattern_svp : NULL,
+                                bindings, nbindings, owner)) {
+                            ok = FALSE;
+                            break;
+                        }
+                    }
+                }
+                if (ok) {
+                    if (slurp)
+                        S_case_defer_capture(aTHX_ owner, slurp, (SV *)av,
+                            NULL, (SSize_t)nfixed, nvalues, CASE_CAPTURE_TAIL);
+                    return TRUE;
+                }
+                *nbindings = saved;
+                owner->nrequests = saved_requests;
+            }
+            return FALSE;
+        }
+    }
+
+    if (pattern->op_type == OP_ANONHASH
+        || (pattern->op_type == OP_EMPTYAVHV
+            && (pattern->op_private & OPpEMPTYAVHV_IS_HV))) {
+        HV *hv;
+        HV *pattern_hv = NULL;
+        HV *covered;
+        bool open = FALSE;
+
+        if (SvROK(value) == 0 || SvTYPE(SvRV(value)) != SVt_PVHV)
+            return FALSE;
+        hv = MUTABLE_HV(sv_2mortal(SvREFCNT_inc(SvRV(value))));
+        /* Coverage, not the number of syntactic pairs, determines exactness.
+         * Runtime keys may coincide; both value constraints still apply,
+         * but they cover only one subject key.  Do not diagnose collisions. */
+        covered = MUTABLE_HV(sv_2mortal(MUTABLE_SV(newHV())));
+        if (pattern_value && SvROK(pattern_value)
+            && SvTYPE(SvRV(pattern_value)) == SVt_PVHV)
+            pattern_hv = MUTABLE_HV(SvRV(pattern_value));
+        {
+            U32 childix;
+            U8 rank;
+            for (rank = CASE_CONSTRAINT_LITERAL;
+                 rank <= CASE_CONSTRAINT_CAPTURE; rank++) {
+            for (childix = 0; childix < node->nchild; childix++)
+        {
+            const struct case_pattern_node *keynode;
+            const struct case_pattern_node *valnode;
+            const OP *valop;
+            SV *keysv;
+            HE *he;
+            kid = node->child[childix]->op;
+            if (kid->op_type == OP_PUSHMARK)
+                continue;
+            if (kid->op_type == OP_CONST
+                && (kid->op_flags & OPf_SPECIAL)
+                && strEQ(SvPV_nolen_const(cSVOPx_sv(kid)), "...")) {
+                open = TRUE;
+                continue;
+            }
+            keynode = node->child[childix++];
+            valnode = childix < node->nchild ? node->child[childix] : NULL;
+            valop = valnode ? valnode->op : NULL;
+            if (!valop)
+                return FALSE;
+            if ((keynode->op->op_type == OP_CONST
+                 ? S_case_match_rank(aTHX_ valnode) : CASE_CONSTRAINT_TEST) != rank)
+                continue;
+            keysv = (keynode->op->op_type == OP_CONST)
+                ? cSVOPx_sv(keynode->op) : NULL;
+            if (!keysv) {
+                keysv = keynode->op->op_type == OP_ENTERSUB
+                    ? S_case_pattern_call(aTHX_ keynode->op)
+                    : S_case_pattern_concat_fixed_value(aTHX_ keynode);
+                if (keysv) {
+                    SV *rawkey = sv_2mortal(keysv);
+                    keysv = sv_newmortal();
+                    /* Fetch and coverage must use the same string, even
+                     * when the key has stateful stringification overload. */
+                    sv_copypv(keysv, rawkey);
+                }
+            }
+            if (!keysv || !valop)
+                return FALSE;
+            if (S_case_node_is_wildcard(aTHX_ valnode)) {
+                if (!hv_exists_ent(hv, keysv, 0))
+                    return FALSE;
+                (void)hv_store_ent(covered, keysv, SvREFCNT_inc(&PL_sv_yes), 0);
+                continue;
+            }
+            if (S_case_match_rank(aTHX_ valnode) == CASE_CONSTRAINT_CAPTURE) {
+                if (!hv_exists_ent(hv, keysv, 0))
+                    return FALSE;
+                S_case_defer_capture(aTHX_ owner, valnode, (SV *)hv,
+                    keysv, 0, 0, CASE_CAPTURE_HASH);
+                (void)hv_store_ent(covered, keysv, SvREFCNT_inc(&PL_sv_yes), 0);
+                continue;
+            }
+            if (SvRMAGICAL(hv) && mg_find((const SV *)hv, PERL_MAGIC_tied)
+                && !hv_exists_ent(hv, keysv, 0))
+                return FALSE;
+            he = hv_fetch_ent(hv, keysv, FALSE, 0);
+            {
+                HE *pattern_he = pattern_hv
+                    ? hv_fetch_ent(pattern_hv, keysv, FALSE, 0) : NULL;
+                if (!he || !S_case_pattern_match(aTHX_ valnode, HeVAL(he),
+                                                  pattern_he ? HeVAL(pattern_he) : NULL,
+                                                  bindings, nbindings, owner))
+                    return FALSE;
+            }
+            (void)hv_store_ent(covered, keysv, SvREFCNT_inc(&PL_sv_yes), 0);
+        }
+        }
+        }
+        if (open)
+            return TRUE;
+        if (SvRMAGICAL(hv) && mg_find((const SV *)hv, PERL_MAGIC_tied)) {
+            SSize_t count = 0;
+            (void)hv_iterinit(hv);
+            while (hv_iternext(hv))
+                count++;
+            return (SSize_t)HvUSEDKEYS(covered) == count;
+        }
+        return HvUSEDKEYS(covered) == HvUSEDKEYS(hv);
+    }
+
+    /* The enclosing pattern expression has already been evaluated.  For a
+     * dynamic leaf, compare against the value produced for this node. */
+    return pattern_value && sv_eq(value, pattern_value);
+}
+
+static void
+S_case_pattern_bind_regex(pTHX_ const struct case_pattern_node *node,
+                           struct case_binding *bindings,
+                           size_t *nbindings, struct case_capture_owner *owner)
+{
+    SSize_t i;
+
+    if (!node->regex_names || !node->regex_padixes)
+        return;
+    for (i = 0; i <= av_len(node->regex_names); i++) {
+        SV **name_svp = av_fetch(node->regex_names, i, FALSE);
+        SV **padix_svp = av_fetch(node->regex_padixes, i, FALSE);
+        SV *captured;
+        size_t j;
+
+        if (!name_svp || !padix_svp)
+            continue;
+        captured = CALLREG_NAMED_BUFF_FETCH(
+            PM_GETRE(cPMOPx(node->op)),
+            *name_svp, 0);
+        if (!captured)
+            captured = newSVsv(&PL_sv_undef);
+        for (j = 0; j < *nbindings; j++) {
+            if (bindings[j].padix == (PADOFFSET)SvUV(*padix_svp)) {
+                SvREFCNT_dec_NN(captured);
+                break;
+            }
+        }
+        if (j < *nbindings)
+            continue;
+        bindings[*nbindings].padix = (PADOFFSET)SvUV(*padix_svp);
+        bindings[*nbindings].value_ix = S_case_retain_capture(aTHX_
+            owner, sv_2mortal(captured));
+        bindings[*nbindings].is_array = FALSE;
+        bindings[*nbindings].clear_on_exit = TRUE;
+        (*nbindings)++;
+    }
+}
+
+/* Resolve only the winning candidate's capture locations. Pattern checks
+ * and regex execution have already happened; never repeat them here. */
+static bool
+S_case_collect_captures(pTHX_ struct case_capture_owner *owner,
+                         struct case_binding *bindings, size_t *nbindings)
+{
+    size_t i;
+    owner->collecting = TRUE;
+    for (i = 0; i < owner->nrequests; i++) {
+        const struct case_capture_request *request = &owner->requests[i];
+        SV *value = request->source;
+        SV **svp;
+        HE *he;
+        if (request->kind == CASE_CAPTURE_ARRAY) {
+            svp = av_fetch(MUTABLE_AV(value), request->index, FALSE);
+            value = svp ? *svp : &PL_sv_undef;
+        }
+        else if (request->kind == CASE_CAPTURE_HASH) {
+            HV *hv = MUTABLE_HV(value);
+            if (SvRMAGICAL(hv) && mg_find((const SV *)hv, PERL_MAGIC_tied)
+                && !hv_exists_ent(hv, request->key, 0))
+                return FALSE;
+            he = hv_fetch_ent(hv, request->key, FALSE, 0);
+            if (!he)
+                return FALSE;
+            value = HeVAL(he);
+        }
+        else if (request->kind == CASE_CAPTURE_TAIL) {
+            AV *rest = MUTABLE_AV(sv_2mortal(MUTABLE_SV(newAV())));
+            SSize_t j;
+            const struct case_pattern_node *slurp = request->node;
+            for (j = request->index; j < request->end; j++) {
+                svp = av_fetch(MUTABLE_AV(value), j, FALSE);
+                av_push(rest, svp ? newSVsv(*svp) : newSV(0));
+            }
+            bindings[*nbindings].padix = slurp->binding_padix != NOT_IN_PAD
+                ? slurp->binding_padix : cUNOPx(slurp->op)->op_first->op_targ;
+            bindings[*nbindings].value_ix =
+                S_case_retain_capture(aTHX_ owner, (SV *)rest);
+            bindings[*nbindings].is_array = TRUE;
+            bindings[*nbindings].clear_on_exit = TRUE;
+            (*nbindings)++;
+            continue;
+        }
+        else
+            assert(request->kind == CASE_CAPTURE_VALUE);
+        if (!S_case_pattern_match(aTHX_ request->node, value, NULL,
+                                   bindings, nbindings, owner))
+            return FALSE;
+    }
+    return TRUE;
+}
+
+PP(pp_casematch)
+{
+    struct case_binding local_bindings[64];
+    struct case_capture_request local_requests[64];
+    struct case_binding *bindings = local_bindings;
+    size_t nbindings = 0;
+    struct case_capture_owner capture_owner = { NULL, 0, NULL, 0, 0, FALSE };
+    struct case_capture_owner *owner = &capture_owner;
+    PERL_CONTEXT *cx = S_case_context(aTHX);
+    const struct case_pattern_aux *aux =
+        (const struct case_pattern_aux *)cUNOP_AUXx(PL_op)->op_aux;
+    const struct case_pattern_node *pattern =
+        (aux && aux->magic == CASE_PATTERN_AUX_MAGIC && aux->root)
+        ? aux->root : NULL;
+    if (!pattern)
+        Perl_croak(aTHX_ "missing compiled case pattern");
+    owner->reserve = aux->case_capture_capacity;
+    owner->requests = local_requests;
+    owner->request_capacity = aux->binding_capacity;
+    if (aux->binding_capacity > C_ARRAY_LENGTH(local_bindings)) {
+        /* Mortal storage also releases the buffer if matching throws. */
+        SV *storage = sv_2mortal(newSV(
+            aux->binding_capacity * sizeof(struct case_binding)));
+        bindings = (struct case_binding *)SvPVX(storage);
+        storage = sv_2mortal(newSV(
+            aux->binding_capacity * sizeof(struct case_capture_request)));
+        owner->requests = (struct case_capture_request *)SvPVX(storage);
+    }
+    bool matched;
+    if (cx && cx->blk_case.case_dispatch_active && aux->dispatch)
+        matched = aux->dispatch_clause == cx->blk_case.case_dispatch_clause;
+    else if (aux->kind == CASE_PATTERN_SIMPLE_UNDEF)
+        matched = !SvOK(DEFSV);
+    else if (aux->kind == CASE_PATTERN_SIMPLE_BOOL)
+        matched = SvIsBOOL(DEFSV)
+            && (SvTRUE(DEFSV) == SvTRUE(cSVOPx_sv(pattern->op)));
+    else if (aux->kind == CASE_PATTERN_SIMPLE_NUM)
+        matched = ((!SvPOK(DEFSV) && SvNIOK(DEFSV) && !SvIsBOOL(DEFSV))
+                   || SvAMAGIC(DEFSV))
+            && do_ncmp(DEFSV, cSVOPx_sv(pattern->op)) == 0;
+    else if (aux->kind == CASE_PATTERN_SIMPLE_STR)
+        matched = SvPOK(DEFSV)
+            ? sv_streq_flags(DEFSV, cSVOPx_sv(pattern->op), SV_GMAGIC)
+            : S_case_pattern_match(aTHX_ pattern, DEFSV, *PL_stack_sp,
+                                   bindings, &nbindings, owner);
+    else if (aux->always_matches || S_case_pattern_is_wildcard(aTHX_ aux))
+        matched = TRUE;
+    else
+        matched = S_case_pattern_match(aTHX_
+            pattern, DEFSV, *PL_stack_sp,
+            bindings, &nbindings, owner);
+    size_t i;
+
+    if (matched && owner->nrequests)
+        matched = S_case_collect_captures(aTHX_ owner, bindings, &nbindings);
+    /* Recursive callbacks can grow the context stack. */
+    cx = S_case_context(aTHX);
+    if (cx && CxTYPE(cx) == CXt_CASE) {
+        S_case_discard_bindings(aTHX_ cx);
+        if (matched && nbindings) {
+            AV *pending = MUTABLE_AV(sv_2mortal(MUTABLE_SV(newAV())));
+            for (i = 0; i < nbindings; i++) {
+                av_push(pending, newSVuv((UV)bindings[i].padix));
+                if (bindings[i].is_array) {
+                    AV *old = MUTABLE_AV(sv_2mortal(MUTABLE_SV(newAV())));
+                    S_case_set_array(aTHX_ (SV *)old,
+                                     MUTABLE_AV(PAD_SV(bindings[i].padix)));
+                    av_push(pending, newRV_inc((SV *)old));
+                    av_push(pending, newSViv(1));
+                    av_push(pending, newSViv(bindings[i].clear_on_exit));
+                    S_case_set_array(aTHX_ PAD_SV(bindings[i].padix),
+                                     MUTABLE_AV(AvARRAY(owner->values)[bindings[i].value_ix]));
+                }
+                else {
+                    av_push(pending, newSVsv(PAD_SV(bindings[i].padix)));
+                    av_push(pending, newSViv(0));
+                    av_push(pending, newSViv(bindings[i].clear_on_exit));
+                    sv_setsv(PAD_SV(bindings[i].padix), AvARRAY(owner->values)[bindings[i].value_ix]);
+                }
+            }
+            cx = S_case_context(aTHX);
+            cx->blk_case.case_bindings = MUTABLE_AV(SvREFCNT_inc(pending));
+        }
+    }
+    else if (matched) {
+        for (i = 0; i < nbindings; i++) {
+            if (bindings[i].is_array)
+                S_case_set_array(aTHX_ PAD_SV(bindings[i].padix),
+                                 MUTABLE_AV(AvARRAY(owner->values)[bindings[i].value_ix]));
+            else
+                sv_setsv(PAD_SV(bindings[i].padix), AvARRAY(owner->values)[bindings[i].value_ix]);
+        }
+    }
+
+    rpp_popfree_1_NN();
+    rpp_push_IMM(boolSV(matched));
+    return NORMAL;
+}
+
+static void
+S_case_dispatch_candidate(pTHX_ const AV *values, const AV *clauses, SV *subject,
+                          U8 kind, U32 *best)
+{
+    SSize_t i;
+    SV **value_array;
+    SV **clause_array;
+    const SSize_t count = values ? AvFILLp((AV *)values) + 1 : 0;
+    if (!values || !clauses)
+        return;
+    value_array = AvARRAY((AV *)values);
+    clause_array = AvARRAY((AV *)clauses);
+    for (i = 0; i < count; i++) {
+        SV *value = value_array[i];
+        SV *clause = clause_array[i];
+        bool matched = FALSE;
+        if (!value || !clause)
+            continue;
+        switch (kind) {
+        case CASE_PATTERN_SIMPLE_BOOL:
+            matched = SvIsBOOL(subject)
+                && (SvTRUE(subject) == SvTRUE(value));
+            break;
+        case CASE_PATTERN_SIMPLE_NUM:
+            matched = do_ncmp(subject, value) == 0;
+            break;
+        case CASE_PATTERN_SIMPLE_STR:
+            matched = sv_streq_flags(subject, value, SV_GMAGIC);
+            break;
+        }
+        if (matched) {
+            if (SvUV(clause) < *best)
+                *best = (U32)SvUV(clause);
+            return;
+        }
+    }
+}
+
+static void
+S_case_dispatch_hv_candidate(pTHX_ const HV *table, SV *subject, U8 kind,
+                             U32 *best, SV *key)
+{
+    HE *entry;
+
+    if (!table)
+        return;
+    S_case_dispatch_key(aTHX_ key, subject, kind);
+    entry = hv_fetch_ent((HV *)table, key, FALSE, 0);
+    if (entry && SvUV(HeVAL(entry)) < *best)
+        *best = (U32)SvUV(HeVAL(entry));
+}
+
+static bool
+S_case_dispatch_iv_in_bounds(const struct case_dispatch_aux *dispatch,
+                              SV *subject)
+{
+    bool is_uv;
+    IV iv;
+    UV uv;
+
+    if (!dispatch->iv_has_bounds || !SvIOK(subject))
+        return TRUE;
+    is_uv = SvUOK(subject);
+    iv = SvIVX(subject);
+    uv = SvUVX(subject);
+    if (dispatch->iv_min_is_uv
+        ? (is_uv ? uv < dispatch->iv_min_uv
+                 : iv < 0 || (UV)iv < dispatch->iv_min_uv)
+        : (is_uv ? dispatch->iv_min_iv >= 0
+                       && uv < (UV)dispatch->iv_min_iv
+                 : iv < dispatch->iv_min_iv))
+        return FALSE;
+    if (dispatch->iv_max_is_uv
+        ? (is_uv ? uv > dispatch->iv_max_uv
+                 : iv >= 0 && (UV)iv > dispatch->iv_max_uv)
+        : (is_uv ? dispatch->iv_max_iv < 0
+                       || uv > (UV)dispatch->iv_max_iv
+                 : iv > dispatch->iv_max_iv))
+        return FALSE;
+    return TRUE;
+}
+
+static bool
+S_case_dispatch_nv_in_bounds(const struct case_dispatch_aux *dispatch,
+                              SV *subject)
+{
+    NV nv;
+
+    if (!dispatch->nv_has_bounds || !SvNOK(subject))
+        return TRUE;
+    nv = SvNVX(subject);
+    return nv >= dispatch->nv_min && nv <= dispatch->nv_max;
+}
+
+static void
+S_case_dispatch_binary_candidate(pTHX_ const AV *values, const AV *clauses,
+                                  SV *subject, U8 kind, U32 *best)
+{
+    SSize_t lo = 0;
+    SSize_t hi;
+    SSize_t i;
+    SV **value_array;
+    SV **clause_array;
+    const SSize_t count = values ? AvFILLp((AV *)values) + 1 : 0;
+
+    if (!values || !clauses)
+        return;
+    value_array = AvARRAY((AV *)values);
+    clause_array = AvARRAY((AV *)clauses);
+    hi = count;
+    while (lo < hi) {
+        const SSize_t mid = lo + (hi - lo) / 2;
+        SV *value = value_array[mid];
+        const I32 cmp = kind == CASE_PATTERN_SIMPLE_NUM
+            ? do_ncmp(value, subject) : sv_cmp(value, subject);
+        if (cmp < 0)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    for (i = lo; i < count; i++) {
+        SV *value = value_array[i];
+        if ((kind == CASE_PATTERN_SIMPLE_NUM
+             ? do_ncmp(value, subject) : sv_cmp(value, subject)) != 0)
+            break;
+        if (clause_array[i] && SvUV(clause_array[i]) < *best)
+            *best = (U32)SvUV(clause_array[i]);
+    }
+}
+
+PP(pp_casedispatch)
+{
+    dTARGET;
+    PERL_CONTEXT *cx = S_case_context(aTHX);
+    struct case_dispatch_aux *dispatch =
+        (struct case_dispatch_aux *)cUNOP_AUXx(PL_op)->op_aux;
+    U32 best = CASE_DISPATCH_NO_CLAUSE;
+
+    if (!cx || CxTYPE(cx) != CXt_CASE
+        || !dispatch || dispatch->magic != CASE_DISPATCH_AUX_MAGIC)
+        return NORMAL;
+
+    /* An overloaded subject must use the ordinary matcher.  The optimized
+     * typed tables cannot preserve the selected overload for ordering or
+     * equality, and must not turn an overloaded comparison into raw SV data.
+     */
+    if ((SvROK(DEFSV) && SvOBJECT(SvRV(DEFSV))) || SvAMAGIC(DEFSV)) {
+        cx->blk_case.case_dispatch_active = FALSE;
+        return NORMAL;
+    }
+
+    best = dispatch->default_clause;
+
+    if (!SvOK(DEFSV)
+        && dispatch->undef_clause != CASE_DISPATCH_NO_CLAUSE
+        && dispatch->undef_clause < best)
+        best = dispatch->undef_clause;
+    if (SvIsBOOL(DEFSV)
+        && (dispatch->bool_clause[0] != CASE_DISPATCH_NO_CLAUSE
+            || dispatch->bool_clause[1] != CASE_DISPATCH_NO_CLAUSE)) {
+        const U32 bool_clause = SvTRUE(DEFSV) ? dispatch->bool_clause[1]
+                                           : dispatch->bool_clause[0];
+        if (bool_clause != CASE_DISPATCH_NO_CLAUSE && bool_clause < best)
+            best = bool_clause;
+    }
+    if (!SvPOK(DEFSV) && SvNIOK(DEFSV) && !SvIsBOOL(DEFSV)) {
+        if (dispatch->iv_values || dispatch->iv_table) {
+            if (S_case_dispatch_iv_in_bounds(dispatch, DEFSV)) {
+                if (dispatch->strategy == CASE_DISPATCH_HV)
+                    S_case_dispatch_hv_candidate(aTHX_ dispatch->iv_table,
+                        DEFSV, CASE_PATTERN_SIMPLE_NUM, &best, TARG);
+                else if (dispatch->strategy == CASE_DISPATCH_ARRAY_BINARY)
+                    S_case_dispatch_binary_candidate(aTHX_ dispatch->iv_values,
+                        dispatch->iv_clauses, DEFSV, CASE_PATTERN_SIMPLE_NUM,
+                        &best);
+                else
+                    S_case_dispatch_candidate(aTHX_ dispatch->iv_values,
+                        dispatch->iv_clauses, DEFSV, CASE_PATTERN_SIMPLE_NUM,
+                        &best);
+            }
+        }
+        if (dispatch->nv_values || dispatch->nv_table) {
+            if (S_case_dispatch_nv_in_bounds(dispatch, DEFSV)) {
+                if (dispatch->strategy == CASE_DISPATCH_HV)
+                    S_case_dispatch_hv_candidate(aTHX_ dispatch->nv_table,
+                        DEFSV, CASE_PATTERN_SIMPLE_NUM, &best, TARG);
+                else if (dispatch->strategy == CASE_DISPATCH_ARRAY_BINARY)
+                    S_case_dispatch_binary_candidate(aTHX_ dispatch->nv_values,
+                        dispatch->nv_clauses, DEFSV, CASE_PATTERN_SIMPLE_NUM,
+                        &best);
+                else
+                    S_case_dispatch_candidate(aTHX_ dispatch->nv_values,
+                        dispatch->nv_clauses, DEFSV, CASE_PATTERN_SIMPLE_NUM,
+                        &best);
+            }
+        }
+    }
+    if (SvPOK(DEFSV)) {
+        /* Character counts preserve equality across UTF-8 upgrades. */
+        const STRLEN len = IN_BYTES ? SvCUR(DEFSV) : sv_len_utf8_nomg(DEFSV);
+        if (!dispatch->pv_has_bounds
+            || (len >= dispatch->pv_minlen && len <= dispatch->pv_maxlen)) {
+            if (dispatch->strategy == CASE_DISPATCH_HV)
+                S_case_dispatch_hv_candidate(aTHX_ dispatch->pv_table, DEFSV,
+                    CASE_PATTERN_SIMPLE_STR, &best, TARG);
+            else if (dispatch->strategy == CASE_DISPATCH_ARRAY_BINARY)
+                S_case_dispatch_binary_candidate(aTHX_ dispatch->pv_values,
+                    dispatch->pv_clauses, DEFSV, CASE_PATTERN_SIMPLE_STR, &best);
+            else
+                S_case_dispatch_candidate(aTHX_ dispatch->pv_values,
+                    dispatch->pv_clauses, DEFSV, CASE_PATTERN_SIMPLE_STR, &best);
+        }
+    }
+
+    cx->blk_case.case_dispatch_clause = best;
+    cx->blk_case.case_dispatch_active = TRUE;
+    if (best == dispatch->default_clause && dispatch->default_noop
+        && dispatch->miss_target)
+    {
+        return dispatch->miss_target;
+    }
+    if (best != CASE_DISPATCH_NO_CLAUSE) {
+        OP *target = dispatch->clause_targets[best];
+        if (!(target->op_flags & OPf_SPECIAL)) {
+            rpp_extend(1);
+            rpp_push_IMM(&PL_sv_yes);
+        }
+        return target;
+    }
+    /* A miss follows the ordinary clause chain so that the body scope is
+     * unwound before leavegiven runs.  When the scoped body has an explicit
+     * leave op, jump to it and avoid executing the unreachable clause chain. */
+    if (dispatch->miss_target)
+        return dispatch->miss_target;
+    return NORMAL;
+}
+
+PP(pp_casecoerce)
+{
+    SV * const sv = *PL_stack_sp;
+    SV *targ;
+
+    /* Typed case subjects preserve undefined values and references.  In
+     * particular, do not stringify a reference merely because ToString was
+     * requested; that could invoke an object's overload methods. */
+    if (!SvOK(sv) || SvROK(sv))
+        return NORMAL;
+
+    targ = sv_2mortal(newSV(0));
+    switch (PL_op->op_targ) {
+    case 1:
+        sv_setiv(targ, SvIV_nomg(sv));
+        break;
+    case 2:
+        sv_setnv(targ, SvNV_nomg(sv));
+        break;
+    case 3:
+        sv_copypv(targ, sv);
+        SvSETMAGIC(targ);
+        break;
+    default:
+        Perl_croak(aTHX_ "unknown case subject coercion");
+    }
+    rpp_replace_1_1_NN(targ);
+    return NORMAL;
+}
+
+static void
+S_case_collect_pin_ops(pTHX_ const OP *op, AV *padixes)
+{
+    const OP *kid;
+
+    if (!op)
+        return;
+    if (op->op_type == OP_PADSV_STORE) {
+        av_push(padixes, newSVuv((UV)op->op_targ));
+        return;
+    }
+    if (op->op_type == OP_SASSIGN) {
+        /* Before peephole optimisation, a lexical store is represented as
+         * sassign with the destination PADSV as its final child. */
+        for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid)) {
+            if (kid->op_type == OP_PADSV)
+                av_push(padixes, newSVuv((UV)kid->op_targ));
+        }
+        if (av_len(padixes) >= 0)
+            return;
+    }
+    if (op->op_type == OP_PADSV) {
+        av_push(padixes, newSVuv((UV)op->op_targ));
+        return;
+    }
+    if (op->op_type == OP_PADRANGE) {
+        int i;
+        const int count = (int)op->op_private & OPpPADRANGE_COUNTMASK;
+        for (i = 0; i < count; i++)
+            av_push(padixes, newSVuv((UV)op->op_targ + (UV)i));
+        return;
+    }
+    if (op->op_type == OP_PUSHMARK)
+        return;
+    if (!(op->op_flags & OPf_KIDS))
+        Perl_croak(aTHX_ "case with values must be scalar lexicals (got %s)",
+                   PL_op_name[op->op_type]);
+    for (kid = cUNOPx(op)->op_first; kid; kid = OpSIBLING(kid))
+        S_case_collect_pin_ops(aTHX_ kid, padixes);
+}
+
+PP(pp_casewith)
+{
+    PERL_CONTEXT *cx = S_case_context(aTHX);
+    AV *padixes = newAV();
+    AV *pins = newAV();
+    const OP *child = cUNOPx(PL_op)->op_first;
+    SSize_t i;
+
+    if (!cx || CxTYPE(cx) != CXt_CASE)
+        Perl_croak(aTHX_ "case with clause outside case");
+    S_case_collect_pin_ops(aTHX_ child, padixes);
+    for (i = 0; i <= av_len(padixes); i++) {
+        SV **padix = av_fetch(padixes, i, FALSE);
+        SV *pinvalue = PAD_SV((PADOFFSET)SvUV(*padix));
+        SvGETMAGIC(pinvalue);
+        av_push(pins, newSVsv(*padix));
+        av_push(pins, newSVsv(pinvalue));
+    }
+    SvREFCNT_dec((SV *)padixes);
+    if (cx->blk_case.case_pins)
+        SvREFCNT_dec((SV *)cx->blk_case.case_pins);
+    cx->blk_case.case_pins = pins;
     return NORMAL;
 }
 
@@ -6604,6 +10152,7 @@ S_do_smartmatch(pTHX_ HV *seen_this, HV *seen_other, const bool copied)
 PP(pp_enterwhen)
 {
     PERL_CONTEXT *cx;
+    PERL_CONTEXT *given = S_case_context(aTHX);
     const U8 gimme = GIMME_V;
 
     /* This is essentially an optimization: if the match
@@ -6615,15 +10164,46 @@ PP(pp_enterwhen)
         bool tr = SvTRUEx(*PL_stack_sp);
         rpp_popfree_1_NN();
         if (!tr) {
+            if (given && CxTYPE(given) == CXt_CASE)
+                S_case_rollback_bindings(aTHX_ given);
             if (gimme == G_SCALAR)
                 rpp_push_IMM(&PL_sv_undef);
             return cLOGOP->op_other->op_next;
         }
     }
 
+    if (given && CxTYPE(given) == CXt_CASE)
+        S_case_commit_bindings(aTHX_ given);
+
     cx = cx_pushblock(CXt_WHEN, gimme, PL_stack_sp, PL_savestack_ix);
     cx_pushwhen(cx);
 
+    return NORMAL;
+}
+
+PP(pp_entercasematch)
+{
+    PERL_CONTEXT *cx;
+    PERL_CONTEXT *casectx = S_case_context(aTHX);
+    const U8 gimme = GIMME_V;
+
+    if (!(PL_op->op_flags & OPf_SPECIAL)) {
+        bool matched = SvTRUEx(*PL_stack_sp);
+        rpp_popfree_1_NN();
+        if (!matched) {
+            if (casectx && CxTYPE(casectx) == CXt_CASE)
+                S_case_rollback_bindings(aTHX_ casectx);
+            if (gimme == G_SCALAR)
+                rpp_push_IMM(&PL_sv_undef);
+            return cLOGOP->op_other->op_next;
+        }
+    }
+
+    if (casectx && CxTYPE(casectx) == CXt_CASE)
+        S_case_commit_bindings(aTHX_ casectx);
+
+    cx = cx_pushblock(CXt_CASEMATCH, gimme, PL_stack_sp, PL_savestack_ix);
+    cx_pushcasematch(cx);
     return NORMAL;
 }
 
@@ -6666,9 +10246,42 @@ PP(pp_leavewhen)
     }
     else {
         PERL_ASYNC_CHECK();
+        if (CxTYPE(cx) == CXt_CASE) {
+            assert(cx->blk_case.leave_op->op_type == OP_LEAVECASE);
+            return cx->blk_case.leave_op;
+        }
         assert(cx->blk_givwhen.leave_op->op_type == OP_LEAVEGIVEN);
         return cx->blk_givwhen.leave_op;
     }
+}
+
+PP(pp_leavecasematch)
+{
+    I32 cxix;
+    PERL_CONTEXT *cx;
+    U8 gimme;
+    SV **oldsp;
+
+    cx = CX_CUR();
+    assert(CxTYPE(cx) == CXt_CASEMATCH);
+    gimme = cx->blk_gimme;
+    oldsp = PL_stack_base + cx->blk_oldsp;
+
+    if (gimme == G_VOID)
+        rpp_popfree_to_NN(oldsp);
+    else
+        leave_adjust_stacks(oldsp, oldsp, gimme, 1);
+
+    for (cxix = cxstack_ix - 1; cxix >= 0; cxix--)
+        if (CxTYPE(&cxstack[cxix]) == CXt_CASE)
+            break;
+    if (cxix < 0)
+        DIE(aTHX_ "case/match clause outside a case");
+
+    dounwind(cxix);
+    cx = CX_CUR();
+    assert(CxTYPE(cx) == CXt_CASE);
+    return cx->blk_case.leave_op;
 }
 
 PP(pp_continue)
@@ -6716,7 +10329,8 @@ PP(pp_break)
     cx = CX_CUR();
     rpp_popfree_to_NN(PL_stack_base + cx->blk_oldsp);
 
-    return cx->blk_givwhen.leave_op;
+    return CxTYPE(cx) == CXt_CASE
+        ? cx->blk_case.leave_op : cx->blk_givwhen.leave_op;
 }
 
 static void

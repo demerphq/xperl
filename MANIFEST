@@ -6383,6 +6383,8 @@ pod/perlbook.pod			Perl book information
 pod/perlboot.pod
 pod/perlbot.pod
 pod/perlcall.pod			Perl calling conventions from C
+pod/perlcasematch.pod			Case and data-shape matching reference
+pod/perlcasematchtut.pod		Case and data-shape matching tutorial
 pod/perlcheat.pod			Perl cheat sheet
 pod/perlclass.pod			Perl class syntax
 pod/perlclassguts.pod			Internals of class syntax
@@ -6632,6 +6634,13 @@ t/cmd/mod.t				See if statement modifiers work
 t/cmd/subval.t				See if subroutine values work
 t/cmd/switch.t				See if switch optimizations work
 t/comp/bproto.t				See if builtins conform to their prototypes
+t/comp/case_match.t			See if case/match syntax works
+t/comp/case_match_examples.t		Demonstrate case/match data-shape matching
+t/comp/case_match_hardening.t		Exercise case/match context and cleanup paths
+t/comp/case_match_hardening_tail.t	Exercise case/match cleanup tail paths
+t/comp/case_match_numeric.t		Exercise case/match numeric scalar semantics
+t/comp/case_match_review.t		Cross-feature case/match regression coverage
+t/comp/case_match_threads.t		Exercise case/match in threaded clones
 t/comp/cmdopt.t				See if command optimization works
 t/comp/colon.t				See if colons are parsed correctly
 t/comp/decl.t				See if declarations work

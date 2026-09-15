@@ -225,8 +225,54 @@ The behavior is documented in `pod/perlnamespace.pod`, with related syntax,
 builtin, experimental-status, diagnostic, and release documentation updated.
 The namespace and bootstrap tests cover the implementation.
 
+### Case/match data-shape matching
+
+The experimental `case_match` feature adds a conditional construct for values
+whose shape matters. A `case` evaluates one subject and considers ordered
+`match` clauses from top to bottom; only the first successful clause runs, and
+the outer case body may contain only direct match clauses. A wildcard
+`match (_)` is the usual default. Without a successful clause, `case` returns
+`undef` in scalar context and an empty list in list context.
+
+The text inside `match (...)` is a data-shape language rather than an ordinary
+Perl expression. It supports scalar literals, arrays, hashes, nested shapes,
+class-qualified objects, regular-expression criteria, typed numeric criteria,
+reference/value criteria, tails, and open shapes. Scalar names introduce
+match-local bindings, while `^` and `with` pin existing values. An optional
+`if` introduces an unrestricted Perl guard that runs after the shape matches.
+
+Bindings are discarded when a shape or guard fails, but closures may retain
+them after the clause ends. Duplicate capture names, unsupported or ambiguous
+syntax, invalid regex constructs, impossible slurp combinations, and repeated
+constant keys are rejected explicitly rather than silently reinterpreted.
+Pins preserve reference identity and undefined-value distinctions; captured
+references preserve identity and tail captures do not alias source slots.
+
+Object shapes inspect blessed references structurally without invoking
+constructors or arbitrary methods. Native class objects are supported, while
+inheritance and role matching remain reserved for future pattern forms. Simple
+constant-only cases may use specialized linear, binary-search, or hash
+dispatch, but source order and first-match semantics remain unchanged. This
+feature is independent of the older `given`/`when` mechanism.
+
+The reference and tutorial are in `pod/perlcasematch.pod` and
+`pod/perlcasematchtut.pod`; `pod/perlsyn.pod`, `pod/perldiag.pod`,
+`pod/perlexperiment.pod`, and `pod/perldelta.pod` cover syntax, diagnostics,
+experimental status, and release notes. Compiler and runtime behavior is
+covered by the case-matching tests and the associated planning notes.
+
+## Generated and platform integration
+
+The feature work changes keywords, features, opcodes, embedding declarations,
+interpreter variables, parser grammar, warnings, and bundled distributions.
+The branch therefore includes regenerated parser and header artifacts,
+generated keyword and opcode files, generated POD indexes, and corresponding
+build and platform integration. These generated changes are consequences of
+the source changes above and must be regenerated when their inputs change.
+
 ## Compatibility posture
 
 Existing Perl behavior is preserved where practical. The fork's experimental
 features and development policies may continue to evolve as the branch
-develops.
+develops. Compatibility handling includes feature-disabled code paths,
+`CORE` behavior, threaded builds, and bundled distributions.
