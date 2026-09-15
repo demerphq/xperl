@@ -576,6 +576,21 @@ Still to do is the same focused matrix under a non-threaded build, followed by
 ASAN and LSan configurations.  Leak runs must use `PERL_DESTRUCT_LEVEL=2`;
 reports from ptrace-restricted processes are not valid LSan evidence.
 
+### 10. Debugger integration — OPEN
+
+Verify that the Perl debugger works correctly with the new execution paths
+introduced by generators, callable iterators, lexical namespaces, and
+case/match.  The debugger must be able to set and hit breakpoints, step into
+and over the relevant code, report the correct current file and line, unwind
+through exceptions, and display the active lexical variables without exposing
+stale or transient implementation details.
+
+Add focused debugger tests for ordinary calls, generator suspension and
+resumption, iterator failure and restart, nested namespace scopes, and case
+subjects, captures, guards, and clause bodies.  Run them in both threaded and
+non-threaded builds, including DEBUGGING where the execution-context changes
+are most likely to expose incorrect debugger state.
+
 ### Current hardening-pass findings
 
 The focused hardening pass is in
