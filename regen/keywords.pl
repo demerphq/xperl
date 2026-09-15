@@ -71,6 +71,9 @@ my %feature_kw = (
     implements => 'class',
     any       => 'keyword_any',
     all       => 'keyword_all',
+    namespace           => 'namespaces',
+    as                  => 'namespaces',
+    __NAMESPACE__       => 'namespaces',
     yield               => 'generator',
     gen                 => 'generator',
 );
@@ -132,6 +135,7 @@ read_only_bottom_close_and_rename($_, [$0]) foreach $c, $h;
 __END__
 
  NULL
+-__NAMESPACE__
 -__CLASS__
 +__DATA__
 +__END__
@@ -148,6 +152,7 @@ __END__
 +INIT
 +UNITCHECK
 -abs
+-as
 -accept
 -alarm
 -all
@@ -280,6 +285,7 @@ __END__
 -msgrcv
 -msgsnd
 +my
+-namespace
 -ne
 -neu
 +next
