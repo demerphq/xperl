@@ -34,11 +34,13 @@ asks for a different approach.
 
 ## Agent Skills
 
-Repository-specific skill files live in `.agents/skills`. Read the relevant
+Repository-specific skill files live in `.agents/skills/`. Read the relevant
 skill before editing the associated subsystem.
 
-When updating skills, use the sibling `../perl_core_skillz/sync-agent-skills`
-utility to verify or update the legacy mirror.
+This is the canonical skill tree. From the sibling `perl_core_skillz`
+repository, run `./sync-agent-skills --check` to verify its legacy mirror, or
+use `./sync-agent-skills --sync` to update it. Use `--from-mirror` to restore
+the guidance and skill tree to a Perl branch which does not contain them.
 
 ## Core API design
 
