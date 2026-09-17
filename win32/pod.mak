@@ -111,6 +111,8 @@ POD = perl.pod	\
 	perlboot.pod	\
 	perlbot.pod	\
 	perlcall.pod	\
+	perlcasematch.pod	\
+	perlcasematchtut.pod	\
 	perlcheat.pod	\
 	perlclass.pod	\
 	perlclassguts.pod	\
@@ -307,6 +309,8 @@ MAN = perl.man	\
 	perlboot.man	\
 	perlbot.man	\
 	perlcall.man	\
+	perlcasematch.man	\
+	perlcasematchtut.man	\
 	perlcheat.man	\
 	perlclass.man	\
 	perlclassguts.man	\
@@ -503,6 +507,8 @@ HTML = perl.html	\
 	perlboot.html	\
 	perlbot.html	\
 	perlcall.html	\
+	perlcasematch.html	\
+	perlcasematchtut.html	\
 	perlcheat.html	\
 	perlclass.html	\
 	perlclassguts.html	\
@@ -699,6 +705,8 @@ TEX = perl.tex	\
 	perlboot.tex	\
 	perlbot.tex	\
 	perlcall.tex	\
+	perlcasematch.tex	\
+	perlcasematchtut.tex	\
 	perlcheat.tex	\
 	perlclass.tex	\
 	perlclassguts.tex	\

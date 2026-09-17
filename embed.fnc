@@ -1070,6 +1070,25 @@ AOdp	|SSize_t|call_sv	|NN SV *sv				\
 Rp	|bool	|cando		|Mode_t mode				\
 				|bool effective 			\
 				|NN const Stat_t *statbufp
+p	|UNOP_AUX_item *|case_dispatch_compile				\
+				|NN OP *body
+p	|void	|case_dispatch_free					\
+				|NULLOK UNOP_AUX_item *aux
+p	|UNOP_AUX_item *|case_pattern_compile				\
+				|NN const OP *pattern
+p	|void	|case_pattern_free					\
+				|NULLOK UNOP_AUX_item *aux
+p	|void	|case_pattern_mark_identity				\
+				|NN OP *body				\
+				|NN const OP *subject
+p	|void	|case_pattern_note_pins 				\
+				|NN const OP *pins
+p	|void	|case_pattern_prepare					\
+				|NN OP *pattern
+p	|void	|case_pattern_preserve_concat				\
+				|NN OP *pattern
+p	|OP *	|case_pattern_static_pins				\
+				|NN OP *body
 CRTp	|I32	|cast_i32	|NV f
 CRTp	|IV	|cast_iv	|NV f
 CRTp	|U32	|cast_ulong	|NV f
@@ -2072,7 +2091,6 @@ ARTdip	|bool	|is_utf8_valid_partial_char_flags			\
 				|SPTR const U8 * const s0		\
 				|EPTRgt const U8 * const e		\
 				|const U32 flags
-
 : Used in perly.y
 p	|OP *	|jmaybe 	|NN OP *o
 : Used in pp.c
@@ -2502,6 +2520,10 @@ ARdp	|OP *	|newBINOP	|I32 type				\
 dp	|OP *	|new_block_statement					\
 				|NN OP *block				\
 				|NULLOK OP *cont
+ARdp	|OP *	|newCASEMATCHOP |NN OP *cond				\
+				|NN OP *block
+ARdp	|OP *	|newCASEOP	|NN OP *cond				\
+				|NN OP *block
 ARdp	|OP *	|newCONDOP	|I32 flags				\
 				|NN OP *first				\
 				|NULLOK OP *trueop			\
@@ -5351,7 +5373,7 @@ S	|void	|move_proto_attr|NN OP **proto				\
 				|NN OP **attrs				\
 				|NN const GV *name			\
 				|bool curstash
-S	|OP *	|newGIVWHENOP	|NULLOK OP *cond			\
+S	|OP *	|newBLOCKOP	|NULLOK OP *cond			\
 				|NN OP *block				\
 				|I32 enter_opcode			\
 				|I32 leave_opcode			\
@@ -6727,6 +6749,8 @@ CTp	|Malloc_t|mem_log_realloc					\
 #endif
 #if !defined(PERL_NO_INLINE_FUNCTIONS)
 Cipx	|void	|cx_popblock	|NN PERL_CONTEXT *cx
+Cipx	|void	|cx_popcase	|NN PERL_CONTEXT *cx
+Cipx	|void	|cx_popcasematch|NN PERL_CONTEXT *cx
 Cipx	|void	|cx_popeval	|NN PERL_CONTEXT *cx
 Cipx	|void	|cx_popformat	|NN PERL_CONTEXT *cx
 Cipx	|void	|cx_popgiven	|NN PERL_CONTEXT *cx
@@ -6741,6 +6765,10 @@ Cipx	|PERL_CONTEXT *|cx_pushblock					\
 				|U8 gimme				\
 				|NN SV **sp				\
 				|I32 saveix
+Cipx	|void	|cx_pushcase	|NN PERL_CONTEXT *cx			\
+				|NULLOK SV *orig_defsv
+Cipx	|void	|cx_pushcasematch					\
+				|NN PERL_CONTEXT *cx
 Cipx	|void	|cx_pusheval	|NN PERL_CONTEXT *cx			\
 				|NULLOK OP *retop			\
 				|NULLOK SV *namesv

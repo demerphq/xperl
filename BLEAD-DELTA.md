@@ -9,10 +9,10 @@ can be inspected with:
 git diff origin/blead..HEAD
 ```
 
-Comparison baseline: `origin/blead` at `65d0414b44c1b3c1f1879069332ed7c5b85e00e4`.
+Comparison baseline: `origin/blead` at `a57c5954cbfde062678ff826818742f640b1cf60`.
 
-At the time of this update, the branch is 77 commits ahead of that baseline,
-with 620 changed paths, 39,076 additions, and 3,223 deletions. The changes
+At the time of this update, the branch is 163 commits ahead of that baseline,
+with 628 changed paths, 45,412 additions, and 3,195 deletions. The changes
 include generated files, tests, bundled distributions, documentation, and
 development tooling in addition to the runtime changes described below.
 
@@ -74,11 +74,296 @@ The protocol also defines `restartable` and `restart`; the default is
 non-restartable, and the default `restart` method reports that restarting is
 unsupported.
 
+A small generator can be written and consumed like this:
+
+```perl
+use generator;
+
+my $letters = gen {
+    yield "A";
+    yield "B";
+};
+
+say $letters->();
+say $letters->();
+say "done" if $letters->exhausted;
+```
+
+The first two calls produce values.  The third call has observed the end of
+the block, so the generator reports that it is exhausted.  A generator can
+also receive initial arguments and send values back to a suspended `yield`;
+the detailed rules are described in the linked generator manual.
+
 Related POD: [`pod/perlgenerator.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlgenerator.pod) and [`lib/generator.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/generator.pm) describe the combined pragma and generator interface; [`pod/perliterator.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perliterator.pod) describes the general callable-iterator protocol; [`lib/iterator.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/iterator.pm) documents its package API; and [`lib/builtin.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/builtin.pm) documents builtin import behavior.  The dedicated POD covers generators,
 continuations, and cooperative resumable execution. [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod),
 [`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod), [`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlsyn.pod), [`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod), and
 [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod) cover the experimental status, keywords, syntax,
 diagnostics, and release notes.
+
+### `-E` enables the XPerl experimental surface
+
+The `-E` command-line switch now enables `feature ':all'` and imports
+`builtin ':all'`. This makes the branch's experimental keywords and builtin
+functions available directly in one-liners and command-line programs, while
+preserving the ordinary `-e` behavior. Experimental functions still retain
+their normal experimental warnings.
+
+Related POD: [`pod/perlrun.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlrun.pod) documents `-E`; [`lib/builtin.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/builtin.pm) documents the `:all` builtin bundle; [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod) records the release-note entry. The command-line regression is in [`t/run/switches.t`](https://github.com/demerphq/perl5/blob/xperl/main/t/run/switches.t).
+
+### Case/match data-shape matching
+
+The experimental `case_match` feature adds a new kind of conditional.  It is
+designed for values whose *shape* matters: for example, an array reference
+whose first element is the string `"ok"`, followed by a value we want to name.
+This is called data-shape matching because it combines two familiar ideas:
+checking a structure and taking selected pieces out of it.
+
+The basic form is:
+
+```perl
+use feature 'case_match';
+
+case ($value) {
+    match ([ "ok", $number ]) { say "received $number" }
+    match ([ "error", $message ]) { warn $message }
+    match (_) { say "unrecognised value" }
+}
+```
+
+The `case` expression evaluates one subject.  Its `match` clauses are then
+considered from top to bottom, and only the first successful match clause runs.
+A match clause does not fall through to the next match clause. The body of a
+match clause is an
+ordinary Perl block, but the outer `case` body may contain only direct
+`match` clauses. A wildcard written as `match (_)` always succeeds and is the
+usual way to write a default match clause. Without a successful match clause, `case`
+returns `undef` in scalar context and an empty list in list context.
+
+The text inside `match (...)` is a small data-shape language, not an ordinary
+Perl expression.  Perl-like punctuation makes arrays, hashes, literals, and
+names easy to recognize, but the text describes a shape rather than computing
+a value.  A name such as `$number` is a new scalar binding local to the
+match clause's block. Bindings become visible to the guard after the whole shape
+matches; the block runs only if the guard also succeeds.  Closures and
+references can keep bound variables alive after the match clause ends, just as
+they can keep ordinary lexical variables alive.
+
+Zero-argument function and method calls may supply scalar values in a data
+shape. They are called in scalar context when their match clause is tried. Calls
+with arguments remain unsupported; ordinary Perl computation belongs in a
+guard after `if`.
+
+Scalar shapes include `undef`, literal strings, literal numbers, `true`, and
+`false`.  Strings and numbers are distinct, so `match (1)` and
+`match ("1")` express different cases.  Lowercase `true` and `false` require
+actual boolean values; uppercase `TRUE` and `FALSE` test ordinary truthiness.
+Numeric caching does not turn a string into a numeric data-shape kind.
+Nested matching uses the same distinctions as top-level dispatch, and
+equivalent byte and UTF-8 strings compare consistently. Sparse array slots
+match as `undef` without filling the original array. Pinned references
+require reference identity.
+Tail bindings copy element values without aliasing source slots; captured
+references still refer to the same objects. Pins
+distinguish undefined values from defined ones, including empty strings;
+two undefined values compare equal.
+
+Each capture name may be declared only once within a match clause's data shape,
+including across nested containers and different capture forms. To compare
+two captured values, use distinct names and a guard, such as
+`match ([$x, $y] if $x eq $y)`. Repeated pins remain valid. Separate match clauses
+can reuse capture names, and regex named captures retain their own rules.
+
+The matcher checks literal and structural requirements before capture-only
+reads, rather than collecting captures strictly from left to right. For
+example, `[ ..., $previous, 42, ... ]` checks for `42` before reading its
+preceding element for `$previous`. This ordering also applies to callbacks.
+Retained values survive callbacks and are released through normal temporary
+cleanup, including exception unwinding.
+
+Hash shapes distinguish absent keys from keys containing `undef`, including
+when the subject is tied.
+Empty shapes `match([])` and `match({})` require an empty array or hash,
+respectively. They also work inside larger shapes and with exact class
+qualifiers, such as `match(Point {})` for an object with no fields.
+
+Regular-expression values can be used as scalar matching
+criteria.  Regular-expression shapes update Perl's ordinary capture variables
+and make named captures available as match-clause-local scalar bindings. For
+example, `match (/^user: (?<name>[[:word:]]+)$/) { say $name }` binds `$name`
+when the subject matches; a named capture that does not participate is bound
+to `undef`.  Each regex in a nested shape contributes its own named bindings.
+Reusing a name across separate regexes in one match clause warns: only the first
+regex supplies that lexical binding.  Duplicate names within a single regex
+use the usual first-participating-capture rule without this warning.
+The ordinary regex capture variables still describe the most recent match.
+
+For an open array or hash shape, a static regular expression is compiled once
+and its compiled form is reused for each candidate.  Regex code blocks,
+`(?{ ... })` and `(??{ ... })`, are currently rejected while the case pattern
+is compiled; they must not be silently ignored.  Unicode and byte-string
+behavior remains the responsibility of the regular-expression engine.  Dynamic
+regular expressions such as `/thing-$re-thing/` are rejected in a data-shape
+pattern as well.  Put runtime construction in the ordinary guard, for example
+`match (_ if $subject =~ /thing-$re-thing/) { ... }`.  See
+[`perlcasematch`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlcasematch.pod)
+for the full rules and examples.
+
+Numeric criteria add a controlled distinction between native numbers and
+numeric-looking strings.  `IntStr`, `FloatStr`, and `NumStr` can both match and
+bind values; they accept surrounding whitespace and leading-zero padding by
+default.  `Num` matches only native numeric values.  `Strict(...)` can wrap the
+string-bearing criteria to reject whitespace and non-canonical padding.  It is
+not valid around `Num`.  `NumEq(EXPR)` is a matching-only comparison
+using Perl's `==` rules, including its normal numeric warnings; for example,
+`NumEq(0)` matches `"0000"`, `"0.0"`, and `"0000.0"`, and treats `"A"` as zero
+with a warning.  `Strict(NumEq(...))` requires a numeric prefix in string
+subjects before attempting that comparison.
+
+`Int()` and `Float()` distinguish native integer and floating-point values.
+`DefinedVal()` accepts anything except `undef`.
+
+The special criteria `RefVal()`, `ScalarVal()`, and `ObjectVal()`
+test, respectively, for any reference, any non-reference scalar, and a
+blessed reference.  They can each take one binding target, such as
+`ObjectVal($object)`.
+
+String shapes may contain multiple unbound scalars inside literal
+concatenation, for example:
+
+```perl
+case ($text) {
+    match ("a" . $first . "b" . $second . "c") {
+        say "first=$first second=$second";
+    }
+}
+```
+
+Captures are resolved from left to right using the shortest value bounded by
+the next literal or pinned fragment.  Empty captures are allowed.  Adjacent
+unpinned captures, repeated capture names, and fragments separated only by an
+empty literal are errors.  A name listed by `with`, or written with the
+pattern-only `^` prefix, is a pinned existing lexical and must match its
+snapshotted value rather than capture new text.  Concatenation supports only
+literal, capture, and pinned fragments; arithmetic, calls, and other
+unsupported expressions throw an exception.
+
+This is a general rule for the data-shape language: unsupported or ambiguous
+syntax is rejected explicitly.  It is never silently ignored, treated as a
+non-match, or reinterpreted as ordinary Perl code.  Related POD:
+[`pod/perlcasematch.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlcasematch.pod)
+and [`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod).
+
+Array and hash shapes can be nested.  An array shape without an ellipsis must
+have exactly the listed length.  Edge ellipses describe open shapes, such as
+`[ $first, ... ]` or `[ ..., $last ]`; an array can also use a final array
+binding such as `[ 1, 2, @rest ]` to capture the remaining tail.  `@rest:N`
+requires at least `N` remaining elements, where `N` is between 0 and
+`2**32 - 1`; larger minima are compile-time errors.  Array shapes and binding
+sets have no fixed 64-element limit.  A hash shape requires its listed keys;
+a final `...` permits additional
+keys.  The current implementation permits one array slurp and does not combine
+it with an ellipsis or another slurp.
+
+Repeating a constant key in a hash shape is a compile-time error.  Runtime
+keys may coincide without an error, but must still satisfy all their value
+requirements.  Covering one key twice does not permit an extra subject key.
+
+Blessed references can use a class-qualified shape.  A hash shape checks named
+fields, an array shape checks positional values, and a reference shape checks
+and binds the referent:
+
+```perl
+my $point = bless { '$x' => 3, '$y' => 4 }, 'Point';
+
+case ($point) {
+    match (Point { '$x' => $x, '$y' => $y }) { say "$x,$y" }
+}
+
+my $pair = bless [ 10, 20 ], 'Pair';
+case ($pair) {
+    match (Pair [ $first, $second ]) { say "$first,$second" }
+}
+```
+
+Captures in class-qualified shapes are new match-clause-local variables, available
+in the guard and body.  They can share names with class fields or outer
+variables without overwriting them.
+
+Object shapes inspect the blessed reference structurally without calling
+constructors, accessors, or arbitrary user methods.  Native Perl class objects
+backed by the class field-map representation are supported, and a
+class-qualified shape requires the exact named class in this version.  A hash
+object shape is exact unless it ends in `...`; blessed scalar references can
+use a form such as `Box \$value`.  Missing fields do not match.  Tied or
+magical nested values use ordinary read semantics, overload is used only when
+the selected pattern requires conversion, and captured references retain
+identity.  Inheritance and role matching are reserved for a future `isa`
+or related pattern form.
+
+An optional `if` introduces an ordinary Perl guard.  The guard runs after the
+data shape has matched and may use the tentative bindings.  Guards are
+unrestricted Perl expressions: they may call functions, have side effects, or
+throw exceptions. A false guard rejects the match clause and discards its bindings.
+
+`case` also supports a subject name and pinned values:
+
+```perl
+case (read_record() as $record) with ($wanted_type, $wanted_version) {
+    match ({ type => $wanted_type, version => $wanted_version, ... }) {
+        use_record($record);
+    }
+}
+```
+
+The `as` and `with` forms shown here belong to `case_match`; they do not enable
+the separate namespace `as` syntax.  `with` accepts a list of existing scalar
+lexicals, and each item may independently use `as` to create a case-local pin.
+
+An existing scalar can also be pinned directly in a data shape by prefixing
+it with `^`:
+
+```perl
+my $wanted = "ok";
+
+case ($record) {
+    match ({ type => ^$wanted, ... }) { use_record($record) }
+}
+```
+
+Here `^$wanted` compares with the value of the existing lexical instead of
+creating a match-clause-local binding. The value is captured when the surrounding
+`case` begins, and the same snapshot is used by every match clause. This caret
+meaning exists only inside a `match (...)` data shape; ordinary Perl caret
+operators retain their normal behavior elsewhere, including in guards.
+
+For a case made entirely from simple constants and no guards, the compiler can
+select a specialized dispatch representation.  The current implementations
+include linear, binary-search, and hash-based constant lookup.  These are
+performance choices, not different language features: source order, the first
+successful match clause, and default-match-clause behavior remain the same.
+Repeating a constant data shape emits a `syntax` warning because the later match clause can
+never match.  The warning includes the repeated constant and its source
+location; the first match clause remains selected.
+
+This feature is independent of Perl's older `given`/`when` mechanism.  The two
+constructs are alternatives for conditional code, but `case`/`match` has no
+fall-through semantics and does not reuse the `given`/`when` execution model.
+
+Related POD:
+[`pod/perlcasematchtut.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlcasematchtut.pod)
+teaches the feature step by step, while
+[`pod/perlcasematch.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlcasematch.pod)
+is its detailed reference. Both are written for readers learning data-shape
+matching and link to each other.
+[`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlsyn.pod)
+summarizes the syntax, and
+[`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod)
+documents the diagnostics.
+[`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod)
+and [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod)
+record experimental status and release notes.
+
+The implementation is tested in [`t/comp/case_match.t`](https://github.com/demerphq/perl5/blob/xperl/main/t/comp/case_match.t) and demonstrated in [`t/comp/case_match_examples.t`](https://github.com/demerphq/perl5/blob/xperl/main/t/comp/case_match_examples.t), with design notes in [`planning/perl-pattern-matching.md`](https://github.com/demerphq/perl5/blob/xperl/main/planning/perl-pattern-matching.md).  Dispatch benchmarks are kept in [`planning/scripts/case_dispatch_compare.pl`](https://github.com/demerphq/perl5/blob/xperl/main/planning/scripts/case_dispatch_compare.pl), [`planning/scripts/case_dispatch_weight.pl`](https://github.com/demerphq/perl5/blob/xperl/main/planning/scripts/case_dispatch_weight.pl), and [`planning/scripts/case_given_compare.pl`](https://github.com/demerphq/perl5/blob/xperl/main/planning/scripts/case_given_compare.pl).
 
 ### Lexical namespaces
 
@@ -88,6 +373,22 @@ resolution, and explicit `CORE:::` boundaries. The parser, keyword tables,
 diagnostics, deparser tests, generated headers, and documentation were
 updated. `CORE` receives special handling because it is the implementation
 namespace for Perl's builtins and operators.
+
+For example, a namespace can provide a lexical prefix for package names:
+
+```perl
+use feature 'namespaces';
+
+namespace MyApp;
+package Model;
+
+sub name { "model" }
+```
+
+Here `Model` means `MyApp::Model` while this code is compiled.  The namespace
+prefix is lexical and does not replace Perl's ordinary current package.  An
+explicit `:::` boundary can be used when a name should be resolved from the
+top level instead.
 
 Related POD: [`pod/perlnamespace.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlnamespace.pod) is the dedicated namespace reference;
 [`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlsyn.pod), [`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod), [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod),
@@ -107,6 +408,27 @@ The branch includes substantial class and role work, including:
 - shallow class-object/hash conversion APIs;
 - cloning of role metadata in threaded stashes;
 - corresponding parser, opcode, diagnostics, documentation, and tests.
+
+A minimal class and role can look like this:
+
+```perl
+use feature 'class';
+
+role Named {
+    method name() { "a named object" }
+}
+
+class Person :implements(Named) {
+    field $name :param;
+    method name() { $name }
+}
+
+say Person->new(name => 'Ada')->name;
+```
+
+The class declaration supplies the class structure and constructor, while the
+role states an interface that the class implements.  The `implements` spelling
+is experimental and belongs to this class-and-role system.
 
 Related POD: [`pod/perlclass.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlclass.pod) is the primary class and role reference;
 [`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod), [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod), [`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod), and

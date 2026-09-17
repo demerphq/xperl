@@ -27,6 +27,150 @@ here, but most should go in the L</Performance Enhancements> section.
 
 [ List each enhancement as a =head2 entry ]
 
+=head2 Experimental data-shape matching
+
+The documentation is now split into L<perlcasematchtut>, a progressive
+tutorial, and L<perlcasematch>, the detailed language reference.
+
+Declaring the same capture name twice within one match clause is now a compile-time
+error, including across nested shapes and different capture forms. Repeated
+pins remain valid, and regex named-capture rules are unchanged. Use distinct
+capture names and a guard to require equal values.
+
+Empty array and hash shapes, C<match ([])> and C<match ({})>, now match
+empty containers. They also work in nested and class-qualified shapes.
+
+Duplicate named captures in separate shape regexes now consistently bind
+from the first regex in source order, even when constraint scheduling changes
+execution order. Hash wildcard values check key presence without fetching
+the value, matching the capture-free behavior of array wildcards.
+
+Structural requirements now precede capture-only reads, including in nested
+shapes. Literal constraints are checked before other requirements at each
+aggregate level. This changes the observable order of tied and overloaded
+operations and pattern calls; see L<perlcasematch>.
+
+Tentative captures and traversal values are retained across callbacks.
+An exception-safe owner releases captured values on normal temporary cleanup
+or unwinding. Retention preserves scalar lifetime, not a frozen value.
+
+Mixed signed/unsigned dispatch bounds no longer reject valid unsigned
+matches. Tied hash shapes check key existence before fetching a value, so
+a missing key cannot satisfy an C<undef> value shape.
+
+Array tail captures copy element values instead of aliasing source slots.
+Pinned comparisons distinguish C<undef> from
+the empty string, while two undefined values still compare equal.
+
+Case/match now consistently preserves string-versus-number distinctions
+after numeric caching, handles sparse array slots as C<undef>, and compares
+equivalent byte and UTF-8 string representations correctly. Pinned
+references use identity. Malformed hash shapes are diagnosed during
+compilation. Subject and native field-view ownership fixes prevent leaks,
+and scalar-reference shapes reject non-scalar referents without attempting
+invalid copies.
+
+Capture names repeated across separate regexes in one C<match> clause now
+produce a C<syntax> warning: only the first regex supplies the lexical
+binding.  Duplicate names within a single regex retain their usual behavior.
+
+The experimental C<case_match> feature adds a C<case> statement with ordered
+C<match> clauses.  Data shapes can match scalar values, nested array and hash
+references, regular expressions, wildcards, and pinned lexical values.  A
+case subject may also use the grammar-level C<ToInteger>, C<ToFloat>, or
+C<ToString> forms to request one explicit coercion before matching.  Numeric
+criteria include C<IntStr>, C<FloatStr>, C<Num>, C<NumStr>, and the
+matching-only C<NumEq>; C<Strict> can request canonical spelling for the
+string-bearing criteria.  See L<perlcasematch> and
+L<perlsyn/Experimental Data-Shape Matching> for the current experimental
+design and limitations.  The C<with> clause accepts a comma-separated list of
+pins, and its case-local C<as> syntax does not require the separate
+C<namespaces> feature.
+
+Data shapes may also use zero-argument function and method calls as scalar
+values. Calls are made in scalar context when their match clause is tried; calls
+with arguments remain unsupported.  Repeating a constant data shape produces
+a C<syntax> warning because the later match clause can never match; the first match clause
+remains selected.  The warning includes the repeated constant and its source
+location.
+
+Match-clause-local captures retain ordinary lexical lifetime when kept alive by
+closures or references, including when a guard rejects a match clause. Nested
+regex shapes bind each regex's named captures independently.  Array shapes
+and capture sets no longer have a fixed 64-element limit.  Slurp minima are
+checked against C<2**32 - 1> before decimal accumulation can overflow.
+
+Duplicate constant keys in hash shapes are compile-time errors.  Runtime
+key collisions do not raise duplicate-key errors; exact hash matching
+checks coverage of distinct keys rather than counting syntactic pairs.
+
+Static regular expressions used by open array or hash shapes are compiled once
+and reused for each candidate.  Regex code blocks, C<(?{ ... })> and
+C<(??{ ... })>, are currently rejected while a case pattern is compiled so
+that their side effects cannot be silently discarded.  Unicode and byte-string
+behavior remains under the control of the regular-expression engine.  Dynamic
+regular expressions, such as C</thing-$re-thing/>, are also rejected in a
+data-shape pattern; use an ordinary Perl guard after C<if> when the regular
+expression must be built or interpolated at run time.
+
+Array data shapes may capture a final tail with C<@name>, or require a minimum
+tail length with C<@name:N>.  The typed criteria C<RefVal>, C<ScalarVal>, and
+C<ObjectVal> may each take one scalar target, such as C<RefVal($reference)>,
+which is bound after the type check succeeds.  Such a target cannot also be
+pinned by C<with>.
+
+Blessed references may use a class-qualified data shape.  Hash object shapes
+check quoted field names, array object shapes check positional values, and a
+reference object shape can bind a scalar referent.  These patterns inspect the
+object structure directly without calling constructors, accessors, or
+arbitrary user methods.  Native Perl class objects backed by the class
+field-map representation are supported, with exact-class matching in this
+version.  Missing fields do not match; tied or magical nested values use
+ordinary read semantics, and overload is used only when the selected pattern
+requires conversion.  Inheritance and role matching remain future work.
+
+Class-qualified shapes introduce captures in the match clause's lexical
+scope, including its guard.  Captures do not overwrite outer variables with
+the same names.  A defect that could select a class field's pad entry and
+crash when a capture shared its name has been fixed.
+
+Freeing an array-tail pattern no longer treats its minimum element count as
+a lexical pad index, which could crash during eval cleanup.
+
+An existing scalar can also be pinned directly in a data shape with the
+pattern-only C<^$name> form.  Its value is snapshotted when the surrounding
+C<case> begins, and ordinary caret operators retain their normal meaning
+outside C<match> data shapes.
+
+String shapes may contain multiple unbound scalars inside literal
+concatenation, for example:
+
+    case ($text) {
+        match ("a" . $first . "b" . $second . "c") {
+            say "first=$first second=$second";
+        }
+    }
+
+Captures are resolved from left to right using the shortest value bounded by
+the next literal or pinned fragment.  Empty captures are allowed.  Adjacent
+unpinned captures, repeated capture names, and fragments separated only by an
+empty literal are errors.  A name listed by C<with>, or written with the
+pattern-only C<^> prefix, is a pinned existing lexical and must match its
+snapshotted value rather than capture new text.  Concatenation supports only
+literal, capture, and pinned fragments; arithmetic, calls, and other
+unsupported expressions throw an exception.
+
+More generally, unsupported or ambiguous data-shape syntax is rejected
+explicitly.  It is never silently ignored, treated as a non-match, or
+reinterpreted as ordinary Perl code.  See L<perlcasematch> and L<perldiag>
+for the current rules and diagnostics.
+
+=head2 Lexical namespaces
+
+The experimental C<namespaces> feature provides lexical namespace prefixes,
+the C<namespace> declaration and block form, C<__NAMESPACE__>, and lexical
+package aliases using C<use ... as ...>.  See L<perlnamespace>.
+
 =head2 Undef-aware equality operators
 
 Four new operators have been added, which are similar to the regular equality
@@ -116,6 +260,13 @@ an uncaught exception escaping its body is rethrown without automatically
 changing its state; the implementation or caller may explicitly mark it
 failed.  Generators inherit this protocol while continuing to manage their
 continuation state internally.  See L<perlgenerator/CALLABLE ITERATORS>.
+
+=head2 Complete experimental APIs with C<-E>
+
+The C<-E> command-line switch now enables the complete experimental feature
+set and imports the complete builtin set, including the generator syntax and
+its supporting builtins.  This is an XPerl extension to the traditional
+version-bundle behaviour of C<-E>.
 
 =head2 Data::Dumper supports class objects
 

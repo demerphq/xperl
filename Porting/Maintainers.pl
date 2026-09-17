@@ -1561,7 +1561,7 @@ for ( keys %Modules ) {
 }
 
 our %Maintainers = (
-    'XPERL' => 'Yves Orton and Stevan Little',
+    'XPERL' => 'Yves Orton',
     YVES    => 'Yves Orton <YVES@cpan.org>',
 );
 # legacy MAINTAINER field
