@@ -63,10 +63,12 @@ my %feature_kw = (
     finally   => 'try',
     defer     => 'defer',
     class     => 'class',
+    role      => 'class',
     field     => 'class',
     method    => 'class',
     ADJUST    => 'class',
     __CLASS__ => 'class',
+    implements => 'class',
     any       => 'keyword_any',
     all       => 'keyword_all',
     yield               => 'generator',
@@ -250,6 +252,7 @@ __END__
 -int
 -ioctl
 -isa
+-implements
 +gen
 +yield
 -join
@@ -320,6 +323,7 @@ __END__
 -rewinddir
 -rindex
 -rmdir
+-role
 +s
 +say
 +scalar
