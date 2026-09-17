@@ -129,6 +129,12 @@ our @IGNORABLE = qw(
 
 our %Modules = (
 
+    'AI Perl generators' => {
+        'FILES'      => q[lib/generator.pm],
+        'MAINTAINER' => 'AI-PERL',
+        'UPSTREAM'   => 'blead',
+    },
+
     'Archive::Tar' => {
         'DISTRIBUTION' => 'BINGOS/Archive-Tar-3.12.tar.gz',
         'SYNCINFO'     => 'leont on Wed Jun  3 15:24:01 2026',
@@ -1549,7 +1555,10 @@ for ( keys %Modules ) {
     }
 }
 
-our %Maintainers;
+our %Maintainers = (
+    'AI-PERL' => 'Yves Orton and Stevan Little',
+    YVES      => 'Yves Orton <YVES@cpan.org>',
+);
 # legacy MAINTAINER field
 for ( keys %Modules ) {
     # Keep any existing MAINTAINER flag so that "overrides" can be applied

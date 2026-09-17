@@ -5741,6 +5741,7 @@ struct perl_memory_debug_header {
 #endif
 
 typedef int (*runops_proc_t)(pTHX);
+typedef int (*runops_boundary_proc_t)(pTHX_ OP *nextop, void *data);
 typedef void (*share_proc_t) (pTHX_ SV *sv);
 typedef int  (*thrhook_proc_t) (pTHX);
 typedef OP* (*PPADDR_t[]) (pTHX);
@@ -6504,6 +6505,8 @@ struct interpreter {
 
 /* Set up PERLVAR macros for populating structs */
 #  define PERLVAR(prefix,var,type) type prefix##var;
+#  define PERLVARCTX(prefix,var,type) PERLVAR(prefix,var,type)
+#  define PERLVARCTXI(prefix,var,type,init) PERLVARI(prefix,var,type,init)
 
 /* 'var' is an array of length 'n' */
 #  define PERLVARA(prefix,var,n,type) type prefix##var[n];
@@ -6534,6 +6537,8 @@ EXTCONST U16 PL_interp_size_5_18_0
 
 /* Done with PERLVAR macros for now ... */
 #  undef PERLVAR
+#  undef PERLVARCTX
+#  undef PERLVARCTXI
 #  undef PERLVARA
 #  undef PERLVARI
 #  undef PERLVARIC
@@ -6580,6 +6585,8 @@ struct tempsym; /* defined in pp_pack.c */
  */
 
 #define PERLVAR(prefix,var,type) EXT type PL_##var;
+#define PERLVARCTX(prefix,var,type) PERLVAR(prefix,var,type)
+#define PERLVARCTXI(prefix,var,type,init) PERLVARI(prefix,var,type,init)
 #define PERLVARA(prefix,var,n,type) EXT type PL_##var[n];
 #define PERLVARI(prefix,var,type,init) EXT type  PL_##var INIT(init);
 #define PERLVARIC(prefix,var,type,init) EXTCONST type PL_##var INIT(init);
@@ -6611,6 +6618,8 @@ START_EXTERN_C
 END_EXTERN_C
 
 #undef PERLVAR
+#undef PERLVARCTX
+#undef PERLVARCTXI
 #undef PERLVARA
 #undef PERLVARI
 #undef PERLVARIC
@@ -6618,6 +6627,8 @@ END_EXTERN_C
 #if !defined(MULTIPLICITY)
 /* Set up PERLVAR macros for populating structs */
 #  define PERLVAR(prefix,var,type) type prefix##var;
+#  define PERLVARCTX(prefix,var,type) PERLVAR(prefix,var,type)
+#  define PERLVARCTXI(prefix,var,type,init) PERLVARI(prefix,var,type,init)
 /* 'var' is an array of length 'n' */
 #  define PERLVARA(prefix,var,n,type) type prefix##var[n];
 /* initialize 'var' to init' */
@@ -6630,6 +6641,8 @@ struct PerlHandShakeInterpreter {
 #  include "intrpvar.h"
 };
 #  undef PERLVAR
+#  undef PERLVARCTX
+#  undef PERLVARCTXI
 #  undef PERLVARA
 #  undef PERLVARI
 #  undef PERLVARIC

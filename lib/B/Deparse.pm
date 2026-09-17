@@ -2568,6 +2568,9 @@ my %feature_keywords = (
    signatures => 'signatures',
    any      => 'any',
    all      => 'all',
+   implements => 'class',
+   gen      => 'generator',
+   yield    => 'generator',
 );
 
 # keywords that are strong and also have a prototype
@@ -3456,6 +3459,7 @@ sub pp_sequ { binop(@_, "equ", 14) }
 sub pp_sneu { binop(@_, "neu", 14) }
 
 sub pp_isa { binop(@_, "isa", 15) }
+sub pp_implements { binop(@_, "implements", 15) }
 
 sub pp_sassign { binop(@_, "=", 7, SWAP_CHILDREN) }
 sub pp_aassign { binop(@_, "=", 7, SWAP_CHILDREN | LIST_CONTEXT) }
