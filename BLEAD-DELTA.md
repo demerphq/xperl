@@ -58,10 +58,26 @@ resumes the generators. The continuation is delimited by the generator body
 and is one-shot, while the saved process state preserves the Perl execution
 context across each suspension.
 
-Related POD: [`pod/perlgenerator.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlgenerator.pod) and [`lib/generator.pm`](https://github.com/demerphq/perl5/blob/ai-perl/lib/generator.pm) describe the combined pragma and generator interface; [`lib/builtin.pm`](https://github.com/demerphq/perl5/blob/ai-perl/lib/builtin.pm) documents builtin import behavior.  The dedicated POD covers generators,
-continuations, and cooperative resumable execution. [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlexperiment.pod),
-[`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlfunc.pod), [`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlsyn.pod), [`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldiag.pod), and
-[`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldelta.pod) cover the experimental status, keywords, syntax,
+The related experimental `iterator` package generalizes the callable
+lifecycle protocol to ordinary blessed code references. This lets code use a
+closure as an iterator without confusing an ordinary empty return value with
+the end of the sequence. It provides
+`RUNNING`, `COMPLETED`, and `FAILED` state, with `EXHAUSTED` derived from the
+two terminal states; generator continuation states remain private to the
+generator runtime. An uncaught exception escaping an iterator body is
+rethrown without changing its state; the iterator implementation or caller
+may explicitly mark it failed.
+The iterator contract requires code presenting itself as an iterator to report
+completion accurately, so `exhausted` is reliable even when an empty list is a
+valid ordinary result.
+The protocol also defines `restartable` and `restart`; the default is
+non-restartable, and the default `restart` method reports that restarting is
+unsupported.
+
+Related POD: [`pod/perlgenerator.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlgenerator.pod) and [`lib/generator.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/generator.pm) describe the combined pragma and generator interface; [`pod/perliterator.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perliterator.pod) describes the general callable-iterator protocol; [`lib/iterator.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/iterator.pm) documents its package API; and [`lib/builtin.pm`](https://github.com/demerphq/perl5/blob/xperl/main/lib/builtin.pm) documents builtin import behavior.  The dedicated POD covers generators,
+continuations, and cooperative resumable execution. [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod),
+[`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod), [`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlsyn.pod), [`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod), and
+[`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod) cover the experimental status, keywords, syntax,
 diagnostics, and release notes.
 
 ### Lexical namespaces
@@ -73,9 +89,9 @@ diagnostics, deparser tests, generated headers, and documentation were
 updated. `CORE` receives special handling because it is the implementation
 namespace for Perl's builtins and operators.
 
-Related POD: [`pod/perlnamespace.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlnamespace.pod) is the dedicated namespace reference;
-[`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlsyn.pod), [`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlfunc.pod), [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlexperiment.pod),
-[`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldiag.pod), and [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldelta.pod) cover syntax, builtins,
+Related POD: [`pod/perlnamespace.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlnamespace.pod) is the dedicated namespace reference;
+[`pod/perlsyn.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlsyn.pod), [`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod), [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod),
+[`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod), and [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod) cover syntax, builtins,
 experimental status, diagnostics, and release notes.
 
 ### Classes and roles
@@ -92,22 +108,22 @@ The branch includes substantial class and role work, including:
 - cloning of role metadata in threaded stashes;
 - corresponding parser, opcode, diagnostics, documentation, and tests.
 
-Related POD: [`pod/perlclass.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlclass.pod) is the primary class and role reference;
-[`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlfunc.pod), [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlexperiment.pod), [`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldiag.pod), and
-[`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldelta.pod) cover the builtins, experimental status, diagnostics, and
+Related POD: [`pod/perlclass.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlclass.pod) is the primary class and role reference;
+[`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod), [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod), [`pod/perldiag.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldiag.pod), and
+[`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod) cover the builtins, experimental status, diagnostics, and
 release notes.
 
 ### Class objects and Data::Dumper
 
 `Data::Dumper` now understands the new class-object representation through
 class-object/hash conversion APIs. The XS and pure-Perl Data::Dumper paths
-were updated in [`dist/Data-Dumper`](https://github.com/demerphq/perl5/tree/ai-perl/dist/Data-Dumper/), with compatibility guards for building
+were updated in [`dist/Data-Dumper`](https://github.com/demerphq/perl5/tree/xperl/main/dist/Data-Dumper/), with compatibility guards for building
 the distribution on older Perl versions. The class-object support is
 documented and tested.
 
-Related POD: [`pod/perlclass.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlclass.pod), [`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlfunc.pod), and [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldelta.pod)
+Related POD: [`pod/perlclass.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlclass.pod), [`pod/perlfunc.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlfunc.pod), and [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod)
 describe the class-object APIs and their user-visible integration.
-Distribution-specific history is in [`dist/Data-Dumper/Changes`](https://github.com/demerphq/perl5/blob/ai-perl/dist/Data-Dumper/Changes); no separate
+Distribution-specific history is in [`dist/Data-Dumper/Changes`](https://github.com/demerphq/perl5/blob/xperl/main/dist/Data-Dumper/Changes); no separate
 Data::Dumper POD document was added for this change.
 
 ## Bundled distribution changes
@@ -119,7 +135,7 @@ implementation, Perl support files, command-line utility, test suite, JSON
 specification fixtures, extended tests, metadata, and core maintainer/build
 integration.
 
-Related POD: [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldelta.pod) records the bundled-core change. The imported
+Related POD: [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod) records the bundled-core change. The imported
 distribution's API and tests remain documented in its own source and test
 files; no separate core POD document was added for Cpanel::JSON::XS.
 
@@ -145,10 +161,10 @@ The native tensor work includes:
 The tensor distribution remains an active experimental area and should not be
 read as a finalized numerical-computing ABI.
 
-Related POD: [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldelta.pod) records the bundled distribution change.
+Related POD: [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod) records the bundled distribution change.
 Tensor-specific design and status are documented in
-[`dist/Tensor-XS/Changes`](https://github.com/demerphq/perl5/blob/ai-perl/dist/Tensor-XS/Changes), [`dist/Tensor-XS/XS_DESIGN.md`](https://github.com/demerphq/perl5/blob/ai-perl/dist/Tensor-XS/XS_DESIGN.md),
-[`dist/Tensor-XS/NOTES.md`](https://github.com/demerphq/perl5/blob/ai-perl/dist/Tensor-XS/NOTES.md), and the other design and result Markdown files in
+[`dist/Tensor-XS/Changes`](https://github.com/demerphq/perl5/blob/xperl/main/dist/Tensor-XS/Changes), [`dist/Tensor-XS/XS_DESIGN.md`](https://github.com/demerphq/perl5/blob/xperl/main/dist/Tensor-XS/XS_DESIGN.md),
+[`dist/Tensor-XS/NOTES.md`](https://github.com/demerphq/perl5/blob/xperl/main/dist/Tensor-XS/NOTES.md), and the other design and result Markdown files in
 that distribution; no dedicated core POD document was added.
 
 ## Test and development workflow
@@ -159,9 +175,9 @@ test-harness behavior for saved timing data, including a very high default
 weight for files without timing information so new tests are scheduled early.
 
 Agent-oriented repository guidance and subsystem skills were added under
-[`.agent/`](https://github.com/demerphq/perl5/tree/ai-perl/.agent/), with related
+[`.agent/`](https://github.com/demerphq/perl5/tree/xperl/main/.agent/), with related
 root instructions. Development plans are kept under
-[`planning/`](https://github.com/demerphq/perl5/tree/ai-perl/planning/) and
+[`planning/`](https://github.com/demerphq/perl5/tree/xperl/main/planning/) and
 excluded from generated distribution manifests while remaining tracked source
 files.
 
@@ -170,9 +186,9 @@ checks, experimental warning handling, and bundled-distribution layout.
 
 Related POD: no dedicated POD document was added for the test-harness and
 agent-workflow changes. Their operational documentation is in
-[`AGENTS.md`](https://github.com/demerphq/perl5/blob/ai-perl/AGENTS.md),
-[`.agent/skills/`](https://github.com/demerphq/perl5/tree/ai-perl/.agent/skills/), and the tracked materials under
-[`planning/`](https://github.com/demerphq/perl5/tree/ai-perl/planning/).
+[`AGENTS.md`](https://github.com/demerphq/perl5/blob/xperl/main/AGENTS.md),
+[`.agent/skills/`](https://github.com/demerphq/perl5/tree/xperl/main/.agent/skills/), and the tracked materials under
+[`planning/`](https://github.com/demerphq/perl5/tree/xperl/main/planning/).
 
 ## Generated and platform integration
 
@@ -180,16 +196,16 @@ Because the branch changes keywords, features, opcodes, embedding declarations,
 interpreter variables, parser grammar, warnings, and bundled distributions,
 the comparison includes regenerated parser and header artifacts. Build and
 platform integration changes appear in
-[`Configure`](https://github.com/demerphq/perl5/blob/ai-perl/Configure),
-[`Makefile.SH`](https://github.com/demerphq/perl5/blob/ai-perl/Makefile.SH),
-[`Cross/`](https://github.com/demerphq/perl5/tree/ai-perl/Cross/),
-[`win32/`](https://github.com/demerphq/perl5/tree/ai-perl/win32/),
-[`plan9/`](https://github.com/demerphq/perl5/tree/ai-perl/plan9/), generated keyword/opcode files, and generated POD indexes.
+[`Configure`](https://github.com/demerphq/perl5/blob/xperl/main/Configure),
+[`Makefile.SH`](https://github.com/demerphq/perl5/blob/xperl/main/Makefile.SH),
+[`Cross/`](https://github.com/demerphq/perl5/tree/xperl/main/Cross/),
+[`win32/`](https://github.com/demerphq/perl5/tree/xperl/main/win32/),
+[`plan9/`](https://github.com/demerphq/perl5/tree/xperl/main/plan9/), generated keyword/opcode files, and generated POD indexes.
 
 These generated changes are consequences of the source changes above and must
 be regenerated when the relevant inputs change.
 
-Related POD: [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldelta.pod) records user-visible consequences; no
+Related POD: [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod) records user-visible consequences; no
 separate POD document was added for the generated-file and platform
 integration details.
 
@@ -201,6 +217,6 @@ handling, threaded builds, and bundled distributions. Nevertheless, the
 features listed here are experimental and the project explicitly permits
 incompatible changes when they are judged necessary for the fork's goals.
 
-Related POD: [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perldelta.pod) records notable user-visible differences,
-while [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlexperiment.pod), [`pod/perlgenerator.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlgenerator.pod), [`pod/perlclass.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlclass.pod), and
-[`pod/perlnamespace.pod`](https://github.com/demerphq/perl5/blob/ai-perl/pod/perlnamespace.pod) document the experimental features themselves.
+Related POD: [`pod/perldelta.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perldelta.pod) records notable user-visible differences,
+while [`pod/perlexperiment.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlexperiment.pod), [`pod/perlgenerator.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlgenerator.pod), [`pod/perlclass.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlclass.pod), and
+[`pod/perlnamespace.pod`](https://github.com/demerphq/perl5/blob/xperl/main/pod/perlnamespace.pod) document the experimental features themselves.
