@@ -149,6 +149,7 @@ POD = perl.pod	\
 	perlintro.pod	\
 	perliol.pod	\
 	perlipc.pod	\
+	perliterator.pod	\
 	perllexwarn.pod	\
 	perllocale.pod	\
 	perllol.pod	\
@@ -344,6 +345,7 @@ MAN = perl.man	\
 	perlintro.man	\
 	perliol.man	\
 	perlipc.man	\
+	perliterator.man	\
 	perllexwarn.man	\
 	perllocale.man	\
 	perllol.man	\
@@ -539,6 +541,7 @@ HTML = perl.html	\
 	perlintro.html	\
 	perliol.html	\
 	perlipc.html	\
+	perliterator.html	\
 	perllexwarn.html	\
 	perllocale.html	\
 	perllol.html	\
@@ -734,6 +737,7 @@ TEX = perl.tex	\
 	perlintro.tex	\
 	perliol.tex	\
 	perlipc.tex	\
+	perliterator.tex	\
 	perllexwarn.tex	\
 	perllocale.tex	\
 	perllol.tex	\
