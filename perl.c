@@ -248,6 +248,14 @@ perl_construct(pTHXx)
 {
     PERL_ARGS_ASSERT_PERL_CONSTRUCT;
 
+#ifndef MULTIPLICITY
+    /* The unthreaded interpreter may skip init_interp() when the caller has
+     * not requested full destruction.  Supply the non-zero initial values of
+     * the otherwise statically initialized execution variables. */
+    PL_tmps_ix = -1;
+    PL_tmps_floor = -1;
+#endif
+
 #ifdef MULTIPLICITY
     init_interp();
     PL_perl_destruct_level = 1;
@@ -2647,6 +2655,7 @@ S_parse_body(pTHX_ char **env, XSINIT_t xsinit)
     boot_core_PerlIO();
     boot_core_UNIVERSAL();
     boot_core_builtin();
+    boot_core_generator();
     boot_core_mro();
     newXS("Internals::V", S_Internals_V, __FILE__);
 
@@ -4185,8 +4194,12 @@ S_init_interp(pTHX)
 #    define PERLVARI(prefix,var,type,init)	PERL_GET_INTERP->var = init;
 #    define PERLVARIC(prefix,var,type,init)	PERL_GET_INTERP->var = init;
 #  endif
+#  define PERLVARCTX(prefix,var,type) PERLVAR(prefix,var,type)
+#  define PERLVARCTXI(prefix,var,type,init) PERLVARI(prefix,var,type,init)
 #  include "intrpvar.h"
 #  undef PERLVAR
+#  undef PERLVARCTX
+#  undef PERLVARCTXI
 #  undef PERLVARA
 #  undef PERLVARI
 #  undef PERLVARIC
@@ -4195,8 +4208,12 @@ S_init_interp(pTHX)
 #  define PERLVARA(prefix,var,n,type)
 #  define PERLVARI(prefix,var,type,init)	PL_##var = init;
 #  define PERLVARIC(prefix,var,type,init)	PL_##var = init;
+#  define PERLVARCTX(prefix,var,type) PERLVAR(prefix,var,type)
+#  define PERLVARCTXI(prefix,var,type,init) PERLVARI(prefix,var,type,init)
 #  include "intrpvar.h"
 #  undef PERLVAR
+#  undef PERLVARCTX
+#  undef PERLVARCTXI
 #  undef PERLVARA
 #  undef PERLVARI
 #  undef PERLVARIC
