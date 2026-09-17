@@ -94,6 +94,21 @@ ordinary C<rand_bytes> interface remains the portable provider protocol.
 Only C<undef> or an object may be assigned to C<${^RNG}>.  Other scalar values
 are rejected when the value is used.
 
+=head2 Experimental generators
+
+The experimental C<generator> feature creates a callable one-shot generator
+from a block.  Each call resumes the block until its next C<yield>,
+returning the yielded list in list context or its first value in scalar
+context.  Separate generators can be resumed in an explicitly interleaved,
+cooperative-concurrency pattern.  Generator calls can also send arguments
+back to the suspended C<yield>.  See L<perlfunc/gen
+BLOCK> and L<perlgenerator> for details.
+
+The C<running>, C<completed>, C<failed>, and
+C<exhausted> predicates are methods on generator objects and functions in the
+C<generator::> package.  The C<generator> pragma enables the feature and makes
+the package interface available.
+
 =head1 Security
 
 XXX Any security-related notices go here. In particular, any security
@@ -500,6 +515,15 @@ memory needed to regenerate Unicode data.  On a full Unicode C<mktables>
 workload, generation is approximately 23% faster and uses 17% less peak
 memory.  The MPH squeeze path is also substantially faster, at the cost of a
 small increase in the generated data size.
+The active C<PERL_EXECUTION_CONTEXT> is now embedded directly in the
+interpreter rather than accessed through a pointer.  Resumable process states
+retain an embedded copy and use structure assignment when saving and restoring
+it.  This keeps execution-context state grouped while avoiding an extra
+indirection on ordinary accesses to hot C<PL_*> variables.  The standard
+runloop also keeps boundary handling in a separate path, avoiding an inactive
+hook check after every ordinary opcode.  Generator C<yield> operations suspend
+directly when running on their owning interpreter stack, while retaining the
+boundary path for yields reached through nested runloops.
 
 =item *
 
