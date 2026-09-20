@@ -225,6 +225,15 @@ The behavior is documented in `pod/perlnamespace.pod`, with related syntax,
 builtin, experimental-status, diagnostic, and release documentation updated.
 The namespace and bootstrap tests cover the implementation.
 
+### `-E` enables the XPerl experimental surface
+
+The `-E` command-line switch now enables `feature ':all'` and imports
+`builtin ':all'`. This makes the branch's experimental keywords and builtin
+functions available directly in one-liners and command-line programs, while
+preserving the ordinary `-e` behavior. Experimental functions retain their
+normal warnings. The behavior is documented in `pod/perlrun.pod` and covered
+by the command-line regression tests.
+
 ### Case/match data-shape matching
 
 The experimental `case_match` feature adds a conditional construct for values
