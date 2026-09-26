@@ -975,6 +975,8 @@ static int my_keyword_plugin(pTHX_
 #include "APItest_runtime_support.inc"
 
 
+#include "APItest_rng_support.inc"
+
 #include "const-c.inc"
 
 typedef SV *nullable_SV;
@@ -1022,6 +1024,8 @@ INCLUDE: APItest_sv_compare_custom.xs
 INCLUDE: APItest_autoloadtest.xs
 
 INCLUDE: APItest_magic.xs
+
+INCLUDE: APItest_rng.xs
 
 INCLUDE: APItest_unicode_charclass.xs
 

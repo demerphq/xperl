@@ -3559,6 +3559,162 @@ PP(pp_sin)
    --Jarkko Hietaniemi	27 September 1998
  */
 
+static SV *S_rng_call(pTHX_ SV *provider, const char *method,
+                      SV *arg, bool has_arg);
+static void S_rng_clear_fast_path(pTHX);
+static NV S_rng_validated_U01(pTHX_ SV *referent,
+                              const Perl_rng_fast *fast);
+static void S_rng_reject_redacted_seed(pTHX_ SV *seed);
+static bool S_rng_is_seed_object(pTHX_ SV *seed);
+
+/* This duplicates the old srand numeric conversion for decimal seeds: ignore
+ * an optional sign and fractional component.  We cannot use grok_number(),
+ * because it returns a UV.  Parsing through U64 lets the built-in generator
+ * retain the low 32 bits and report narrowing on 32-bit Perls.  Exponent
+ * notation, other non-decimal text, and a value beyond U64 are string seeds. */
+static bool
+S_rng_decimal_seed(const char *bytes, STRLEN length, U64 *value,
+                   bool *overflow)
+{
+    const U8 *cursor = (const U8 *)bytes;
+    const U8 * const end = cursor + length;
+    U64 result = 0;
+    bool saw_digit = FALSE;
+
+    /* The zero initializer's historical return value must replay as zero. */
+    if (length == 10 && memEQ(bytes, "0 but true", 10)) {
+        *value = 0;
+        *overflow = FALSE;
+        return TRUE;
+    }
+
+    while (cursor < end && isSPACE(*cursor))
+        cursor++;
+    if (cursor < end && (*cursor == '+' || *cursor == '-'))
+        cursor++;
+    while (cursor < end && isDIGIT(*cursor)) {
+        const U64 digit = *cursor++ - '0';
+
+        saw_digit = TRUE;
+        if (result > (UINT64_C(0xffffffffffffffff) - digit) / 10)
+            return FALSE;
+        result = result * 10 + digit;
+    }
+    if (cursor < end && *cursor == '.') {
+        cursor++;
+        while (cursor < end && isDIGIT(*cursor)) {
+            saw_digit = TRUE;
+            cursor++;
+        }
+    }
+    if (!saw_digit)
+        return FALSE;
+    while (cursor < end && isSPACE(*cursor))
+        cursor++;
+    if (cursor != end)
+        return FALSE;
+
+    *value = result;
+    *overflow = result > U32_MAX;
+    return TRUE;
+}
+
+static SV *
+S_rng_srand_argument(pTHX_ SV *argument, bool has_argument)
+{
+    const char *bytes;
+    STRLEN length;
+    SV *seed;
+
+    if (has_argument && argument) {
+        SvGETMAGIC(argument);
+        if (SvOK(argument)) {
+            if (SvROK(argument) && S_rng_is_seed_object(aTHX_ argument)) {
+                S_rng_reject_redacted_seed(aTHX_ argument);
+                return newSVsv(argument);
+            }
+            if (SvROK(argument)
+                && !amagic_applies(argument, string_amg, AMGf_unary)) {
+                ck_warner(packWARN(WARN_MISC), "srand() argument is a reference without string overloading");
+                return newSVpvf("%" UVuf, PTR2UV(SvRV(argument)));
+            }
+
+            bytes = SvPVutf8_nomg(argument, length);
+            seed = newSVpvn(bytes, length);
+            SvUTF8_on(seed);
+            return seed;
+        }
+    }
+
+    if (PL_srand_override) {
+        UV value;
+
+        PERL_SRAND_OVERRIDE_GET(value);
+        return newSVpvf("%" UVuf, value);
+    }
+    return NULL;
+}
+
+static U64
+S_rng_drand48_seed(pTHX_ SV *seed)
+{
+    static const U8 hash_key[] = "Perl srand 48 v1";
+    STRLEN length;
+    const char *bytes;
+    U64 decimal;
+    bool overflow;
+
+    if (!seed) {
+        U64 entropy;
+        PERL_GET_WEAK_ENTROPY((U8 *)&entropy, sizeof(entropy));
+        return entropy & U32_MAX;
+    }
+
+    if (S_rng_is_seed_object(aTHX_ seed)) {
+        SV *raw = S_rng_call(aTHX_ seed, "bytes", NULL, FALSE);
+        const U8 *raw_bytes;
+        U32 value;
+
+        SvGETMAGIC(raw);
+        if (!SvPOK(raw)) {
+            SvREFCNT_dec_NN(raw);
+            croak("RNG::SeedBase::bytes() did not return seed octets");
+        }
+        raw_bytes = (const U8 *)SvPVbyte(raw, length);
+        if (length != 4) {
+            SvREFCNT_dec_NN(raw);
+            croak("RNG::Seed for built-in Drand48 must contain exactly 4 octets");
+        }
+        value = U8TO32_LE(raw_bytes);
+        SvREFCNT_dec_NN(raw);
+        return value;
+    }
+    bytes = SvPVutf8_nomg(seed, length);
+    if (S_rng_decimal_seed(bytes, length, &decimal, &overflow)) {
+        if (overflow)
+            ck_warner_d(packWARN(WARN_OVERFLOW), "Integer overflow in srand(): only using the low 32 bits");
+        return (U32)decimal;
+    }
+
+    return (U32)S_perl_hash_siphash_1_3_64(hash_key, (const U8 *)bytes,
+                                            length);
+}
+
+static void
+S_rng_clear_fast_path(pTHX)
+{
+    PL_rng_fast = NULL;
+    PL_rng_U01 = NULL;
+}
+
+static void
+S_rng_cache_fast_path(pTHX_ const Perl_rng_fast *fast)
+{
+    PL_rng_fast = fast;
+    PL_rng_U01 = fast ? (fast->validate ? S_rng_validated_U01 : fast->U01)
+                      : NULL;
+}
+
 static int
 S_rng_fast_free(pTHX_ SV *referent, MAGIC *mg)
 {
@@ -3567,6 +3723,8 @@ S_rng_fast_free(pTHX_ SV *referent, MAGIC *mg)
     PERL_UNUSED_ARG(referent);
     mg->mg_ptr = NULL;
     if (fast) {
+        if (PL_rng_fast == fast)
+            S_rng_clear_fast_path(aTHX);
         if (fast->state && fast->free_state)
             fast->free_state(aTHX_ fast->state);
         Safefree(fast);
@@ -3633,8 +3791,9 @@ Perl_rng_fast_find(pTHX_ SV *referent)
 /*
 =for apidoc rng_fast_unregister
 
-Remove a native RNG registration from C<referent>, freeing the registration
-and its owned state.  It is a no-op if no registration exists.
+Remove a native RNG registration from C<referent>.  This drops the installed
+fast-path cache before freeing the registration and its owned state.  It is
+a no-op if no registration exists.  The provider then uses C<rand_bytes>.
 
 =cut
 */
@@ -3642,6 +3801,8 @@ void
 Perl_rng_fast_unregister(pTHX_ SV *referent)
 {
     PERL_ARGS_ASSERT_RNG_FAST_UNREGISTER;
+    if (PL_rng_provider && SvRV(PL_rng_provider) == referent)
+        S_rng_clear_fast_path(aTHX);
     if (SvTYPE(referent) >= SVt_PVMG)
         sv_unmagicext(referent, PERL_MAGIC_ext, &S_rng_fast_vtbl);
 }
@@ -3693,103 +3854,406 @@ Perl_rng_fast_register(pTHX_ SV *referent, const Perl_rng_fast *descriptor)
                          NULL, 0);
     Newx(copy, 1, Perl_rng_fast);
     *copy = *descriptor;
+    if (PL_rng_provider && SvRV(PL_rng_provider) == referent)
+        S_rng_clear_fast_path(aTHX);
     S_rng_fast_free(aTHX_ referent, mg);
     mg->mg_ptr = (char *)copy;
     mg->mg_flags |= MGf_DUP;
+    if (PL_rng_provider && SvRV(PL_rng_provider) == referent)
+        S_rng_cache_fast_path(aTHX_ copy);
 }
 
-PP_wrapped(pp_rand, MAXARG, 0)
+void
+Perl_rng_clear(pTHX)
 {
-    if (!PL_srand_called) {
-        Rand_seed_t s;
-        if (PL_srand_override) {
-            /* env var PERL_RAND_SEED has been set so the user wants
-             * consistent srand() initialization. */
-            PERL_SRAND_OVERRIDE_GET(s);
-        } else {
-            /* Pseudo random initialization from context state and possible
-             * random devices */
-            s= (Rand_seed_t)seed();
-        }
-        (void)seedDrand01(s);
-        PL_srand_called = TRUE;
-    }
-    {
-        dSP;
-        NV value;
+    SV *provider;
 
-        if (MAXARG < 1)
-        {
-            EXTEND(SP, 1);
-            value = 1.0;
+    PERL_ARGS_ASSERT_RNG_CLEAR;
+
+    S_rng_clear_fast_path(aTHX);
+    provider = PL_rng_provider;
+    PL_rng_provider = NULL;
+    SvREFCNT_dec(provider);
+}
+
+static void
+S_rng_refresh(pTHX_ SV *provider)
+{
+    SV *held_provider = NULL;
+
+    Perl_rng_clear(aTHX);
+
+    if (!SvOK(provider))
+        return;
+
+    ENTER;
+    SAVETMPS;
+    held_provider = sv_2mortal(newSVsv(provider));
+    if (!sv_isobject(held_provider)
+        || !sv_derived_from(held_provider, "RNG::Provider"))
+        croak("${^RNG} must be an RNG::Provider object or undef");
+    PL_rng_provider = SvREFCNT_inc_simple_NN(held_provider);
+    S_rng_cache_fast_path(aTHX_
+        Perl_rng_fast_find(aTHX_ SvRV(held_provider)));
+    FREETMPS;
+    LEAVE;
+}
+
+void
+Perl_rng_refresh(pTHX_ SV *provider)
+{
+    PERL_ARGS_ASSERT_RNG_REFRESH;
+    S_rng_refresh(aTHX_ provider);
+}
+
+void
+Perl_rng_rebuild(pTHX)
+{
+    GV * const gv = gv_fetchpvs("\022NG", 0, SVt_PV);
+
+    PERL_ARGS_ASSERT_RNG_REBUILD;
+    if (gv)
+        S_rng_refresh(aTHX_ GvSV(gv));
+    else
+        Perl_rng_clear(aTHX);
+}
+
+/* Call the object installed in ${^RNG}. */
+static SV *
+S_rng_call(pTHX_ SV *provider, const char *method, SV *arg, bool has_arg)
+{
+    dSP;
+    SV *ret;
+    SV *call_provider;
+#ifdef PERL_RC_STACK
+    const bool is_rc = rpp_stack_is_rc();
+#endif
+
+    ENTER_with_name("call_RNG");
+    SAVETMPS;
+
+    /* Keep the object alive without exposing the cached scalar as $_[0]. */
+    call_provider = sv_2mortal(newSVsv(provider));
+    PUSHMARK(SP);
+    /* call_sv() can be entered with an RC or a non-RC stack.  Follow its
+     * mode-preserving push and pop protocol rather than using either stack's
+     * convenience macros. */
+    rpp_extend(has_arg ? 2 : 1);
+    SPAGAIN;
+    *++SP = call_provider;
+#ifdef PERL_RC_STACK
+    if (is_rc)
+        SvREFCNT_inc_simple_void_NN(call_provider);
+#endif
+    if (has_arg) {
+        *++SP = arg;
+#ifdef PERL_RC_STACK
+        if (is_rc)
+            SvREFCNT_inc_simple_void_NN(arg);
+#endif
+    }
+    PUTBACK;
+    const SSize_t count = call_method(method, G_SCALAR);
+    SPAGAIN;
+    /* Scalar calls leave one value; an empty return becomes undef. */
+    assert(count == 1);
+    PERL_UNUSED_VAR(count);
+
+    ret = newSVsv(TOPs);
+#ifdef PERL_RC_STACK
+    if (is_rc)
+        SvREFCNT_dec_NN(TOPs);
+#endif
+    SP--;
+    PUTBACK;
+
+    FREETMPS;
+    LEAVE_with_name("call_RNG");
+    return ret;
+}
+
+static void
+S_rng_reject_redacted_seed(pTHX_ SV *seed)
+{
+    SV *is_redacted;
+
+    if (!S_rng_is_seed_object(aTHX_ seed))
+        return;
+
+    is_redacted = S_rng_call(aTHX_ seed, "is_redacted", NULL, FALSE);
+    if (SvTRUE(is_redacted)) {
+        SvREFCNT_dec_NN(is_redacted);
+        croak("Cannot use a redacted RNG seed");
+    }
+    SvREFCNT_dec_NN(is_redacted);
+}
+
+static bool
+S_rng_is_seed_object(pTHX_ SV *seed)
+{
+    return seed && sv_isobject(seed) && sv_derived_from(seed, "RNG::SeedBase");
+}
+
+static SV *
+S_rng_bytes(pTHX_ SV *provider, STRLEN length)
+{
+    SV * const result = S_rng_call(aTHX_ provider, "rand_bytes",
+                                   sv_2mortal(newSVuv(length)), TRUE);
+    const U8 *bytes;
+    STRLEN len;
+
+    SvGETMAGIC(result);
+    if (!SvPOK(result))
+        croak("RNG provider rand_bytes() did not return a byte string");
+    bytes = (const U8 *)SvPVbyte_nomg(result, len);
+    if (len != length)
+        croak("RNG provider rand_bytes() did not return the requested byte count");
+    PERL_UNUSED_VAR(bytes);
+    return result;
+}
+
+/* Keep address-exposed locals out of pp_rand() so its hot path avoids the
+ * stack-protector check for code that runs only while seeding or on a
+ * provider fallback. */
+#if defined(__GNUC__) || defined(__clang__)
+#  define RNG_NOINLINE __attribute__((noinline))
+#elif defined(_MSC_VER)
+#  define RNG_NOINLINE __declspec(noinline)
+#else
+#  define RNG_NOINLINE
+#endif
+
+RNG_NOINLINE
+static U64
+S_rng_u64(pTHX_ SV *provider)
+{
+    SV * const result = S_rng_bytes(aTHX_ provider, 8);
+    const U8 *bytes;
+    STRLEN len;
+    U64 value = 0;
+    unsigned int i;
+
+    bytes = (const U8 *)SvPVbyte_nomg(result, len);
+    PERL_UNUSED_VAR(len);
+    for (i = 0; i < 8; i++)
+        value = (value << 8) | bytes[i];
+    SvREFCNT_dec_NN(result);
+    return value;
+}
+
+PERL_STATIC_INLINE NV
+S_rng_u64_to_NV_U01(U64 value)
+{
+#if NVMANTBITS < 63
+    return Perl_ldexp((NV)(value >> (63 - NVMANTBITS)),
+                      -(NVMANTBITS + 1));
+#else
+    return Perl_ldexp((NV)value, -64);
+#endif
+}
+
+static NV
+S_rng_validated_U01(pTHX_ SV *referent, const Perl_rng_fast *fast)
+{
+    if (fast->validate(aTHX_ referent, fast))
+        return fast->U01(aTHX_ referent, fast);
+    return S_rng_u64_to_NV_U01(S_rng_u64(aTHX_ PL_rng_provider));
+}
+
+RNG_NOINLINE
+static void
+S_rng_seed_default_once(pTHX)
+{
+    Rand_seed_t seed_value;
+
+    if (PL_srand_override)
+        PERL_SRAND_OVERRIDE_GET(seed_value);
+    else {
+        U64 entropy;
+        PERL_GET_WEAK_ENTROPY((U8 *)&entropy, sizeof(entropy));
+        seed_value = (Rand_seed_t)entropy;
+    }
+    (void)Perl_drand48_init_r(&PL_random_state, seed_value);
+    PL_srand_called = TRUE;
+}
+
+PERL_STATIC_FORCE_INLINE void
+S_rng_seed_default(pTHX)
+{
+    if (!PL_srand_called)
+        S_rng_seed_default_once(aTHX);
+}
+
+static SV *
+S_rng_default_bytes(pTHX_ STRLEN length)
+{
+    SV *result;
+    STRLEN offset;
+
+    S_rng_seed_default(aTHX);
+    result = newSV(length + 1);
+    offset = 0;
+    while (offset < length) {
+        const U64 value = Perl_drand48_raw_r(&PL_random_state);
+        /* The low bits of an LCG has shorter periods, so emit the high
+         * 32 bits of the 48 bit state vector by throwing away the low 16
+         * bits. */
+        U32 word = (U32)(value >> 16);
+        STRLEN bytes_to_copy = length - offset;
+
+        assert(sizeof(word) == 4);
+        switch (bytes_to_copy) {
+            default: ((U8 *)SvPVX(result))[offset++] = (U8)(word & 0xFF); word >>= 8; /* FALLTHROUGH */
+            case  3: ((U8 *)SvPVX(result))[offset++] = (U8)(word & 0xFF); word >>= 8; /* FALLTHROUGH */
+            case  2: ((U8 *)SvPVX(result))[offset++] = (U8)(word & 0xFF); word >>= 8; /* FALLTHROUGH */
+            case  1: ((U8 *)SvPVX(result))[offset++] = (U8)(word & 0xFF);
         }
-        else {
-            SV * const sv = POPs;
-            if(!sv)
-                value = 1.0;
-            else
-                value = SvNV(sv);
-        }
+    }
+    SvPVX(result)[length] = '\0';
+    SvCUR_set(result, length);
+    SvPOK_on(result);
+    return result;
+}
+
+#undef RNG_NOINLINE
+
+SV *
+Perl_call_rand_bytes(pTHX_ STRLEN length)
+{
+    PERL_ARGS_ASSERT_CALL_RAND_BYTES;
+
+    /* An SV needs a trailing NUL in addition to the requested bytes. */
+    if (length == STRLEN_MAX)
+        croak("builtin::rand_bytes() count is too large");
+
+    if (!length)
+        return newSVpvs("");
+
+    if (!PL_rng_provider)
+        return S_rng_default_bytes(aTHX_ length);
+
+    return S_rng_bytes(aTHX_ PL_rng_provider, length);
+}
+
+PERL_STATIC_INLINE NV
+S_call_rand(pTHX)
+{
+    PERL_ARGS_ASSERT_CALL_RAND;
+
+    if (PL_rng_provider) {
+        const Perl_rng_fast * const fast = PL_rng_fast;
+        if (fast)
+            return PL_rng_U01(aTHX_ SvRV(PL_rng_provider), fast);
+        return S_rng_u64_to_NV_U01(S_rng_u64(aTHX_ PL_rng_provider));
+    }
+
+    S_rng_seed_default(aTHX);
+
+    return Perl_drand48_r(&PL_random_state);
+}
+
+NV
+Perl_call_rand(pTHX)
+{
+    return S_call_rand(aTHX);
+}
+
+void
+Perl_call_srand(pTHX_ Rand_seed_t seed_value)
+{
+    PERL_ARGS_ASSERT_CALL_SRAND;
+
+    if (PL_rng_provider) {
+        /* seedDrand01() is also used by older XS code to initialize the
+         * default generator before its first Drand01() call.  With a custom
+         * provider, leave the provider alone.  Explicit Perl srand()
+         * dispatches to the provider in pp_srand(). */
+        return;
+    }
+
+    (void)Perl_drand48_init_r(&PL_random_state, seed_value);
+    PL_srand_called = TRUE;
+}
+
+PP(pp_rand)
+{
+    const NV random_value = S_call_rand(aTHX);
+    dTARGET;
+    SV * const arg = MAXARG >= 1 ? *PL_stack_sp : NULL;
+    NV value;
+
+    if (!arg)
+        value = 1.0;
+    else
+        value = SvNV(arg);
     /* 1 of 2 things can be carried through SvNV, SP or TARG, SP was carried */
 #if defined(NAN_COMPARE_BROKEN) && defined(Perl_isnan)
-        if (! Perl_isnan(value) && value == 0.0)
+    if (! Perl_isnan(value) && value == 0.0)
 #else
-        if (value == 0.0)
+    if (value == 0.0)
 #endif
-            value = 1.0;
-        {
-            dTARGET;
-            PUSHs(TARG);
-            PUTBACK;
-            value *= Drand01();
-            sv_setnv_mg(TARG, value);
-        }
+        value = 1.0;
+
+    value *= random_value;
+    sv_setnv_mg(TARG, value);
+    if (arg)
+        rpp_replace_1_1_NN(TARG);
+    else {
+        if (MAXARG)
+            rpp_popfree_to(PL_stack_sp - MAXARG);
+        rpp_xpush_1(TARG);
     }
     return NORMAL;
 }
 
-PP_wrapped(pp_srand, MAXARG, 0)
+
+PP(pp_srand)
 {
-    dSP; dTARGET;
-    UV anum;
+    dTARGET;
+    SV * const provider = PL_rng_provider
+        ? sv_2mortal(newSVsv(PL_rng_provider)) : NULL;
+    SV *argument = MAXARG >= 1 ? *PL_stack_sp : NULL;
+    SV *seed;
+    U64 anum;
 
-    if (MAXARG >= 1 && (TOPs || POPs)) {
-        SV *top;
-        char *pv;
-        STRLEN len;
-        int flags;
+    seed = S_rng_srand_argument(aTHX_ argument, MAXARG >= 1);
+    if (seed)
+        seed = sv_2mortal(seed);
 
-        top = POPs;
-        pv = SvPV(top, len);
-        flags = grok_number(pv, len, &anum);
+    if (provider) {
+        SV *result;
 
-        if (!(flags & IS_NUMBER_IN_UV)) {
-            ck_warner_d(packWARN(WARN_OVERFLOW),
-                        "Integer overflow in srand");
-            anum = UV_MAX;
+        /* Registration changes and assignments to ${^RNG} update the cache.
+         * Keep it available when seeding calls rand() or throws. */
+        result = S_rng_call(aTHX_ provider, "srand", seed, seed != NULL);
+        sv_setsv(TARG, result);
+        SvREFCNT_dec_NN(result);
+        if (argument)
+            rpp_replace_1_1_NN(TARG);
+        else {
+            if (MAXARG)
+                rpp_popfree_to(PL_stack_sp - MAXARG);
+            rpp_xpush_1(TARG);
         }
+        return NORMAL;
     }
-    else {
-        if (PL_srand_override) {
-            /* env var PERL_RAND_SEED has been set so the user wants
-             * consistent srand() initialization. */
-            PERL_SRAND_OVERRIDE_GET(anum);
-        } else {
-            anum = seed();
-        }
-    }
+
+    anum = S_rng_drand48_seed(aTHX_ seed);
 
     (void)seedDrand01((Rand_seed_t)anum);
     PL_srand_called = TRUE;
     if (anum)
-        XPUSHu(anum);
-    else {
-        /* Historically srand always returned true. We can avoid breaking
-           that like this:  */
+        sv_setuv(TARG, anum);
+    else
         sv_setpvs(TARG, "0 but true");
-        XPUSHTARG;
+    if (argument)
+        rpp_replace_1_1_NN(TARG);
+    else {
+        if (MAXARG)
+            rpp_popfree_to(PL_stack_sp - MAXARG);
+        rpp_xpush_1(TARG);
     }
-    RETURN;
+    return NORMAL;
 }
 
 PP(pp_int)
