@@ -568,6 +568,9 @@
 # define reginitcolors()                        Perl_reginitcolors(aTHX)
 # define repeatcpy                              Perl_repeatcpy
 # define require_pv(a)                          Perl_require_pv(aTHX_ a)
+# define rng_fast_find(a)                       Perl_rng_fast_find(aTHX_ a)
+# define rng_fast_register(a,b)                 Perl_rng_fast_register(aTHX_ a,b)
+# define rng_fast_unregister(a)                 Perl_rng_fast_unregister(aTHX_ a)
 # define rninstr                                Perl_rninstr
 # define rpp_context(a,b,c)                     Perl_rpp_context(aTHX_ a,b,c)
 # define rpp_extend(a)                          Perl_rpp_extend(aTHX_ a)

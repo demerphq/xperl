@@ -3559,6 +3559,145 @@ PP(pp_sin)
    --Jarkko Hietaniemi	27 September 1998
  */
 
+static int
+S_rng_fast_free(pTHX_ SV *referent, MAGIC *mg)
+{
+    Perl_rng_fast * const fast = (Perl_rng_fast *)mg->mg_ptr;
+
+    PERL_UNUSED_ARG(referent);
+    mg->mg_ptr = NULL;
+    if (fast) {
+        if (fast->state && fast->free_state)
+            fast->free_state(aTHX_ fast->state);
+        Safefree(fast);
+    }
+    return 0;
+}
+
+#ifdef USE_ITHREADS
+static int
+S_rng_fast_dup(pTHX_ MAGIC *mg, CLONE_PARAMS *param)
+{
+    const Perl_rng_fast * const original = (const Perl_rng_fast *)mg->mg_ptr;
+    Perl_rng_fast *copy;
+
+    PERL_UNUSED_ARG(param);
+    /* Never let clone cleanup free the parent's descriptor or state. */
+    mg->mg_ptr = NULL;
+    if (!original || (original->state && !original->dup_state))
+        return 0;
+
+    Newx(copy, 1, Perl_rng_fast);
+    *copy = *original;
+    copy->state = NULL;
+    mg->mg_ptr = (char *)copy;
+    if (original->state)
+        copy->state = original->dup_state(aTHX_ original->state);
+    return 0;
+}
+#endif
+
+static const MGVTBL S_rng_fast_vtbl = {
+    NULL, NULL, NULL, NULL, S_rng_fast_free, NULL,
+#ifdef USE_ITHREADS
+    S_rng_fast_dup,
+#else
+    NULL,
+#endif
+    NULL
+};
+
+/*
+=for apidoc_section $numeric
+
+=for apidoc rng_fast_find
+
+Return the native RNG registration attached to C<referent>, or C<NULL>.
+The returned descriptor belongs to the referent and is invalidated by
+replacement, unregistration, or destruction.  No Perl code is called.
+
+=cut
+*/
+const Perl_rng_fast *
+Perl_rng_fast_find(pTHX_ SV *referent)
+{
+    MAGIC *mg;
+
+    PERL_ARGS_ASSERT_RNG_FAST_FIND;
+    if (SvTYPE(referent) < SVt_PVMG)
+        return NULL;
+    mg = mg_findext(referent, PERL_MAGIC_ext, &S_rng_fast_vtbl);
+    return mg ? (const Perl_rng_fast *)mg->mg_ptr : NULL;
+}
+
+/*
+=for apidoc rng_fast_unregister
+
+Remove a native RNG registration from C<referent>, freeing the registration
+and its owned state.  It is a no-op if no registration exists.
+
+=cut
+*/
+void
+Perl_rng_fast_unregister(pTHX_ SV *referent)
+{
+    PERL_ARGS_ASSERT_RNG_FAST_UNREGISTER;
+    if (SvTYPE(referent) >= SVt_PVMG)
+        sv_unmagicext(referent, PERL_MAGIC_ext, &S_rng_fast_vtbl);
+}
+
+/*
+=for apidoc rng_fast_register
+
+Attach a copy of C<descriptor> to a blessed C<referent>.  Set C<abi> to
+C<PERL_RNG_FAST_ABI>, C<size> to C<sizeof(Perl_rng_fast)>, and C<U01> to a
+callback returning a uniform NV in [0,1).  C<validate>, if non-NULL, is called
+before each draw and may decline the fast path by returning false.
+Neither callback may run Perl code.  C<U01> must complete each update before
+returning or throwing an exception.
+
+On success the registration owns C<state>.  Its optional C<free_state>
+callback frees that allocation without running Perl code or throwing an
+exception.  C<dup_state>
+returns an independently owned copy for a cloned interpreter.  Without it,
+a registration with non-NULL state is omitted from the clone.  Providers
+with no native state may use the cloned referent in their callbacks.
+
+The descriptor is copied before the previous registration is removed.
+On failure the caller retains ownership of the new state.  Replacing a
+registration frees its previous state, so do not transfer the same state
+allocation twice.  Subclass overrides and reblessing do not disable a
+registration.  XS providers are responsible for their representation and
+callback contracts.
+
+=cut
+*/
+void
+Perl_rng_fast_register(pTHX_ SV *referent, const Perl_rng_fast *descriptor)
+{
+    MAGIC *mg;
+    Perl_rng_fast *copy;
+
+    PERL_ARGS_ASSERT_RNG_FAST_REGISTER;
+    if (!SvOBJECT(referent))
+        croak("${^RNG} must be an RNG::Provider object or undef");
+    if (descriptor->abi != PERL_RNG_FAST_ABI
+        || descriptor->size != sizeof(Perl_rng_fast) || !descriptor->U01)
+        croak("Invalid RNG fast descriptor");
+
+    /* Attach empty magic before allocating the descriptor, so an allocation
+     * failure leaves no unowned descriptor or transferred state. */
+    mg = mg_findext(referent, PERL_MAGIC_ext, &S_rng_fast_vtbl);
+    if (!mg)
+        mg = sv_magicext(referent, NULL, PERL_MAGIC_ext, &S_rng_fast_vtbl,
+                         NULL, 0);
+    Newx(copy, 1, Perl_rng_fast);
+    *copy = *descriptor;
+    S_rng_fast_free(aTHX_ referent, mg);
+    mg->mg_ptr = (char *)copy;
+    mg->mg_flags |= MGf_DUP;
+}
+
 PP_wrapped(pp_rand, MAXARG, 0)
 {
     if (!PL_srand_called) {

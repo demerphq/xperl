@@ -6486,6 +6486,26 @@ typedef void(*Perl_cpeep_t)(pTHX_ OP *, OP *);
 
 typedef void(*globhook_t)(pTHX);
 
+#define PERL_RNG_FAST_ABI 1
+typedef struct perl_rng_fast Perl_rng_fast;
+
+/* U01 means a uniform value in the half-open interval [0,1).
+ * Fast callbacks must not run Perl code. */
+typedef NV (*Perl_rng_U01_func)(pTHX_ SV *referent,
+                               const Perl_rng_fast *fast);
+typedef bool (*Perl_rng_validate_func)(pTHX_ SV *referent,
+                                      const Perl_rng_fast *fast);
+
+struct perl_rng_fast {
+    U32 abi;
+    U32 size;
+    Perl_rng_U01_func U01;
+    Perl_rng_validate_func validate;
+    void *state;
+    void (*free_state)(pTHX_ void *state);
+    void *(*dup_state)(pTHX_ const void *state);
+};
+
 #define KEYWORD_PLUGIN_DECLINE 0
 #define KEYWORD_PLUGIN_STMT    1
 #define KEYWORD_PLUGIN_EXPR    2

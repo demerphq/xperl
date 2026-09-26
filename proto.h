@@ -7141,6 +7141,34 @@ Perl_resume_compcv_final(pTHX_ struct suspended_compcv *buffer)
                  PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
     } STMT_END
 
+PERL_CALLCONV const Perl_rng_fast *
+Perl_rng_fast_find(pTHX_ SV *referent)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_RNG_FAST_FIND          \
+    STMT_START { Perl_assert_aTHX; assert(referent);   \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_rng_fast_register(pTHX_ SV *referent, const Perl_rng_fast *descriptor)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2);
+#define PERL_ARGS_ASSERT_RNG_FAST_REGISTER      \
+    STMT_START { Perl_assert_aTHX; assert(referent); assert(descriptor);  \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;                     \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_rng_fast_unregister(pTHX_ SV *referent)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_RNG_FAST_UNREGISTER    \
+    STMT_START { Perl_assert_aTHX; assert(referent);   \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
 PERL_CALLCONV char *
 Perl_rninstr(const char *big, const char *bigend, const char *little, const char *lend)
         Perl_attribute_nonnull(1)

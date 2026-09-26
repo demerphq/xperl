@@ -3167,6 +3167,13 @@ Admp	|void	|resume_compcv_and_save 				\
 				|NN struct suspended_compcv *buffer
 Admp	|void	|resume_compcv_final					\
 				|NN struct suspended_compcv *buffer
+Adp	|const Perl_rng_fast *|rng_fast_find				\
+				|NN SV *referent
+Adp	|void	|rng_fast_register					\
+				|NN SV *referent			\
+				|NN const Perl_rng_fast *descriptor
+Adp	|void	|rng_fast_unregister					\
+				|NN SV *referent
 APTdp	|char * |rninstr	|SPTR const char *big			\
 				|EPTRge const char *bigend		\
 				|SPTR const char *little		\
