@@ -19,6 +19,9 @@ asks for a different approach.
   locale, threads, multiplicity, and non-Unix assumptions when relevant.
 - Prefer existing Perl core patterns, helper macros, regeneration targets, and
   porting tools over new local conventions.
+- Do not change shared porting, build, test, regeneration, or other generic
+  infrastructure merely to accommodate a specific feature or distribution.
+  Such changes require the user's explicit authorization.
 - Do not hand-edit generated files without also identifying and running the
   generator, or documenting why regeneration is not appropriate.
 - Keep public API, binary compatibility, and XS/embedding compatibility in mind
