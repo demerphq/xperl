@@ -290,7 +290,8 @@ package main;
     local ${^RNG} = bless {}, 'RNG::EmptyReturn';
     eval { rand_bytes(1) };
     my $empty_error = $@;
-    like($empty_error, qr/did not return a byte string/,
+    is($empty_error->contents->[0]->code,
+       'ERROR_RNG_PROVIDER_BYTE_STRING_REQUIRED',
        'an empty scalar callback result fails the byte-string contract');
     local ${^RNG} = bless {}, 'RNG::ListReturn';
     is(rand_bytes(1), "\0",
@@ -305,7 +306,8 @@ package main;
         my $maximum_error = $@;
         like($maximum_error, qr/builtin::rand_bytes\(\) count is too large/,
              'maximum byte count is rejected before adding a terminator');
-        like($maximum_error, qr/count is too large/,
+        is($maximum_error->contents->[0]->code,
+           'ERROR_RNG_BYTES_COUNT_TOO_LARGE',
            'the maximum count uses the size diagnostic');
     }
 
