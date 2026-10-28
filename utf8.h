@@ -289,19 +289,48 @@ use L</UNI_TO_NATIVE>.
 
 =for apidoc Am|UV|NATIVE_TO_UNI|UV ch
 
-Returns the Unicode  equivalent of the input native code point given by C<ch>.
-Thus, C<NATIVE_TO_UNI(195)> on EBCDIC platforms returns 67.  These each
-represent the character C<"C"> on their respective platforms.  On ASCII
-platforms no conversion is needed, so this macro expands to just its input,
-adding no time nor space requirements to the implementation.
+Converts C<ch> from Perl's native-Unicode code point numbering to standard
+Unicode code point numbering.  Native-Unicode uses the platform's native
+character numbers for 0..255 and standard Unicode numbers for values above
+255.  Thus, C<NATIVE_TO_UNI(195)> on EBCDIC platforms returns 67; both numbers
+represent C<"C"> in their respective numbering conventions.  Values above 255
+are returned unchanged.  On ASCII platforms all values are returned unchanged.
+
+Use this macro when a consumer requires standard Unicode numbers, for example
+when producing a C<U+0043> label from a native-Unicode code point.  It is
+generally unnecessary between Perl character APIs that already use
+native-Unicode numbering, including L</toUPPER_uvchr> and L</toFOLD_uvchr>.
+Check both APIs' contracts before adding a conversion.  The historical C<uni>
+in an API name does not establish which numbering convention it uses.
+
+This macro converts a code point number, not an encoded string.  See
+L</UNI_TO_NATIVE> for the reverse conversion.
 
 =for apidoc Am|UV|UNI_TO_NATIVE|UV ch
 
-Returns the native  equivalent of the input Unicode code point  given by C<ch>.
-Thus, C<UNI_TO_NATIVE(68)> on EBCDIC platforms returns 196.  These each
-represent the character C<"D"> on their respective platforms.  On ASCII
-platforms no conversion is needed, so this macro expands to just its input,
-adding no time nor space requirements to the implementation.
+Converts C<ch> from standard Unicode code point numbering to Perl's
+native-Unicode numbering.  Native-Unicode uses the platform's native character
+numbers for 0..255 and standard Unicode numbers for values above 255.  Thus,
+C<UNI_TO_NATIVE(68)> on EBCDIC platforms returns 196; both numbers represent
+C<"D"> in their respective numbering conventions.  Values above 255 are
+returned unchanged.  On ASCII platforms all values are returned unchanged.
+
+Use this macro when introducing a standard Unicode number into an API that
+expects native-Unicode numbering.  For example, to uppercase Unicode U+00DF:
+
+ U8 result[UTF8_MAXBYTES_CASE + 1];
+ STRLEN length;
+ UV first = toUPPER_uvchr(UNI_TO_NATIVE(0xDF), result, &length);
+
+C<first> uses native-Unicode numbering, and C<result> contains the complete
+uppercase mapping in native UTF-8 (UTF-8 on ASCII platforms, UTF-EBCDIC on
+EBCDIC platforms).
+
+Do not apply this conversion to values that already use native-Unicode
+numbering.  For example, the return value of L</utf8_to_uvchr_buf> can be
+passed directly to L</toUPPER_uvchr>.  Converting it again can change the
+character on EBCDIC platforms.  See L</NATIVE_TO_UNI> for the reverse
+conversion.  Neither macro encodes or decodes a string.
 
 =cut
 */
