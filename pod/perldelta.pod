@@ -1109,6 +1109,11 @@ manager will later use a regex to expand these into links.
 
 =item *
 
+Rethrowing an exception with an empty C<die> no longer leaves a stale stack
+entry visible to its C<PROPAGATE> method on reference-counted stack builds.
+
+=item *
+
 Dispatch pattern callbacks and custom C<isa> methods now keep their
 arguments and results correctly referenced on reference-counted stack builds.
 
