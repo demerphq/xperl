@@ -9071,16 +9071,27 @@ Perl_utilize(pTHX_ int aver, I32 floor, OP *version, OP *idop, OP *arg)
                        ));
     }
 
+    /* The statements of the implicit BEGIN block carry the line the "use"
+     * ends on, as in ordinary Perl. newSTATEOP() consumes and resets
+     * PL_parser->copline, and an anonymous sub in the import list can leave
+     * it set (newATTRSUB_x() restores the line it noted). Clear it, and
+     * build the statements in a fixed order: as nested function arguments,
+     * which one took the stale line depended on the C compiler's argument
+     * evaluation order. */
+    PL_parser->copline = NOLINE;
+    OP * const require_state =
+        newSTATEOP(0, NULL, newUNOP(OP_REQUIRE, 0, idop));
+    OP * const version_state = newSTATEOP(0, NULL, veop);
+    OP * const import_state = newSTATEOP(0, NULL, imop);
+
     /* Fake up the BEGIN {}, which does its thing immediately. */
     newATTRSUB(floor,
         newSVOP(OP_CONST, 0, newSVpvs_share("BEGIN")),
         NULL,
         NULL,
         op_append_elem(OP_LINESEQ,
-            op_append_elem(OP_LINESEQ,
-                newSTATEOP(0, NULL, newUNOP(OP_REQUIRE, 0, idop)),
-                newSTATEOP(0, NULL, veop)),
-            newSTATEOP(0, NULL, imop) ));
+            op_append_elem(OP_LINESEQ, require_state, version_state),
+            import_state));
 
     if (use_version) {
         /* Enable the feature bundle that corresponds to the required version. */
