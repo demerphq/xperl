@@ -1109,6 +1109,11 @@ manager will later use a regex to expand these into links.
 
 =item *
 
+Dispatch pattern callbacks and custom C<isa> methods now keep their
+arguments and results correctly referenced on reference-counted stack builds.
+
+=item *
+
 XGraph bulk construction now runs its temporary graph cleanup while the
 owning C stack frame is live. This avoids an invalid free on reference-counted
 stack builds.
