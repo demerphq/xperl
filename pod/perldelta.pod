@@ -450,6 +450,14 @@ array. [GH #25038]
 
 =item *
 
+Parser contextualization of binary operands and array subscripts now runs
+in a defined order. Scalar and compound assignments validate their target
+before contextualizing the right-hand expression. C compiler argument
+evaluation order previously affected warning order, the first fatal warning,
+and suppression of secondary diagnostics after an invalid assignment target.
+
+=item *
+
 A case-insensitive regex trie no longer accepts a word ending partway through
 an input character's fold. For example, C</s|zoo/iu> no longer matches a
 sharp-s, whose full fold is C<ss>. Later alternatives are tried in order.
