@@ -8859,16 +8859,23 @@ Perl_utilize(pTHX_ int aver, I32 floor, OP *version, OP *idop, OP *arg)
                        ));
     }
 
+    /* newSTATEOP() consumes PL_parser->copline. An anonymous sub in the
+     * import list can leave its line there, so clear it and construct these
+     * statements in order before passing them to op_append_elem(). */
+    PL_parser->copline = NOLINE;
+    OP * const require_state =
+        newSTATEOP(0, NULL, newUNOP(OP_REQUIRE, 0, idop));
+    OP * const version_state = newSTATEOP(0, NULL, veop);
+    OP * const import_state = newSTATEOP(0, NULL, imop);
+
     /* Fake up the BEGIN {}, which does its thing immediately. */
     newATTRSUB(floor,
         newSVOP(OP_CONST, 0, newSVpvs_share("BEGIN")),
         NULL,
         NULL,
         op_append_elem(OP_LINESEQ,
-            op_append_elem(OP_LINESEQ,
-                newSTATEOP(0, NULL, newUNOP(OP_REQUIRE, 0, idop)),
-                newSTATEOP(0, NULL, veop)),
-            newSTATEOP(0, NULL, imop) ));
+            op_append_elem(OP_LINESEQ, require_state, version_state),
+            import_state));
 
     if (use_version) {
         /* Enable the feature bundle that corresponds to the required version. */

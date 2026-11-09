@@ -458,6 +458,13 @@ and suppression of secondary diagnostics after an invalid assignment target.
 
 =item *
 
+A multi-line C<use> whose import list declares anonymous subroutines now
+assigns the same ending line to each statement in its implicit C<BEGIN>
+block. C<caller()> and coverage tools no longer report a line from an
+anonymous subroutine for the C<require> or C<import> step.
+
+=item *
+
 A case-insensitive regex trie no longer accepts a word ending partway through
 an input character's fold. For example, C</s|zoo/iu> no longer matches a
 sharp-s, whose full fold is C<ss>. Later alternatives are tried in order.

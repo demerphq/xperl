@@ -5,7 +5,7 @@ BEGIN {
     chdir 't' if -d 't';
     require './test.pl';
     set_up_inc('../lib');
-    plan( tests => 127 ); # some tests are run in a BEGIN block
+    plan( tests => 128 ); # some tests are run in a BEGIN block
 }
 
 my @c;
@@ -326,6 +326,15 @@ fresh_perl_is(<<'EOP', "6\n9\n", {}, 'RT #7165: line number should be consistent
       
       tagCall
       sub {};
+EOP
+
+# All statements generated for a multiline use carry the line where the
+# statement ends, even when its import arguments contain anonymous subs.
+fresh_perl_is(<<'EOP', "4\n4\n", {}, 'multiline use with anonymous subs: require and import share a line');
+BEGIN { unshift @INC, sub { return unless $_[1] eq 'LineProbe.pm'; my $src = 'package LineProbe; print +(caller)[2], "\n"; sub import { print +(caller)[2], "\n" } 1;'; open my $fh, '<', \$src or die; return $fh } }
+use LineProbe
+   one => sub { 1 },
+   two => sub { 2 };
 EOP
 
 $::testing_caller = 1;
