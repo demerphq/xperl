@@ -1769,9 +1769,9 @@ subscripted:    gelem subscript_keys[selector]        /* *main::{something} */
 			{ $$ = newBINOP(OP_AELEM, 0, oopsAV($array), scalar($selector));
 			}
 	|	subscriptable_reference[array_reference] subscript_index[selector]    /* $ref->[..]; $foo{$bar}[..] */
-			{ $$ = newBINOP(OP_AELEM, 0,
-					ref(newAVREF($array_reference),OP_RV2AV),
-					scalar($selector));
+			{ OP * const arrayop = ref(newAVREF($array_reference), OP_RV2AV);
+			  OP * const index = scalar($selector);
+			  $$ = newBINOP(OP_AELEM, 0, arrayop, index);
 			}
 	|	scalar[hash] subscript_keys[selector]    /* $foo{bar();} */
 			{ $$ = newBINOP(OP_HELEM, 0, oopsHV($hash), jmaybe($selector));
@@ -1815,7 +1815,9 @@ subscripted:    gelem subscript_keys[selector]        /* *main::{something} */
 			{ $$ = newSLICEOP(0, $selector, NULL); }
     ;
 
-/* Binary operators between terms */
+/* Binary operators between terms. Where both operands require scalar
+ * context, process them in source order: scalar() can issue diagnostics
+ * or observe an earlier compile error. */
 termbinop:	term[lhs] PLUGIN_HIGH_OP[op] term[rhs]
 			{ $$ = build_infix_plugin($lhs, $rhs, $op); }
 	|	term[lhs] ASSIGNOP term[rhs]                     /* $x = $y, $x += $y */
@@ -1823,7 +1825,9 @@ termbinop:	term[lhs] PLUGIN_HIGH_OP[op] term[rhs]
 	|	term[lhs] PLUGIN_ASSIGN_OP[op] term[rhs]
 			{ $$ = build_infix_plugin($lhs, $rhs, $op); }
 	|	term[lhs] POWOP term[rhs]                        /* $x ** $y */
-			{ $$ = newBINOP($POWOP, 0, scalar($lhs), scalar($rhs)); }
+			{ OP * const left = scalar($lhs);
+			  OP * const right = scalar($rhs);
+			  $$ = newBINOP($POWOP, 0, left, right); }
 	|	term[lhs] PLUGIN_POW_OP[op] term[rhs]
 			{ $$ = build_infix_plugin($lhs, $rhs, $op); }
 	|	term[lhs] MULOP term[rhs]                        /* $x * $y, $x x $y */
@@ -1834,21 +1838,31 @@ termbinop:	term[lhs] PLUGIN_HIGH_OP[op] term[rhs]
 	|	term[lhs] PLUGIN_MUL_OP[op] term[rhs]
 			{ $$ = build_infix_plugin($lhs, $rhs, $op); }
 	|	term[lhs] ADDOP term[rhs]                        /* $x + $y */
-			{ $$ = newBINOP($ADDOP, 0, scalar($lhs), scalar($rhs)); }
+			{ OP * const left = scalar($lhs);
+			  OP * const right = scalar($rhs);
+			  $$ = newBINOP($ADDOP, 0, left, right); }
 	|	term[lhs] PLUGIN_ADD_OP[op] term[rhs]
 			{ $$ = build_infix_plugin($lhs, $rhs, $op); }
 	|	term[lhs] SHIFTOP term[rhs]                      /* $x >> $y, $x << $y */
-			{ $$ = newBINOP($SHIFTOP, 0, scalar($lhs), scalar($rhs)); }
+			{ OP * const left = scalar($lhs);
+			  OP * const right = scalar($rhs);
+			  $$ = newBINOP($SHIFTOP, 0, left, right); }
 	|	termrelop %prec PREC_LOW               /* $x > $y, etc. */
 			{ $$ = $termrelop; }
 	|	termeqop %prec PREC_LOW                /* $x == $y, $x cmp $y */
 			{ $$ = $termeqop; }
 	|	term[lhs] BITANDOP term[rhs]                     /* $x & $y */
-			{ $$ = newBINOP($BITANDOP, 0, scalar($lhs), scalar($rhs)); }
+			{ OP * const left = scalar($lhs);
+			  OP * const right = scalar($rhs);
+			  $$ = newBINOP($BITANDOP, 0, left, right); }
 	|	term[lhs] BITOROP term[rhs]                      /* $x | $y */
-			{ $$ = newBINOP($BITOROP, 0, scalar($lhs), scalar($rhs)); }
+			{ OP * const left = scalar($lhs);
+			  OP * const right = scalar($rhs);
+			  $$ = newBINOP($BITOROP, 0, left, right); }
 	|	term[lhs] DOTDOT term[rhs]                       /* $x..$y, $x...$y */
-			{ $$ = newRANGE($DOTDOT, scalar($lhs), scalar($rhs)); }
+			{ OP * const left = scalar($lhs);
+			  OP * const right = scalar($rhs);
+			  $$ = newRANGE($DOTDOT, left, right); }
 	|	term[lhs] ANDAND term[rhs]                       /* $x && $y */
 			{ $$ = newLOGOP(OP_AND, 0, $lhs, $rhs); }
 	|	term[lhs] PLUGIN_LOGICAL_AND_OP[op] term[rhs]
@@ -1868,7 +1882,9 @@ termbinop:	term[lhs] PLUGIN_HIGH_OP[op] term[rhs]
 termrelop:	relopchain %prec PREC_LOW
 			{ $$ = cmpchain_finish($relopchain); }
 	|	term[lhs] NCRELOP term[rhs]
-			{ $$ = newBINOP($NCRELOP, 0, scalar($lhs), scalar($rhs)); }
+			{ OP * const left = scalar($lhs);
+			  OP * const right = scalar($rhs);
+			  $$ = newBINOP($NCRELOP, 0, left, right); }
 	|	termrelop NCRELOP
 			{ PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_INVALID_RECOVER(); }
 	|	termrelop CHRELOP
@@ -1886,7 +1902,9 @@ relopchain:	term[lhs] CHRELOP term[rhs]
 termeqop:	eqopchain %prec PREC_LOW
 			{ $$ = cmpchain_finish($eqopchain); }
 	|	term[lhs] NCEQOP term[rhs]
-			{ $$ = newBINOP($NCEQOP, 0, scalar($lhs), scalar($rhs)); }
+			{ OP * const left = scalar($lhs);
+			  OP * const right = scalar($rhs);
+			  $$ = newBINOP($NCEQOP, 0, left, right); }
 	|	termeqop NCEQOP
 			{ PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_INVALID_RECOVER(); }
 	|	termeqop CHEQOP

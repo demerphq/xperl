@@ -9664,12 +9664,15 @@ Perl_newASSIGNOP(pTHX_ I32 flags, OP *left, I32 optype, OP *right)
         case OP_ORASSIGN:
         case OP_DORASSIGN:
             right = scalar(right);
-            return newLOGOP(optype, 0,
-                op_lvalue(scalar(left), optype),
-                newBINOP(OP_SASSIGN, OPpASSIGN_BACKWARDS<<8, right, right));
+            left = op_lvalue(scalar(left), optype);
+            o = newBINOP(OP_SASSIGN, OPpASSIGN_BACKWARDS<<8, right, right);
+            return newLOGOP(optype, 0, left, o);
         default:
-            return newBINOP(optype, OPf_STACKED,
-                op_lvalue(scalar(left), optype), scalar(right));
+            /* Validate the target before processing the RHS. An invalid
+             * target suppresses secondary scalar-context diagnostics. */
+            left = op_lvalue(scalar(left), optype);
+            right = scalar(right);
+            return newBINOP(optype, OPf_STACKED, left, right);
     }
 
     if ((assign_type = assignment_type(left)) == ASSIGN_LIST) {
@@ -9835,14 +9838,18 @@ Perl_newASSIGNOP(pTHX_ I32 flags, OP *left, I32 optype, OP *right)
         right = newOP(OP_UNDEF, 0);
     if (right->op_type == OP_READLINE) {
         right->op_flags |= OPf_STACKED;
-        return newBINOP(OP_NULL, flags, op_lvalue(scalar(left), OP_SASSIGN),
-                scalar(right));
+        left = op_lvalue(scalar(left), OP_SASSIGN);
+        right = scalar(right);
+        return newBINOP(OP_NULL, flags, left, right);
     }
     else {
         if(UNLIKELY(OP_TYPE_IS(right, OP_AASSIGN)))
             right = S_maybe_match_count(aTHX_ right);
-        o = newBINOP(OP_SASSIGN, flags,
-            scalar(right), op_lvalue(scalar(left), OP_SASSIGN) );
+        /* Keep target validation ahead of RHS diagnostics, even though
+         * the assignment op stores its children in the reverse order. */
+        left = op_lvalue(scalar(left), OP_SASSIGN);
+        right = scalar(right);
+        o = newBINOP(OP_SASSIGN, flags, right, left);
     }
     return o;
 }
@@ -10139,8 +10146,12 @@ S_new_logop(pTHX_ I32 type, I32 flags, OP** firstp, OP** otherp)
     first = *firstp;
     other = *otherp;
 
-    if (type == OP_XOR)		/* Not short circuit, but here by precedence. */
-        return newBINOP(type, flags, scalar(first), scalar(other));
+    if (type == OP_XOR) {        /* Not short circuit, but here by precedence. */
+        /* Contextualization can emit diagnostics. Keep source order. */
+        first = scalar(first);
+        other = scalar(other);
+        return newBINOP(type, flags, first, other);
+    }
 
     assert((PL_opargs[type] & OA_CLASS_MASK) == OA_LOGOP
         || type == OP_CUSTOM);
