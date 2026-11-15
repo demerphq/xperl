@@ -166,19 +166,32 @@ S_class_layout(pTHX_ SV *instance)
     return (AV *)mg_find(instance, PERL_MAGIC_class_storage)->mg_obj;
 }
 
+/* The position of a class in a layout's classes array, or -1.  Classes are
+ * matched by stash identity, not name: a stash deleted and redeclared under
+ * the same name must not bind its methods to an older layout.  The array
+ * owns a reference to each stash, so an address cannot be recycled while the
+ * layout exists, and cloning an interpreter remaps the stashes with the
+ * array.  Hierarchies are shallow, so a scan is cheaper than hashing. */
+static SSize_t
+S_class_layout_index(AV *classes, const HV *owner)
+{
+    SV **array = AvARRAY(classes);
+    for(SSize_t i = AvFILLp(classes); i >= 0; i--)
+        if((const HV *)array[i] == owner)
+            return i;
+    return -1;
+}
+
 static bool
 S_class_layout_shift(pTHX_ SV *instance, HV *owner, PADOFFSET *shift)
 {
     AV *layout = S_class_layout(aTHX_ instance);
-    HV *shifts = (HV *)AvARRAY(layout)[CLASS_LAYOUT_SHIFTS];
-    /* Keyed by stash identity, not name: a stash deleted and redeclared
-     * under the same name must not bind its methods to an older layout.
-     * The layout's classes AV holds a reference to every keyed stash, so
-     * an address cannot be recycled while the layout exists. */
-    SV **svp = hv_fetch(shifts, (const char *)&owner, sizeof(owner), 0);
-    if(!svp)
+    /* The shifts are a packed PADOFFSET array parallel to the classes. */
+    SSize_t i = S_class_layout_index(
+        (AV *)AvARRAY(layout)[CLASS_LAYOUT_CLASSES], owner);
+    if(i < 0)
         return FALSE;
-    *shift = SvUV(*svp);
+    *shift = ((PADOFFSET *)SvPVX(AvARRAY(layout)[CLASS_LAYOUT_SHIFTS]))[i];
     return TRUE;
 }
 
@@ -654,7 +667,7 @@ S_class_validate_field(pTHX_ PADNAME *pn, HV *owner, HV *fields, HV *parameters)
 }
 
 static void
-S_class_validate_fields(pTHX_ AV *classes, HV *shifts)
+S_class_validate_fields(pTHX_ AV *classes, bool check_owners)
 {
     HV *fields = newHV();
     HV *parameters = newHV();
@@ -670,9 +683,8 @@ S_class_validate_fields(pTHX_ AV *classes, HV *shifts)
         for(SSize_t j = 0; names && j <= PadnamelistMAX(names); j++) {
             PADNAME *pn = PadnamelistARRAY(names)[j];
             struct padname_fieldinfo *fi = PadnameFIELDINFO(pn);
-            if(shifts && fi->is_inherited
-                    && !hv_exists(shifts, (const char *)&fi->storage_owner,
-                            sizeof(fi->storage_owner)))
+            if(check_owners && fi->is_inherited
+                    && S_class_layout_index(classes, fi->storage_owner) < 0)
                 PERL_THROW_ERROR_OBJECT_FIELD_INHERITANCE_OWNER_MISSING(PadnameSV(pn));
             S_class_validate_field(aTHX_ pn, decl, fields, parameters);
         }
@@ -694,11 +706,14 @@ S_class_new_storage(pTHX_ HV *stash)
     av_push(layout, SvREFCNT_inc((SV *)stash));
     AV *classes = newAV();
     av_push(layout, (SV *)classes);
-    HV *shifts = newHV();
-    av_push(layout, (SV *)shifts);
     HV *seen = newHV();
     SAVEFREESV((SV *)seen);
     S_class_collect(aTHX_ stash, classes, seen);
+    SV *shifts = newSV((AvFILL(classes) + 1) * sizeof(PADOFFSET) + 1);
+    SvPOK_only(shifts);
+    SvCUR_set(shifts, (AvFILL(classes) + 1) * sizeof(PADOFFSET));
+    *SvEND(shifts) = '\0';
+    av_push(layout, shifts);
     PADOFFSET fields = 0;
     for(SSize_t i = 0; i <= AvFILL(classes); i++) {
         HV *decl = (HV *)AvARRAY(classes)[i];
@@ -708,13 +723,12 @@ S_class_new_storage(pTHX_ HV *stash)
         PADOFFSET prefix = aux->xhv_class_superclass
             ? HvAUX(aux->xhv_class_superclass)->xhv_class_next_fieldix : 0;
         assert(fields >= prefix);
-        (void)hv_store(shifts, (const char *)&decl, sizeof(decl),
-                newSVuv(fields - prefix), 0);
+        ((PADOFFSET *)SvPVX(shifts))[i] = fields - prefix;
         fields += aux->xhv_class_next_fieldix - prefix;
     }
     if(AvFILL(classes) < 0)
         PERL_THROW_ERROR_OBJECT_CONSTRUCTOR_MODERN_ANCESTOR_REQUIRED();
-    S_class_validate_fields(aTHX_ classes, shifts);
+    S_class_validate_fields(aTHX_ classes, TRUE);
     SV *instance = newSVobject(fields);
     sv_magicext(instance, (SV *)layout, PERL_MAGIC_class_storage, NULL, NULL, 0);
     return instance;
@@ -2905,7 +2919,7 @@ Perl_class_seal_stash(pTHX_ HV *stash)
     AV *role_initfields_cvs = proto_role_compose_and_install(stash);
 
     S_class_resolve_inherited(aTHX_ stash, ancestor_classes);
-    S_class_validate_fields(aTHX_ ancestor_classes, NULL);
+    S_class_validate_fields(aTHX_ ancestor_classes, FALSE);
 
     /* Phase 1: Resolve class-relative field indices to absolute indices.
      * base_offset = next_fieldix, which now accounts for superclass + role
