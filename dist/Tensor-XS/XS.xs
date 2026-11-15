@@ -336,6 +336,23 @@ tensor_from_object(pTHX_ SV *object)
     }
 }
 
+/* The payload of a tensor that is about to be written.  A payload buffer
+ * shared copy-on-write with another scalar is unshared first, and a
+ * read-only payload croaks.  The pointer is valid only until Perl code
+ * next runs. */
+static tensor_header *
+tensor_from_object_for_write(pTHX_ SV *object)
+{
+    tensor_header *tensor = tensor_from_object(aTHX_ object);
+    SV *payload = SvRV(object);
+
+    if (SvREADONLY(payload) || SvIsCOW(payload)) {
+        sv_force_normal(payload);
+        tensor = (tensor_header *)SvPVX(payload);
+    }
+    return tensor;
+}
+
 static UV *
 tensor_shape(tensor_header *tensor)
 {
@@ -398,24 +415,61 @@ tensor_load_sv(pTHX_ tensor_header *tensor, UV index)
     croak("unknown tensor dtype");
 }
 
+/* A value converted for a given dtype.  Converting can run Perl code
+ * (overloading, ties) which may replace or free any tensor payload, so
+ * values are converted before the payload pointer is acquired. */
+typedef union {
+    UV u;
+    IV i;
+    NV n;
+} tensor_scalar;
+
+static tensor_scalar
+tensor_coerce(pTHX_ tensor_dtype dtype, SV *value_sv)
+{
+    tensor_scalar value;
+    switch (dtype) {
+    case TENSOR_DTYPE_U8:
+    case TENSOR_DTYPE_U16:
+    case TENSOR_DTYPE_U32:
+    case TENSOR_DTYPE_U64:
+        value.u = SvUV(value_sv);
+        return value;
+    case TENSOR_DTYPE_I8:
+    case TENSOR_DTYPE_I16:
+    case TENSOR_DTYPE_I32:
+    case TENSOR_DTYPE_I64:
+        value.i = SvIV(value_sv);
+        return value;
+    case TENSOR_DTYPE_F32:
+    case TENSOR_DTYPE_F64:
+    case TENSOR_DTYPE_NV:
+    case TENSOR_DTYPE_F16:
+    case TENSOR_DTYPE_BF16:
+        value.n = SvNV(value_sv);
+        return value;
+    }
+    croak("unknown tensor dtype");
+}
+
 static void
-tensor_store(tensor_header *tensor, UV index, SV *value_sv)
+tensor_store(tensor_header *tensor, UV index, tensor_scalar value)
 {
     char *data = tensor_data(tensor) + index * tensor_dtype_size((tensor_dtype)tensor->dtype);
     switch ((tensor_dtype)tensor->dtype) {
-    case TENSOR_DTYPE_U8:   *(U8 *)data = (U8)SvUV(value_sv); return;
-    case TENSOR_DTYPE_U16:  *(U16 *)data = (U16)SvUV(value_sv); return;
-    case TENSOR_DTYPE_U32:  *(U32 *)data = (U32)SvUV(value_sv); return;
-    case TENSOR_DTYPE_U64:  *(U64 *)data = (U64)SvUV(value_sv); return;
-    case TENSOR_DTYPE_I8:   *(I8 *)data = (I8)SvIV(value_sv); return;
-    case TENSOR_DTYPE_I16:  *(I16 *)data = (I16)SvIV(value_sv); return;
-    case TENSOR_DTYPE_I32:  *(I32 *)data = (I32)SvIV(value_sv); return;
-    case TENSOR_DTYPE_I64:  *(I64 *)data = (I64)SvIV(value_sv); return;
-    case TENSOR_DTYPE_F32:  *(float *)data = (float)SvNV(value_sv); return;
-    case TENSOR_DTYPE_F64:  *(double *)data = (double)SvNV(value_sv); return;
-    case TENSOR_DTYPE_NV:   *(NV *)data = SvNV(value_sv); return;
-    case TENSOR_DTYPE_F16:  *(U16 *)data = tensor_float_to_f16(SvNV(value_sv)); return;
-    case TENSOR_DTYPE_BF16: *(U16 *)data = tensor_float_to_bf16(SvNV(value_sv)); return;
+    case TENSOR_DTYPE_U8:   *(U8 *)data = (U8)value.u; return;
+    case TENSOR_DTYPE_U16:  *(U16 *)data = (U16)value.u; return;
+    case TENSOR_DTYPE_U32:  *(U32 *)data = (U32)value.u; return;
+    case TENSOR_DTYPE_U64:  *(U64 *)data = (U64)value.u; return;
+    case TENSOR_DTYPE_I8:   *(I8 *)data = (I8)value.i; return;
+    case TENSOR_DTYPE_I16:  *(I16 *)data = (I16)value.i; return;
+    case TENSOR_DTYPE_I32:  *(I32 *)data = (I32)value.i; return;
+    case TENSOR_DTYPE_I64:  *(I64 *)data = (I64)value.i; return;
+    case TENSOR_DTYPE_F32:  *(float *)data = (float)value.n; return;
+    case TENSOR_DTYPE_F64:  *(double *)data = (double)value.n; return;
+    case TENSOR_DTYPE_NV:   *(NV *)data = value.n; return;
+    case TENSOR_DTYPE_F16:  *(U16 *)data = tensor_float_to_f16(value.n); return;
+    case TENSOR_DTYPE_BF16: *(U16 *)data = tensor_float_to_bf16(value.n); return;
     }
     croak("unknown tensor dtype");
 }
@@ -570,19 +624,27 @@ tensor_new_result(pTHX_ const UV *shape, UV rank, const char *class_name,
     return object;
 }
 
-static tensor_header *
-tensor_other(pTHX_ SV *other, bool *is_tensor)
+/* Whether an operand is a tensor object rather than a scalar. */
+static bool
+tensor_is_object(SV *other)
 {
-    if (SvROK(other) && SvPOK(SvRV(other))) {
-        *is_tensor = TRUE;
-        return tensor_from_object(aTHX_ other);
-    }
-    *is_tensor = FALSE;
-    return NULL;
+    return SvROK(other) && SvPOK(SvRV(other));
 }
 
+/* Convert the coordinate arguments ST(first) .. ST(first + count - 1).
+ * This can run Perl code, so it happens before the tensor is acquired, and
+ * the stack is indexed afresh for every element. */
+#define TENSOR_COORDINATES(coordinates, first, count)                  \
+    STMT_START {                                                        \
+        I32 coordinate_i;                                               \
+        Newx(coordinates, (count) > 0 ? (count) : 1, IV);               \
+        SAVEFREEPV((char *)coordinates);                                \
+        for (coordinate_i = 0; coordinate_i < (count); coordinate_i++)  \
+            coordinates[coordinate_i] = SvIV(ST((first) + coordinate_i)); \
+    } STMT_END
+
 static UV
-tensor_coordinate_index(pTHX_ tensor_header *tensor, SV **coordinates,
+tensor_coordinate_index(pTHX_ tensor_header *tensor, const IV *coordinates,
                         I32 count)
 {
     UV index = 0;
@@ -592,7 +654,7 @@ tensor_coordinate_index(pTHX_ tensor_header *tensor, SV **coordinates,
         croak("coordinate count does not match tensor rank");
 
     for (i = 0; i < count; i++) {
-        IV coordinate = SvIV(coordinates[i]);
+        IV coordinate = coordinates[i];
         if (coordinate < 0 || (UV)coordinate >= tensor_shape(tensor)[i])
             croak("Index out of bounds");
         index += (UV)coordinate * tensor_strides(tensor)[i];
@@ -611,15 +673,17 @@ tensor_fetch_element(pTHX_ AV *source, UV i)
     return value ? sv_2mortal(SvREFCNT_inc_simple_NN(*value)) : &PL_sv_undef;
 }
 
-/* Recursion depth is bounded by tensor->rank <= TENSOR_MAX_RANK. */
+/* Recursion depth is bounded by rank <= TENSOR_MAX_RANK.  Reading the
+ * source can run Perl code (tied arrays), so the caller passes a shape that
+ * such code cannot change, not a pointer into a reachable payload. */
 static void
-tensor_copy_array(pTHX_ AV *source, tensor_header *tensor, UV depth,
-                  UV *position, SV **output)
+tensor_copy_array(pTHX_ AV *source, const UV *shape, UV rank, UV size,
+                  UV depth, UV *position, SV **output)
 {
     const UV count = av_count(source);
     UV i;
 
-    if (depth == 0 && count == tensor->size
+    if (depth == 0 && count == size
         && (!count || !SvROK(tensor_fetch_element(aTHX_ source, 0)))) {
         for (i = 0; i < count; i++) {
             SV *value = tensor_fetch_element(aTHX_ source, i);
@@ -630,12 +694,12 @@ tensor_copy_array(pTHX_ AV *source, tensor_header *tensor, UV depth,
         return;
     }
 
-    if (depth >= tensor->rank || count != tensor_shape(tensor)[depth])
+    if (depth >= rank || count != shape[depth])
         croak("nested tensor data does not match tensor shape");
 
     for (i = 0; i < count; i++) {
         SV *value = tensor_fetch_element(aTHX_ source, i);
-        if (depth + 1 == tensor->rank) {
+        if (depth + 1 == rank) {
             if (SvROK(value))
                 croak("nested tensor data has too many dimensions");
             output[(*position)++] = value;
@@ -643,8 +707,8 @@ tensor_copy_array(pTHX_ AV *source, tensor_header *tensor, UV depth,
         else {
             if (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVAV)
                 croak("nested tensor data has too few dimensions");
-            tensor_copy_array(aTHX_ (AV *)SvRV(value), tensor, depth + 1,
-                              position, output);
+            tensor_copy_array(aTHX_ (AV *)SvRV(value), shape, rank, size,
+                              depth + 1, position, output);
         }
     }
 }
@@ -733,15 +797,22 @@ new_with_dtype(class_name, shape, data, dtype)
             UV position = 0;
             Newx(values, size, SV *);
             SAVEFREEPV((char *)values);
-            tensor_copy_array(aTHX_ data_av, tensor, 0, &position, values);
+            tensor_copy_array(aTHX_ data_av, dimensions, rank, size, 0,
+                              &position, values);
             if (position != size)
                 croak("data size does not match tensor shape");
-            for (i = 0; i < size; i++)
-                tensor_store(tensor, i, values[i]);
+            /* The payload is not yet reachable from Perl, so conversions
+             * cannot invalidate it. */
+            for (i = 0; i < size; i++) {
+                const tensor_scalar value
+                    = tensor_coerce(aTHX_ dtype_value, values[i]);
+                tensor_store(tensor, i, value);
+            }
         }
         else {
+            const tensor_scalar value = tensor_coerce(aTHX_ dtype_value, data);
             for (i = 0; i < size; i++)
-                tensor_store(tensor, i, data);
+                tensor_store(tensor, i, value);
         }
     }
 
@@ -824,11 +895,12 @@ at(object, ...)
     SV *object
   PREINIT:
     tensor_header *tensor;
+    IV *coordinates;
     UV index;
   CODE:
+    TENSOR_COORDINATES(coordinates, 1, items - 1);
     tensor = tensor_from_object(aTHX_ object);
-    index = tensor_coordinate_index(aTHX_ tensor,
-                                    items > 1 ? &ST(1) : NULL, items - 1);
+    index = tensor_coordinate_index(aTHX_ tensor, coordinates, items - 1);
     RETVAL = tensor_load_sv(aTHX_ tensor, index);
   OUTPUT:
     RETVAL
@@ -838,10 +910,11 @@ index(object, ...)
     SV *object
   PREINIT:
     tensor_header *tensor;
+    IV *coordinates;
   CODE:
+    TENSOR_COORDINATES(coordinates, 1, items - 1);
     tensor = tensor_from_object(aTHX_ object);
-    RETVAL = tensor_coordinate_index(aTHX_ tensor,
-                                     items > 1 ? &ST(1) : NULL, items - 1);
+    RETVAL = tensor_coordinate_index(aTHX_ tensor, coordinates, items - 1);
   OUTPUT:
     RETVAL
 
@@ -866,23 +939,38 @@ set_index(object, index, value)
     SV *value
   PREINIT:
     tensor_header *tensor;
+    tensor_dtype dtype;
+    tensor_scalar converted;
   CODE:
-    tensor = tensor_from_object(aTHX_ object);
+    dtype = (tensor_dtype)tensor_from_object(aTHX_ object)->dtype;
+    converted = tensor_coerce(aTHX_ dtype, value);
+    tensor = tensor_from_object_for_write(aTHX_ object);
+    if ((tensor_dtype)tensor->dtype != dtype)
+        croak("tensor changed while a value was being converted");
     if (index >= tensor->size)
         croak("tensor index out of bounds");
-    tensor_store(tensor, index, value);
+    tensor_store(tensor, index, converted);
 
 void
 set_at(object, ...)
     SV *object
   PREINIT:
     tensor_header *tensor;
+    tensor_dtype dtype;
+    tensor_scalar converted;
+    IV *coordinates;
     UV index;
   CODE:
-    tensor = tensor_from_object(aTHX_ object);
-    index = tensor_coordinate_index(aTHX_ tensor,
-                                    items > 2 ? &ST(1) : NULL, items - 2);
-    tensor_store(tensor, index, ST(items - 1));
+    if (items < 2)
+        croak_xs_usage(cv, "object, ..., value");
+    TENSOR_COORDINATES(coordinates, 1, items - 2);
+    dtype = (tensor_dtype)tensor_from_object(aTHX_ object)->dtype;
+    converted = tensor_coerce(aTHX_ dtype, ST(items - 1));
+    tensor = tensor_from_object_for_write(aTHX_ object);
+    if ((tensor_dtype)tensor->dtype != dtype)
+        croak("tensor changed while a value was being converted");
+    index = tensor_coordinate_index(aTHX_ tensor, coordinates, items - 2);
+    tensor_store(tensor, index, converted);
 
 void
 set_data(object, data)
@@ -898,15 +986,37 @@ set_data(object, data)
     tensor = tensor_from_object(aTHX_ object);
     data_av = (AV *)SvRV(data);
     {
+        /* Reading the array and converting its elements can run Perl code,
+         * so work from a private copy of the layout, then acquire the
+         * payload again and check that it still has that layout. */
+        const UV rank = tensor->rank;
+        const UV size = tensor->size;
+        const tensor_dtype dtype = (tensor_dtype)tensor->dtype;
+        UV shape[TENSOR_MAX_RANK];
         UV position = 0;
         SV **values;
-        Newx(values, tensor->size, SV *);
+        tensor_scalar *converted;
+
+        Copy(tensor_shape(tensor), shape, rank, UV);
+        Newx(values, size ? size : 1, SV *);
         SAVEFREEPV((char *)values);
-        tensor_copy_array(aTHX_ data_av, tensor, 0, &position, values);
-        if (position != tensor->size)
+        tensor_copy_array(aTHX_ data_av, shape, rank, size, 0, &position,
+                          values);
+        if (position != size)
             croak("data size does not match tensor shape");
-        for (i = 0; i < tensor->size; i++)
-            tensor_store(tensor, i, values[i]);
+        Newx(converted, size ? size : 1, tensor_scalar);
+        SAVEFREEPV((char *)converted);
+        for (i = 0; i < size; i++)
+            converted[i] = tensor_coerce(aTHX_ dtype, values[i]);
+
+        tensor = tensor_from_object_for_write(aTHX_ object);
+        if (tensor->rank != rank || tensor->size != size
+            || (tensor_dtype)tensor->dtype != dtype
+            || memNE((const char *)tensor_shape(tensor), (const char *)shape,
+                     rank * sizeof(UV)))
+            croak("tensor changed while its data was being loaded");
+        for (i = 0; i < size; i++)
+            tensor_store(tensor, i, converted[i]);
     }
 
 AV *
@@ -937,8 +1047,9 @@ unary(object, operation)
     UV i;
     UV *shape;
   CODE:
-    source = tensor_from_object(aTHX_ object);
+    /* Reading the name can run Perl code; do it before the tensor. */
     op = tensor_op_from_sv(aTHX_ operation, TRUE);
+    source = tensor_from_object(aTHX_ object);
     shape = tensor_shape(source);
     result_object = tensor_new_result(aTHX_ shape, source->rank,
                                       "Tensor::XS",
@@ -967,13 +1078,17 @@ binary(object, other, operation)
     UV i;
     UV *shape;
   CODE:
+    /* Reading the name and a scalar operand can run Perl code; do both
+     * before acquiring any tensor.  A scalar operand is read once. */
+    op = tensor_op_from_sv(aTHX_ operation, FALSE);
+    is_tensor = tensor_is_object(other);
+    right_value = is_tensor ? 0 : SvNV(other);
     source = tensor_from_object(aTHX_ object);
-    right = tensor_other(aTHX_ other, &is_tensor);
+    right = is_tensor ? tensor_from_object(aTHX_ other) : NULL;
     if (is_tensor && !((right->size == source->size && right->rank == source->rank)
                        || (source->rank == 2 && right->rank == 1
                            && right->size == tensor_shape(source)[1])))
         croak("tensor operands must have compatible shapes");
-    op = tensor_op_from_sv(aTHX_ operation, FALSE);
     shape = tensor_shape(source);
     result_object = tensor_new_result(aTHX_ shape, source->rank,
                                       "Tensor::XS",
@@ -981,10 +1096,10 @@ binary(object, other, operation)
                                       &result);
     result->dtype = source->dtype;
     for (i = 0; i < source->size; i++) {
-        right_value = is_tensor
-            ? tensor_load(right, right->rank == 1 && source->rank == 2
-                                ? i % tensor_shape(source)[1] : i)
-            : SvNV(other);
+        if (is_tensor)
+            right_value = tensor_load(right,
+                                      right->rank == 1 && source->rank == 2
+                                      ? i % tensor_shape(source)[1] : i);
         tensor_store_nv(result, i,
                         tensor_binary_op(op, tensor_load(source, i),
                                          right_value));
@@ -1006,13 +1121,19 @@ inplace(object, other, operation)
     NV right_value;
     UV i;
   CODE:
-    source = tensor_from_object(aTHX_ object);
-    right = tensor_other(aTHX_ other, &is_tensor);
+    /* As in binary(): everything that can run Perl code comes first.  The
+     * operand is acquired after the destination, as unsharing the
+     * destination's buffer can move it. */
+    op = tensor_op_from_sv(aTHX_ operation, FALSE);
+    is_tensor = tensor_is_object(other);
+    right_value = is_tensor ? 0 : SvNV(other);
+    source = tensor_from_object_for_write(aTHX_ object);
+    right = is_tensor ? tensor_from_object(aTHX_ other) : NULL;
     if (is_tensor && (right->size != source->size || right->rank != source->rank))
         croak("tensor operands must have the same shape");
-    op = tensor_op_from_sv(aTHX_ operation, FALSE);
     for (i = 0; i < source->size; i++) {
-        right_value = is_tensor ? tensor_load(right, i) : SvNV(other);
+        if (is_tensor)
+            right_value = tensor_load(right, i);
         tensor_store_nv(source, i,
                         tensor_binary_op(op, tensor_load(source, i),
                                          right_value));
@@ -1028,8 +1149,9 @@ reduce(object, operation)
     NV result;
     UV i;
   CODE:
-    tensor = tensor_from_object(aTHX_ object);
+    /* Reading the name can run Perl code; do it before the tensor. */
     op = SvPV_nolen(operation);
+    tensor = tensor_from_object(aTHX_ object);
     if (!tensor->size) {
         RETVAL = 0;
     }

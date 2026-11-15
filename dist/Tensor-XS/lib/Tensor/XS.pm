@@ -36,4 +36,17 @@ A tensor may have at most 64 dimensions; C<new> croaks for a longer
 shape.  Nonexistent elements of the data array (for example after
 C<delete> or when extending an array with C<$#array>) load like C<undef>.
 
+=head1 ARGUMENT CONVERSION AND WRITES
+
+Coordinates, values, operation names and scalar operands are converted
+before the tensor is examined, because converting an overloaded or tied
+argument runs Perl code that may replace the tensor.  A scalar operand of
+C<binary> or C<inplace> is therefore read once, not once per element.
+C<set_data> croaks if the tensor's shape or dtype changes while its data is
+being read.
+
+The methods that write (C<set_index>, C<set_at>, C<set_data> and
+C<inplace>) croak on a read-only payload, and never change another scalar
+that holds a copy of the payload.
+
 =cut
