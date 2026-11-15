@@ -4016,6 +4016,8 @@ ARdp	|bool	|sv_isa_sv	|NN SV *sv				\
 				|NN SV *namesv
 Aip	|bool	|sv_isbool	|const SV *sv NN
 Adp	|int	|sv_isobject	|NULLOK SV *sv
+Cipx	|bool	|sv_is_xperl_exception					\
+				|NN SV *sv
 Adip	|IV	|SvIV		|NN SV *sv
 Cmp	|IV	|sv_2iv 	|NN SV *sv
 Adp	|IV	|sv_2iv_flags	|NN SV * const sv			\
