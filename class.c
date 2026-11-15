@@ -171,10 +171,14 @@ S_class_layout_shift(pTHX_ SV *instance, HV *owner, PADOFFSET *shift)
 {
     AV *layout = S_class_layout(aTHX_ instance);
     HV *shifts = (HV *)AvARRAY(layout)[CLASS_LAYOUT_SHIFTS];
-    HE *he = hv_fetch_ent(shifts, newSVhek_mortal(HvNAME_HEK(owner)), 0, 0);
-    if(!he)
+    /* Keyed by stash identity, not name: a stash deleted and redeclared
+     * under the same name must not bind its methods to an older layout.
+     * The layout's classes AV holds a reference to every keyed stash, so
+     * an address cannot be recycled while the layout exists. */
+    SV **svp = hv_fetch(shifts, (const char *)&owner, sizeof(owner), 0);
+    if(!svp)
         return FALSE;
-    *shift = SvUV(HeVAL(he));
+    *shift = SvUV(*svp);
     return TRUE;
 }
 
@@ -667,7 +671,8 @@ S_class_validate_fields(pTHX_ AV *classes, HV *shifts)
             PADNAME *pn = PadnamelistARRAY(names)[j];
             struct padname_fieldinfo *fi = PadnameFIELDINFO(pn);
             if(shifts && fi->is_inherited
-                    && !hv_exists_ent(shifts, newSVhek_mortal(HvNAME_HEK(fi->storage_owner)), 0))
+                    && !hv_exists(shifts, (const char *)&fi->storage_owner,
+                            sizeof(fi->storage_owner)))
                 PERL_THROW_ERROR_OBJECT_FIELD_INHERITANCE_OWNER_MISSING(PadnameSV(pn));
             S_class_validate_field(aTHX_ pn, decl, fields, parameters);
         }
@@ -703,7 +708,7 @@ S_class_new_storage(pTHX_ HV *stash)
         PADOFFSET prefix = aux->xhv_class_superclass
             ? HvAUX(aux->xhv_class_superclass)->xhv_class_next_fieldix : 0;
         assert(fields >= prefix);
-        (void)hv_store_ent(shifts, newSVhek_mortal(HvNAME_HEK(decl)),
+        (void)hv_store(shifts, (const char *)&decl, sizeof(decl),
                 newSVuv(fields - prefix), 0);
         fields += aux->xhv_class_next_fieldix - prefix;
     }
