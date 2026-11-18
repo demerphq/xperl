@@ -1131,6 +1131,8 @@ static int my_keyword_plugin(pTHX_
 }
 
 #include "APItest_runtime_support.inc"
+#include "APItest_strtab_support.inc"
+#include "APItest_rng_support.inc"
 
 static OP *
 S_process_scheduler_test_pp(pTHX)
@@ -1138,8 +1140,6 @@ S_process_scheduler_test_pp(pTHX)
     return PL_op->op_next;
 }
 
-
-#include "APItest_rng_support.inc"
 
 #include "const-c.inc"
 
@@ -1162,6 +1162,8 @@ INCLUDE: APItest_xsub_handshake.xs
 
 
 INCLUDE: APItest_hash.xs
+
+INCLUDE: APItest_strtab.xs
 
 INCLUDE: APItest_temp_lv.xs
 
