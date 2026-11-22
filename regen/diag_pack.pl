@@ -3,8 +3,8 @@
 use strict;
 use warnings;
 
-die "Usage: regen/diag_pack.pl [--tap]\n"
-  if grep { $_ ne '--tap' } @ARGV;
+die "Usage: regen/diag_pack.pl [--tap] [-v] [-q]\n"
+  if grep { $_ ne '--tap' && $_ ne '-v' && $_ ne '-q' } @ARGV;
 
 # regen.pl runs this after diag.pl. Translation environment settings have
 # already been consumed by the core catalog generator; this pass packages
