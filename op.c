@@ -18532,10 +18532,9 @@ Perl_subsignature_start(pTHX)
      * this otherwise tightly-coupled mechanism here
      */
     if(CvIsMETHOD(PL_compcv)) {
-        assert(PadnamelistMAX(PL_comppad_name) >= 1);
-        /* PADIX_SELF == 1 */
-        assert(PadnamePV(PadnamelistARRAY(PL_comppad_name)[1])[0] == '$');
-        subsignature_append_positional(1, 0, NULL);
+        assert(PadnamelistMAX(PL_comppad_name) >= PADIX_SELF);
+        assert(PadnamePV(PadnamelistARRAY(PL_comppad_name)[PADIX_SELF])[0] == '$');
+        subsignature_append_positional(PADIX_SELF, 0, NULL);
         subsignature_append_fence_op(newUNOP_AUX(OP_METHSTART, OPpSELF_IN_PAD << 8, NULL, NULL));
     }
 }

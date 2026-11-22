@@ -25,13 +25,6 @@
 #include "XSUB.h"
 #include "class.h"
 
-enum {
-    PADIX_SELF        = 1,
-    PADIX_PARAMS      = 2,
-    PADIX_ROLE_OFFSET = 3,
-    PADIX_FIELD_OWNER = 4,
-};
-
 static OP *S_find_op_methstart(pTHX_ OP *o);
 #define find_op_methstart(o)  S_find_op_methstart(aTHX_ o)
 static PADOFFSET S_class_own_field_base(pTHX_ HV *stash);

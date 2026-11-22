@@ -612,12 +612,26 @@ struct suspended_compcv
     bool cv_has_eval, pad_reset_pending;
 };
 
+#ifdef PERL_CORE
+
+/* Slot zero holds @_. Keep the reserved method slots and their end marker
+ * together so compiler metadata follows the method prologue's layout. */
+enum {
+    PADIX_SELF = 1,
+    PADIX_PARAMS,
+    PADIX_ROLE_OFFSET,
+    PADIX_FIELD_OWNER,
+    PADIX_METHOD_FIRST_FREE,
+};
+
 /* State pad storage keeps clause visibility metadata across recursion and
  * interpreter cloning without adding fields to every pad name. Element zero
  * owns the clause ranges [low, high, outer_seq]. A captured pad offset indexes
  * a reference to its clause's range in the same AV. */
-/* Methods reserve the first four pad slots for their native prologue. */
-#define MULTISUB_SCOPE_PADIX(cv) (CvIsMETHOD(cv) ? 5 : 1)
+#define MULTISUB_SCOPE_PADIX(cv) \
+    (CvIsMETHOD(cv) ? PADIX_METHOD_FIRST_FREE : 1)
+
+#endif
 
 #define resume_compcv_final(buffer)     Perl_resume_compcv(aTHX_ buffer, false)
 #define resume_compcv_and_save(buffer)  Perl_resume_compcv(aTHX_ buffer, true)
