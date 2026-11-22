@@ -6845,10 +6845,21 @@ S_regatom(pTHX_ RExC_state_t *pRExC_state, I32 *flagp, U32 depth)
                          * were 118 capture buffers defined already in the
                          * pattern.  */
 
-                        /* NOTE, RExC_npar is 1 more than the actual number of
-                         * parens we have seen so far, hence the "<" as opposed
-                         * to "<=" */
-                        if ( !isDIGIT(p[1]) || S_backref_value(p, RExC_end, NULL) < RExC_npar)
+                        /* NOTE, RExC_logical_npar is 1 more than the actual
+                         * number of capture group numbers we have seen so
+                         * far, hence the "<" as opposed to "<=".
+                         *
+                         * This must be the same test as the one that sent
+                         * us here to parse a literal.  A branch reset
+                         * makes groups share a number, so there can be
+                         * more groups than numbers.  If we counted groups
+                         * here we could decide that this is a backreference
+                         * after the other test decided that it is octal;
+                         * neither would consume it and the parse would
+                         * never advance. */
+                        if (   !isDIGIT(p[1])
+                            || S_backref_value(p, RExC_end, NULL)
+                                                        < RExC_logical_npar)
                         {  /* Not to be treated as an octal constant, go
                                    find backref */
                             p = oldp;

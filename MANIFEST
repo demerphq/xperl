@@ -6711,6 +6711,7 @@ t/re/fold_grind_u.t			Wrapper for fold_grind.pl for /u testing
 t/re/gh14081-assertion-failure.t	Test assertion failure
 t/re/keep_tabs.t			Tests where \t can't be expanded.
 t/re/no_utf8_pm.t			Verify utf8.pm doesn't get loaded unless required
+t/re/octal_backref.t			Octal escapes and backreferences after a branch reset
 t/re/opt.t				Test regexp optimizations
 t/re/overload.t				Test against string corruption in pattern matches on overloaded objects
 t/re/pat.t				See if esoteric patterns work

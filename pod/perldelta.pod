@@ -366,6 +366,17 @@ manager will later use a regex to expand these into links.
 
 =item *
 
+Compiling a pattern could loop forever, allocating memory until it ran
+out, when a branch reset group was followed by a two-digit escape such as
+C<\10>.  For example C<qr/(?|(a)(b)(c)(d)(e)(f)|(g)(h)(i)(j))\10/> never
+finished.  This happened when the pattern had at least that many capture
+groups but fewer capture group numbers, because groups in a branch reset
+share numbers.  Such an escape is now consistently treated as octal, as it
+is when there are too few groups of any kind.  This was broken in Perl
+5.38.
+
+=item *
+
 XXX
 
 =back
