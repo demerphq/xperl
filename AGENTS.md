@@ -21,6 +21,15 @@ asks for a different approach.
 - Make changes to modules maintained on CPAN in their upstream module
   repository. Do not patch the bundled copies under `cpan/` as part of a
   Perl-core change.
+- On XPerl branches, importing or updating a bundled CPAN module requires
+  checking the corresponding `xperl-cpan-ports` entry for that exact release
+  and the target XPerl version. Apply its applicable patches, or document
+  equivalent fixes already present in core. Keep new compatibility fixes
+  synchronized between the bundled source and the ports registry, including
+  regression coverage and patch digests. Record core customizations in
+  `Porting/Maintainers.pl` and regenerate `t/porting/customized.dat`.
+  From the ports checkout, run `bin/check-bundled --core /path/to/xperl`
+  with the target interpreter to check applicable registered patches.
 - On XPerl branches, separate fixes to inherited Perl blead code from fixes
   to XPerl-specific changes. Keep generic fixes and portable tests in commits
   suitable for blead, without mixing in XPerl syntax, functionality, or API

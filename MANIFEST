@@ -4272,6 +4272,7 @@ cpan/Text-CSV_XS/t/20_file.t		Text-CSV_XS
 cpan/Text-CSV_XS/t/21_lexicalio.t	Text-CSV_XS
 cpan/Text-CSV_XS/t/22_scalario.t	Text-CSV_XS
 cpan/Text-CSV_XS/t/30_types.t		Text-CSV_XS
+cpan/Text-CSV_XS/t/31_cache_lifetime.t	Test cached values across hash growth
 cpan/Text-CSV_XS/t/40_misc.t		Text-CSV_XS
 cpan/Text-CSV_XS/t/41_null.t		Text-CSV_XS
 cpan/Text-CSV_XS/t/45_eol.t		Text-CSV_XS

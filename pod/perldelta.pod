@@ -1323,6 +1323,12 @@ method".
 
 =item *
 
+The bundled L<Text::CSV_XS> keeps cached values valid when retaining them
+grows its object's hash storage. This includes the type, undefined-value,
+and comment-string caches.
+
+=item *
+
 An uncaught C<goto> into a binary or list expression reports its error
 message again.
 

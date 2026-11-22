@@ -9,6 +9,19 @@ use Test2::API qw/intercept/;
 
 my ($err, $events);
 
+# XPerl renders rethrow context after the original error text.
+sub is_original_error {
+    my ($error, $text, $name) = @_;
+
+    if (${^XPERL_VERSION}) {
+        require XPerl::DiagGroup unless $error->can('has_diagnostic');
+        ok($error->has_diagnostic('ERROR_USER_TEXT', text => $text), $name);
+    }
+    else {
+        is($error, $text, $name);
+    }
+}
+
 $events = intercept(sub {
     eval {
         subtest died_after_a_passing_assertion => sub {
@@ -20,11 +33,7 @@ $events = intercept(sub {
     } or $err = $@;
 });
 
-like(
-    $err,
-    qr/\Aboom\n\t\.\.\.propagated at .*Test\/Builder\.pm line \d+\.\n\z/,
-    "the exception still propagates to the caller",
-);
+is_original_error($err, "boom\n", "the exception still propagates to the caller");
 
 my ($subtest) = grep { $_->isa('Test2::Event::Subtest') } @$events;
 ok($subtest, "got a subtest event");
@@ -52,11 +61,7 @@ $events = intercept(sub {
     } or $err = $@;
 });
 
-like(
-    $err,
-    qr/\Aearly boom\n\t\.\.\.propagated at .*Test\/Builder\.pm line \d+\.\n\z/,
-    "the early exception propagates too",
-);
+is_original_error($err, "early boom\n", "the early exception propagates too");
 
 my ($fail) = grep { $_->facet_data->{assert} && !$_->facet_data->{assert}{pass} } @$events;
 ok($fail, "the subtest is reported as a failure");

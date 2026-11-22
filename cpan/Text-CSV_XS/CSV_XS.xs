@@ -834,9 +834,11 @@ static void cx_SetupCsv (pTHX_ csv_t *csv, HV *self, SV *pself) {
 	if ((svp = hv_fetchs (self, "undef_str",      FALSE)) && *svp && SvOK (*svp)) {
 		/*if (sv && (SvOK (sv) || (
 			(SvGMAGICAL (sv) && (mg_get (sv), 1) && SvOK (sv))))) {*/
-	    hold_sv (self, "_UNDEF_STR_HELD", *svp);
-	    csv->undef_str = (byte *)SvPV_nolen (*svp);
-	    if (SvUTF8 (*svp))
+	    /* Holding the value can reallocate the hash entry array. */
+	    SV *undef_str = *svp;
+	    hold_sv (self, "_UNDEF_STR_HELD", undef_str);
+	    csv->undef_str = (byte *)SvPV_nolen (undef_str);
+	    if (SvUTF8 (undef_str))
 		csv->undef_flg = 3;
 	    }
 	else {
@@ -845,8 +847,9 @@ static void cx_SetupCsv (pTHX_ csv_t *csv, HV *self, SV *pself) {
 	    }
 
 	if ((svp = hv_fetchs (self, "comment_str",    FALSE)) && *svp && SvOK (*svp)) {
-	    hold_sv (self, "_COMMENT_STR_HELD", *svp);
-	    csv->comment_str = (byte *)SvPV_nolen (*svp);
+	    SV *comment_str = *svp;
+	    hold_sv (self, "_COMMENT_STR_HELD", comment_str);
+	    csv->comment_str = (byte *)SvPV_nolen (comment_str);
 	    }
 	else {
 	    hold_sv (self, "_COMMENT_STR_HELD", NULL);
@@ -854,8 +857,9 @@ static void cx_SetupCsv (pTHX_ csv_t *csv, HV *self, SV *pself) {
 	    }
 
 	if ((svp = hv_fetchs (self, "_types",         FALSE)) && *svp && SvOK (*svp)) {
-	    hold_sv (self, "_TYPES_HELD", *svp);
-	    csv->types = SvPV (*svp, len);
+	    SV *types = *svp;	/* hold_sv () may invalidate svp */
+	    hold_sv (self, "_TYPES_HELD", types);
+	    csv->types = SvPV (types, len);
 	    csv->types_len = len;
 	    }
 

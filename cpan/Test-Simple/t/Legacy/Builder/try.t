@@ -39,4 +39,12 @@ my $tb = Test::Builder->new;
 ok !eval {
     $tb->_try(sub { die "Died\n" }, die_on_fail => 1);
 };
-like $@, qr/\ADied\n\t\.\.\.propagated at .*Test\/Builder\.pm line \d+\.\n\z/;
+if (${^XPERL_VERSION}) {
+    # The original text is one diagnostic in XPerl's rethrow graph.
+    my $error = $@;
+    require XPerl::DiagGroup unless $error->can('has_diagnostic');
+    ok $error->has_diagnostic('ERROR_USER_TEXT', text => "Died\n");
+}
+else {
+    is $@, "Died\n";
+}

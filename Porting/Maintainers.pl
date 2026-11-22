@@ -1266,6 +1266,10 @@ our %Modules = (
         'DISTRIBUTION' => 'EXODIST/Test-Simple-1.302226.tar.gz',
         'SYNCINFO'     => 'jkeenan on Sat Oct 24 20:40:40 2026',
         'FILES'        => q[cpan/Test-Simple],
+        'CUSTOMIZED'   => [qw(
+            t/AI/regression/1075-subtest-exception.t
+            t/Legacy/Builder/try.t
+        )],
         'EXCLUDED'     => [
             qr{^examples/},
             qr{^xt/},
@@ -1292,7 +1296,7 @@ our %Modules = (
         'DISTRIBUTION' => 'HMBRAND/Text-CSV_XS-1.65.tgz',
         'SYNCINFO'    => 'demerphq on Thu Nov 12 13:36:07 2026',
         'FILES'       => 'cpan/Text-CSV_XS',
-        'CUSTOMIZED'  => [qw(CSV_XS.xs)],
+        'CUSTOMIZED'  => [qw(CSV_XS.xs t/31_cache_lifetime.t)],
     },
 
     'Text::ParseWords' => {
