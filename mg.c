@@ -1802,6 +1802,15 @@ Perl_magic_get(pTHX_ SV *sv, MAGIC *mg)
     case '\022':		/* ^RE_SUPERLINEAR_CACHE_DELAY */
         if (strEQ(remaining, "E_SUPERLINEAR_CACHE_DELAY"))
             sv_setiv(sv, PL_re_superlinear_cache_delay);
+        else if (strEQ(remaining, "E_BUDGET")) {
+            /* undef means that no budget is in force */
+            if (PL_re_budget < 0)
+                sv_set_undef(sv);
+            else
+                sv_setiv(sv, PL_re_budget);
+        }
+        else if (strEQ(remaining, "E_RESTRICT"))
+            sv_setiv(sv, PL_re_restrict);
         break;
     case '\023':		/* ^S */
         if (nextchar == '\0') {
@@ -3904,6 +3913,17 @@ Perl_magic_set(pTHX_ SV *sv, MAGIC *mg)
     case '\022':		/* ^RE_SUPERLINEAR_CACHE_DELAY */
         if (strEQ(mg->mg_ptr+1, "E_SUPERLINEAR_CACHE_DELAY"))
             PL_re_superlinear_cache_delay = SvIV(sv);
+        else if (strEQ(mg->mg_ptr+1, "E_BUDGET")) {
+            /* undef, or anything negative, lifts the budget */
+            if (!SvOK(sv))
+                PL_re_budget = -1;
+            else {
+                const IV budget = SvIV(sv);
+                PL_re_budget = budget < 0 ? -1 : budget;
+            }
+        }
+        else if (strEQ(mg->mg_ptr+1, "E_RESTRICT"))
+            PL_re_restrict = SvTRUE(sv) ? 1 : 0;
         break;
     case '\024':	/* ^T */
 #ifdef BIG_TIME

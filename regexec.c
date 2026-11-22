@@ -211,6 +211,65 @@ static const char non_utf8_target_but_utf8_required[]
 #define SLAB_FIRST(s) (&(s)->states[0])
 #define SLAB_LAST(s)  (&(s)->states[PERL_REGMATCH_SLAB_SLOTS-1])
 
+/* Bounded matching
+ *
+ * When PL_re_budget is not negative, matching is charged against it, and
+ * dies when the budget is used up.  That gives a caller who must run a
+ * pattern it does not trust a hard limit on what the match can cost.
+ *
+ * One unit is charged for each regnode the matcher visits, and for each
+ * start position it tries.  Work that a single node does in a loop is
+ * charged by its size, so that no node hides an unbounded amount of work
+ * behind one unit:
+ *
+ *   - one unit per character consumed by a simple repeat (regrepeat)
+ *   - one unit per RE_BUDGET_BULK bytes that a search for a required
+ *     substring or start class may scan, that a backreference compares,
+ *     or that are copied to keep the subject for $1, $& and so on
+ *   - one unit per RE_BUDGET_BULK bytes of bookkeeping memory taken:
+ *     saved capture offsets, a new slab of backtracking states, and the
+ *     super-linear cache
+ *
+ * Backtracking is not charged separately.  Every state that is popped
+ * was pushed by a node visit that was charged.
+ *
+ * The charge for a loop is taken before the loop where its size is known
+ * in advance, and otherwise straight after it.  In the second case the
+ * work done since the last check is bounded by the length of the subject.
+ *
+ * Node visits are by far the most frequent charge, so regmatch() counts
+ * them in a local variable and charges them in arrears, RE_BUDGET_CHUNK
+ * at a time, and when it returns or calls out to a code block.  With no
+ * budget the count is never charged.  Either way a node visit costs one
+ * increment and test of a local variable.  So the budget can be overrun
+ * by fewer than RE_BUDGET_CHUNK node visits before that is noticed.  The
+ * other charges are made much less often, and are made at once. */
+#define RE_BUDGET_BULK 8
+#define RE_BUDGET_CHUNK 256
+
+#define RE_BUDGET_CHARGE(n)                                                 \
+    STMT_START {                                                            \
+        if (UNLIKELY(PL_re_budget >= 0))                                    \
+            S_re_budget_charge(aTHX_ (UV)(n));                              \
+    } STMT_END
+
+#define RE_BUDGET_CHARGE_BULK(bytes)                                        \
+    RE_BUDGET_CHARGE(1 + (UV)(bytes) / RE_BUDGET_BULK)
+
+static void
+S_re_budget_charge(pTHX_ UV units)
+{
+    /* The budget is not negative here.  Compare before subtracting so
+     * that a huge charge cannot wrap. */
+    if (units > (UV)PL_re_budget) {
+        /* Leave the budget at zero, so that further matching under this
+         * budget also dies, until the caller lifts or renews it. */
+        PL_re_budget = 0;
+        croak("Regexp matching budget exhausted");
+    }
+    PL_re_budget -= (IV)units;
+}
+
 static void S_setup_eval_state(pTHX_ regmatch_info *const reginfo);
 static void S_cleanup_regmatch_info_aux(pTHX_ void *arg);
 static regmatch_state * S_push_slab(pTHX);
@@ -249,6 +308,8 @@ S_regcppush(pTHX_ const regexp *rex, I32 parenfloor, U32 maxopenparen comma_pDEP
         croak("panic: paren_elems_to_push, %i < 0, maxopenparen: %i parenfloor: %i",
                    (int)paren_elems_to_push, (int)maxopenparen,
                    (int)parenfloor);
+
+    RE_BUDGET_CHARGE_BULK(total_elems * sizeof(*PL_savestack));
 
     if ((elems_shifted >> SAVE_TIGHT_SHIFT) != total_elems)
         croak("panic: paren_elems_to_push offset %" UVuf
@@ -398,6 +459,9 @@ S_capture_clear(pTHX_ regexp *rex, U16 from_ix, U16 to_ix, const char *str comma
     PERL_UNUSED_ARG(str); /* only used for debugging */
     U16 my_ix;
     DECLARE_AND_GET_RE_DEBUG_FLAGS;
+    if (to_ix >= from_ix)
+        RE_BUDGET_CHARGE_BULK((to_ix - from_ix + 1)
+                              * sizeof(*RXp_OFFSp(rex)));
     for ( my_ix = from_ix; my_ix <= to_ix; my_ix++ ) {
         DEBUG_BUFFERS_r(re_exec_indentf(
                 "CAPTURE_CLEAR %s \\%" IVdf ": "
@@ -1332,6 +1396,7 @@ Perl_re_intuit_start(pTHX_
             }
         }
 
+        RE_BUDGET_CHARGE_BULK(end_point - start_point);
         check_at = (SvCUR(check) == 1 && !SvTAIL(check))
                 ? (char *)memchr(start_point, *(const U8 *)SvPVX_const(check),
                       end_point - start_point)
@@ -1498,6 +1563,7 @@ Perl_re_intuit_start(pTHX_
                 ));
             }
             else {
+                RE_BUDGET_CHARGE_BULK((unsigned char*)to - (unsigned char*)from);
                 s = (SvCUR(must) == 1 && !SvTAIL(must))
                     ? (char *)memchr( (unsigned char*)from,
                                       *(const U8 *)SvPVX_const(must),
@@ -2558,6 +2624,11 @@ S_find_byclass(pTHX_ regexp * prog, const regnode *c, char *s,
     const char *strend, regmatch_info *reginfo)
 {
     PERL_ARGS_ASSERT_FIND_BYCLASS;
+
+    /* We make one pass over the string from here, looking for places
+     * where the start class matches; charge for the pass now.  Each match
+     * attempt made from here is charged separately, in regtry(). */
+    RE_BUDGET_CHARGE_BULK(strend - s);
 
     /* true if x+ need not match at just the 1st pos of run of x's */
     const I32 doevery = (prog->intflags & PREGf_SKIP) == 0;
@@ -4046,6 +4117,9 @@ S_reg_set_capture_string(pTHX_ REGEXP * const rx,
             assert(min >= 0 && min <= max && min <= strend - strbeg);
             sublen = max - min;
 
+            /* The match has succeeded, but keeping it costs a copy. */
+            RE_BUDGET_CHARGE_BULK(sublen);
+
             if (RXp_MATCH_COPIED(prog)) {
                 if (sublen > RXp_SUBLEN(prog))
                     RXp_SUBBEG(prog) =
@@ -4628,9 +4702,13 @@ Perl_regexec_flags(pTHX_ REGEXP * const rx, char *stringarg, char *strend,
                              SvCUR(must) - cBOOL(SvTAIL(must))));
             }
             else {
-                s = fbm_instr((unsigned char*)HOP4c(s, back_min, strbeg, strend),
+                char * const from = HOP4c(s, back_min, strbeg, strend);
+                s = fbm_instr((unsigned char*)from,
                               (unsigned char*)strend, must,
                               multiline ? FBMrf_MULTILINE : 0);
+                /* The search stops at the first occurrence, so this is
+                 * what it scanned. */
+                RE_BUDGET_CHARGE_BULK((s ? s : strend) - from);
                 if (!s)
                     break;
             }
@@ -4930,6 +5008,8 @@ S_regtry(pTHX_ regmatch_info *reginfo, char **startposp)
     RXi_GET_DECL(prog,progi);
     DECLARE_AND_GET_RE_DEBUG_FLAGS;
 
+    RE_BUDGET_CHARGE(1);
+
     reginfo->cutpoint = NULL;
 
     RXp_OFFSp(prog)[0].start = *startposp - reginfo->strbeg;
@@ -5009,6 +5089,7 @@ S_push_slab(pTHX)
 {
     regmatch_slab *s = PL_regmatch_slab->next;
     if (!s) {
+        RE_BUDGET_CHARGE_BULK(sizeof(regmatch_slab));
         Newx(s, 1, regmatch_slab);
         s->prev = PL_regmatch_slab;
         s->next = NULL;
@@ -7482,6 +7563,8 @@ S_regmatch(pTHX_ regmatch_info *reginfo, char *startpos, regnode *prog)
     U8 * script_run_begin = NULL;
     char *match_end= NULL; /* where a match MUST end to be considered successful */
     bool is_accepted = false; /* have we hit an ACCEPT opcode? */
+    IV budget_unbilled = 0;   /* node visits not yet charged */
+    IV budget_bill_at;        /* charge them when there are this many */
     re_fold_t folder = NULL;  /* used by various EXACTish regops */
     const U8 * fold_array = NULL; /* used by various EXACTish regops */
 
@@ -7513,7 +7596,21 @@ S_regmatch(pTHX_ regmatch_info *reginfo, char *startpos, regnode *prog)
 
     REGCP_SET(orig_savestack_ix);
 
+/* Charge the node visits counted so far.  This dies if there is a budget
+ * and they come to more than is left in it. */
+#define RE_BUDGET_BILL()                                                    \
+    STMT_START {                                                            \
+        if (PL_re_budget >= 0 && budget_unbilled)                           \
+            S_re_budget_charge(aTHX_ (UV)budget_unbilled);                  \
+        budget_unbilled = 0;                                                \
+        budget_bill_at = PL_re_budget < 0 ? IV_MAX : RE_BUDGET_CHUNK;       \
+    } STMT_END
+
+    budget_bill_at = PL_re_budget < 0 ? IV_MAX : RE_BUDGET_CHUNK;
+
     while (scan != NULL) {
+        if (UNLIKELY(++budget_unbilled >= budget_bill_at))
+            RE_BUDGET_BILL();
         next = regnext(scan);
         state_num = OP(scan);
 
@@ -9100,6 +9197,9 @@ S_regmatch(pTHX_ regmatch_info *reginfo, char *startpos, regnode *prog)
             if (ln == endref)
                 goto ref_yes;
 
+            /* comparing against the captured text costs its length */
+            RE_BUDGET_CHARGE_BULK(endref - ln);
+
             s = reginfo->strbeg + ln;
             if (type != REF	/* REF can do byte comparison */
                 && (utf8_target || type == REFFU || type == REFFL))
@@ -9244,9 +9344,13 @@ S_regmatch(pTHX_ regmatch_info *reginfo, char *startpos, regnode *prog)
 
             {
                 /* execute the (?{...}) code block and do some basic
-                 * processing of the return value */
+                 * processing of the return value.  The code can match
+                 * with, look at or change the budget, so settle up first,
+                 * and see afterwards whether there still is one. */
+                RE_BUDGET_BILL();
                 REGEXP *re_sv = S_run_code_block(aTHX_ rex, reginfo,
                                 orig_savestack_ix, logical, EVAL_CODE_DATA_SLOT(scan));
+                budget_bill_at = PL_re_budget < 0 ? IV_MAX : RE_BUDGET_CHUNK;
 
                 /* restore paren state */
                 regcp_restore(rex, ST.lastcp, &maxopenparen);
@@ -9789,6 +9893,8 @@ NULL
                     if (!--item->slc_countdown) {
                         /* countdown finished: alloc and use the cache:
                          * 1 bit per string byte */
+                        RE_BUDGET_CHARGE_BULK(
+                              ((reginfo->strend - reginfo->strbeg + 1) + 7)/8);
                         Newxz(item->slc_bitmap,
                               ((reginfo->strend - reginfo->strbeg + 1) + 7)/8,
                               U8);
@@ -10438,6 +10544,9 @@ NULL
               curly_try_B_min_known:
                 /* find the next place where 'B' could work, then call B */
                 if (locinput + ST.Binfo.initial_exact < loceol) {
+                    /* We are about to search forward for where B could
+                     * start, which can look at the rest of the string. */
+                    RE_BUDGET_CHARGE_BULK(loceol - locinput);
                     if (ST.Binfo.initial_exact >= ST.Binfo.max_length) {
 
                         /* Here, the mask is all 1's for the entire length of
@@ -11085,6 +11194,7 @@ NULL
     result = 0;
 
   final_exit:
+    RE_BUDGET_BILL();
     if (rex->intflags & PREGf_VERBARG_SEEN) {
         SV *sv_err = get_sv("REGERROR", 1);
         SV *sv_mrk = get_sv("REGMARK", 1);
@@ -11831,6 +11941,11 @@ S_regrepeat(pTHX_ regexp *prog, char **startposp, const regnode *p,
                         depth, SvPVX_const(prop),(IV)c,(IV)max);
         });
     });
+
+    /* Charge for the characters consumed.  This is after the fact, but
+     * the loop above cannot have run further than the end of the
+     * subject. */
+    RE_BUDGET_CHARGE(c);
 
     return(c);
 }

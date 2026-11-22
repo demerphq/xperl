@@ -562,6 +562,9 @@ Perl_make_trie(pTHX_ RExC_state_t *pRExC_state, regnode *startbranch,
 {
     PERL_ARGS_ASSERT_MAKE_TRIE;
 
+    /* building the trie is proportional to the text of its words */
+    RExC_BUDGET_CHARGE(1 + word_count + octet_count);
+
     /* Scan the source words and construct the trie in one pass. */
     reg_trie_data *trie;
     regnode *cur;

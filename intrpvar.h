@@ -1133,6 +1133,16 @@ PERLVARI(I, load_mathoms, shutdown_proc_t, PERL_LOAD_MATHOMS_HOOK)
  * See its description in perlvar for the meanings of its value. */
 PERLVARI(I, re_superlinear_cache_delay, IV, 0)
 
+/* The remaining regex matching budget, as get/set from user-land via
+ * ${^RE_BUDGET}.  Negative means no budget is in force.  Otherwise the
+ * matcher subtracts from it as it works, and dies when it would go below
+ * zero.  See "Bounded matching" in regexec.c. */
+PERLVARI(I, re_budget, IV, -1)
+
+/* Nonzero if patterns compiled now must be restricted to the constructs
+ * whose cost the budget accounts for.  Get/set via ${^RE_RESTRICT}. */
+PERLVARI(I, re_restrict, IV, 0)
+
 /* If you are adding a U8 or U16, check to see if there are 'Space' comments
  * above on where there are gaps which currently will be structure padding.  */
 

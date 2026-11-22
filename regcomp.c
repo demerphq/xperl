@@ -144,6 +144,15 @@ EXTERN_C const struct regexp_engine wild_reg_engine;
 #include "invlist_inline.h"
 #include "unicode_constants.h"
 #include "regcomp_internal.h"
+
+/* Under ${^RE_RESTRICT} a pattern may only use constructs whose matching
+ * cost the regex budget accounts for, and which cannot run code or do I/O
+ * while compiling or matching.  This rejects one that it may not use. */
+#define RESTRICTED_FAIL(what)                                               \
+    STMT_START {                                                            \
+        if (UNLIKELY(PL_re_restrict))                                       \
+            vFAIL2("%s not allowed in a restricted regexp", what);          \
+    } STMT_END
 #include "feature.h"
 
 /* ---------------------------------------------------------
@@ -399,6 +408,11 @@ regexp_engine const *
 Perl_current_re_engine(pTHX)
 {
     PERL_ARGS_ASSERT_CURRENT_RE_ENGINE;
+
+    /* The budget and the restrictions are this engine's.  An alternate
+     * engine implements neither, so does not get restricted patterns. */
+    if (PL_re_restrict)
+        return &PL_core_reg_engine;
 
     SV *ptr;
     if (IN_PERL_COMPILETIME) {
@@ -1799,6 +1813,9 @@ Perl_re_op_compile(pTHX_ SV ** const patternp, int pat_count,
     RExC_emit = NODE_STEP_REGNODE;
 
     /* Do the parse */
+    /* each pass over the pattern text reads all of it */
+    RExC_BUDGET_CHARGE(1 + plen / 8);
+
     if (reg(pRExC_state, 0, &flags, 1)) {
 
         /* Success!, But we may need to redo the parse knowing how many parens
@@ -3549,6 +3566,9 @@ S_reg(pTHX_ RExC_state_t *pRExC_state, I32 paren, I32 *flagp, U32 depth)
 
                    script_run:
 
+                    /* Checking a run looks at all of it each time. */
+                    RESTRICTED_FAIL("Script run");
+
                     /* This indicates Unicode rules. */
                     REQUIRE_UNI_RULES(flagp, 0);
 
@@ -4038,6 +4058,7 @@ S_reg(pTHX_ RExC_state_t *pRExC_state, I32 paren, I32 *flagp, U32 depth)
                    We have to defer the actual calculation until much later
                    as the regop may move.
                  */
+                RESTRICTED_FAIL("Recursion");
                 ret = reg2node(pRExC_state, GOSUB, num, RExC_recurse_count);
                 RExC_recurse_count++;
                 DEBUG_OPTIMISE_MORE_r(re_printf(
@@ -4075,6 +4096,10 @@ S_reg(pTHX_ RExC_state_t *pRExC_state, I32 paren, I32 *flagp, U32 depth)
                 OP * o;
 
                 RExC_seen_zerolen++;
+
+                /* This also covers a code block that arrived inside an
+                 * interpolated qr// object. */
+                RESTRICTED_FAIL("Eval-group");
 
                 if (   !pRExC_state->code_blocks
                     || pRExC_state->code_index
@@ -5472,6 +5497,10 @@ S_grok_bslash_N(pTHX_ RExC_state_t *pRExC_state,
 
     if (e - RExC_parse < 2 || ! strBEGINs(RExC_parse, "U+")) {
 
+        /* Looking a name up can call a charnames handler and load its
+         * tables. */
+        RESTRICTED_FAIL("Named character");
+
         /* Here, the name isn't of the form  U+....  This can happen if the
          * pattern is single-quoted, so didn't get evaluated in toke.c.  Now
          * is the time to find out what the name means */
@@ -6034,6 +6063,8 @@ S_regatom(pTHX_ RExC_state_t *pRExC_state, I32 *flagp, U32 depth)
         case 'C':
             vFAIL("\\C no longer supported");
         case 'X':
+            /* Deciding where a cluster ends can look back a long way. */
+            RESTRICTED_FAIL("\\X");
             ret = reg_node(pRExC_state, CLUMP);
             *flagp |= HASWIDTH;
             goto finish_meta_pat;
@@ -6057,6 +6088,9 @@ S_regatom(pTHX_ RExC_state_t *pRExC_state, I32 *flagp, U32 depth)
                 }
             }
             else {
+                /* The Unicode boundary rules can look back a long way. */
+                RESTRICTED_FAIL("\\b{}");
+
                 STRLEN length;
                 char name = *RExC_parse;
                 char * endbrace =  (char *) memchr(RExC_parse, '}',
@@ -13252,6 +13286,10 @@ S_change_engine_size(pTHX_ RExC_state_t *pRExC_state, const ptrdiff_t size)
      * subtract from the current memory allocated to the regex engine being
      * constructed. */
 
+    /* one unit for each regnode's worth of program allocated */
+    if (size > 0)
+        RExC_BUDGET_CHARGE(size);
+
     RExC_size += size;
 
     Renewc(RExC_rxi,
@@ -13409,6 +13447,12 @@ S_reginsert(pTHX_ RExC_state_t *pRExC_state, const U8 op,
     src = REGNODE_p(RExC_emit);
     RExC_emit += size;
     dst = REGNODE_p(RExC_emit);
+
+    /* Inserting moves everything from the operand to the end of the
+     * program, and adjusts the recorded position of every group. */
+    RExC_BUDGET_CHARGE(1 + ((src - REGNODE_p(operand)) * sizeof(regnode)
+                            + (RExC_open_parens ? RExC_npar : 0)
+                              * 2 * sizeof(regnode_offset)) / 8);
 
     /* If we are in a "count the parentheses" pass, the numbers are unreliable,
      * and [perl #133871] shows this can lead to problems, so skip this
@@ -15270,6 +15314,14 @@ S_parse_uniprop_string(pTHX_
         {
             bool special_property = memEQs(lookup_name, j - 1, "name")
                                  || memEQs(lookup_name, j - 1, "na");
+
+            /* A wildcard matches a subpattern against every value of the
+             * property, or every character name. */
+            if (PL_re_restrict) {
+                sv_catpvs(msg, "Unicode property wildcard not allowed in a"
+                               " restricted regexp");
+                goto append_name_to_msg;
+            }
             if (! special_property) {
                 /* Find the property.  The table includes the equals sign, so
                  * we use 'j' as-is */
@@ -15442,6 +15494,13 @@ S_parse_uniprop_string(pTHX_
         if (   memEQs(lookup_name, j - 1, "name")
             || memEQs(lookup_name, j - 1, "na"))
         {
+            /* This loads and calls into _charnames.pm */
+            if (PL_re_restrict) {
+                sv_catpvs(msg, "The Name property is not allowed in a"
+                               " restricted regexp");
+                goto append_name_to_msg;
+            }
+
             dSP;
             HV * table;
             SV * character;
@@ -15758,6 +15817,12 @@ S_parse_uniprop_string(pTHX_
     else {
         could_be_user_defined = false;
     }
+
+    /* A user-defined property is a call to a Perl sub, now or when first
+     * needed during matching.  A restricted pattern only gets the
+     * properties that Unicode defines. */
+    if (PL_re_restrict)
+        could_be_user_defined = false;
 
     if (could_be_user_defined) {
         CV* user_sub;

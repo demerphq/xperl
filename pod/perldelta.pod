@@ -27,6 +27,31 @@ here, but most should go in the L</Performance Enhancements> section.
 
 [ List each enhancement as a =head2 entry ]
 
+=head2 Limits on regular expression work, for untrusted patterns
+
+Two new experimental variables let a program compile and match a pattern
+it does not trust, with a hard limit on what that can cost.
+
+C<${^RE_BUDGET}> sets a budget of work for the regular expression engine.
+Compiling and matching subtract from it, and die when it is used up.  The
+charges are counted, not timed, so the same match costs the same on every
+platform.
+
+C<${^RE_RESTRICT}> restricts patterns compiled at run time to constructs
+that cannot run code or load anything and whose cost the budget accounts
+for.  Code blocks, recursion and user-defined properties are among those
+rejected.
+
+Both are meant to be set with C<local> around the use of the pattern:
+
+    my $matched = eval {
+        local ${^RE_RESTRICT} = 1;
+        local ${^RE_BUDGET}   = 1_000_000;
+        $input =~ /$untrusted/;
+    };
+
+See L<perlvar/${^RE_BUDGET}> and L<perlvar/${^RE_RESTRICT}>.
+
 =head1 Security
 
 XXX Any security-related notices go here. In particular, any security

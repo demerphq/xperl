@@ -669,6 +669,123 @@ between the variants.
 
 This variable was added in Perl 5.003.
 
+=item ${^RE_BUDGET}
+X<${^RE_BUDGET}>
+
+Added in Perl 5.46.0.  This is experimental.
+
+This variable limits the work that the regular expression engine may do.
+Its purpose is to let a program compile and match a pattern that it does
+not trust, such as one supplied by a user, with a hard limit on what that
+can cost.
+
+By default it is undefined, and there is no limit.  If it is set to a
+non-negative integer, that is a budget, in units of work.  Compiling a
+pattern and matching against one both subtract from it as they go, and
+die when the budget would go below zero:
+
+    Regexp matching budget exhausted
+    Regexp compilation budget exhausted in regex m/%s/
+
+The variable then holds zero, so that any further matching under the
+same budget also dies.  Reading the variable at other times gives what is
+left.
+
+It should be set with C<local>, which makes the budget apply to all
+compiling and matching done in that dynamic scope, however it is reached,
+and lifts it on the way out, including when it has been exhausted:
+
+    my $matched = eval {
+        local ${^RE_RESTRICT} = 1;
+        local ${^RE_BUDGET}   = 1_000_000;
+        $input =~ /$untrusted/;
+    };
+    die "pattern too expensive or not allowed: $@" if $@;
+
+Note that the handler runs outside the block.  Code that runs inside it
+after the budget is exhausted cannot use a regular expression.
+
+One unit is charged for each step of matching: each node of the compiled
+pattern that is tried, and each position in the string at which a match is
+attempted.  Work that a single step does in a loop is charged by its size:
+one unit for each character consumed by a repeat of a single character or
+class, and one unit for each eight bytes that are searched, compared with
+a backreference, or copied, or that are taken to keep track of the match.
+Compiling is charged by the size of the pattern and of the program
+compiled from it.  A budget of a few times the combined length of the
+pattern and the string is enough for patterns that match in linear time.
+
+The cost of a match is the same each time it is run, on every platform,
+so a budget can be chosen by measurement.  It is not a time limit, and the
+time taken by one unit varies.  The engine counts steps in batches, so a
+match can run for up to 255 steps after the budget is used up before it is
+stopped.
+
+A budget only gives a dependable limit for patterns compiled under
+L</${^RE_RESTRICT}>, which rejects the constructs that the budget cannot
+account for.
+
+Assigning C<undef> or a negative number lifts the limit.  A new thread
+starts with a copy of the creating thread's budget.
+
+=item ${^RE_RESTRICT}
+X<${^RE_RESTRICT}>
+
+Added in Perl 5.46.0.  This is experimental.
+
+When this variable is true, patterns that are compiled may only use
+constructs that cannot run Perl code or load anything, and whose cost when
+matching is accounted for by L</${^RE_BUDGET}>.  By default it is false.
+
+It should be set with C<local> around the compilation of a pattern that is
+not trusted.  It affects every pattern compiled at run time in that
+dynamic scope, and it applies to the whole of each pattern, wherever the
+text came from.  Patterns without variables in them are compiled when the
+program is, and are not affected.
+
+A restricted pattern may not contain:
+
+=over
+
+=item *
+
+Code blocks, C<(?{...})> and C<(??{...})>.  This includes one that arrives
+inside an interpolated C<qr//> object.
+
+=item *
+
+Recursion: C<(?R)>, C<(?1)>, C<(?&name)> and their other forms.
+
+=item *
+
+User-defined properties in C<\p{...}> and C<\P{...}>, which call a
+subroutine; property wildcards; and the C<Name> property.  Properties
+defined by Unicode are allowed.
+
+=item *
+
+Characters given by name, C<\N{NAME}>.  C<\N{U+263A}> is allowed.
+
+=item *
+
+C<\X>, the Unicode boundaries C<\b{...}> and C<\B{...}>, and script runs,
+whose matching can look arbitrarily far back in the string.
+
+=back
+
+Such a pattern fails to compile, with a message like:
+
+    Recursion not allowed in a restricted regexp in regex;
+    marked by <-- HERE in m/%s/
+
+Restricted patterns are always compiled by Perl's own regular expression
+engine, whatever C<use re> has selected, as an alternate engine does not
+implement the budget.
+
+This variable has no effect on patterns that are already compiled.  A
+C<qr//> object that is matched on its own, rather than interpolated into a
+larger pattern, is not compiled again.
+
 =item ${^RE_SUPERLINEAR_CACHE_DELAY}
 
 Added in Perl 5.46.0.

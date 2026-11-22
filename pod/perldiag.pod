@@ -4534,6 +4534,15 @@ C<??> appear to be nested quantifiers, but aren't.  See L<perlre>.
 (S internal) The symbol in question was declared but somehow went out of
 scope before it could possibly have been used.
 
+=item %s not allowed in a restricted regexp in regex; marked by <-- HERE in m/%s/
+
+(F) The regular expression was compiled while C<${^RE_RESTRICT}> was true,
+and uses a construct that restricted patterns may not: one that could run
+Perl code or load something, or whose matching cost a limit on regular
+expression work cannot account for.  The S<<-- HERE> shows whereabouts in
+the regular expression the construct was found.  See
+L<perlvar/${^RE_RESTRICT}>.
+
 =item next::method/next::can/maybe::next::method cannot find enclosing method
 
 (F) C<next::method> needs to be called within the context of a
@@ -6113,6 +6122,20 @@ marked by S<<-- HERE> in m/%s/
 (F) The regular expression pattern had more than one of these
 mutually exclusive modifiers.  Retain only the modifier that is
 supposed to be there.
+
+=item Regexp compilation budget exhausted in regex m/%s/
+
+(F) The regular expression was being compiled while a limit on regular
+expression work was in force, and compiling it would have used more than
+was left.  See L<perlvar/${^RE_BUDGET}>.
+
+=item Regexp matching budget exhausted
+
+(F) A regular expression was being matched while a limit on regular
+expression work was in force, and matching it would have used more than
+was left.  No result is available for the match.  The limit stays
+exhausted until the code that set it renews or lifts it.  See
+L<perlvar/${^RE_BUDGET}>.
 
 =item Regexp out of space in regex m/%s/
 

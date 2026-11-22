@@ -1625,6 +1625,7 @@ Perl_study_chunk(pTHX_
     }
     );
     while ( scan && OP(scan) != END && scan < last ){
+        RExC_BUDGET_CHARGE(1);
         UV min_subtract = 0;    /* How mmany chars to subtract from the minimum
                                    node length to get a real minimum (because
                                    the folded version may be shorter) */

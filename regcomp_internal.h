@@ -914,6 +914,21 @@ static const scan_data_t zero_scan_data = {
     croak("%s in regex m/%" UTF8f "%s/",         \
             msg, UTF8fARG(UTF, len, RExC_precomp), ellipses))
 
+/* Charge compile-time work against the regex budget, ${^RE_BUDGET}, if
+ * one is in force.  See "Bounded matching" in regexec.c for the units.
+ * Unlike the matcher this can use FAIL(), which reports the pattern. */
+#define RExC_BUDGET_CHARGE(n)                                               \
+    STMT_START {                                                            \
+        if (UNLIKELY(PL_re_budget >= 0)) {                                  \
+            const UV budget_units_ = (UV)(n);                               \
+            if (budget_units_ > (UV)PL_re_budget) {                         \
+                PL_re_budget = 0;                                           \
+                FAIL("Regexp compilation budget exhausted");                \
+            }                                                               \
+            PL_re_budget -= (IV)budget_units_;                              \
+        }                                                                   \
+    } STMT_END
+
 #define FAIL2(msg,arg) FAIL_(                       \
     croak(msg " in regex m/%" UTF8f "%s/",       \
             arg, UTF8fARG(UTF, len, RExC_precomp), ellipses))
