@@ -366,6 +366,12 @@ manager will later use a regex to expand these into links.
 
 =item *
 
+C<\K> is now allowed inside C<(*atomic:...)>, as it always has been inside
+C<< (?>...) >>, which means the same thing.  It was rejected with "\K not
+permitted in lookahead/lookbehind".
+
+=item *
+
 Compiling a pattern could loop forever, allocating memory until it ran
 out, when a branch reset group was followed by a two-digit escape such as
 C<\10>.  For example C<qr/(?|(a)(b)(c)(d)(e)(f)|(g)(h)(i)(j))\10/> never
