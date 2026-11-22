@@ -822,9 +822,9 @@ enum perl_diag_index {
     perl_diag_error_regexp_verb_opener_not_adjacent_idx,
     perl_diag_error_rng_bytes_count_invalid_idx,
     perl_diag_error_rng_bytes_count_too_large_idx,
+    perl_diag_error_rng_fast_descriptor_invalid_idx,
     perl_diag_error_rng_provider_byte_count_mismatch_idx,
     perl_diag_error_rng_provider_byte_string_required_idx,
-    perl_diag_error_rng_provider_integer_address_required_idx,
     perl_diag_error_rng_provider_object_required_idx,
     perl_diag_error_rng_seed_byte_string_required_idx,
     perl_diag_error_rng_seed_drand48_size_invalid_idx,
@@ -2427,9 +2427,9 @@ enum perl_diag_number {
     perl_diag_error_regexp_verb_opener_not_adjacent_number                                     = 2528,
     perl_diag_error_rng_bytes_count_invalid_number                                             = 1117,
     perl_diag_error_rng_bytes_count_too_large_number                                           = 1116,
+    perl_diag_error_rng_fast_descriptor_invalid_number                                         = 2795,
     perl_diag_error_rng_provider_byte_count_mismatch_number                                    = 1094,
     perl_diag_error_rng_provider_byte_string_required_number                                   = 1093,
-    perl_diag_error_rng_provider_integer_address_required_number                               = 1091,
     perl_diag_error_rng_provider_object_required_number                                        = 1026,
     perl_diag_error_rng_seed_byte_string_required_number                                       = 1096,
     perl_diag_error_rng_seed_drand48_size_invalid_number                                       = 1095,
@@ -5671,13 +5671,6 @@ enum perl_diag_selector_domain_id {
 #define PERL_THROW_ERROR_SYNTAX_PROTOTYPE_UNTERMINATED() \
     Perl_throw_croak_0_1006( \
         aTHX_ perl_diag_error_syntax_prototype_unterminated_idx, \
-        __FILE__, \
-        __LINE__ \
-    )
-
-#define PERL_THROW_ERROR_RNG_PROVIDER_INTEGER_ADDRESS_REQUIRED() \
-    Perl_throw_croak_0_1006( \
-        aTHX_ perl_diag_error_rng_provider_integer_address_required_idx, \
         __FILE__, \
         __LINE__ \
     )
@@ -20491,6 +20484,13 @@ enum perl_diag_selector_domain_id {
         (SV *)(ma_name) \
     )
 
+#define PERL_THROW_ERROR_RNG_FAST_DESCRIPTOR_INVALID() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_rng_fast_descriptor_invalid_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
 #define PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_INVALID_ABORT() \
     STMT_START { \
         PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_INVALID(); \
@@ -22024,9 +22024,9 @@ enum perl_diag_selector_domain_id {
 /* PERL_THROW_ERROR_REGEXP_VERB_OPENER_NOT_ADJACENT => ERROR_REGEXP_VERB_OPENER_NOT_ADJACENT */
 /* PERL_THROW_ERROR_RNG_BYTES_COUNT_INVALID => ERROR_RNG_BYTES_COUNT_INVALID */
 /* PERL_THROW_ERROR_RNG_BYTES_COUNT_TOO_LARGE => ERROR_RNG_BYTES_COUNT_TOO_LARGE */
+/* PERL_THROW_ERROR_RNG_FAST_DESCRIPTOR_INVALID => ERROR_RNG_FAST_DESCRIPTOR_INVALID */
 /* PERL_THROW_ERROR_RNG_PROVIDER_BYTE_COUNT_MISMATCH => ERROR_RNG_PROVIDER_BYTE_COUNT_MISMATCH */
 /* PERL_THROW_ERROR_RNG_PROVIDER_BYTE_STRING_REQUIRED => ERROR_RNG_PROVIDER_BYTE_STRING_REQUIRED */
-/* PERL_THROW_ERROR_RNG_PROVIDER_INTEGER_ADDRESS_REQUIRED => ERROR_RNG_PROVIDER_INTEGER_ADDRESS_REQUIRED */
 /* PERL_THROW_ERROR_RNG_PROVIDER_OBJECT_REQUIRED => ERROR_RNG_PROVIDER_OBJECT_REQUIRED */
 /* PERL_THROW_ERROR_RNG_SEED_BYTE_STRING_REQUIRED => ERROR_RNG_SEED_BYTE_STRING_REQUIRED */
 /* PERL_THROW_ERROR_RNG_SEED_DRAND48_SIZE_INVALID => ERROR_RNG_SEED_DRAND48_SIZE_INVALID */
@@ -22775,7 +22775,7 @@ enum perl_diag_selector_domain_id {
 #endif /* PERL_DIAG_H */
 
 /* Generated from:
- * 3e40821465937704766c02978b92f1401b2d5070d395ce628fe07d81ff2806d9 diag_conf.pl
+ * 835447222d039653a5e6d70ba2219d8e9f3bb559dd2bc90b0c6c3e9695a7bc9b diag_conf.pl
  * 4f7f9abb892a0d073bf678e020c547a0c882a3b0d175956fe97b0ee2afca3238 diag_op_conf.pl
  * 08e6e839aab37ef63b9ae313b6bfda289c063825e87138784fd46d465873591b regen/opcodes
  * ex: set ro ft=c: */

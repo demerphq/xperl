@@ -44684,6 +44684,31 @@ $CONF = {
           },
           "class" => "XPerl::Diagnostic::Error::RNG::Bytes"
         },
+        "ERROR_RNG_FAST_DESCRIPTOR_INVALID" => {
+          "number" => 2795,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_RNG_FAST_DESCRIPTOR_INVALID",
+          "macro" => "PERL_THROW_ERROR_RNG_FAST_DESCRIPTOR_INVALID",
+          "source_files" => [
+            "pp.c"
+          ],
+          "tags" => [
+            "condition:type_mismatch",
+            "subject:rng"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "Invalid RNG fast descriptor"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK"
+          },
+          "class" => "XPerl::Diagnostic::Error::RNG::Provider"
+        },
         "ERROR_RNG_PROVIDER_BYTE_COUNT_MISMATCH" => {
           "number" => 1094,
           "severity" => "FATAL_ERROR",
@@ -44765,51 +44790,6 @@ $CONF = {
               "tr" => "RNG sağlayıcısının rand_bytes() yöntemi bir bayt dizgesi döndürmedi",
               "uk" => "Метод rand_bytes() постачальника генератора випадкових чисел не повернув байтовий рядок",
               "zh" => "RNG 提供程序的 rand_bytes() 未返回字节串"
-            },
-            "args" => []
-          },
-          "counts_as_error" => 1,
-          "emit" => {
-            "api" => "CROAK"
-          },
-          "class" => "XPerl::Diagnostic::Error::RNG::Provider"
-        },
-        "ERROR_RNG_PROVIDER_INTEGER_ADDRESS_REQUIRED" => {
-          "number" => 1091,
-          "severity" => "FATAL_ERROR",
-          "kind" => "CORE_RUNTIME",
-          "code" => "ERROR_RNG_PROVIDER_INTEGER_ADDRESS_REQUIRED",
-          "macro" => "PERL_THROW_ERROR_RNG_PROVIDER_INTEGER_ADDRESS_REQUIRED",
-          "source_files" => [
-            "pp.c"
-          ],
-          "tags" => [
-            "condition:type_mismatch",
-            "subject:rng"
-          ],
-          "message" => {
-            "templates" => {
-              "ar" => "يجب أن يكون عنوان RNG fast provider عددًا صحيحًا",
-              "cy" => "Rhaid i gyfeiriad darparwr cyflym RNG fod yn gyfanrif",
-              "de" => "Die Adresse des schnellen RNG-Providers muss eine Ganzzahl sein",
-              "en" => "RNG fast provider address must be an integer",
-              "es" => "La dirección del proveedor rápido de RNG debe ser un entero",
-              "fa" => "نشانی ارائه\N{ZERO WIDTH NON-JOINER}دهندهٔ سریع RNG باید عدد صحیح باشد",
-              "fi" => "RNG:n nopean tarjoajan osoitteen on oltava kokonaisluku",
-              "fr" => "L'adresse du fournisseur RNG rapide doit être un entier",
-              "he" => "כתובת ספק ה-RNG המהיר חייבת להיות מספר שלם",
-              "hu" => "Az RNG gyors szolgáltatójának címe egész szám kell legyen",
-              "is" => "Heimilisfang hraðveitu RNG verður að vera heiltala",
-              "it" => "L'indirizzo del fornitore RNG veloce deve essere un intero",
-              "nl" => "Adres van snelle RNG-provider moet een geheel getal zijn",
-              "pl" => "Adres dostawcy RNG musi być liczbą całkowitą",
-              "pt" => "O endereço do fornecedor rápido de RNG tem de ser um inteiro",
-              "ru" => "Адрес быстрого поставщика генератора случайных чисел должен быть целым числом",
-              "sr" => "Адреса брзог RNG провајдера мора бити цео број",
-              "tlh" => "RNG fast provider address mI' ghaH net poQ",
-              "tr" => "RNG hızlı sağlayıcı adresi tamsayı olmalıdır",
-              "uk" => "Адреса швидкого постачальника генератора випадкових чисел має бути цілим числом",
-              "zh" => "RNG 快速提供程序地址必须是整数"
             },
             "args" => []
           },
@@ -116149,9 +116129,9 @@ $CONF = {
       {
         "code" => "PERLDIAG_0861",
         "headings" => [
-          "RNG fast provider address must be an integer\n\n"
+          "Invalid RNG fast descriptor\n\n"
         ],
-        "text" => "(F) C<get_rand_U01_XS_func_addr> or C<get_rand_U01_XS_state_addr> returned\nsomething other than C<undef>, zero, or an integer address.  An XS provider\nmust return its callback and state addresses using Perl's established XS\npointer-address convention.\n\n"
+        "text" => "(F) An XS provider passed an unsupported ABI or descriptor size, or a null\nU01 callback, to C<Perl_rng_fast_register>.\n\n"
       },
       {
         "code" => "PERLDIAG_0863",
@@ -118879,6 +118859,7 @@ $CONF = {
     1007,
     1009,
     1073,
+    1091,
     1092,
     1138,
     1139,

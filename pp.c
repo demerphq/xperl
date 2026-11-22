@@ -3863,7 +3863,7 @@ Perl_rng_fast_register(pTHX_ SV *referent, const Perl_rng_fast *descriptor)
         PERL_THROW_ERROR_RNG_PROVIDER_OBJECT_REQUIRED();
     if (descriptor->abi != PERL_RNG_FAST_ABI
         || descriptor->size != sizeof(Perl_rng_fast) || !descriptor->U01)
-        croak("Invalid RNG fast descriptor");
+        PERL_THROW_ERROR_RNG_FAST_DESCRIPTOR_INVALID();
 
     /* Attach empty magic before allocating the descriptor, so an allocation
      * failure leaves no unowned descriptor or transferred state. */
