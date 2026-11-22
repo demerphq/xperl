@@ -10705,6 +10705,7 @@ NULL
 
           do_ifmatch:
             ST.me = scan;
+            ST.keep_start = RXp_OFFS_START(rex, 0);
             ST.logical = logical;
             logical = 0; /* XXX: reset state of logical once it has been saved into ST */
 
@@ -10750,6 +10751,9 @@ NULL
             sw = matched == ST.wanted;
             match_end = ST.prev_match_end;
             if (! ST.logical && !sw) {
+                /* The body matched, so its backtracking states are gone,
+                 * including that of any \K in it.  Undo the \K here. */
+                RXp_OFFSp(rex)[0].start = ST.keep_start;
                 sayNO;
             }
 
@@ -10762,6 +10766,19 @@ NULL
             scan = ST.me + SUBPATTERN_CONTINUE_OFFSET(ST.me);
             if (scan == ST.me)
                 scan = NULL;
+            if (scan && RXp_OFFS_START(rex, 0) != ST.keep_start) {
+                /* A \K in the body moved the start of the match.  It
+                 * would move it back if we backtracked into it, but the
+                 * body's backtracking states were discarded when it
+                 * matched.  Stand in for it: leave behind the state that
+                 * \K itself would have, so that failing to match what
+                 * follows restores the start. */
+                const SSize_t keep_start = ST.keep_start;
+                st->u.keeper.offset = keep_start;
+                PUSH_STATE_GOTO(KEEPS_next, scan, locinput, loceol,
+                                script_run_begin);
+                NOT_REACHED; /* NOTREACHED */
+            }
             continue; /* execute B */
         }
 
