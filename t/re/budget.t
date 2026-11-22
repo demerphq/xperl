@@ -321,15 +321,22 @@ sub bounded {
 SKIP: {
     skip('no ithreads', 3) unless $Config{useithreads};
     require threads;
-    local ${^RE_BUDGET} = 5000;
-    my ($child_start, $child_end) = @{ threads->create(sub {
-        my $start = ${^RE_BUDGET};
-        'abc' =~ /b/;
-        return [ $start, ${^RE_BUDGET} ];
-    })->join };
+    my ($child_start, $child_end, $parent_end);
+    {
+        # The test functions match with regexes themselves, so look at the
+        # parent's budget before leaving this block, and only call them
+        # once the budget has been lifted.
+        local ${^RE_BUDGET} = 5000;
+        ($child_start, $child_end) = @{ threads->create(sub {
+            my $start = ${^RE_BUDGET};
+            'abc' =~ /b/;
+            return [ $start, ${^RE_BUDGET} ];
+        })->join };
+        $parent_end = ${^RE_BUDGET};
+    }
     is($child_start, 5000, 'a new thread starts with a copy of the budget');
     cmp_ok($child_end, '<', 5000, '... and spends its own copy');
-    is(${^RE_BUDGET}, 5000, '... leaving the parent budget alone');
+    is($parent_end, 5000, '... leaving the parent budget alone');
 }
 
 done_testing();
