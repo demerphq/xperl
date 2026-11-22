@@ -20,6 +20,7 @@ use dispatch::Predicates;
 my $deparser = B::Deparse->new;
 my $expected = 'ok';
 our $observed_context;
+our $other_clause_ran;
 $main::multisub_arguments = 42;
 our @attempts;
 
@@ -513,6 +514,33 @@ SKIP: {
         return $dispatcher->('ok', 41);
     });
     is($thread->join, 42, 'a cloned CV retains deparseable patterns and headers');
+}
+
+multi sub jump_forward($value) {
+    goto FINISH;
+    die 'unreachable';
+    FINISH: ($value, $value + 1);
+}
+my $jump_copy = \&jump_forward;
+for my $generation (0 .. 2) {
+    is(join(',', $jump_copy->(41)), '41,42',
+        "deparse generation $generation preserves goto and implicit list return");
+    $jump_copy = copy_multisub($jump_copy) if $generation < 2;
+}
+
+$other_clause_ran = 0;
+multi sub jump_other_clause(0) { goto OTHER_CLAUSE; }
+multi sub jump_other_clause(1) {
+    OTHER_CLAUSE: ++$main::other_clause_ran;
+}
+my $other_copy = \&jump_other_clause;
+for my $generation (0 .. 2) {
+    eval { $other_copy->(0) };
+    like($@, qr/Use of "goto" to jump into a construct is no longer permitted/,
+        "deparse generation $generation rejects entry into an unmatched clause");
+    is($other_clause_ran, 0,
+        "deparse generation $generation leaves the unmatched body untouched");
+    $other_copy = copy_multisub($other_copy) if $generation < 2;
 }
 
 done_testing();

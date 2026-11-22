@@ -593,4 +593,50 @@ SKIP: {
     is($copy && $copy->(), 'empty', 'deparsed dispatcher can be compiled and called');
 }
 
+multi sub jump_forward($value) {
+    goto FINISH;
+    die 'unreachable';
+    FINISH: $value + 1;
+}
+is(join(',', jump_forward(41)), '42',
+    'a forward goto retains captures and returns only the body result');
+
+multi sub jump_backward($value) {
+    my $remaining = $value;
+    AGAIN: --$remaining;
+    goto AGAIN if $remaining > 0;
+    ($value, $remaining);
+}
+is(join(',', jump_backward(3)), '3,0',
+    'a backward goto preserves body lexicals and list context');
+
+multi sub jump_nested($value) {
+    { goto FINISH; }
+    die 'unreachable';
+    FINISH: [$value];
+}
+is(jump_nested(42)->[0], 42, 'goto can leave a nested block in a clause');
+
+multi sub jump_expression($value) {
+    goto INSIDE;
+    my @values = (1, do { INSIDE: $value });
+}
+eval { jump_expression(42) };
+like($@, qr/Can't "goto" into a binary or list expression/,
+    'an explicit expression remains an invalid goto target');
+
+multi sub implicit_list($value) { ($value, $value + 1) }
+is(join(',', implicit_list(41)), '41,42',
+    'implicit list return excludes the original argument stack');
+
+my $other_clause_ran = 0;
+multi sub jump_other_clause(0) { goto OTHER_CLAUSE; }
+multi sub jump_other_clause(1) {
+    OTHER_CLAUSE: ++$other_clause_ran;
+}
+eval { jump_other_clause(0) };
+like($@, qr/Use of "goto" to jump into a construct is no longer permitted/,
+    'goto cannot enter a different clause without matching');
+is($other_clause_ran, 0, 'a rejected goto does not execute the other clause');
+
 done_testing();

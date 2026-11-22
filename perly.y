@@ -432,10 +432,8 @@ bare_statement_multisub
                 condition = newLOGOP(OP_AND, 0, condition,
                     scalar($dispatch_on_guard));
 
-            /* An implicit body result returns from the public sub too. */
-            OP *body = op_convert_list(OP_RETURN, 0, op_scope($mblock));
             OP *clause = block_end($remember,
-                newONOP(condition, op_scope(body)));
+                newONOP(condition, op_scope($mblock)));
             multisub_add_clause($startmultisub, clause);
             op_free($BAREWORD);
             parser->parsed_sub = TRUE;

@@ -168,4 +168,18 @@ is(B::svref_2object($rollback_reference)->CvFLAGS & $kind_flags,
     $original_flags & $kind_flags,
     'failed compilation restores the adopted stub declaration flags');
 
+class MultiGoto {
+    field $offset = 40;
+    multi method jump($value) {
+        goto FINISH;
+        die 'unreachable';
+        FINISH: ($self, $offset + $value);
+    }
+}
+my $goto_object = MultiGoto->new;
+my @goto_result = $goto_object->jump(2);
+is(scalar @goto_result, 2, 'method goto preserves the implicit list result');
+is($goto_result[0], $goto_object, 'method goto preserves self');
+is($goto_result[1], 42, 'method goto preserves field and capture bindings');
+
 done_testing();

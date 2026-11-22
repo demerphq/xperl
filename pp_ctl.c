@@ -6789,6 +6789,15 @@ PP(pp_redo)
 #define GOTO_DEPTH 64
 
 static OP *
+S_dispatch_on_body(const OP *leave_op)
+{
+    assert(leave_op && leave_op->op_type == OP_LEAVEDISPATCHON);
+    const OP *enter_op = cUNOPx(leave_op)->op_first;
+    OP *body = cUNOPx(enter_op)->op_first;
+    return leave_op->op_flags & OPf_SPECIAL ? body : OpSIBLING(body);
+}
+
+static OP *
 S_dofindlabel(pTHX_ OP *o, const char *label, STRLEN len, U32 flags, OP **opstack, OP **oplimit)
 {
     PERL_ARGS_ASSERT_DOFINDLABEL;
@@ -6804,6 +6813,11 @@ S_dofindlabel(pTHX_ OP *o, const char *label, STRLEN len, U32 flags, OP **opstac
         o->op_type == OP_LEAVETRY ||
         o->op_type == OP_LEAVEGIVEN)
     {
+        *ops++ = cUNOPo->op_first;
+    }
+    else if (o->op_type == OP_LEAVEDISPATCHON) {
+        /* Active clauses are searched from their body root. Reaching one
+         * through an outer tree would bypass matching and binding. */
         *ops++ = cUNOPo->op_first;
     }
     else if (oplimit - opstack < GOTO_DEPTH) {
@@ -6894,6 +6908,8 @@ S_check_op_type(pTHX_ OP * const o)
         PERL_THROW_ERROR_CONTROL_FLOW_GOTO_CANNOT_ENTER_FOREACH_BODY();
     if (o->op_type == OP_ENTERGIVEN)
         PERL_THROW_ERROR_CONTROL_FLOW_GOTO_CANNOT_ENTER_GIVEN_BLOCK();
+    if (o->op_type == OP_ENTERDISPATCHON)
+        PERL_THROW_ERROR_CONTROL_FLOW_GOTO_CANNOT_ENTER_CONSTRUCT();
 }
 
 /* also used for: pp_dump() */
@@ -7262,8 +7278,12 @@ PP(pp_goto)
             case CXt_GIVEN:
             case CXt_WHEN:
             case CXt_DISPATCH:
-            case CXt_DISPATCH_ON:
                 gotoprobe = OpSIBLING(cx->blk_oldcop);
+                break;
+            case CXt_DISPATCH_ON:
+                /* The saved COP can belong to the caller when a compiler
+                 * supplied the clause. Search the actual body instead. */
+                gotoprobe = S_dispatch_on_body(cx->blk_dispatch_on.leave_op);
                 break;
             case CXt_SUBST:
                 continue;
@@ -7273,6 +7293,8 @@ PP(pp_goto)
                     /* CXt_DEFER includes finally{} blocks */
                     if (CxTYPE(encl) == CXt_DEFER)
                         gotoprobe = encl->blk_defer.defer_root;
+                    else if (CxTYPE(encl) == CXt_DISPATCH_ON)
+                        gotoprobe = S_dispatch_on_body(encl->blk_dispatch_on.leave_op);
                     else
                         gotoprobe = OpSIBLING(cx->blk_oldcop);
                     in_block = TRUE;

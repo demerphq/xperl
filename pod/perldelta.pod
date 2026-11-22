@@ -1323,6 +1323,12 @@ method".
 
 =item *
 
+C<goto LABEL> works within a C<multi sub> or C<multi method> body. Clause
+bodies retain ordinary block structure, and their final expressions supply
+the dispatcher's return values.
+
+=item *
+
 The bundled L<Text::CSV_XS> keeps cached values valid when retaining them
 grows its object's hash storage. This includes the type, undefined-value,
 and comment-string caches.

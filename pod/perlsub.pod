@@ -936,6 +936,12 @@ loop, with the usual warnings for leaving a subroutine. The compiler's
 internal dispatcher is not a loop-control target. An explicitly written
 C<dispatch> inside a clause retains its own control-flow behavior.
 
+C<goto LABEL> can jump within the selected body, including leaving a nested
+block. The usual restrictions on jumping into expressions and other
+constructs apply.
+A jump into another clause is an error because its pattern and guard have
+not selected that body.
+
 All clauses for a name must occur in the same enclosing lexical scope and
 compilation unit. They may be separated by other declarations. Each clause
 is parsed at its original source position, preserving lexical lookup,

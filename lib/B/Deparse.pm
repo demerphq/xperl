@@ -474,7 +474,7 @@ sub next_todo {
     my $header;
     if ($clause) {
         local $self->{'curcv'} = $cv;
-        $header = ($self->multisub_parts($clause))[3];
+        $header = ($self->dispatch_on_parts($clause))[3];
         $pragmata = $self->pragmata($header);
     }
     elsif ($cv and !null($cv->START) and is_state($cv->START))  {
@@ -1675,15 +1675,23 @@ Carp::confess("SPECIAL in deparse_sub") if $cv->isa("B::SPECIAL");
     return "$proto$attrs$sig$body\n";
 }
 
+sub multisub_dispatch {
+    my ($self, $cv) = @_;
+    my $dispatch = $cv->ROOT->first;
+    $dispatch = $dispatch->first if $dispatch->name eq 'lineseq';
+    $dispatch = $dispatch->sibling while $dispatch->name ne 'leavedispatch';
+    return $dispatch;
+}
+
 sub multisub_clauses {
     my ($self, $cv) = @_;
-    my $dispatch = $cv->ROOT->first->first;
-    $dispatch = $dispatch->sibling if $dispatch->name eq 'methstart';
+    my $dispatch = $self->multisub_dispatch($cv);
     my $subject = $dispatch->first->first;
     my $scope = $subject->sibling;
     my @clauses;
     for (my $op = $scope->first; $$op; $op = $op->sibling) {
-        push @clauses, $op if $op->name eq 'leavedispatchon';
+        push @clauses, $op if $op->name eq 'leavedispatchon'
+            && !($op->flags & OPf_SPECIAL);
     }
     return @clauses;
 }
@@ -1698,18 +1706,6 @@ sub dispatch_on_parts {
     my ($pattern, $header) = $matcher->aux_list($self->{'curcv'});
 
     my $body = $clause->first->first->sibling;
-    return ($pattern, $guard, $body, $header);
-}
-
-sub multisub_parts {
-    my ($self, $clause) = @_;
-    my ($pattern, $guard, $scoped_return, $header) =
-        $self->dispatch_on_parts($clause);
-
-    # Remove only the compiler's implicit return. Explicit returns belong
-    # to the original body and must keep their position and context.
-    my $return = $scoped_return->first;
-    my $body = $return->first->sibling;
     return ($pattern, $guard, $body, $header);
 }
 
@@ -1729,7 +1725,7 @@ sub deparse_multisub {
     my @clauses = $clause ? ($clause) : $self->multisub_clauses($cv);
     my @text;
     for my $on (@clauses) {
-        my ($pattern, $guard, $body, $header) = $self->multisub_parts($on);
+        my ($pattern, $guard, $body, $header) = $self->dispatch_on_parts($on);
         my $pragmata = $self->pragmata($header);
         $self->{'curcop'} = $header;
         my $head;
@@ -1749,7 +1745,6 @@ sub deparse_multisub {
         else {
             $head .= " if $guard_text" if defined $guard_text;
             $head = "CORE::on ($head)";
-            $body_text = "CORE::return CORE::do {\n\t$body_text\n\b}";
         }
         push @text, "$pragmata$head {\n\t$body_text\n\b}";
     }
@@ -1763,12 +1758,11 @@ sub deparse_multisub {
     my $clauses = join("\n", @text);
     $subject .= '_'
         while $names{$subject} || index($clauses, substr($subject, 1)) >= 0;
-    my $dispatch = "CORE::dispatch CORE::my $subject (\\\@_) {\n\t"
-                 . $clauses . "\n\b}";
-    $dispatch = "CORE::BEGIN { \$^H{'B::Deparse/transparent_dispatch'} = 1 }\n"
-              . $dispatch;
-    my $failure = $cv->ROOT->first->first->sibling;
-    $failure = $failure->sibling if $cv->CvFLAGS & CVf_IsMETHOD;
+    my $dispatch_op = $self->multisub_dispatch($cv);
+    my $failure_clause = $dispatch_op->first->first->sibling->first;
+    $failure_clause = $failure_clause->sibling
+        while ${$failure_clause->sibling};
+    my $failure = $failure_clause->first->first->first;
     my $failed_name = perlstring($self->const_sv($failure)->PV);
     my $is_method = $cv->CvFLAGS & CVf_IsMETHOD ? 1 : 0;
 
@@ -1776,7 +1770,11 @@ sub deparse_multisub {
     # survive reconstruction without adding another Perl call frame.
     my $fail = "CORE::do {\n\tCORE::no feature 'namespaces';\n"
              . "XPerl::Diagnostic::_multisub_no_match($failed_name, $is_method);\n\b};\n";
-    return "{\n\t$dispatch\n$fail\b}\n";
+    my $dispatch = "CORE::dispatch CORE::my $subject (\\\@_) {\n\t"
+                 . $clauses . "\nCORE::on (_) {\n\t$fail\b}\n\b}";
+    $dispatch = "CORE::BEGIN { \$^H{'B::Deparse/transparent_dispatch'} = 1 }\n"
+              . $dispatch;
+    return "{\n\t$dispatch\n\b}\n";
 }
 
 sub pp_dispatchcoerce {

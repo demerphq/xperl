@@ -5008,6 +5008,8 @@ Perl_multisub_add_clause(pTHX_ I32 floor, OP *clause)
     PL_parser->copline = NOLINE;
 }
 
+static OP *S_new_on_block_op(pTHX_ OP *cond, OP *block);
+
 static void
 S_multisub_finish_scope(pTHX_ I32 scope)
 {
@@ -5037,13 +5039,20 @@ S_multisub_finish_scope(pTHX_ I32 scope)
         arguments = newASSIGNOP(0, subject, 0, arguments);
         OP *clauses = group->clauses;
         group->clauses = NULL;
+
+        /* A successful on exits the dispatch with the body's result. Keep
+         * failure inside the dispatch so it can be the sub's final statement
+         * without wrapping clause bodies in return expressions. */
+        OP *failure = newSVOP(OP_MULTISUBFAIL, 0, newSVsv(group->name));
+        clauses = op_append_list(OP_LINESEQ, clauses,
+            S_new_on_block_op(aTHX_ NULL, op_scope(failure)));
         OP *dispatch = newDISPATCHOP(arguments, op_scope(clauses));
         /* Multisub dispatch must not localize the caller's topic. */
         cUNOPx(dispatch)->op_first->op_targ = 1;
         cUNOPx(dispatch)->op_first->op_flags |= OPf_SPECIAL;
 
-        OP *failure = newSVOP(OP_MULTISUBFAIL, 0, newSVsv(group->name));
-        OP *body = op_append_list(OP_LINESEQ, dispatch, failure);
+        /* Establish the statement stack base before dispatch saves it. */
+        OP *body = newSTATEOP(0, NULL, dispatch);
         SvREFCNT_inc_simple_void(PL_compcv);
         CV *cv = Perl_newATTRSUB_x(aTHX_ floor, (OP *)group->gv,
             NULL, NULL, body, TRUE);
