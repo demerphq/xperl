@@ -603,8 +603,9 @@ release manager will have to investigate the situation carefully.)
 
 =item *
 
-L<Perl::Tidy> 20260826.03 is bundled from the local development checkout,
-including support for XPerl dispatch syntax. The F<perltidy> and
+L<Perl::Tidy> 20260826.04 is bundled from the local development checkout,
+including support for XPerl dispatch syntax, C<multi sub>, and
+C<multi method> declarations. The F<perltidy> and
 F<perltidy-auto> commands are installed with XPerl. F<perltidy-auto> selects
 formatting options from file markers, a neighboring F<.perltidy>, or an
 explicit configuration file, and requires clean, tracked Git files unless

@@ -1,5 +1,10 @@
 # Perltidy Change Log
 
+## 2026 08 26.04
+
+   - Recognize multi sub and multi method declarations. Their argument
+     patterns and guards no longer cause prototype or redefinition warnings.
+
 ## 2026 08 26.03
 
    - A new option --signature-paren-inner-tightness=n, -spit=n

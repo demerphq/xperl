@@ -34,7 +34,7 @@ use strict;
 use warnings;
 use English qw( -no_match_vars );
 
-our $VERSION = '20260826.03';
+our $VERSION = '20260826.04';
 
 use Carp;
 
@@ -5406,6 +5406,7 @@ EOM
             # Updated for --use-feature=class (rt145706):
             if (   $tok_kw eq 'method'
                 && $guess_if_method
+                && $last_nonblank_token ne 'multi'
                 && !$self->method_ok_here($next_nonblank_token) )
             {
                 $self->do_UNKNOWN_BAREWORD($next_nonblank_token);
@@ -9947,12 +9948,13 @@ EOM
 {    ## closure for sub do_scan_sub
 
     # saved package and subnames in case prototype is on separate line
-    my ( $package_saved, $subname_saved );
+    my ( $package_saved, $subname_saved, $is_multi_saved );
 
     # initialize subname each time a new 'sub' keyword is encountered
     sub initialize_subname {
-        $package_saved = EMPTY_STRING;
-        $subname_saved = EMPTY_STRING;
+        $package_saved  = EMPTY_STRING;
+        $subname_saved  = EMPTY_STRING;
+        $is_multi_saved = $last_nonblank_token eq 'multi';
         return;
     }
 
@@ -10129,7 +10131,11 @@ EOM
         # Added '=' for issue c362
         my $saw_opening_paren = $input_line =~ /\G\s*\(/;
         if (
-            $input_line =~ m{\G(\s*\([^\)\(\}\{\,#A-Za-z=]*\))?  # PROTO
+            # A multi head is a pattern, even when it contains only a
+            # literal or is empty. Recording it as a prototype changes how
+            # later calls to the sub are tokenized.
+            !$is_multi_saved
+            && $input_line =~ m{\G(\s*\([^\)\(\}\{\,#A-Za-z=]*\))?  # PROTO
             (\s*:)?                              # ATTRS leading ':'
             }gcx
             && ( $1 || $2 )
@@ -10230,7 +10236,8 @@ EOM
                     # Check for multiple definitions of a sub, but
                     # it is ok to have multiple sub BEGIN, etc,
                     # so we do not complain if name is all caps
-                    if (   $rsaw_function_definition->{$subname}->{$package}
+                    if (   !$is_multi_saved
+                        && $rsaw_function_definition->{$subname}->{$package}
                         && $subname !~ /^[A-Z]+$/ )
                     {
                         my $lno =
@@ -10277,7 +10284,7 @@ EOM
 
                 # Otherwise, we assume it is a SIGNATURE rather than a
                 # PROTOTYPE and let the normal tokenizer handle it as a list
-                if ( !$saw_opening_paren ) {
+                if ( !$saw_opening_paren && !$is_multi_saved ) {
                     $id_scan_state = 'sub';    # we must come back to get proto
                 }
                 if ( $call_type == SUB_CALL ) {

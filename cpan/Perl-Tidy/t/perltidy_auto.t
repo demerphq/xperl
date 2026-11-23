@@ -3,15 +3,37 @@ use warnings;
 
 use File::Spec;
 use File::Temp qw(tempdir);
+use IPC::Open3 qw(open3);
 use Test::More;
 
-if ( system( 'git', '--version' ) != 0 ) {
+my $root = tempdir( CLEANUP => 1 );
+
+sub run_command {
+    my @command = @_;
+    my $output = File::Temp->new( DIR => $root );
+    my $errors = File::Temp->new( DIR => $root );
+    my $input;
+    my $pid = open3( $input, '>&' . fileno($output),
+        '>&' . fileno($errors), @command );
+    close $input;
+    waitpid $pid, 0;
+    my $status = $?;
+    seek $output, 0, 0 or die "cannot rewind command output: $!";
+    seek $errors, 0, 0 or die "cannot rewind command errors: $!";
+    local $/;
+    my $stdout = <$output>;
+    my $stderr = <$errors>;
+    return ( $status, defined $stdout ? $stdout : '',
+        defined $stderr ? $stderr : '' );
+}
+
+my ($git_status) = eval { run_command( 'git', '--version' ) };
+if ( $@ || !defined $git_status || $git_status != 0 ) {
     plan skip_all => 'perltidy-auto requires git';
 }
 
-plan tests => 17;
+plan tests => 23;
 
-my $root  = tempdir( CLEANUP => 1 );
 my $script = File::Spec->catfile( File::Spec->curdir(), 'bin',
     'perltidy-auto' );
 
@@ -66,11 +88,16 @@ write_file( 'subdir/plain.pl', $plain );
 write_file( 'explicit.conf', "-i=6\n" );
 commit_all();
 
-my $help_status = system( $^X, $script, '--help' );
+my ( $help_status, $help_output, $help_errors ) =
+  run_command( $^X, $script, '--help' );
 is( $help_status, 0, '--help succeeds' );
+like( $help_output, qr/^Usage: perltidy-auto/m, '--help prints usage' );
+is( $help_errors, '', '--help has no errors' );
 
-my $no_args_status = system( $^X, $script );
+my ( $no_args_status, undef, $no_args_errors ) = run_command( $^X, $script );
 isnt( $no_args_status, 0, 'missing file argument fails' );
+like( $no_args_errors, qr/^Usage: perltidy-auto/m,
+    'missing file argument explains usage' );
 
 is( system( $^X, $script, path('plain.pl') ), 0,
     'directory config formats the file' );
@@ -112,12 +139,21 @@ EXPECTED
 
 my $dirty = read_file('plain.pl');
 write_file( 'plain.pl', $dirty . "\n" );
-isnt( system( $^X, $script, path('plain.pl') ), 0,
+my ( $dirty_status, undef, $dirty_errors ) =
+  run_command( $^X, $script, path('plain.pl') );
+isnt( $dirty_status, 0,
     'dirty tracked file is rejected' );
+like( $dirty_errors, qr/perltidy-auto: refusing to modify .*plain\.pl/,
+    'dirty file refusal explains the failure' );
 is( read_file('plain.pl'), $dirty . "\n", 'rejected file is unchanged' );
 is( system( $^X, $script, '--force', path('plain.pl') ), 0,
     '--force formats a dirty tracked file' );
 
 write_file( 'untracked.pl', $plain );
-isnt( system( $^X, $script, path('untracked.pl') ), 0,
+my ( $untracked_status, undef, $untracked_errors ) =
+  run_command( $^X, $script, path('untracked.pl') );
+isnt( $untracked_status, 0,
     'untracked file is rejected' );
+like( $untracked_errors, qr/perltidy-auto: refusing to modify .*untracked\.pl/,
+    'untracked file refusal explains the failure' );
+is( read_file('untracked.pl'), $plain, 'untracked file is unchanged' );

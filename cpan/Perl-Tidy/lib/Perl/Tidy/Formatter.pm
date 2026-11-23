@@ -79,7 +79,7 @@ use constant SEMICOLON    => q{;};
 use Carp;
 use English    qw( -no_match_vars );
 use List::Util qw( min max first );    # min, max first are in Perl 5.8
-our $VERSION = '20260826.03';
+our $VERSION = '20260826.04';
 
 # List of hash keys to prevent -duk from listing them.
 # 'Unicode::Collate::Locale' is in the data for scan_unique_keys
@@ -20657,6 +20657,15 @@ EOM
                   : EMPTY_STRING;
                 next
                   if ( $token_p eq 'on' && !$use_feature{'nodispatch'} );
+
+                # Multi declarations use the same guarded patterns as on.
+                # The preceding token includes the declaration's name.
+                if ( $token_u eq 'if' && $token_p =~ /^(?:sub|method)\s/ ) {
+                    my $K_prefix = $self->K_previous_code($Kc_p);
+                    next
+                      if ( defined($K_prefix)
+                        && $rLL->[$K_prefix]->[_TOKEN_] eq 'multi' );
+                }
             }
 
             $count++;

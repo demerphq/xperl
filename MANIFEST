@@ -2801,6 +2801,7 @@ cpan/Perl-Tidy/SECURITY.md					Perl::Tidy distribution
 cpan/Perl-Tidy/t/atee.t						Perl::Tidy distribution
 cpan/Perl-Tidy/t/dispatch.t					Perl::Tidy distribution
 cpan/Perl-Tidy/t/filter_example.t				Perl::Tidy distribution
+cpan/Perl-Tidy/t/multisub.t					Perl::Tidy distribution
 cpan/Perl-Tidy/t/perltidy_auto.t				Perl::Tidy distribution
 cpan/Perl-Tidy/t/snippets1.t					Perl::Tidy distribution
 cpan/Perl-Tidy/t/snippets10.t					Perl::Tidy distribution

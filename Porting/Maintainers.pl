@@ -1042,7 +1042,7 @@ our %Modules = (
     'Perl::Tidy' => {
         # Local working-tree import, not a published CPAN archive.
         'MAINTAINER' => 'SHANCOCK',
-        'SYNCINFO'   => 'perltidy/ at 4b5241a9 with local changes, 2026-11-17',
+        'SYNCINFO'   => 'perltidy/ at 3c8345fe with local changes, 2026-11-23',
         'FILES'      => q[cpan/Perl-Tidy],
         'BUGS'       => 'https://github.com/perltidy/perltidy/issues',
         'EXCLUDED'   => [
