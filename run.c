@@ -1399,15 +1399,21 @@ S_generator_push_resume_result(pTHX_ PERL_GENERATOR *generator)
 {
     AV * const args = generator->resume_args;
     const SSize_t count = args ? AvFILLp(args) + 1 : 0;
+    SV * const topic = GvSV(PL_defgv);
     SSize_t i;
 
     if (generator->yield_context == G_SCALAR) {
-        rpp_xpush_1(sv_mortalcopy(count ? *av_fetch(args, 0, 0)
-                                      : &PL_sv_undef));
+        SV * const value = count ? *av_fetch(args, 0, 0) : &PL_sv_undef;
+        /* The caller's topic has moved out of the shared SV header. */
+        rpp_xpush_1(sv_mortalcopy(value == topic
+                                    ? generator->defsv : value));
     }
     else if (generator->yield_context == G_LIST) {
-        for (i = 0; i < count; i++)
-            rpp_xpush_1(sv_mortalcopy(*av_fetch(args, i, 0)));
+        for (i = 0; i < count; i++) {
+            SV * const value = *av_fetch(args, i, 0);
+            rpp_xpush_1(sv_mortalcopy(value == topic
+                                        ? generator->defsv : value));
+        }
     }
 }
 
@@ -1466,10 +1472,15 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
 
     dJMPENV;
     JMPENV_PUSH(ret);
+    /* Rebuild run before callbacks can read it after a longjmp. */
+    run.generator = generator;
+    run.env = &cur_env;
+    run.stackinfo = ret ? PL_curstackinfo : NULL;
     switch (ret) {
     case 0:
-        cur_env.je_mustcatch = TRUE;
-        run.env = &cur_env;
+        /* This loop owns the exception guard and can restart an eval after
+         * a catch. A nested docatch loop would disappear when we yield. */
+        cur_env.je_mustcatch = FALSE;
         if (!new_generator) {
             I32 i;
             for (i = 0; i <= cxstack_ix; i++) {
@@ -1507,8 +1518,6 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             PL_op = (OP *)&generator->invoke;
             S_generator_swap_default_variables(aTHX_ generator);
             default_variables_swapped = TRUE;
-            run.stackinfo = PL_curstackinfo;
-            S_runops_with_hook(aTHX_ S_generator_boundary, &run);
         }
         else {
             I32 i;
@@ -1516,20 +1525,29 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
                 if (CxTYPE(&cxstack[i]) == CXt_EVAL)
                     cxstack[i].blk_eval.cur_top_env = &cur_env;
             }
-            S_generator_push_resume_result(aTHX_ generator);
+            /* Argument magic may throw and unwind private scopes. Install
+             * the owner's defaults before running that code. */
             S_generator_swap_default_variables(aTHX_ generator);
             default_variables_swapped = TRUE;
-            run.stackinfo = PL_curstackinfo;
-            S_runops_with_hook(aTHX_ S_generator_boundary, &run);
+            S_generator_push_resume_result(aTHX_ generator);
         }
+    run_execution:
+        run.stackinfo = PL_curstackinfo;
+        S_runops_with_hook(aTHX_ S_generator_boundary, &run);
         break;
     default:
         if (generator->captured)
             break;
+        if (ret == 3 && PL_restartjmpenv == PL_top_env && PL_restartop) {
+            PL_op = PL_restartop;
+            PL_restartop = NULL;
+            PL_restartjmpenv = NULL;
+            goto run_execution;
+        }
         generator->state = PERL_GENERATOR_FAILED;
         generator->eval_active = FALSE;
         SvREFCNT_dec(generator->error);
-        generator->error = newSVsv(ERRSV);
+        generator->error = newSVsv(SvROK(PERL_ERROR_OBJ) ? PERL_ERROR_OBJ : ERRSV);
         if (generator->stack_pushed && cxstack_ix >= 0)
             dounwind(-1);
         if (generator->stack_pushed) {

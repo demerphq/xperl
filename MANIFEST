@@ -8089,6 +8089,7 @@ t/op/for-many.t				See if n-at-a-time for loops work
 t/op/fork.t				See if fork works
 t/op/fresh_perl_utf8.t			UTF8 tests for pads and gvs
 t/op/generator.t			See if generator blocks work
+t/op/generator_context.t		Generator exception scopes across suspension
 t/op/generator_pad.t			Suspended activation pad ownership tests
 t/op/generator_pad_random.t		Randomized activation ownership and cleanup tests
 t/op/getpid.t				See if $$ and getppid work with threads

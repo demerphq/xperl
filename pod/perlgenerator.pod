@@ -152,6 +152,11 @@ argument is read from C<@_>:
 The C<3> and C<4> have different jobs: C<3> initializes C<$factor>, while
 C<4> is returned by C<yield> when the generator resumes.
 
+Resume arguments are copied into the suspended C<yield> expression.  If
+copying an argument invokes magic, that code runs with the generator's
+C<$_> and C<@_>.  An exception from that code can be caught by an enclosing
+C<eval> or C<try> in the generator.
+
 =head2 yield LIST
 
 C<yield> pauses the generator and sends LIST back to the call that
