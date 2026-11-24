@@ -5045,6 +5045,20 @@ PP(pp_iter)
 
         bool refalias_this = refalias_mask & (1<<i);
 
+        if (cx->blk_loop.iter_source) {
+            sv = iter_next(cx->blk_loop.iter_source);
+            /* Calling the producer can move the context stack. */
+            cx = CX_CUR();
+            itersvp = CxITERVAR(cx) + i;
+            if (!sv) {
+                if (!i)
+                    goto retno;
+                sv = &PL_sv_undef;
+            }
+            av = NULL;
+            goto loop_ary_common;
+        }
+
         switch (type) {
 
         case CXt_LOOP_LAZYSV: /* string increment */
@@ -5843,6 +5857,9 @@ PP(pp_subst)
 
 PP(pp_grepwhile)
 {
+    if (is_iter_map_state(PL_stack_base[PL_markstack_ptr[-2] + 1]))
+        return iter_mapwhile(FALSE);
+
     /* Understanding the stack during a grep.
      *
      * 'grep expr, args' is implemented in the form of

@@ -1,4 +1,4 @@
-package builtin 0.021;
+package builtin 0.022;
 
 use v5.40;
 
@@ -497,6 +497,46 @@ argument.
 Available starting with Perl 5.36. Since Perl 5.40, it is no longer
 experimental and it is included in the 5.40 and higher builtin version
 bundles.
+
+=head2 iter
+
+    use builtin 'iter';
+
+    for (iter($generator)) {
+        say $_;
+        last if $_ > 100;
+    }
+
+    my @lengths = map { length } iter(sub { scalar readline $fh }, undef);
+
+Returns an adapter which C<for>, C<map>, and C<grep> consume one item at a
+time when it is their sole input. Creating the adapter does not call the
+source or collect its values. C<last> stops pulling immediately. C<next>
+advances to the next item, and C<redo> repeats the current item.
+
+With one argument, the source must be a native iterator or generator.
+Completion follows its lifecycle state. An empty yield is skipped, and
+C<undef>, C<0>, and the empty string are ordinary values. A generator may
+yield several values at once or return values when it completes. The
+adapter keeps those values until they have been consumed, including when
+a loop stops early and a later consumer resumes the same adapter.
+
+With a second argument, any callable can be used. The adapter calls it
+without arguments until its result matches the stop value, which is not
+returned. Comparison uses C<equ>: defined values use string equality,
+including the usual overloads, and C<undef> matches only C<undef>. An
+object's C<CALL> method takes precedence over calling it as C<$source-E<gt>()>.
+Code references and objects with C<&{}> overloading use the latter form.
+Ordinary callables are called in scalar context. Native iterators are
+called in list context, and their lifecycle limits consumption even when
+a stop value is supplied.
+
+The adapter is itself an iterator and can be called directly to obtain
+one item. In a mixed input list it is an ordinary value. C<iter> does not
+make C<map> or C<grep> return a lazy result: list context collects the
+output, while scalar context returns its count.
+
+This function is experimental and is not included in Perl version bundles.
 
 =head2 indexed
 

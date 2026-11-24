@@ -490,6 +490,7 @@ enum perl_diag_index {
     perl_diag_error_iterator_invalid_loop_variable_idx,
     perl_diag_error_iterator_invalid_state_idx,
     perl_diag_error_iterator_range_endpoint_outside_integer_range_idx,
+    perl_diag_error_iterator_stop_required_idx,
     perl_diag_error_lexical_export_odd_argument_count_idx,
     perl_diag_error_lexical_export_outside_compilation_idx,
     perl_diag_error_lexical_export_reference_required_idx,
@@ -2095,6 +2096,7 @@ enum perl_diag_number {
     perl_diag_error_iterator_invalid_loop_variable_number                                      = 1195,
     perl_diag_error_iterator_invalid_state_number                                              = 1130,
     perl_diag_error_iterator_range_endpoint_outside_integer_range_number                       = 1013,
+    perl_diag_error_iterator_stop_required_number                                              = 2797,
     perl_diag_error_lexical_export_odd_argument_count_number                                   = 1084,
     perl_diag_error_lexical_export_outside_compilation_number                                  = 1355,
     perl_diag_error_lexical_export_reference_required_number                                   = 1266,
@@ -5066,7 +5068,7 @@ enum perl_diag_selector_domain_id {
 
 
 #if defined(PERL_CORE) || defined(PERL_EXT_RE_BUILD)
-#define PERL_DIAG_METADATA_COUNT 1601
+#define PERL_DIAG_METADATA_COUNT 1602
 
 #endif
 
@@ -20491,6 +20493,13 @@ enum perl_diag_selector_domain_id {
         __LINE__ \
     )
 
+#define PERL_THROW_ERROR_ITERATOR_STOP_REQUIRED() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_iterator_stop_required_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
 #define PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_INVALID_ABORT() \
     STMT_START { \
         PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_INVALID(); \
@@ -21718,6 +21727,7 @@ enum perl_diag_selector_domain_id {
 /* PERL_THROW_ERROR_ITERATOR_INVALID_LOOP_VARIABLE => ERROR_ITERATOR_INVALID_LOOP_VARIABLE */
 /* PERL_THROW_ERROR_ITERATOR_INVALID_STATE => ERROR_ITERATOR_INVALID_STATE */
 /* PERL_THROW_ERROR_ITERATOR_RANGE_ENDPOINT_OUTSIDE_INTEGER_RANGE => ERROR_ITERATOR_RANGE_ENDPOINT_OUTSIDE_INTEGER_RANGE */
+/* PERL_THROW_ERROR_ITERATOR_STOP_REQUIRED => ERROR_ITERATOR_STOP_REQUIRED */
 /* PERL_THROW_ERROR_LEXICAL_EXPORT_ODD_ARGUMENT_COUNT => ERROR_LEXICAL_EXPORT_ODD_ARGUMENT_COUNT */
 /* PERL_THROW_ERROR_LEXICAL_EXPORT_OUTSIDE_COMPILATION => ERROR_LEXICAL_EXPORT_OUTSIDE_COMPILATION */
 /* PERL_THROW_ERROR_LEXICAL_EXPORT_REFERENCE_REQUIRED => ERROR_LEXICAL_EXPORT_REFERENCE_REQUIRED */
@@ -22775,7 +22785,7 @@ enum perl_diag_selector_domain_id {
 #endif /* PERL_DIAG_H */
 
 /* Generated from:
- * 835447222d039653a5e6d70ba2219d8e9f3bb559dd2bc90b0c6c3e9695a7bc9b diag_conf.pl
+ * aad98cfc9ccb7a0732762e6f37a18f84b65f9f229f53ce5d1d1100947e112887 diag_conf.pl
  * 4f7f9abb892a0d073bf678e020c547a0c882a3b0d175956fe97b0ee2afca3238 diag_op_conf.pl
  * 08e6e839aab37ef63b9ae313b6bfda289c063825e87138784fd46d465873591b regen/opcodes
  * ex: set ro ft=c: */

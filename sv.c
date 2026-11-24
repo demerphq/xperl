@@ -16864,6 +16864,8 @@ Perl_cx_dup(pTHX_ PERL_CONTEXT *cxs, I32 ix, I32 max, CLONE_PARAMS* param)
             case CXt_LOOP_LIST:
             case CXt_LOOP_LAZYIV:
                 /* code common to all 'for' CXt_LOOP_* types */
+                ncx->blk_loop.iter_source =
+                                    sv_dup_inc(ncx->blk_loop.iter_source, param);
                 ncx->blk_loop.itersave =
                                     sv_dup_inc(ncx->blk_loop.itersave, param);
                 if (CxPADLOOP(ncx)) {

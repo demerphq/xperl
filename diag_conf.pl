@@ -31341,6 +31341,30 @@ $CONF = {
           },
           "class" => "XPerl::Diagnostic::Error::Iterator"
         },
+        "ERROR_ITERATOR_STOP_REQUIRED" => {
+          "number" => 2797,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_ITERATOR_STOP_REQUIRED",
+          "macro" => "PERL_THROW_ERROR_ITERATOR_STOP_REQUIRED",
+          "source_files" => [
+            "run.c"
+          ],
+          "tags" => [
+            "subject:iteration"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "iter() requires a stop value for a callable without iterator state"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK"
+          },
+          "class" => "XPerl::Diagnostic::Error::Iterator"
+        },
         "ERROR_LEXICAL_EXPORT_ODD_ARGUMENT_COUNT" => {
           "number" => 1084,
           "severity" => "FATAL_ERROR",

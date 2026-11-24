@@ -2767,6 +2767,7 @@ static const perl_diag_metadata_t perl_diag_metadata[] = {
     { "ERROR_ITERATOR_INVALID_LOOP_VARIABLE",                                      1195,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,  542,   2,  571,  FALSE, FALSE, "XPerl::Diagnostic::Error::Iterator",                                        "XPerl::Diagnostic::Error::Iterator",                                        "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
     { "ERROR_ITERATOR_INVALID_STATE",                                              1130,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Iterator",                                        "XPerl::Diagnostic::Error::Iterator",                                        "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
     { "ERROR_ITERATOR_RANGE_ENDPOINT_OUTSIDE_INTEGER_RANGE",                       1013,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Iterator",                                        "XPerl::Diagnostic::Error::Iterator",                                        "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
+    { "ERROR_ITERATOR_STOP_REQUIRED",                                              2797,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Iterator",                                        "XPerl::Diagnostic::Error::Iterator",                                        "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
     { "ERROR_LEXICAL_EXPORT_ODD_ARGUMENT_COUNT",                                   1084,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::LexicalExport",                                   "XPerl::Diagnostic::Error::LexicalExport",                                   "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
     { "ERROR_LEXICAL_EXPORT_OUTSIDE_COMPILATION",                                  1355,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::LexicalExport",                                   "XPerl::Diagnostic::Error::LexicalExport",                                   "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
     { "ERROR_LEXICAL_EXPORT_REFERENCE_REQUIRED",                                   1266,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::LexicalExport",                                   "XPerl::Diagnostic::Error::LexicalExport",                                   "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
@@ -12401,6 +12402,11 @@ static const perl_diagpack_schema_t perl_diagpack_schema_2795 = {
     perl_diagpack_param_schema_ids + 0, 0
 };
 
+static const perl_diagpack_schema_t perl_diagpack_schema_2797 = {
+    2797, "ERROR_ITERATOR_STOP_REQUIRED",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
 static const char perl_diag_template_text_02bf4c82[] = "\t%1$s = \"%2$s\"%3$s\n";
 static const char perl_diag_template_text_a852440d[] = "\t%1$s = (unset)%2$s\n";
 static const char perl_diag_template_text_3f70ea97[] = "\t(Are you trying to call %1$s() on dirhandle %2$s?)\n";
@@ -13368,6 +13374,7 @@ static const char perl_diag_template_text_bc715b43[] = "Invalid version object";
 static const char perl_diag_template_text_4c20d04d[] = "Inverting a character class which contains a multi-character sequence is illegal in regex; marked by <-- HERE in m/%1$s <-- HERE %2$s/";
 static const char perl_diag_template_text_4f8d03cd[] = "IO layers (like '%1$s') unavailable";
 static const char perl_diag_template_text_f92c6964[] = "ioctl implemented only on sockets";
+static const char perl_diag_template_text_f0dfed78[] = "iter() requires a stop value for a callable without iterator state";
 static const char perl_diag_template_text_fbcedc68[] = "iteration finalizer";
 static const char perl_diag_template_text_2313a1fb[] = "iterator->new expects a code reference";
 static const char perl_diag_template_text_0fb0ccdb[] = "join or string";
@@ -17565,6 +17572,7 @@ enum {
     perl_diag_template_start_en_2793,
     perl_diag_template_start_en_2794 = perl_diag_template_start_en_2793 + 2,
     perl_diag_template_start_en_2795,
+    perl_diag_template_start_en_2797,
     perl_diag_template_end_en,
 };
 
@@ -19488,6 +19496,7 @@ static const perl_diag_template_case_t perl_diag_template_cases_en[] = {
     { perl_diag_error_runtime_multisub_not_complete_number,                                       UINT64_C(      0x02), perl_diag_template_text_a1e104e1,  1,   1 },
     { perl_diag_error_syntax_multisub_name_replaced_number,                                       UINT64_C(         0), perl_diag_template_text_45bb4340,  1,   1 },
     { perl_diag_error_rng_fast_descriptor_invalid_number,                                         UINT64_C(         0), perl_diag_template_text_713dcade,  0,   0 },
+    { perl_diag_error_iterator_stop_required_number,                                              UINT64_C(         0), perl_diag_template_text_f0dfed78,  0,   0 },
     { 0,                                                                                          UINT64_C(         0), NULL,                              0,   0 }, /* terminates the last diagnostic's rows */
 };
 
@@ -21091,6 +21100,7 @@ static const perl_diag_template_t perl_diag_templates_en[] = {
     { 1,   2,  perl_diag_word_group_none, perl_diag_template_start_en_2793, perl_diag_selectors_en_2789 },
     { 0,   1,  perl_diag_word_group_none, perl_diag_template_start_en_2794, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2795, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2797, NULL                        },
 };
 
 static const perl_diagpack_schema_t * const perl_diagpack_schemas_en[] = {
@@ -21627,7 +21637,7 @@ static const perl_diagpack_schema_t * const perl_diagpack_schemas_en[] = {
     &perl_diagpack_schema_2786, &perl_diagpack_schema_2787, &perl_diagpack_schema_2788,
     &perl_diagpack_schema_2789, &perl_diagpack_schema_2790, &perl_diagpack_schema_2791,
     &perl_diagpack_schema_2792, &perl_diagpack_schema_2793, &perl_diagpack_schema_2794,
-    &perl_diagpack_schema_2795,
+    &perl_diagpack_schema_2795, &perl_diagpack_schema_2797,
 };
 
 static const perl_diagpack_catalog perl_diagpack_builtin_catalog_en = {
@@ -21756,7 +21766,7 @@ static const perl_diagpack_engine * const perl_diagpack_builtin_engines[] = {
 
 
 /* Generated from:
- * 835447222d039653a5e6d70ba2219d8e9f3bb559dd2bc90b0c6c3e9695a7bc9b diag_conf.pl
+ * aad98cfc9ccb7a0732762e6f37a18f84b65f9f229f53ce5d1d1100947e112887 diag_conf.pl
  * 4f7f9abb892a0d073bf678e020c547a0c882a3b0d175956fe97b0ee2afca3238 diag_op_conf.pl
  * 08e6e839aab37ef63b9ae313b6bfda289c063825e87138784fd46d465873591b regen/opcodes
  * ex: set ro ft=c: */

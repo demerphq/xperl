@@ -49,6 +49,7 @@ static XS(XS_iterator_running);
 static int S_runops_with_boundary(pTHX);
 static XS(S_generator_xsub);
 
+static MGVTBL S_iter_adapter_magic = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 static int
 S_iterator_magic_free(pTHX_ SV *sv, MAGIC *mg)
@@ -134,6 +135,78 @@ S_iterator_state(pTHX_ SV *sv)
     }
     return PERL_ITERATOR_INVALID;
 }
+
+bool
+Perl_is_iter_adapter(pTHX_ SV *sv)
+{
+    PERL_ARGS_ASSERT_IS_ITER_ADAPTER;
+    return sv && !SvGMAGICAL(sv) && SvROK(sv) && SvTYPE(SvRV(sv)) == SVt_PVCV
+        && mg_findext(SvRV(sv), PERL_MAGIC_ext, &S_iter_adapter_magic);
+}
+
+SV *
+Perl_iter_create(pTHX_ SV *source, SV *stop)
+{
+    dSP;
+    SV *adapter;
+
+    PERL_ARGS_ASSERT_ITER_CREATE;
+    if (!stop && S_iterator_state(aTHX_ source) == PERL_ITERATOR_INVALID)
+        PERL_THROW_ERROR_ITERATOR_STOP_REQUIRED();
+
+    ENTER;
+    SAVETMPS;
+    SAVEVPTR(PL_curpm);
+    if (!get_cv("iterator::_iter", 0)) {
+        save_scalar(PL_errgv);
+        load_module(PERL_LOADMOD_NOIMPORT, newSVpvs("iterator"), NULL);
+    }
+    SPAGAIN;
+    PUSHMARK(SP);
+    XPUSHs(source);
+    if (stop)
+        XPUSHs(stop);
+    PUTBACK;
+    call_pv("iterator::_iter", G_SCALAR);
+    SPAGAIN;
+    adapter = POPs;
+    SAVEFREESV(SvREFCNT_inc_simple_NN(adapter));
+    PUTBACK;
+    FREETMPS;
+    adapter = sv_mortalcopy(adapter);
+    sv_magicext(SvRV(adapter), NULL, PERL_MAGIC_ext,
+                &S_iter_adapter_magic, NULL, 0);
+    LEAVE;
+    return adapter;
+}
+
+/* A NULL result means completion. A yielded undef is an ordinary SV.
+ * Keep the producer's temporaries and regex captures inside this call. */
+SV *
+Perl_iter_next(pTHX_ SV *adapter)
+{
+    const SSize_t base = PL_stack_sp - PL_stack_base;
+    SV *value = NULL;
+    I32 count;
+
+    PERL_ARGS_ASSERT_ITER_NEXT;
+    ENTER;
+    SAVETMPS;
+    SAVEVPTR(PL_curpm);
+    PUSHMARK(PL_stack_sp);
+    count = call_sv(adapter, G_LIST);
+    if (count) {
+        value = *PL_stack_sp;
+        SAVEFREESV(SvREFCNT_inc_simple_NN(value));
+    }
+    rpp_popfree_to(PL_stack_base + base);
+    FREETMPS;
+    if (value)
+        value = sv_mortalcopy(value);
+    LEAVE;
+    return value;
+}
+
 
 void
 Perl_process_state_save(pTHX_ PERL_PROCESS_STATE *state)

@@ -970,6 +970,7 @@ struct block_loop {
         GV      *gv;   /* for package vars */
     } itervar_u;
     SV          *itersave; /* the original iteration var */
+    SV          *iter_source; /* private reference for a lazy iter() loop */
     union {
         struct { /* CXt_LOOP_ARY, C<for (@ary)>  */
             AV *ary; /* array being iterated over */

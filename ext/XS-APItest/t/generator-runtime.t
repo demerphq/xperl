@@ -10,6 +10,8 @@ use strict;
 use warnings;
 use XS::APItest;
 use generator;
+use builtin 'iter';
+no warnings 'experimental::builtin';
 
 plan(tests => 8);
 
@@ -34,8 +36,8 @@ is(growth(sub {
 
 is(growth(sub {
     my $it = gen { yield $_ for 1 .. 100 };
-    while (!$it->exhausted) { my @values = $it->() }
-}), 0, 'native generator calls release yielded values');
+    my $count = grep { 0 } iter($it);
+}), 0, 'native lazy consumption releases yielded values');
 
 is(growth(sub {
     my $it = gen { return };

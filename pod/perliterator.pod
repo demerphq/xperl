@@ -64,6 +64,26 @@ enabled.  The fully qualified C<CORE::__SUB__> spelling refers to the same
 callable and can be used explicitly when the unqualified keyword is not
 enabled.
 
+=head1 LAZY CONSUMPTION
+
+L<builtin/iter> adapts an iterator for C<for>, C<map>, and C<grep>:
+
+    use builtin 'iter';
+
+    for (iter($it)) {
+        say $_;
+        last if finished($_);
+    }
+
+The consumer pulls one item at a time. It does not first collect the
+iterator's results into a list. A saved adapter can be reused after an
+early C<last>. Values left over from a multi-value yield belong to that
+adapter, so reuse the adapter to retain them.
+
+Use C<iter($callable, $stop)> for a callable without lifecycle state. The
+callable receives no arguments and is called until its result matches
+C<$stop>. See L<builtin/iter> for comparison and call rules.
+
 =head1 LIFECYCLE STATES
 
 The C<iterator> package provides these constants:

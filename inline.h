@@ -4432,6 +4432,7 @@ Perl_cx_pushloop_for(pTHX_ PERL_CONTEXT *cx, void *itervarp, SV* itersave)
 
     cx->blk_loop.itervar_u.svp = (SV**)itervarp;
     cx->blk_loop.itersave      = itersave;
+    cx->blk_loop.iter_source   = NULL;
 #ifdef USE_ITHREADS
     cx->blk_loop.oldcomppad = PL_comppad;
 #endif
@@ -4446,6 +4447,11 @@ Perl_cx_poploop(pTHX_ PERL_CONTEXT *cx)
     PERL_ARGS_ASSERT_CX_POPLOOP;
 
     assert(CxTYPE_is_LOOP(cx));
+    if (CxFOREACH(cx)) {
+        SV *source = cx->blk_loop.iter_source;
+        cx->blk_loop.iter_source = NULL;
+        SvREFCNT_dec(source);
+    }
     if (  CxTYPE(cx) == CXt_LOOP_ARY
        || CxTYPE(cx) == CXt_LOOP_LAZYSV)
     {

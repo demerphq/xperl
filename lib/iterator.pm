@@ -1,10 +1,66 @@
 package iterator;
 
 use v5.40;
+no warnings 'experimental::equ';
 
 sub RUNNING   () { 1 }
 sub COMPLETED () { 2 }
 sub FAILED    () { 3 }
+
+# Keep a yield's remaining values here, rather than on a consumer's stack.
+# A loop which stops early can then resume the same adapter without losing
+# the rest of that yield. Only native iterators use the lifecycle protocol.
+sub _iter {
+    my ($source, $stop) = @_;
+    my $has_stop = @_ == 2;
+    my $native = defined iterator::state($source);
+    my @pending;
+    my $done;
+
+    require builtin;
+    my $call_method = defined(builtin::blessed($source))
+                      && UNIVERSAL::can($source, 'CALL');
+
+    return iterator->new(sub {
+        return if iterator::state(__SUB__) != RUNNING;
+
+        # The producer and overloaded comparison can call this adapter
+        # again. If that call completes it, the outer call must stop too.
+        while (!@pending && !$done) {
+            if ($native) {
+                my $state = iterator::state($source);
+                if (!defined($state) || $state != RUNNING) {
+                    $done = 1;
+                    last;
+                }
+                my @values = $call_method ? $source->CALL() : $source->();
+                return if iterator::state(__SUB__) != RUNNING;
+                @pending = @values;
+                $done = iterator::state($source) != RUNNING;
+            }
+            else {
+                my $value = $call_method ? $source->CALL() : $source->();
+                return if iterator::state(__SUB__) != RUNNING;
+                push @pending, $value;
+            }
+        }
+
+        unless (@pending) {
+            iterator::set_state(__SUB__, COMPLETED);
+            return;
+        }
+        my $value = shift @pending;
+        my $is_stop = $has_stop && $value equ $stop;
+        return if iterator::state(__SUB__) != RUNNING;
+        if ($is_stop) {
+            @pending = ();
+            iterator::set_state(__SUB__, COMPLETED);
+            return;
+        }
+        iterator::set_state(__SUB__, COMPLETED) if $done && !@pending;
+        return $value;
+    });
+}
 
 sub next_val {
     my $iterator = shift;

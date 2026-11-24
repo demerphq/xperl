@@ -4484,6 +4484,22 @@ Perl_is_in_locale_category_(pTHX_ const bool compiling, const int category)
     STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
     } STMT_END
 
+PERL_CALLCONV bool
+Perl_is_iter_adapter(pTHX_ SV *sv)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_IS_ITER_ADAPTER        \
+    STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV bool
+Perl_is_iter_map_state(pTHX_ SV *sv)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_IS_ITER_MAP_STATE      \
+    STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
 PERL_CALLCONV I32
 Perl_is_lvalue_sub(pTHX)
         Perl_attribute_nonnull_aTHX
@@ -4644,6 +4660,34 @@ Perl_isinfnansv(pTHX_ SV *sv)
         __attribute__visibility__("hidden");
 #define PERL_ARGS_ASSERT_ISINFNANSV             \
     STMT_START { Perl_assert_aTHX; assert(sv);         \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV SV *
+Perl_iter_create(pTHX_ SV *source, SV *stop)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_ITER_CREATE            \
+    STMT_START { Perl_assert_aTHX; assert(source);     \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV OP *
+Perl_iter_mapwhile(pTHX_ bool is_map)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_ITER_MAPWHILE          \
+    STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV SV *
+Perl_iter_next(pTHX_ SV *adapter)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_ITER_NEXT              \
+    STMT_START { Perl_assert_aTHX; assert(adapter);    \
                  PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
     } STMT_END
 

@@ -8118,6 +8118,8 @@ t/op/index_thr.t			See if index works in another thread
 t/op/infnan.t				See if inf/nan work
 t/op/int.t				See if int works
 t/op/isa.t				See if isa works
+t/op/iter_builtin.t			Lazy iterator consumers
+t/op/iter_threads.t			Iterator cloning across interpreter threads
 t/op/iterator.t				See if callable iterators work
 t/op/join.t				See if join works
 t/op/kill0.t				See if kill works

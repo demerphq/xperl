@@ -2351,6 +2351,9 @@ dp	|bool	|isinfnansv	|NN SV *sv
 Cp	|bool	|is_in_locale_category_ 				\
 				|const bool compiling			\
 				|const int category
+p	|bool	|is_iter_adapter|NULLOK SV *sv
+p	|bool	|is_iter_map_state					\
+				|NULLOK SV *sv
 ARdp	|I32	|is_lvalue_sub
 : used to check for NULs in pathnames and other names
 ARdip	|bool	|is_safe_syscall|NN const char *pv			\
@@ -2456,6 +2459,10 @@ ARTdip	|bool	|is_utf8_valid_partial_char_flags			\
 				|SPTR const U8 * const s0		\
 				|EPTRgt const U8 * const e		\
 				|const U32 flags
+p	|SV *	|iter_create	|NN SV *source				\
+				|NULLOK SV *stop
+p	|OP *	|iter_mapwhile	|bool is_map
+p	|SV *	|iter_next	|NN SV *adapter
 : Used in perly.y
 p	|OP *	|jmaybe 	|NN OP *o
 : Used in pp.c

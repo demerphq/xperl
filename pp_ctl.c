@@ -3516,6 +3516,126 @@ PP_wrapped(pp_formline, 0, 1)
     }
 }
 
+/* Iterator inputs have no fixed end on the value stack. Keep the current
+ * input and accumulated output in an AV instead. Scalar and void consumers
+ * retain no output, so their storage does not grow with the input. The
+ * save stack owns this state if either the producer or the body dies.
+ * The private keeper sits just above the original mark, where mapwhile
+ * or grepwhile can find it after the body returns, including nested calls. */
+static MGVTBL S_iter_map_magic = { 0, 0, 0, 0, 0, 0, 0, 0 };
+
+enum { ITER_MAP_SOURCE, ITER_MAP_CURRENT, ITER_MAP_OUTPUT, ITER_MAP_COUNT };
+
+bool
+Perl_is_iter_map_state(pTHX_ SV *sv)
+{
+    PERL_ARGS_ASSERT_IS_ITER_MAP_STATE;
+    return sv && SvROK(sv) && SvTYPE(SvRV(sv)) == SVt_PVAV
+        && mg_findext(SvRV(sv), PERL_MAGIC_ext, &S_iter_map_magic);
+}
+
+static OP *
+S_iter_map_advance(pTHX_ AV *state, bool is_map, OP *body, OP *finish)
+{
+    SV *value = iter_next(*av_fetch(state, ITER_MAP_SOURCE, FALSE));
+    if (value) {
+        SAVE_DEFSV;
+        SvTEMP_off(value);
+        DEFSV_set(value);
+        av_store(state, ITER_MAP_CURRENT, SvREFCNT_inc_simple_NN(value));
+        return body;
+    }
+
+    FREETMPS;
+    LEAVE_with_name("grep_item");
+    {
+        const U8 gimme = GIMME_V;
+        IV count = SvIV(*av_fetch(state, ITER_MAP_COUNT, FALSE));
+        AV *output = MUTABLE_AV(SvREFCNT_inc_simple_NN(
+                                    *av_fetch(state, ITER_MAP_OUTPUT, FALSE)));
+        sv_2mortal(MUTABLE_SV(output));
+        SSize_t base = PL_markstack_ptr[is_map ? -3 : -2];
+        PL_markstack_ptr -= is_map ? 4 : 3;
+        rpp_popfree_to(PL_stack_base + base);
+        LEAVE_with_name("grep");
+
+        if (gimme == G_LIST) {
+            SSize_t i;
+            rpp_extend(AvFILLp(output) + 1);
+            for (i = 0; i <= AvFILLp(output); ++i)
+                rpp_push_1(AvARRAY(output)[i]);
+        }
+        else if (gimme == G_SCALAR) {
+            rpp_extend(1);
+            rpp_push_1(sv_2mortal(newSViv(count)));
+        }
+    }
+    return finish;
+}
+
+OP *
+Perl_iter_mapwhile(pTHX_ bool is_map)
+{
+    PERL_ARGS_ASSERT_ITER_MAPWHILE;
+    const SSize_t base = PL_markstack_ptr[is_map ? -3 : -2];
+    AV *state = MUTABLE_AV(SvRV(PL_stack_base[base + 1]));
+    const U8 gimme = GIMME_V;
+    SV *counter = *av_fetch(state, ITER_MAP_COUNT, FALSE);
+    AV *output = MUTABLE_AV(*av_fetch(state, ITER_MAP_OUTPUT, FALSE));
+
+    if (is_map) {
+        SSize_t ix;
+        const SSize_t end = PL_stack_sp - PL_stack_base;
+        sv_setiv(counter, SvIV(counter) + end - (base + 1));
+        if (gimme == G_LIST)
+            for (ix = base + 2; ix <= end; ++ix)
+                av_push(output, newSVsv(PL_stack_base[ix]));
+    }
+    else if (SvTRUE_NN(*PL_stack_sp)) {
+        sv_inc(counter);
+        if (gimme == G_LIST)
+            av_push(output, SvREFCNT_inc_simple_NN(
+                                    *av_fetch(state, ITER_MAP_CURRENT, FALSE)));
+    }
+    rpp_popfree_to(PL_stack_base + base + 1);
+    FREETMPS;
+    LEAVE_with_name("grep_item");
+    ENTER_with_name("grep_item");
+    SAVEVPTR(PL_curpm);
+    return S_iter_map_advance(aTHX_ state, is_map, cLOGOP->op_other,
+                             PL_op->op_next);
+}
+
+static OP *
+S_iter_mapstart(pTHX_ SV *source)
+{
+    const bool is_map = PL_op->op_type == OP_MAPSTART;
+    const SSize_t base = TOPMARK;
+    AV *state = newAV();
+    SV *keeper = newRV_noinc(MUTABLE_SV(state));
+
+    ENTER_with_name("grep");
+    SAVEFREESV(keeper);
+    av_push(state, newSVsv(source));
+    av_push(state, newSV(0));
+    av_push(state, MUTABLE_SV(newAV()));
+    av_push(state, newSViv(0));
+    sv_magicext(MUTABLE_SV(state), NULL, PERL_MAGIC_ext,
+                &S_iter_map_magic, NULL, 0);
+    SAVETMPS;
+    rpp_popfree_to(PL_stack_base + base);
+    rpp_push_1(keeper);
+    PUSHMARK(PL_stack_sp);
+    PUSHMARK(PL_stack_sp);
+    if (is_map)
+        PUSHMARK(PL_stack_sp);
+    ENTER_with_name("grep_item");
+    SAVEVPTR(PL_curpm);
+    return S_iter_map_advance(aTHX_ state, is_map,
+                             cLOGOPx(PL_op->op_next)->op_other,
+                             PL_op->op_next->op_next);
+}
+
 /* also used for: pp_mapstart(), pp_anystart(), pp_allstart() */
 PP(pp_grepstart)
 {
@@ -3525,6 +3645,11 @@ PP(pp_grepstart)
      */
     SV *src;
     SV **svp;
+
+    if ((PL_op->op_type == OP_MAPSTART || PL_op->op_type == OP_GREPSTART)
+        && PL_stack_sp == PL_stack_base + TOPMARK + 1
+        && is_iter_adapter(*PL_stack_sp))
+        return S_iter_mapstart(aTHX_ *PL_stack_sp);
 
     if (PL_stack_base + TOPMARK == PL_stack_sp) {
         (void)POPMARK;
@@ -3588,6 +3713,9 @@ PP(pp_grepstart)
 
 PP(pp_mapwhile)
 {
+    if (is_iter_map_state(PL_stack_base[PL_markstack_ptr[-3] + 1]))
+        return iter_mapwhile(TRUE);
+
     /* Understanding the stack during a map.
      *
      * 'map expr, args' is implemented in the form of
@@ -6286,6 +6414,13 @@ PP(pp_enteriter)
                 (priv & OPpITER_REVERSED) ?
                 AvFILL(cx->blk_loop.state_u.ary.ary) + 1 :
                 -1;
+            if (!SvRMAGICAL(maybe_ary)
+                && AvFILLp(MUTABLE_AV(maybe_ary)) == 0
+                && !(PL_op->op_next->op_private & OPpITER_INDEXED)) {
+                SV *source = AvARRAY(MUTABLE_AV(maybe_ary))[0];
+                if (is_iter_adapter(source))
+                    cx->blk_loop.iter_source = newSVsv(source);
+            }
         }
         /* rpp_extend(1) not needed in this branch
          * because we just popped 1 item */
@@ -6301,6 +6436,16 @@ PP(pp_enteriter)
         /* pre-extend stack so pp_iter doesn't have to check every time
          * it pushes yes/no */
         rpp_extend(1);
+    }
+
+    /* Freeze the reference, not the caller's variable. Assigning to that
+     * variable inside the loop must not change which iterator we drain. */
+    if (CxTYPE(cx) == CXt_LOOP_LIST
+        && cx->blk_oldsp == cx->blk_loop.state_u.stack.basesp + 1
+        && !(PL_op->op_next->op_private & OPpITER_INDEXED)) {
+        SV *source = PL_stack_base[cx->blk_oldsp];
+        if (is_iter_adapter(source))
+            cx->blk_loop.iter_source = newSVsv(source);
     }
 
     return NORMAL;

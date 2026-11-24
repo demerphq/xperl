@@ -959,7 +959,28 @@ static OP *ck_builtin_funcN(pTHX_ OP *entersubop, GV *namegv, SV *ckobj)
 
 #define NO_BUNDLE SHORTVER(255,255)
 
+static XS(XS_builtin_iter)
+{
+    dXSARGS;
+    SV *adapter;
+    if (items < 1 || items > 2)
+        croak_xs_usage(cv, "source, stop = omitted");
+    adapter = iter_create(sv_mortalcopy(ST(0)), items == 2 ? ST(1) : NULL);
+    ST(0) = adapter;
+    XSRETURN(1);
+}
+
+static OP *ck_builtin_iter(pTHX_ OP *entersubop, GV *namegv, SV *ckobj)
+{
+    SV *prototype = newSVpvs("$;$");
+    PERL_UNUSED_ARG(ckobj);
+    SAVEFREESV(prototype);
+    warn_experimental_builtin("iter");
+    return ck_entersub_args_proto(entersubop, namegv, prototype);
+}
+
 static const struct BuiltinFuncDescriptor builtins[] = {
+    { "iter", NO_BUNDLE, true, &XS_builtin_iter, &ck_builtin_iter, 0 },
     /* constants */
     { "true",  SHORTVER(5,39), false, &XS_builtin_true,   &ck_builtin_const, BUILTIN_CONST_TRUE  },
     { "false", SHORTVER(5,39), false, &XS_builtin_false,  &ck_builtin_const, BUILTIN_CONST_FALSE },
@@ -1168,6 +1189,8 @@ Perl_boot_core_builtin(pTHX)
             proto = "$";
         else if(builtin->checker == &ck_builtin_funcN)
             proto = "@";
+        else if(builtin->checker == &ck_builtin_iter)
+            proto = "$;$";
 
         SV *name = newSVpvs_flags("builtin::", SVs_TEMP);
         sv_catpv(name, builtin->name);

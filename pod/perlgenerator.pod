@@ -350,8 +350,10 @@ pause the operation that called them.
 
 A generator's saved execution state belongs to the interpreter which
 created it. Generators are skipped when a new interpreter thread is
-created. A child cannot resume its parent's generator. The parent can
-continue using its generator normally.
+created. A child cannot resume its parent's generator. An adapter made
+with L<builtin/iter> can consume any values already queued in the adapter,
+but cannot resume the parent's continuation. The parent can continue
+using its generator normally.
 
 =head1 SEE ALSO
 

@@ -428,6 +428,11 @@ Other scalar values are rejected at assignment.
 
 =head2 Experimental generators
 
+C<builtin::iter> lets C<for>, C<map>, and C<grep> pull from an iterator or
+generator one item at a time. It also accepts a callable and a stop value.
+It does not collect the input before entering the consumer's body. See
+L<builtin/iter>.
+
 The experimental C<generator> feature creates a callable one-shot generator
 from a block.  Each call resumes the block until its next C<yield>,
 returning the yielded list in list context or its first value in scalar
