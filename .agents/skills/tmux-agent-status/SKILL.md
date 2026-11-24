@@ -136,3 +136,14 @@ Status commands run directly and do not need a dedicated pane. Use a visible,
 reused tmux work window for long builds, Configure runs, and test harnesses.
 Run short reads, edits, and lightweight scripts directly. Do not send work
 into a pane occupied by the user or another running job.
+
+## Temporary window cleanup
+
+Record the IDs of temporary windows you create. Close each window once its
+job has finished and you no longer need it for the task. Do not leave idle
+build, benchmark, or test windows behind. Sub-agents follow the same rule
+and report their remaining window IDs to the primary agent when handing
+work back.
+
+Close only windows you created or were explicitly asked to close. Do not
+close a user's window or another agent's active work window.

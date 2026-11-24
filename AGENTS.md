@@ -211,6 +211,11 @@ When working in the user's tmux session, follow
 title symbol current for the whole agent team. Amber input waits take
 priority over the five-operation cyan/green activity indicator.
 
+Close temporary tmux windows you create once their jobs have finished and
+the windows are no longer needed. Sub-agents must clean up their own
+temporary windows too. Do not close windows owned by the user or another
+agent.
+
 ## Core API design
 
 When adding experimental core functionality, prefer a builtin function over a
