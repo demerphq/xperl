@@ -349,6 +349,11 @@ C<misc> warnings at the end of the caller's current scope.  Reporting
 waits until the generator wrapper has been freed, so a throwing warning
 hook cannot interrupt its destruction.
 
+C<exit> from a generator exits the process.  It unwinds each private
+execution before continuing through its caller's scopes.  Execution
+resources are released before C<END> blocks, even if another variable
+retains the generator wrapper.
+
 A generator cannot be called while it is already running.  For example, a
 generator cannot call itself before it reaches a yield.  This prevents two
 executions from trying to use the same saved state at the same time.
@@ -372,6 +377,14 @@ created. A child cannot resume its parent's generator. An adapter made
 with L<builtin/iter> can consume any values already queued in the adapter,
 but cannot resume the parent's continuation. The parent can continue
 using its generator normally.
+
+Cloning an interpreter with C<CLONEf_COPY_STACKS> while a generator is
+running is unsupported.  The Perl frames do not include the native
+continuation needed to return to that generator's owner.  Such a clone
+raises "generator continuation is not available" before creating the new
+interpreter.  This restriction includes emulated C<fork> on platforms
+which implement it by copying interpreter stacks.  Ordinary interpreter
+threads and native operating-system C<fork> do not use that cloning mode.
 
 =head1 SEE ALSO
 

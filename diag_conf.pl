@@ -30874,7 +30874,8 @@ $CONF = {
           "code" => "ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE",
           "macro" => "PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE",
           "source_files" => [
-            "run.c"
+            "run.c",
+            "sv.c"
           ],
           "tags" => [
             "condition:invalid_syntax_value_state",
@@ -90358,7 +90359,8 @@ $CONF = {
           "code" => "WARNING_MISC_EXCEPTION_DURING_CLEANUP",
           "macro" => "PERL_WARN_WARNING_MISC_EXCEPTION_DURING_CLEANUP",
           "source_files" => [
-            "pp_ctl.c"
+            "pp_ctl.c",
+            "run.c"
           ],
           "tags" => [
             "role:context_hint",

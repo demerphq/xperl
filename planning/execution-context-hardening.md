@@ -92,28 +92,53 @@ of one owner at different depths is roughly unchanged. Control timings
 varied between runs, so these figures do not establish precise percentage
 changes or a speedup for ordinary calls.
 
-## Unresolved process exit
+## Process exit through private roots
 
-Process exit needs a separate fix. The existing exit walker pops toward
-the interpreter's main stack before returning to a generator's native
-guard. Popping a stackinfo does not switch its independently owned save,
-scope and mortal stacks.
+The exit walker stops at each private execution root. Its native owner
+finishes teardown, restores the caller and continues the existing exit
+operation. Nested owners repeat this procedure. Each owner releases its
+arguments and saved values before `END`, even if a global retains its
+terminal wrapper. Final mortal release uses the same guarded unwind as
+abandonment.
 
-An `exit` in a generator body can consequently enter repeated
-`panic: POPSTACK` failures. An `exit` during abandonment can reach `END`
-with the right status while retaining resources owned by the generator.
-Neither behavior is fixed by catching ordinary cleanup exceptions.
+Previously the exit walker could pop into a caller's stackinfo while still
+using the generator's save, scope and mortal stacks. An `exit` in a body
+could enter repeated `panic: POPSTACK` failures. Abandonment could preserve
+the exit status while leaking the generator's resources.
 
-The proposed fix is to mark each private root stackinfo. The exit walker
-would stop at the nearest such root, let its owner finish teardown, then
-continue exit in the restored caller with the original process status.
-Nested owners would repeat this procedure. This adds work to process exit
-and execution boundaries, with no check in ordinary opcode dispatch.
+The private-root marker uses its own stack type. Exception-hook stacks
+have a different type and must be unwound as callbacks. `PL_mainstack`
+continues to identify the real interpreter main stack. The extra work is
+confined to process exit and execution boundaries.
 
-Validation must check status, `END`'s environment, resource destruction,
-nested owners and native callbacks on both stack configurations. Do not
-replace `PL_mainstack` temporarily: interpreter cloning uses it as the
-actual interpreter main stack.
+The exit regressions cover initial and resumed calls, nested owners,
+sort and XS callbacks, exception hooks, evals, abandonment, retained
+wrappers, exit statuses and resource destruction before `END`. The status
+expectations come from ordinary `exit` controls on the same interpreter.
+VMS controls and child programs use the same `vmsish hushed` setting.
+
+Copied-stack interpreter cloning rejects an active private root before
+allocating a target interpreter or visiting clone hooks. Perl frames do
+not include the native owner guard, the resumer's saved state or the
+generator's invocation return target. Clearing a copied marker would not
+repair those missing pieces. Windows emulated fork performs the preflight
+before allocating its child parameters or host. Direct cloning APIs retain
+their own preflight. Ordinary thread creation and cloning after an owner
+has parked remain available.
+
+Native Windows and VMS runs were not available here. Their paths were
+reviewed, and the Windows-only regression checks that a caught rejection
+can be followed by an ordinary emulated fork outside the generator.
+
+### Existing exit and later-cleanup interaction
+
+The private-root fix does not redefine process exit during ordinary
+destructor or deferred-warning cleanup. A separate control on unmodified
+XPerl main reproduced this case without generators: a destructor requests
+exit 23, then a deferred warning hook requests exit 37. `END` sees 37,
+while the process returns 23. A dying hook can instead reach a caller's
+eval while the process ultimately returns 23. This broader cleanup and
+status-precedence problem needs separate work.
 
 ## Unresolved glob-alias changes
 

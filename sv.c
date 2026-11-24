@@ -17408,10 +17408,30 @@ you don't need to do anything.
 EXTERN_C PerlInterpreter *
 perl_clone_host(PerlInterpreter* proto_perl, UV flags);
 
+void
+Perl_check_generator_stack_clone(PerlInterpreter *proto_perl, UV flags)
+{
+    PERL_SI *si;
+
+    PERL_ARGS_ASSERT_CHECK_GENERATOR_STACK_CLONE;
+    if (!(flags & CLONEf_COPY_STACKS))
+        return;
+
+    /* A copied Perl stack has no copy of the native owner guard or its
+     * invoke OP. Parked generators are detached and do not appear here. */
+    for (si = proto_perl->Icurstackinfo; si; si = si->si_prev) {
+        if (si->si_type == PERLSI_GENERATOR) {
+            dTHXa(proto_perl);
+            PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE();
+        }
+    }
+}
+
 PerlInterpreter *
 perl_clone(PerlInterpreter *proto_perl, UV flags)
 {
     PERL_ARGS_ASSERT_PERL_CLONE;
+    Perl_check_generator_stack_clone(proto_perl, flags);
 
 #ifdef PERL_IMPLICIT_SYS
 
@@ -17444,6 +17464,7 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
                  const struct IPerlProc** ipP)
 {
     PERL_ARGS_ASSERT_PERL_CLONE_USING;
+    Perl_check_generator_stack_clone(proto_perl, flags);
     assert(!proto_perl->Ipending_exception);
 
     /* XXX many of the string copies here can be optimized if they're

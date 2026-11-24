@@ -1297,6 +1297,7 @@
 #   define multisub_begin(a,b)                  Perl_multisub_begin(aTHX_ a,b)
 #   define my_attrs(a,b)                        Perl_my_attrs(aTHX_ a,b)
 #   define my_clearenv()                        Perl_my_clearenv(aTHX)
+#   define my_exit_jump()                       Perl_my_exit_jump(aTHX)
 #   define my_lstat_flags(a)                    Perl_my_lstat_flags(aTHX_ a)
 #   define my_stat_flags(a)                     Perl_my_stat_flags(aTHX_ a)
 #   define my_strerror(a,b)                     Perl_my_strerror(aTHX_ a,b)
@@ -1781,7 +1782,6 @@
 #     define init_predump_symbols()             S_init_predump_symbols(aTHX)
 #     define mayberelocate(a,b,c)               S_mayberelocate(aTHX_ a,b,c)
 #     define minus_v()                          S_minus_v(aTHX)
-#     define my_exit_jump()                     S_my_exit_jump(aTHX)
 #     define nuke_stacks()                      S_nuke_stacks(aTHX)
 #     define open_script(a,b,c)                 S_open_script(aTHX_ a,b,c)
 #     define parse_body(a,b)                    S_parse_body(aTHX_ a,b)
@@ -2022,6 +2022,7 @@
 #     define get_c_backtrace(a,b)               Perl_get_c_backtrace(aTHX_ a,b)
 #   endif
 #   if defined(USE_ITHREADS)
+#     define check_generator_stack_clone        Perl_check_generator_stack_clone
 #     define mro_meta_dup(a,b)                  Perl_mro_meta_dup(aTHX_ a,b)
 #     define padlist_dup(a,b)                   Perl_padlist_dup(aTHX_ a,b)
 #     define padname_dup(a,b)                   Perl_padname_dup(aTHX_ a,b)

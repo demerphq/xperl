@@ -238,7 +238,9 @@ static const char * const si_names[] = {
     "MULTICALL",
     "REGCOMP",
     "SMARTMATCH",
-    "CONSTRUCTOR"
+    "CONSTRUCTOR",
+    "EXCEPTHOOK",
+    "GENERATOR"
 };
 #endif
 

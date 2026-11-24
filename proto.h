@@ -6069,6 +6069,14 @@ Perl_my_exit(pTHX_ U32 status)
     } STMT_END
 
 PERL_CALLCONV_NO_RET void
+Perl_my_exit_jump(pTHX)
+        Perl_attribute_nonnull_aTHX
+        __attribute__noreturn__;
+#define PERL_ARGS_ASSERT_MY_EXIT_JUMP           \
+    STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV_NO_RET void
 Perl_my_failure_exit(pTHX)
         Perl_attribute_nonnull_aTHX
         __attribute__noreturn__;
@@ -15808,14 +15816,6 @@ S_minus_v(pTHX)
      STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
     } STMT_END
 
-PERL_STATIC_NO_RET void
-S_my_exit_jump(pTHX)
-        Perl_attribute_nonnull_aTHX
-        __attribute__noreturn__;
-# define PERL_ARGS_ASSERT_MY_EXIT_JUMP          \
-     STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
-    } STMT_END
-
 static void
 S_nuke_stacks(pTHX)
         Perl_attribute_nonnull_aTHX;
@@ -20872,6 +20872,12 @@ Perl_any_dup(pTHX_ void *v, const PerlInterpreter *proto_perl)
      STMT_START { Perl_assert_aTHX; assert(proto_perl);  \
                   PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;   \
     } STMT_END
+
+PERL_CALLCONV void
+Perl_check_generator_stack_clone(PerlInterpreter *proto_perl, UV flags)
+        Perl_attribute_nonnull(1);
+# define PERL_ARGS_ASSERT_CHECK_GENERATOR_STACK_CLONE \
+     STMT_START { assert(proto_perl); } STMT_END
 
 PERL_CALLCONV void
 Perl_clone_params_del(CLONE_PARAMS *param)

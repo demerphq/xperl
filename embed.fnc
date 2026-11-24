@@ -2823,6 +2823,7 @@ p	|OP *	|my_attrs	|NN OP *o				\
 ep	|void	|my_clearenv
 ATdp	|int	|my_dirfd	|NULLOK DIR *dir
 Adpr	|void	|my_exit	|U32 status
+epr	|void	|my_exit_jump
 Adpr	|void	|my_failure_exit
 Cdp	|I32	|my_fflush_all
 CTdp	|Pid_t	|my_fork
@@ -6059,7 +6060,6 @@ S	|SV *	|mayberelocate	|NN const char * const dir		\
 				|STRLEN len				\
 				|U32 flags
 Sr	|void	|minus_v
-Sr	|void	|my_exit_jump
 S	|void	|nuke_stacks
 S	|PerlIO *|open_script	|NN const char *scriptname		\
 				|bool dosearch				\
@@ -7371,6 +7371,9 @@ EXop	|void	|dtrace_probe_phase					\
 Adpx	|PADOFFSET|alloccopstash|NN HV *hv
 CRp	|void * |any_dup	|NULLOK void *v 			\
 				|NN const PerlInterpreter *proto_perl
+Tep	|void	|check_generator_stack_clone				\
+				|NN PerlInterpreter *proto_perl 	\
+				|UV flags
 ATop	|void	|clone_params_del					\
 				|NN CLONE_PARAMS *param
 ARTop	|CLONE_PARAMS *|clone_params_new				\

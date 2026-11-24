@@ -1038,11 +1038,50 @@ S_generator_warn_cleanup(pTHX_ void *data)
         PERL_WARN_WARNING_MISC_EXCEPTION_DURING_CLEANUP(AvARRAY(errors)[i]);
 }
 
+static void
+S_generator_defer_cleanup_errors(pTHX_ AV *errors)
+{
+    const I32 index = PL_savestack_ix;
+    /* A warning hook can throw. Wait until the free-magic callback has
+     * returned so reporting cannot interrupt the wrapper's destruction.
+     * A typed save entry lets a cloned interpreter own its copy of the
+     * diagnostics. Pass its index rather than a pointer to the AV. */
+    SAVEFREESV(errors);
+    SAVEDESTRUCTOR_X(S_generator_warn_cleanup, INT2PTR(void *, index));
+}
+
+static void
+S_generator_unwind(pTHX_ PERL_GENERATOR *generator, JMPENV *env)
+{
+    I32 i;
+    /* Cleanup must not jump into a handler in the abandoned body. */
+    for (i = 0; i <= cxstack_ix; ++i) {
+        if (CxTYPE(&cxstack[i]) == CXt_EVAL) {
+            cxstack[i].blk_eval.cur_top_env = env;
+            cxstack[i].blk_eval.retop = NULL;
+        }
+    }
+    dounwind(-1);
+    generator->eval_active = FALSE;
+
+    /* Destructors can grow the private stacks and create more temporaries.
+     * Keep a live eval while draining them, including after process exit
+     * has unwound the body's original eval frames. */
+    PL_op = (OP *)&generator->invoke;
+    create_eval_scope(NULL, PL_stack_base, G_FAKINGEVAL);
+    rpp_obliterate_stack_to(0);
+    PL_tmps_floor = -1;
+    FREETMPS;
+    dounwind(-1);
+    process_state_save(&generator->process);
+}
+
 void
 Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
 {
     PERL_PROCESS_STATE caller_state;
     AV * volatile cleanup_errors = NULL;
+    volatile bool exiting = FALSE;
 
     PERL_ARGS_ASSERT_GENERATOR_FREE;
     if (generator->stack_pushed) {
@@ -1077,7 +1116,9 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
             PL_runops_boundary_hook = NULL;
             PL_runops_boundary_data = NULL;
             JMPENV_PUSH(ret);
-            if (ret && ret != 3) {
+            if (ret == 2)
+                exiting = TRUE;
+            if (ret && ret != 2 && ret != 3) {
                 process_state_save(&generator->process);
                 JMPENV_POP;
                 S_generator_restore_pads(aTHX_ generator);
@@ -1094,28 +1135,7 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
                     cleanup_errors = newAV();
                 av_push(cleanup_errors, newSVsv(error));
             }
-            {
-                I32 i;
-                /* Cleanup must not jump into a handler in the abandoned body. */
-                for (i = 0; i <= cxstack_ix; ++i) {
-                    if (CxTYPE(&cxstack[i]) == CXt_EVAL) {
-                        cxstack[i].blk_eval.cur_top_env = &cur_env;
-                        cxstack[i].blk_eval.retop = NULL;
-                    }
-                }
-            }
-            dounwind(-1);
-            generator->eval_active = FALSE;
-            /* Destructors can grow the private stacks and create more
-             * temporaries. Drain the live stacks before saving their final
-             * addresses for the raw storage release below. */
-            PL_op = (OP *)&generator->invoke;
-            create_eval_scope(NULL, PL_stack_base, G_FAKINGEVAL);
-            rpp_obliterate_stack_to(0);
-            PL_tmps_floor = -1;
-            FREETMPS;
-            dounwind(-1);
-            process_state_save(&generator->process);
+            S_generator_unwind(aTHX_ generator, &cur_env);
             JMPENV_POP;
             S_generator_pop_stackinfo(aTHX_ generator);
             S_generator_restore_pads(aTHX_ generator);
@@ -1143,15 +1163,10 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
     SvREFCNT_dec((SV *)generator->result);
     SvREFCNT_dec((SV *)generator->body);
     Safefree(generator);
-    if (cleanup_errors) {
-        const I32 index = PL_savestack_ix;
-        /* A warning hook can throw. Wait until the free-magic callback has
-         * returned so reporting cannot interrupt the wrapper's destruction.
-         * A typed save entry lets a cloned interpreter own its copy of the
-         * diagnostics. Pass its index rather than a pointer to the AV. */
-        SAVEFREESV(cleanup_errors);
-        SAVEDESTRUCTOR_X(S_generator_warn_cleanup, INT2PTR(void *, index));
-    }
+    if (cleanup_errors)
+        S_generator_defer_cleanup_errors(aTHX_ cleanup_errors);
+    if (exiting)
+        my_exit_jump();
 }
 
 static void
@@ -1474,6 +1489,8 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
     JMPENV * const caller_restartjmpenv = PL_restartjmpenv;
     const bool new_generator = generator->state == PERL_GENERATOR_NEW;
     volatile bool default_variables_swapped = FALSE;
+    volatile bool exiting = FALSE;
+    AV * volatile exit_errors = NULL;
     GENERATOR_RUN run = { generator, NULL, NULL };
     int ret;
 
@@ -1541,9 +1558,9 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             && !generator->captured) {
             process_state_capture(&generator->process);
 #ifdef PERL_RC_STACK
-            push_stackinfo(PERLSI_UNKNOWN, 1);
+            push_stackinfo(PERLSI_GENERATOR, 1);
 #else
-            push_stackinfo(PERLSI_UNKNOWN, 0);
+            push_stackinfo(PERLSI_GENERATOR, 0);
 #endif
             generator->stack_pushed = TRUE;
             S_generator_new_stacks(aTHX);
@@ -1583,7 +1600,65 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         run.stackinfo = PL_curstackinfo;
         S_runops_with_hook(aTHX_ S_generator_boundary, &run);
         break;
+    case 2:
+        exiting = TRUE;
+    unwind_exit:
+        generator->eval_active = FALSE;
+        generator->captured = FALSE;
+        generator->yield_pending = FALSE;
+        generator->state = PERL_GENERATOR_EXHAUSTED;
+        PL_runops_boundary_hook = NULL;
+        PL_runops_boundary_data = NULL;
+        S_generator_unwind(aTHX_ generator, &cur_env);
+        S_generator_pop_stackinfo(aTHX_ generator);
+        S_generator_restore_pads(aTHX_ generator);
+        JMPENV_POP;
+        if (default_variables_swapped)
+            S_generator_swap_default_variables(aTHX_ generator);
+        process_state_restore(&caller_state);
+        PL_runops_boundary_hook = old_hook;
+        PL_runops_boundary_data = old_data;
+        PL_restartjmpenv = caller_restartjmpenv;
+        S_generator_free_process_stacks(aTHX_ &generator->process);
+        S_generator_free_pads(aTHX_ generator);
+        {
+            const I32 floor = PL_savestack_ix;
+            AV * const release = newAV();
+            SAVEFREESV(release);
+            /* The wrapper may survive into END. Release its execution now,
+             * even if the caller keeps a reference to that terminal wrapper. */
+#define RELEASE_FIELD(field) STMT_START {              \
+    if (generator->field) {                            \
+        av_push(release, MUTABLE_SV(generator->field)); \
+        generator->field = NULL;                       \
+    }                                                 \
+} STMT_END
+            RELEASE_FIELD(initial_args);
+            RELEASE_FIELD(resume_args);
+            RELEASE_FIELD(values);
+            RELEASE_FIELD(value);
+            RELEASE_FIELD(result);
+            RELEASE_FIELD(defsv);
+            RELEASE_FIELD(defav);
+            RELEASE_FIELD(errsv);
+            RELEASE_FIELD(errorobj);
+            RELEASE_FIELD(error);
+            RELEASE_FIELD(body);
+#undef RELEASE_FIELD
+            LEAVE_SCOPE(floor);
+        }
+        if (exit_errors)
+            S_generator_defer_cleanup_errors(aTHX_ exit_errors);
+        my_exit_jump();
+        NOT_REACHED;
     default:
+        if (exiting && ret == 3) {
+            SV * const error = SvROK(PERL_ERROR_OBJ) ? PERL_ERROR_OBJ : ERRSV;
+            if (!exit_errors)
+                exit_errors = newAV();
+            av_push(exit_errors, newSVsv(error));
+            goto unwind_exit;
+        }
         if (generator->captured)
             break;
         if (ret == 3 && PL_restartjmpenv == PL_top_env && PL_restartop) {

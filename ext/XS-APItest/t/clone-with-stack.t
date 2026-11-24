@@ -17,7 +17,54 @@ if (not $Config{'useithreads'}) {
     skip_all("clone_with_stack requires threads");
 }
 
-plan(9);
+plan(11);
+
+SKIP: {
+    skip('requires emulated fork', 1) unless $Config{'d_pseudofork'};
+    fresh_perl_is( <<'----', <<'====', undef, 'recover from rejecting emulated fork in a generator' );
+use warnings;
+use generator;
+$| = 1;
+my $g = gen {
+    my $ok = eval { fork(); 1 };
+    die "forked an active owner\n" if $ok;
+    die "unexpected fork error: $@" unless $@ =~ /generator continuation is not available/;
+    yield "caught\n";
+};
+print $g->();
+undef $g;
+my $pid = fork();
+die "ordinary fork failed: $!" unless defined $pid;
+exit 0 unless $pid;
+waitpid $pid, 0;
+die "child failed\n" if $?;
+print "forked\n";
+----
+caught
+forked
+====
+}
+
+fresh_perl_is( <<'----', <<'====', undef, 'reject a copied stack with a native generator owner' );
+use warnings;
+use XS::APItest;
+use generator;
+$| = 1;
+my $g = gen {
+    my $ok = eval { clone_with_stack(); 1 };
+    die "cloned an active owner\n" if $ok;
+    die "unexpected clone error: $@" unless $@ =~ /generator continuation is not available/;
+    yield "caught\n";
+};
+print $g->();
+my $parked = gen { yield 1 };
+$parked->();
+clone_with_stack();
+print "outside clone\n";
+----
+caught
+outside clone
+====
 
 fresh_perl_is( <<'----', <<'====', undef, 'clone deferred generator cleanup warnings' );
 use warnings;
