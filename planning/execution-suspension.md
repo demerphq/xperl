@@ -5,9 +5,10 @@ the existing mechanism, the uncommitted lifecycle prototype, and possible future
 
 Status: the whole-stack probes are confirmed. Lifecycle operations and
 the common C interface described below are an uncommitted prototype.
-A shared lexical-pad ownership bug blocks unrestricted interleaving; see
-[Shared pad ownership](shared-pad-ownership.md). This report does not
-propose shipping a permanent fiber or async API yet.
+The shared lexical-pad ownership bug is fixed separately in `7448c9af6c`;
+see [Shared pad ownership](shared-pad-ownership.md). Other baseline defects
+are identified below. This report does not propose shipping a permanent
+fiber or async API yet.
 
 ## Confirmed baseline
 
@@ -63,6 +64,12 @@ The generator separately swaps the default scalar and default argument
 array. This is not a snapshot of the interpreter. Other package variables,
 filehandles, symbol tables, external resources, and native code's private
 state are shared.
+
+Debugging scope names need their own array alongside the private scope
+stack. The baseline kept the caller's name array installed, so generator
+execution could overwrite labels which the caller later checked. The
+separate scope-name fix saves that pointer with the context and allocates
+and frees private names together with private scope storage.
 
 In particular, saving the save stack does not undo and reapply arbitrary
 `local` entries on each switch. A caller can observe a paused generator's

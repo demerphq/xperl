@@ -290,6 +290,17 @@ sv_count()
         OUTPUT:
             RETVAL
 
+UV
+scope_name_stack_address()
+        CODE:
+#ifdef DEBUGGING
+            RETVAL = PTR2UV(PL_scopestack_name);
+#else
+            RETVAL = 0;
+#endif
+        OUTPUT:
+            RETVAL
+
 IV
 xs_items(...)
         CODE:

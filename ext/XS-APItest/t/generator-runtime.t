@@ -14,7 +14,17 @@ use generator;
 use builtin 'iter';
 no warnings 'experimental::builtin';
 
-plan(tests => 11);
+plan(tests => 14);
+
+SKIP: {
+    my $caller_names = scope_name_stack_address();
+    skip 'requires debugging scope names', 3 unless $caller_names;
+    my $owner = gen { yield scope_name_stack_address() };
+    isnt($owner->(), $caller_names, 'a suspended context owns its scope names');
+    is(scope_name_stack_address(), $caller_names, 'yield restores caller scope names');
+    undef $owner;
+    is(scope_name_stack_address(), $caller_names, 'cleanup restores caller scope names');
+}
 
 ok(process_state_roundtrip(), 'process state saves and restores');
 is(process_scheduler_reject(), -1, 'scheduler rejects an incomplete setup');

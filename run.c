@@ -1037,6 +1037,10 @@ S_generator_free_process_stacks(pTHX_ PERL_PROCESS_STATE *process)
     Safefree(context->Imarkstack);
     Safefree(context->Isavestack);
     Safefree(context->Iscopestack);
+#ifdef DEBUGGING
+    Safefree(context->Iscopestack_name);
+    context->Iscopestack_name = NULL;
+#endif
     Safefree(context->Itmps_stack);
     context->Imarkstack = NULL;
     context->Isavestack = NULL;
@@ -1158,6 +1162,9 @@ S_generator_new_stacks(pTHX)
     Newx(PL_scopestack, 32, I32);
     PL_scopestack_ix = 0;
     PL_scopestack_max = 32;
+#ifdef DEBUGGING
+    Newxz(PL_scopestack_name, PL_scopestack_max, const char *);
+#endif
     Newx(PL_tmps_stack, 32, SV *);
     PL_tmps_ix = -1;
     PL_tmps_floor = -1;
