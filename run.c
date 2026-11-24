@@ -47,6 +47,7 @@ static XS(XS_iterator_completed);
 static XS(XS_iterator_failed);
 static XS(XS_iterator_running);
 static int S_runops_with_boundary(pTHX);
+static int S_runops_with_hook(pTHX_ runops_boundary_proc_t hook, void *data);
 static XS(S_generator_xsub);
 
 static MGVTBL S_iter_adapter_magic = { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -1339,10 +1340,8 @@ S_generator_boundary(pTHX_ OP *nextop, void *data)
     GENERATOR_RUN * const run = (GENERATOR_RUN *)data;
     PERL_GENERATOR * const generator = run->generator;
 
-    /* The generator hook is also visible to nested runops invocations.  A
-     * class constructor, for example, runs its field initialiser on a
-     * constructor stack.  Only the generator's own stack may terminate or
-     * suspend the generator. */
+    /* A class constructor can use another Perl stack for its initializers.
+     * Those frames do not belong to this continuation. */
     if (PL_curstackinfo != run->stackinfo)
         return 0;
 
@@ -1459,7 +1458,10 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         S_generator_install_pads(aTHX_ generator);
         process_state_restore(&generator->process);
     }
-    PL_runops_boundary_hook = S_generator_boundary;
+    /* Native callbacks can run another loop on this same Perl stack. Their
+     * return is not completion of the generator. Only its owning loop gets
+     * the generator boundary hook. Yield operations use the active data. */
+    PL_runops_boundary_hook = NULL;
     PL_runops_boundary_data = &run;
 
     dJMPENV;
@@ -1506,7 +1508,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             S_generator_swap_default_variables(aTHX_ generator);
             default_variables_swapped = TRUE;
             run.stackinfo = PL_curstackinfo;
-            S_runops_with_boundary(aTHX);
+            S_runops_with_hook(aTHX_ S_generator_boundary, &run);
         }
         else {
             I32 i;
@@ -1518,7 +1520,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             S_generator_swap_default_variables(aTHX_ generator);
             default_variables_swapped = TRUE;
             run.stackinfo = PL_curstackinfo;
-            S_runops_with_boundary(aTHX);
+            S_runops_with_hook(aTHX_ S_generator_boundary, &run);
         }
         break;
     default:
@@ -1580,16 +1582,21 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
 static int
 S_runops_with_boundary(pTHX)
 {
+    return S_runops_with_hook(aTHX_ PL_runops_boundary_hook,
+                             PL_runops_boundary_data);
+}
+
+static int
+S_runops_with_hook(pTHX_ runops_boundary_proc_t hook, void *data)
+{
     OP *op = PL_op;
     PERL_DTRACE_PROBE_OP(op);
     while ((PL_op = op = op->op_ppaddr(aTHX))) {
         PERL_DTRACE_PROBE_OP(op);
-        if (PL_runops_boundary_hook
-            && PL_runops_boundary_hook(aTHX_ op, PL_runops_boundary_data))
+        if (hook && hook(aTHX_ op, data))
             return PERL_RUNOPS_BOUNDARY_YIELD;
     }
-    if (PL_runops_boundary_hook
-        && PL_runops_boundary_hook(aTHX_ NULL, PL_runops_boundary_data))
+    if (hook && hook(aTHX_ NULL, data))
         return PERL_RUNOPS_BOUNDARY_YIELD;
     PERL_ASYNC_CHECK();
 

@@ -100,6 +100,14 @@ there is no intervening native activation. A native callback can start a
 second run loop on the same Perl stack. The reliable boundary is the return
 from the pp function dispatched by the owning run loop.
 
+The generator's completion hook now belongs to that owning run loop.
+Nested debugging run loops no longer receive it through the global hook.
+This fixes `threads->create` calling `CLONE_SKIP` inside a generator: the
+callback's return was mistaken for completion of the whole generator.
+It does not make native callbacks suspendable. The direct yield path's
+stack-identity check remains a separate limitation for same-stack native
+callbacks which themselves attempt to yield.
+
 ### Baseline defects found during this audit
 
 - An eval spanning a yield did not reliably catch a later exception. The

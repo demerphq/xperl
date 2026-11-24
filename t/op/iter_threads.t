@@ -50,4 +50,28 @@ for my $value ($loop_source) {
        'cloning an active foreach keeps the current loop value');
 }
 
+sub thread_owner {
+    gen {
+        my ($park_first, $label) = @_;
+        yield 'ready' if $park_first;
+        my $joined = threads->create(sub { "child $_[0]" }, $label)->join;
+        my $comparisons = 0;
+        my @sorted = sort { ++$comparisons; $a cmp $b } qw(two one);
+        yield [$joined, "@sorted", $comparisons > 0];
+        return "done $label";
+    };
+}
+for my $park_first (0, 1) {
+    my $g = thread_owner();
+    my $label = $park_first ? 'resumed call' : 'initial call';
+    my $result = $g->($park_first, $label);
+    if ($park_first) {
+        is($result, 'ready', 'owner suspends before creating a thread');
+        $result = $g->();
+    }
+    is_deeply($result, ["child $label", 'one two', 1],
+              "thread creation and sort callbacks return to the generator on its $label");
+    is($g->(), "done $label", "generator finishes after creating a thread on its $label");
+}
+
 done_testing;

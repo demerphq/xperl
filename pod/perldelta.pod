@@ -1336,6 +1336,11 @@ New calls no longer reuse storage belonging to a suspended call.
 
 =item *
 
+Creating a thread inside a generator no longer makes a debugging build
+mistake the thread-cloning callback's return for generator completion.
+
+=item *
+
 A string C<eval> inside a method which names a field that the method does
 not otherwise use now reports "Field %s is not accessible outside a
 method".
