@@ -3493,6 +3493,7 @@ S_unshare_hek_or_pvn(pTHX_ const HEK *hek, const char *str, I32 len, U32 hash)
     if (hek)
         found = Perl_hv_strtab_release(aTHX_ PL_strtab, hek);
     else {
+        ASSUME(str);
         STRLEN keylen = len < 0 ? 0 - (STRLEN)len : (STRLEN)len;
         if (len < 0) {
             if (!utf8_to_bytes_new_pv((const U8 **)&str, &keylen, &free_str))
