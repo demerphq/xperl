@@ -15170,53 +15170,6 @@ $CONF = {
           },
           "class" => "XPerl::Diagnostic::Error::Syntax::Declaration"
         },
-        "ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_REQUIRES_USE" => {
-          "number" => 1163,
-          "severity" => "FATAL_ERROR",
-          "kind" => "CORE_COMPILE",
-          "code" => "ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_REQUIRES_USE",
-          "macro" => "PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_REQUIRES_USE",
-          "source_files" => [
-            "perly.y"
-          ],
-          "tags" => [
-            "condition:invalid_syntax_value_state",
-            "subject:names_symbols",
-            "subject:parser_declarations"
-          ],
-          "message" => {
-            "templates" => {
-              "ar" => "لا يُسمح بالأسماء المستعارة للحزم إلا مع use",
-              "cy" => "Dim ond gyda use y caniateir enwau amgen pecynnau",
-              "de" => "Paketaliase sind nur mit use zulässig",
-              "en" => "package aliases are only allowed with use",
-              "es" => "Los alias de paquete solo se permiten con use",
-              "fa" => "نام مستعار بسته فقط همراه با use مجاز است",
-              "fi" => "Pakettialiaksia voi käyttää vain use-lauseessa",
-              "fr" => "les alias de paquet ne sont autorisés qu'avec use",
-              "he" => "כינויי חבילות מותרים רק עם use",
-              "hu" => "Csomagálnevek csak use deklarációban használhatók",
-              "is" => "pakkaheiti má aðeins gefa samheiti með use",
-              "it" => "Gli alias di package sono consentiti solo con use",
-              "nl" => "Pakketaliassen zijn alleen toegestaan bij use",
-              "pl" => "Aliasy pakietów są dozwolone wyłącznie w deklaracji use",
-              "pt" => "Os aliases de pacote só são permitidos com use",
-              "ru" => "Псевдонимы пакетов разрешены только в объявлениях use",
-              "sr" => "Алијаси пакета дозвољени су само уз use",
-              "tlh" => "use ghItlh neH lo'laH package aliasmey",
-              "tr" => "Paket takma adlarına yalnızca use ile izin verilir",
-              "uk" => "Псевдоніми пакетів дозволено лише з use",
-              "zh" => "包别名只能通过 use 声明"
-            },
-            "args" => []
-          },
-          "counts_as_error" => 1,
-          "emit" => {
-            "api" => "YYERROR",
-            "parser_action" => "collect"
-          },
-          "class" => "XPerl::Diagnostic::Error::Syntax::Declaration::Namespace"
-        },
         "ERROR_SYNTAX_DECLARATION_OUR_NAME_QUALIFIED" => {
           "number" => 1414,
           "severity" => "FATAL_ERROR",
@@ -48367,150 +48320,6 @@ $CONF = {
           },
           "class" => "XPerl::Diagnostic::Error::Syntax::Declaration::Attribute"
         },
-        "ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_DUPLICATE" => {
-          "number" => 1205,
-          "severity" => "FATAL_ERROR",
-          "kind" => "CORE_RUNTIME",
-          "code" => "ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_DUPLICATE",
-          "macro" => "PERL_THROW_ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_DUPLICATE",
-          "source_files" => [
-            "op.c"
-          ],
-          "tags" => [
-            "condition:conflict_duplicate",
-            "subject:names_symbols",
-            "subject:parser_declarations"
-          ],
-          "message" => {
-            "templates" => {
-              "ar" => "اسم مستعار مكرر للحزمة '%{arg1}'",
-              "cy" => "Enw amgen pecyn dyblyg '%{arg1}'",
-              "de" => "Doppelter Paketalias '%{arg1}'",
-              "en" => "Duplicate package alias '%{arg1}'",
-              "es" => "Alias de paquete duplicado '%{arg1}'",
-              "fa" => "نام مستعار بستهٔ تکراری: «%{arg1}»",
-              "fi" => "Monistettu pakettialias '%{arg1}'",
-              "fr" => "Alias de paquet '%{arg1}' en double",
-              "he" => "כינוי חבילה כפול '%{arg1}'",
-              "hu" => "Duplikált csomagalias: „%{arg1}”",
-              "is" => "Tvítekið samheiti pakkans „%{arg1}“",
-              "it" => "Alias di package duplicato '%{arg1}'",
-              "nl" => "Dubbele pakketalias '%{arg1}'",
-              "pl" => "Zduplikowany alias pakietu '%{arg1}'",
-              "pt" => "Alias de pacote duplicado '%{arg1}'",
-              "ru" => "Повторное объявление псевдонима пакета '%{arg1}'",
-              "sr" => "Дуплирани псеудоним пакета „%{arg1}“",
-              "tlh" => "package alias '%{arg1}' law'.",
-              "tr" => "Yinelenen paket takma adı '%{arg1}'",
-              "uk" => "Повторне оголошення псевдоніма пакета '%{arg1}'",
-              "zh" => "包别名 '%{arg1}' 重复"
-            },
-            "args" => [
-              {
-                "name" => "arg1",
-                "type" => "text",
-                "format_str" => "s"
-              }
-            ]
-          },
-          "counts_as_error" => 1,
-          "emit" => {
-            "api" => "CROAK"
-          },
-          "class" => "XPerl::Diagnostic::Error::Syntax::Declaration::Namespace"
-        },
-        "ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_NAME_INVALID" => {
-          "number" => 1244,
-          "severity" => "FATAL_ERROR",
-          "kind" => "CORE_RUNTIME",
-          "code" => "ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_NAME_INVALID",
-          "macro" => "PERL_THROW_ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_NAME_INVALID",
-          "source_files" => [
-            "op.c"
-          ],
-          "tags" => [
-            "condition:invalid_syntax_value_state",
-            "subject:names_symbols",
-            "subject:parser_declarations"
-          ],
-          "message" => {
-            "templates" => {
-              "ar" => "يجب أن يكون اسم الاسم المستعار مكوّناً غير فارغ من اسم الحزمة",
-              "cy" => "Rhaid i'r enw amgen fod yn gydran pecyn nad yw'n wag",
-              "de" => "Aliasname muss ein nichtleerer Bestandteil eines Paketnamens sein",
-              "en" => "Alias name must be a non-empty package component",
-              "es" => "El nombre de alias debe ser un componente de paquete no vacío",
-              "fa" => "نام مستعار باید یک جزء نام\N{ZERO WIDTH NON-JOINER}فضای بستهٔ غیرخالی باشد",
-              "fi" => "Aliaksen nimen on oltava epätyhjä pakettikomponentti",
-              "fr" => "Le nom d'alias doit être un composant de paquet non vide",
-              "he" => "שם הכינוי חייב להיות רכיב חבילה שאינו ריק",
-              "hu" => "Az alias neve nem üres csomagkomponens kell legyen",
-              "is" => "Heiti samnefnis verður að vera ótómur pakkahluti",
-              "it" => "Il nome dell'alias deve essere una componente non vuota del nome di un package",
-              "nl" => "Aliasnaam moet een niet-leeg onderdeel van een pakketnaam zijn",
-              "pl" => "Nazwa aliasu musi być niepustym składnikiem nazwy pakietu",
-              "pt" => "O nome do alias tem de ser um componente de pacote não vazio",
-              "ru" => "Имя псевдонима должно быть непустым компонентом имени пакета",
-              "sr" => "Име алијаса мора бити непразна компонента пакета",
-              "tlh" => "pong alias'e' package component chImHa'be' 'oHnIS",
-              "tr" => "Takma ad adı boş olmayan bir paket bileşeni olmalıdır",
-              "uk" => "Ім'я псевдоніма має бути непорожнім компонентом імені пакета",
-              "zh" => "别名名称必须是非空的包名组件"
-            },
-            "args" => []
-          },
-          "counts_as_error" => 1,
-          "emit" => {
-            "api" => "CROAK"
-          },
-          "class" => "XPerl::Diagnostic::Error::Syntax::Declaration::Namespace"
-        },
-        "ERROR_SYNTAX_DECLARATION_NAMESPACE_SEPARATOR_MALFORMED" => {
-          "number" => 1024,
-          "severity" => "FATAL_ERROR",
-          "kind" => "CORE_RUNTIME",
-          "code" => "ERROR_SYNTAX_DECLARATION_NAMESPACE_SEPARATOR_MALFORMED",
-          "macro" => "PERL_THROW_ERROR_SYNTAX_DECLARATION_NAMESPACE_SEPARATOR_MALFORMED",
-          "source_files" => [
-            "op.c"
-          ],
-          "tags" => [
-            "condition:invalid_syntax_value_state",
-            "subject:names_symbols",
-            "subject:parser_declarations"
-          ],
-          "message" => {
-            "templates" => {
-              "ar" => "فاصل مساحة الأسماء مشوّه في اسم الحزمة",
-              "cy" => "Gwahanydd gofod enwau camffurfiedig yn enw'r pecyn",
-              "de" => "Ungültiges Namensraum-Trennzeichen im Paketnamen",
-              "en" => "Malformed namespace separator in package name",
-              "es" => "Separador de espacio de nombres mal formado en el nombre del paquete",
-              "fa" => "جداکنندهٔ نام\N{ZERO WIDTH NON-JOINER}فضا در نام بسته بدساخت است",
-              "fi" => "Virheellinen nimiavaruuserotin paketin nimessä",
-              "fr" => "Séparateur d'espace de noms mal formé dans le nom de paquet",
-              "he" => "מפריד מרחב השמות פגום בשם החבילה",
-              "hu" => "Hibás névtér-elválasztó a csomagnévben",
-              "is" => "Gölluð nafnrýmisafmörkun í pakkanafni",
-              "it" => "Separatore di namespace malformato nel nome del package",
-              "nl" => "Ongeldige naamruimtescheiding in pakketnaam",
-              "pl" => "Nieprawidłowy separator przestrzeni nazw w nazwie pakietu",
-              "pt" => "Separador de espaço de nomes malformado no nome do pacote",
-              "ru" => "Некорректный разделитель пространств имён в имени пакета",
-              "sr" => "Неисправан раздвајач простора имена у имену пакета",
-              "tlh" => "package pongDaq namespace separator lughbe'",
-              "tr" => "Paket adındaki ad alanı ayırıcı biçimi bozuk",
-              "uk" => "Некоректний роздільник простору імен у назві пакета",
-              "zh" => "包名中的命名空间分隔符格式错误"
-            },
-            "args" => []
-          },
-          "counts_as_error" => 1,
-          "emit" => {
-            "api" => "CROAK"
-          },
-          "class" => "XPerl::Diagnostic::Error::Syntax::Declaration::Namespace"
-        },
         "ERROR_SYNTAX_DECLARATION_SUBROUTINE_CONSTANT_CAPTURE_MODIFIABLE" => {
           "number" => 1648,
           "severity" => "FATAL_ERROR",
@@ -51029,98 +50838,6 @@ $CONF = {
               "tr" => "Tanımlayıcı çok uzun",
               "uk" => "Ідентифікатор надто довгий",
               "zh" => "标识符过长"
-            },
-            "args" => []
-          },
-          "counts_as_error" => 1,
-          "emit" => {
-            "api" => "CROAK"
-          },
-          "class" => "XPerl::Diagnostic::Error::Syntax::Identifier"
-        },
-        "ERROR_SYNTAX_IDENTIFIER_NAMESPACE_LENGTH_EXCEEDED" => {
-          "number" => 1078,
-          "severity" => "FATAL_ERROR",
-          "kind" => "CORE_RUNTIME",
-          "code" => "ERROR_SYNTAX_IDENTIFIER_NAMESPACE_LENGTH_EXCEEDED",
-          "macro" => "PERL_THROW_ERROR_SYNTAX_IDENTIFIER_NAMESPACE_LENGTH_EXCEEDED",
-          "source_files" => [
-            "toke.c"
-          ],
-          "tags" => [
-            "condition:size_count_range",
-            "subject:names_symbols",
-            "subject:parser_declarations"
-          ],
-          "message" => {
-            "templates" => {
-              "ar" => "اسم مساحة الأسماء طويل جدًا",
-              "cy" => "Mae enw'r gofod enwau yn rhy hir",
-              "de" => "Namensraumname zu lang",
-              "en" => "Namespace name is too long",
-              "es" => "El nombre del espacio de nombres es demasiado largo",
-              "fa" => "نام فضای نام بیش از حد طولانی است",
-              "fi" => "Nimiavaruuden nimi on liian pitkä",
-              "fr" => "Le nom de l'espace de noms est trop long",
-              "he" => "שם מרחב השמות ארוך מדי",
-              "hu" => "A névtér neve túl hosszú",
-              "is" => "Heiti nafnarýmis er of langt",
-              "it" => "Il nome dello spazio dei nomi è troppo lungo",
-              "nl" => "Naamruimtenaam is te lang",
-              "pl" => "Nazwa przestrzeni nazw jest za długa",
-              "pt" => "Nome do espaço de nomes demasiado longo",
-              "ru" => "Слишком длинное имя пространства имён",
-              "sr" => "Име именског простора је предугачко",
-              "tlh" => "Namespace name is too long",
-              "tr" => "Ad alanı adı çok uzun",
-              "uk" => "Назва простору імен надто довга",
-              "zh" => "命名空间名称过长"
-            },
-            "args" => []
-          },
-          "counts_as_error" => 1,
-          "emit" => {
-            "api" => "CROAK"
-          },
-          "class" => "XPerl::Diagnostic::Error::Syntax::Identifier"
-        },
-        "ERROR_SYNTAX_IDENTIFIER_RESOLVED_VARIABLE_LENGTH_EXCEEDED" => {
-          "number" => 1115,
-          "severity" => "FATAL_ERROR",
-          "kind" => "CORE_RUNTIME",
-          "code" => "ERROR_SYNTAX_IDENTIFIER_RESOLVED_VARIABLE_LENGTH_EXCEEDED",
-          "macro" => "PERL_THROW_ERROR_SYNTAX_IDENTIFIER_RESOLVED_VARIABLE_LENGTH_EXCEEDED",
-          "source_files" => [
-            "toke.c"
-          ],
-          "tags" => [
-            "condition:size_count_range",
-            "subject:names_symbols",
-            "subject:parser_declarations"
-          ],
-          "message" => {
-            "templates" => {
-              "ar" => "اسم المتغير طويل جدًا",
-              "cy" => "Mae enw'r newidyn yn rhy hir",
-              "de" => "Variablenname zu lang",
-              "en" => "Variable name is too long",
-              "es" => "El nombre de la variable es demasiado largo",
-              "fa" => "نام متغیر بیش از حد طولانی است",
-              "fi" => "Muuttujan nimi on liian pitkä",
-              "fr" => "Le nom de variable est trop long",
-              "he" => "שם המשתנה ארוך מדי",
-              "hu" => "A változó neve túl hosszú",
-              "is" => "Breytuheiti er of langt",
-              "it" => "Il nome della variabile è troppo lungo",
-              "nl" => "Variabelenaam is te lang",
-              "pl" => "Nazwa zmiennej jest zbyt długa",
-              "pt" => "Nome da variável demasiado longo",
-              "ru" => "Слишком длинное имя переменной",
-              "sr" => "Име променљиве је предугачко",
-              "tlh" => "variable pong tIq law'",
-              "tr" => "Değişken adı çok uzun",
-              "uk" => "Ім'я змінної надто довге",
-              "zh" => "变量名过长"
             },
             "args" => []
           },
@@ -83388,98 +83105,6 @@ $CONF = {
             ]
           }
         },
-        "WARNING_EXPERIMENTAL_NAMESPACES_CURRENT_NAMESPACE_CONSTANT_USED" => {
-          "number" => 2275,
-          "severity" => "WARNING",
-          "kind" => "CORE_RUNTIME",
-          "code" => "WARNING_EXPERIMENTAL_NAMESPACES_CURRENT_NAMESPACE_CONSTANT_USED",
-          "macro" => "PERL_WARN_WARNING_EXPERIMENTAL_NAMESPACES_CURRENT_NAMESPACE_CONSTANT_USED",
-          "source_files" => [
-            "toke.c"
-          ],
-          "tags" => [
-            "subject:names_symbols"
-          ],
-          "message" => {
-            "templates" => {
-              "ar" => "__NAMESPACE__ تجريبي",
-              "cy" => "Mae __NAMESPACE__ yn arbrofol",
-              "de" => "__NAMESPACE__ ist experimentell",
-              "en" => "__NAMESPACE__ is experimental",
-              "es" => "__NAMESPACE__ es experimental",
-              "fa" => "__NAMESPACE__ آزمایشی است",
-              "fi" => "__NAMESPACE__ on kokeellinen",
-              "fr" => "__NAMESPACE__ est expérimental",
-              "he" => "__NAMESPACE__ הוא ניסיוני",
-              "hu" => "A __NAMESPACE__ kísérleti",
-              "is" => "__NAMESPACE__ er tilraunakennt",
-              "it" => "__NAMESPACE__ è sperimentale",
-              "nl" => "__NAMESPACE__ is experimenteel",
-              "pl" => "__NAMESPACE__ jest eksperymentalne",
-              "pt" => "__NAMESPACE__ é experimental",
-              "ru" => "Константа __NAMESPACE__ является экспериментальной",
-              "sr" => "__NAMESPACE__ је експерименталан",
-              "tlh" => "__NAMESPACE__ Qulqang",
-              "tr" => "__NAMESPACE__ deneyseldir",
-              "uk" => "__NAMESPACE__ є експериментальним",
-              "zh" => "__NAMESPACE__ 尚属实验性功能"
-            },
-            "args" => []
-          },
-          "counts_as_error" => 0,
-          "emit" => {
-            "api" => "CK_WARNER_D",
-            "warning_categories" => [
-              "WARN_EXPERIMENTAL__NAMESPACES"
-            ]
-          }
-        },
-        "WARNING_EXPERIMENTAL_NAMESPACES_NAMESPACE_DECLARATION_USED" => {
-          "number" => 2285,
-          "severity" => "WARNING",
-          "kind" => "CORE_RUNTIME",
-          "code" => "WARNING_EXPERIMENTAL_NAMESPACES_NAMESPACE_DECLARATION_USED",
-          "macro" => "PERL_WARN_WARNING_EXPERIMENTAL_NAMESPACES_NAMESPACE_DECLARATION_USED",
-          "source_files" => [
-            "toke.c"
-          ],
-          "tags" => [
-            "subject:names_symbols"
-          ],
-          "message" => {
-            "templates" => {
-              "ar" => "تصريح namespace تجريبي",
-              "cy" => "Mae namespace yn arbrofol",
-              "de" => "namespace ist experimentell",
-              "en" => "namespace is experimental",
-              "es" => "namespace es experimental",
-              "fa" => "namespace آزمایشی است",
-              "fi" => "namespace on kokeellinen",
-              "fr" => "namespace est expérimental",
-              "he" => "הצהרת namespace היא ניסיונית",
-              "hu" => "A namespace kísérleti",
-              "is" => "namespace er tilraunakennt",
-              "it" => "namespace è sperimentale",
-              "nl" => "namespace is experimenteel",
-              "pl" => "deklaracja namespace jest eksperymentalna",
-              "pt" => "O uso de namespace é experimental",
-              "ru" => "Объявление namespace является экспериментальным",
-              "sr" => "namespace је експерименталан",
-              "tlh" => "namespace Qulqang",
-              "tr" => "namespace deneyseldir",
-              "uk" => "namespace є експериментальним",
-              "zh" => "namespace 尚属实验性功能"
-            },
-            "args" => []
-          },
-          "counts_as_error" => 0,
-          "emit" => {
-            "api" => "CK_WARNER_D",
-            "warning_categories" => [
-              "WARN_EXPERIMENTAL__NAMESPACES"
-            ]
-          }
-        },
         "WARNING_EXPERIMENTAL_PRIVATE_USE_PROPERTY_OVERRIDE_APPLIED" => {
           "number" => 2233,
           "severity" => "WARNING",
@@ -112689,13 +112314,6 @@ $CONF = {
         "text" => "(W unpack) You have applied the same modifier more than once after a\ntype in a pack template.  See L<perlfunc/pack>.\n\n"
       },
       {
-        "code" => "PERLDIAG_0373",
-        "headings" => [
-          "Duplicate package alias '%s'\n\n"
-        ],
-        "text" => "(F) A package alias with this name has already been declared in the current\nlexical scope.\n\n"
-      },
-      {
         "code" => "PERLDIAG_0374",
         "headings" => [
           "Duplicated subroutine parameter name\n\n"
@@ -114220,20 +113838,6 @@ $CONF = {
         "text" => "(F) An error peculiar to OS/2.  PERLLIB_PREFIX should be of the form\n\n    prefix1;prefix2\n\nor\n    prefix1 prefix2\n\nwith nonempty prefix1 and prefix2.  If C<prefix1> is indeed a prefix of\na builtin library search path, prefix2 is substituted.  The error may\nappear if components are not found, or are too long.  See\n\"PERLLIB_PREFIX\" in L<perlos2>.\n\n"
       },
       {
-        "code" => "PERLDIAG_0592",
-        "headings" => [
-          "Malformed namespace separator in package name\n\n"
-        ],
-        "text" => "(F) A lexical namespace separator was used in an invalid form.  The C<:::>\nsyntax may occur only once in a package name and must separate valid package\ncomponents.\n\n"
-      },
-      {
-        "code" => "PERLDIAG_0593",
-        "headings" => [
-          "Namespace name is too long\n\n"
-        ],
-        "text" => "(F) A namespace name exceeded the maximum length permitted by Perl.\n\n"
-      },
-      {
         "code" => "PERLDIAG_0594",
         "headings" => [
           "Malformed prototype for %s: %s\n\n"
@@ -114988,25 +114592,11 @@ $CONF = {
         "text" => "(F) Fully qualified subroutine and variable names are not allowed in \"our\"\ndeclarations, because that doesn't make much sense under existing rules.\nSuch syntax is reserved for future extensions.\n\n"
       },
       {
-        "code" => "PERLDIAG_0695",
-        "headings" => [
-          "package aliases are only allowed with use\n\n"
-        ],
-        "text" => "(F) A package alias was requested in a context other than a C<use>\ndeclaration.  Aliases are lexical and can only be introduced by C<use>.\n\n"
-      },
-      {
         "code" => "PERLDIAG_0696",
         "headings" => [
           "No Perl script found in input\n\n"
         ],
         "text" => "(F) You called C<perl -x>, but no line was found in the file beginning\nwith #! and containing the word \"perl\".\n\n"
-      },
-      {
-        "code" => "PERLDIAG_0697",
-        "headings" => [
-          "namespace is experimental\n\n"
-        ],
-        "text" => "(S experimental::namespaces) The C<namespace> declaration is experimental and\nits behaviour may change in future releases of Perl.\n\n"
       },
       {
         "code" => "PERLDIAG_0698",
@@ -117038,13 +116628,6 @@ $CONF = {
         "text" => "(S experimental::equ) This warning is emitted if you use the C<equ>\nundef-aware equality operator.  This operator is currently experimental\nand its behaviour may change in future releases of Perl.\n\n"
       },
       {
-        "code" => "PERLDIAG_0989",
-        "headings" => [
-          "__NAMESPACE__ is experimental\n\n"
-        ],
-        "text" => "(S experimental::namespaces) The C<__NAMESPACE__> token is experimental and\nits behaviour may change in future releases of Perl.\n\n"
-      },
-      {
         "code" => "PERLDIAG_0990",
         "headings" => [
           "The experimental declared_refs feature is not enabled\n\n"
@@ -118380,13 +117963,6 @@ $CONF = {
         "text" => "(A) You've accidentally run your script through B<csh> instead\nof Perl.  Check the #! line, or manually feed your script into\nPerl yourself.\n\n"
       },
       {
-        "code" => "PERLDIAG_1179",
-        "headings" => [
-          "Variable name is too long\n\n"
-        ],
-        "text" => "(F) A variable name exceeded the maximum length permitted by Perl.\n\n"
-      },
-      {
         "code" => "PERLDIAG_1180",
         "headings" => [
           "Variable \"%s\" will not stay shared\n\n"
@@ -118882,13 +118458,19 @@ $CONF = {
     1005,
     1007,
     1009,
+    1024,
     1073,
+    1078,
     1091,
     1092,
+    1115,
     1138,
     1139,
     1140,
     1141,
+    1163,
+    1205,
+    1244,
     1269,
     1270,
     1271,
@@ -119031,6 +118613,8 @@ $CONF = {
     2065,
     2200,
     2208,
+    2275,
+    2285,
     2305,
     2308,
     2312,

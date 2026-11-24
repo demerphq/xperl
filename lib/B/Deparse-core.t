@@ -367,7 +367,6 @@ my %not_tested = map { $_ => 1} qw(
     END
     INIT
     UNITCHECK
-    __NAMESPACE__
     case
     catch
     class
@@ -402,8 +401,6 @@ my %not_tested = map { $_ => 1} qw(
     method
     match
     with
-    as
-    namespace
     multi
     no
     package

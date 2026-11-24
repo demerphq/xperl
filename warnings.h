@@ -168,7 +168,6 @@
 /* Warnings Categories added in Perl 5.045 */
 
 #define WARN_EXPERIMENTAL__MULTISUB	 82
-#define WARN_EXPERIMENTAL__NAMESPACES	 83
 
 #define PERL_WARNING_CATEGORY_NAMES \
     "WARN_ALL", \
@@ -253,12 +252,11 @@
     "WARN_EXPERIMENTAL__EQU", \
     "WARN_EXPERIMENTAL__SIGNATURE_NAMED_PARAMETERS", \
     "WARN_MISSING_IMPORT", \
-    "WARN_EXPERIMENTAL__MULTISUB", \
-    "WARN_EXPERIMENTAL__NAMESPACES",
+    "WARN_EXPERIMENTAL__MULTISUB",
 #define WARNsize			 21
 #define WARN_ALLstring			 "\125\125\125\125\125\125\125\125\125\125\125\125\125\125\125\125\125\125\125\125\125"
 #define WARN_NONEstring			 "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-#define WARN_DEFAULTstring		 "\x10\x01\x00\x00\x00\x50\x04\x00\x00\x00\x00\x00\x01\x40\x05\x45\x55\x15\x55\x55\x55"
+#define WARN_DEFAULTstring		 "\x10\x01\x00\x00\x00\x50\x04\x00\x00\x00\x00\x00\x01\x40\x05\x45\x55\x15\x55\x55\x15"
 
 #define isLEXWARN_on \
         cBOOL(PL_curcop && PL_curcop->cop_warnings != pWARN_STD)
@@ -453,7 +451,6 @@ category parameters passed.
 =for apidoc Amnh||WARN_EXPERIMENTAL__SIGNATURE_NAMED_PARAMETERS
 =for apidoc Amnh||WARN_MISSING_IMPORT
 =for apidoc Amnh||WARN_EXPERIMENTAL__MULTISUB
-=for apidoc Amnh||WARN_EXPERIMENTAL__NAMESPACES
 
 =cut
 */

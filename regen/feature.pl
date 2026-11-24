@@ -58,7 +58,6 @@ my %feature = (
         keyword_all
         smartmatch
         enhanced_xx
-        namespaces
     )
 );
 
@@ -1122,18 +1121,6 @@ No version bundle enables this feature. See L<perlmultitut> for a tutorial,
 L<perlsub/Multisubs> for the declaration and call rules, and
 L<perlclass/multi method> for true methods. The shared pattern language is
 defined in L<perldispatchon>.
-
-=head2 The 'namespaces' feature
-
-B<WARNING>: This feature is experimental and the implementation may change
-or be removed in a future version of Perl.  Perl will warn when it is used
-unless the warning is disabled with:
-
-    no warnings "experimental::namespaces";
-
-This feature enables lexical C<namespace> declarations, the
-C<__NAMESPACE__> token, and package aliases written as C<use PACKAGE as
-ALIAS>.  See L<perlnamespace> for details.
 
 =head2 The 'postderef' and 'postderef_qq' features
 

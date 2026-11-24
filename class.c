@@ -1542,10 +1542,6 @@ apply_class_attribute_isa(pTHX_ HV *stash, SV *value)
     if(*end)
         PERL_THROW_ERROR_OBJECT_COMPOSITION_INHERITANCE_ISA_ATTRIBUTE_TRAILING_TEXT(end);
 
-    SV *resolved = namespace_resolve(superclassname);
-    sv_setsv(superclassname, resolved);
-    SvREFCNT_dec_NN(resolved);
-
     if(aux->xhv_class_superclass || aux->xhv_class_legacy_parent)
         PERL_THROW_ERROR_OBJECT_COMPOSITION_INHERITANCE_SUPERCLASS_ALREADY_ASSIGNED();
 
@@ -1624,10 +1620,6 @@ S_apply_one_role(pTHX_ struct xpvhv_aux *aux, SV *namesv)
     const char *end = split_package_ver(namesv, rolename, rolever);
     if(*end)
         PERL_THROW_ERROR_OBJECT_COMPOSITION_IMPLEMENTS_ATTRIBUTE_TRAILING_TEXT(end);
-
-    SV *resolved = namespace_resolve(rolename);
-    sv_setsv(rolename, resolved);
-    SvREFCNT_dec_NN(resolved);
 
     HV *rolestash = gv_stashsv(rolename, 0);
     if (!rolestash) {

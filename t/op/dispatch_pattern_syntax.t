@@ -57,12 +57,9 @@ multi sub example({ Point => $x }, Constant()) { print $x }
 example({Point => 42}, 42);
 SOURCE
 
-fresh_perl_is(<<'SOURCE', '41,42', {}, 'namespace boundaries preserve adjacent attribute syntax');
-use feature 'namespaces';
-no warnings 'experimental::namespaces';
-namespace Scope;
+fresh_perl_is(<<'SOURCE', '41,42', {}, 'qualified sub names preserve adjacent attribute syntax');
 sub value:lvalue { $main::first }
-sub Scope:::value:lvalue { $main::second }
+sub Scope::value:lvalue { $main::second }
 value() = 41;
 'Scope'->can('value')->() = 42;
 print "$main::first,$main::second";

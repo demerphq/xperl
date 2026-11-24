@@ -104,18 +104,17 @@ fresh_perl_like($direct_failure_source,
     qr/No matching clause for multi sub main::top_level at direct-failure\.pl line 305\./,
     {}, 'the shared no-match emitter handles a direct call without a Perl frame');
 
-my $namespaced_original = eval q{
-    use feature 'namespaces';
-    namespace Multisub::Lowered;
+my $packaged_original = eval q{
+    package Multisub::Lowered;
     multi sub choose_value(1) { 42 }
     \&choose_value;
 };
-is($@, '', 'a multi can be defined with lexical namespaces enabled');
-my $namespaced_copy = copy_multisub($namespaced_original);
-is($namespaced_copy->(1), 42, 'a namespaced multi body recompiles in ordinary ambient pragmas');
-eval { $namespaced_copy->(2) };
+is($@, '', 'a multi can be defined in another package');
+my $packaged_copy = copy_multisub($packaged_original);
+is($packaged_copy->(1), 42, 'a multi body from another package recompiles');
+eval { $packaged_copy->(2) };
 is(${^ERROR_OBJ}->contents->[0]->code, 'ERROR_RUNTIME_MULTISUB_NO_MATCH',
-    'the deparsed no-match emitter resolves outside clause namespace pragmas');
+    'the deparsed no-match emitter resolves outside its declaration package');
 
 multi sub original_arguments('ok', $value) {
     $value += 1;
@@ -195,29 +194,26 @@ $copy = copy_multisub(\&reference_shape);
 my $referent = 42;
 is($copy->(\$referent), 42, 'scalar reference shapes survive');
 
-my $namespaced = eval q{
-    use feature 'namespaces';
-    no warnings 'experimental::namespaces';
-    namespace Shapes;
-    multi sub namespace_shapes(Point [$x]) { $x }
-    multi sub namespace_shapes(A::Point {x => $x}) { $x }
-    \&namespace_shapes;
+my $qualified_shapes = eval q{
+    multi sub qualified_shapes(Shapes::Point [$x]) { $x }
+    multi sub qualified_shapes(Shapes::A::Point {x => $x}) { $x }
+    \&qualified_shapes;
 };
-is($@, '', 'class patterns compile in a namespace');
-$copy = copy_multisub($namespaced);
-is($copy->(bless([41], 'Shapes::Point')), 41, 'bare class names resolve in a namespace');
+is($@, '', 'qualified class patterns compile');
+$copy = copy_multisub($qualified_shapes);
+is($copy->(bless([41], 'Shapes::Point')), 41, 'qualified array class names survive deparsing');
 is($copy->(bless({x => 42}, 'Shapes::A::Point')), 42,
-    'deparsed class names retain their resolved namespace');
+    'qualified hash class names survive deparsing');
 eval { $copy->() };
 is(${^ERROR_OBJ}->diagnostics->[0]->code, 'ERROR_RUNTIME_MULTISUB_NO_MATCH',
-    'generated errors use the core diagnostic constructors inside a namespace');
+    'generated errors use the core diagnostic constructors');
 
 my $unicode_name = "\x{03a9}mega";
-my $unicode_source = "use utf8; use feature 'namespaces'; no warnings; namespace Shapes;"
-                   . "multi sub unicode_shapes(${unicode_name}::Point [\$x]) { \$x }"
+my $unicode_source = "use utf8; no warnings;"
+                   . "multi sub unicode_shapes(Shapes::${unicode_name}::Point [\$x]) { \$x }"
                    . '\&unicode_shapes;';
 my $unicode_dispatcher = eval $unicode_source;
-is($@, '', 'Unicode class names compile in namespaced patterns');
+is($@, '', 'Unicode class names compile in qualified patterns');
 $copy = copy_multisub($unicode_dispatcher);
 is($copy->(bless([42], "Shapes::${unicode_name}::Point")), 42,
     'deparsed class constraints preserve character names');
@@ -375,29 +371,27 @@ is($output, '41,42', 'native clauses retain their declaration packages')
     or diag($native);
 
 ($native, $output) = native_roundtrip(<<'SOURCE');
-use feature qw(multisub namespaces);
+use feature 'multisub';
 no warnings;
-namespace Shapes;
-multi sub Local::answer(Point [$x]) { $x }
-multi sub Local::answer(A::Point {x => $x}) { $x }
+multi sub Shapes::Local::answer(Shapes::Point [$x]) { $x }
+multi sub Shapes::Local::answer(Shapes::A::Point {x => $x}) { $x }
 my $answer = 'Shapes::Local'->can('answer');
 print join(',', $answer->(bless([41], 'Shapes::Point')),
                 $answer->(bless({x => 42}, 'Shapes::A::Point')));
 SOURCE
-is($output, '41,42', 'native names and class patterns retain namespace boundaries')
+is($output, '41,42', 'native names and class patterns retain package qualifiers')
     or diag($native);
 
 ($native, $output) = native_roundtrip(<<'SOURCE');
-use feature qw(multisub namespaces);
+use feature 'multisub';
 no warnings;
-namespace App;
-package First;
-multi sub Tool::name(1) { __PACKAGE__ }
-package Second;
-multi sub Tool::name(2) { __PACKAGE__ }
+package App::First;
+multi sub App::Tool::name(1) { __PACKAGE__ }
+package App::Second;
+multi sub App::Tool::name(2) { __PACKAGE__ }
 print join(',', 'App::Tool'->can('name')->(1), 'App::Tool'->can('name')->(2));
 SOURCE
-is($output, 'App::First,App::Second', 'native clause packages retain namespace boundaries')
+is($output, 'App::First,App::Second', 'native clauses retain qualified declaration packages')
     or diag($native);
 
 class DeparseMultiMethod {

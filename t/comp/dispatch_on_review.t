@@ -434,7 +434,7 @@ check_case('generator suspension preserves a clause binding', q{
     say scalar @end;
 }, "42\n43\n0");
 
-check_case('named dispatch subjects and direct pins do not require namespaces', q{
+check_case('named dispatch subjects and direct pins need only dispatch_on', q{
     my ($subject, $wanted, $calls) = ('outer', 'ok', 0);
     my $version = ++$calls + 2;
     dispatch my $subject (['ok', 3]) {

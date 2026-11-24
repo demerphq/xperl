@@ -13,8 +13,8 @@ our $VERSION = '0.01';
 #     ./perl -Ilib -e 'no strict "refs"; print "$_\n" for grep { defined &{"builtin::$_"} } keys %builtin::'
 #   } | grep -vxE 'import|unimport' | sort -u
 our @KEYWORDS = qw(
-    __CLASS__ __DATA__ __END__ __FILE__ __LINE__ __NAMESPACE__ __PACKAGE__
-    __SUB__ abs accept ADJUST alarm all and any as atan2 AUTOLOAD BEGIN bind
+    __CLASS__ __DATA__ __END__ __FILE__ __LINE__ __PACKAGE__
+    __SUB__ abs accept ADJUST alarm all and any atan2 AUTOLOAD BEGIN bind
     binmode bless blessed break caller cardinal_plural_form catch ceil chdir
     CHECK chmod chomp chop chown chr chroot class class_object_from_hash
     class_object_to_hash close closedir cmp connect continue cos
@@ -32,7 +32,7 @@ our @KEYWORDS = qw(
     IntStr ioctl is_bool is_class_object is_tainted is_weak isa join
     jumphash_integer jumphash_string keys kill last lc lcfirst le length
     link listen load_module local localtime lock log lstat lt m map method
-    mkdir msgctl msgget msgrcv msgsnd my namespace nan ne neu next no not
+    mkdir msgctl msgget msgrcv msgsnd my nan ne neu next no not
     Num NumEq NumStr ObjectVal oct on open opendir or ord
     ordinal_plural_form our pack package package_implements pipe pop pos
     print printf prototype push q qq qr quotemeta qw qx rand rand_bytes read

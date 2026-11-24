@@ -28,19 +28,6 @@ experiment needing to invent its own reporting format. Keep the output useful
 for both human review and later machine-assisted analysis, and ensure the
 measurement layer does not hide warm-up, compilation, or setup costs.
 
-## Block-scoped namespace declarations
-
-The experimental `namespaces` feature currently supports only declarations
-terminated by a semicolon, such as `namespace My::Application;`. It does not
-support a block form such as `namespace My::Application { ... }` whose
-namespace would automatically end at the closing brace.
-
-Consider adding block-scoped namespace declarations. The design should make
-the interaction with nested blocks, `package` declarations, relative names,
-explicit `:::` boundaries, `__NAMESPACE__`, and `use PACKAGE as ALIAS`
-unambiguous. Add parser, lexical-scope, error-reporting, and documentation
-tests if this syntax is implemented.
-
 ## Split dynamic evaluation into compilation and execution
 
 Investigate adding experimental keywords or builtins that split Perl's

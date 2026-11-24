@@ -104,7 +104,6 @@ typedef struct yy_parser {
     bool        in_dispatch_pattern_dquote; /* scanning a double-quoted pattern */
     bool        in_dispatch_pattern_pin; /* parsing a ^-pinned pattern scalar */
     bool        in_dispatch_on_stmtseq; /* parsing direct dispatch-on clauses */
-    bool        in_dispatch_header; /* parsing a dispatch subject */
     HV          *dispatch_pattern_vars; /* implicit lexicals in the current pattern */
     U8		lex_state;	/* next token is determined */
     HV		*in_my_stash;	/* declared class of this "my" declaration */

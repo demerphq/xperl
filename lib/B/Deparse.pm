@@ -574,9 +574,7 @@ sub next_todo {
 	if (class($cv->STASH) ne "SPECIAL") {
 	    $stash = $header ? $header->stash->NAME : $cv->STASH->NAME;
 	    if ($stash ne $self->{'curstash'}) {
-                my $prefix = $clause && $self->feature_enabled('namespace')
-                    ? ':::' : '';
-		$p = $self->keyword("package") . " $prefix$stash;\n";
+		$p = $self->keyword("package") . " $stash;\n";
 		$name = "$self->{'curstash'}::$name" unless $name =~ /::/;
 		$self->{'curstash'} = $stash;
 	    }
@@ -590,10 +588,6 @@ sub next_todo {
             $name = "$self->{'curstash'}::$name";
         } elsif (defined $stash) {
             $name =~ s/^\Q$stash\E::(?!\z|.*::)//;
-        }
-        if ($clause && $self->feature_enabled('namespace')) {
-            $name = $gv->STASH->NAME . '::' . $gv->NAME;
-            $name =~ s/::/:::/;
         }
         my $ret = "$pragmata${p}${l}" . ($clause
             ? $self->deparse_multisub($cv, $clause, $name)
@@ -1768,7 +1762,7 @@ sub deparse_multisub {
 
     # Share native delivery so the caller's location and lexical language
     # survive reconstruction without adding another Perl call frame.
-    my $fail = "CORE::do {\n\tCORE::no feature 'namespaces';\n"
+    my $fail = "CORE::do {\n"
              . "XPerl::Diagnostic::_multisub_no_match($failed_name, $is_method);\n\b};\n";
     my $dispatch = "CORE::dispatch CORE::my $subject (\\\@_) {\n\t"
                  . $clauses . "\nCORE::on (_) {\n\t$fail\b}\n\b}";
@@ -1785,8 +1779,7 @@ sub pp_dispatchcoerce {
     return $self->deparse($op->first, $cx) if $kind <= 1;
     if ($kind == DISPATCH_PATTERN_CRITERION_OBJECT) {
         my $class = $op->first->first->sibling;
-        my $prefix = $self->feature_enabled('namespace') ? ':::' : '';
-        return $prefix . $self->const_sv($class)->PV
+        return $self->const_sv($class)->PV
              . ' ' . $self->deparse($class->sibling, 1);
     }
     croak "Unsupported dispatch pattern marker $kind";
@@ -2506,8 +2499,7 @@ sub pragmata {
 
     my $stash = $op->stashpv;
     if ($stash ne $self->{'curstash'}) {
-        my $prefix = $self->feature_enabled('namespace') ? ':::' : '';
-	push @text, $self->keyword("package") . " $prefix$stash;\n";
+	push @text, $self->keyword("package") . " $stash;\n";
 	$self->{'curstash'} = $stash;
     }
 
@@ -2766,7 +2758,6 @@ my %feature_keywords = (
    implements => 'class',
    gen      => 'generator',
    multi    => 'multisub',
-   namespace => 'namespaces',
    yield    => 'generator',
 );
 

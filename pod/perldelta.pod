@@ -49,7 +49,7 @@ C<B::Deparse> reconstructs multi declarations and renders equivalent
 C<dispatch>/C<on> bodies through C<coderef2text>. Method bodies require their
 declaring class or role context when recompiled.
 Class-qualified shapes are supported within argument lists and other nested
-patterns, with namespace resolution preserved when deparsing them.
+patterns, with qualified class names preserved when deparsing them.
 
 XPerl exceptions now capture Perl stack frames through the innermost C<eval>
 or C<try>. C<stack_trace> exposes function, file, line, and anonymous argument
@@ -391,12 +391,6 @@ More generally, unsupported or ambiguous data-shape syntax is rejected
 explicitly.  It is never silently ignored, treated as a non-match, or
 reinterpreted as ordinary Perl code.  See L<perldispatchon> and L<perldiag>
 for the current rules and diagnostics.
-
-=head2 Lexical namespaces
-
-The experimental C<namespaces> feature provides lexical namespace prefixes,
-the C<namespace> declaration and block form, C<__NAMESPACE__>, and lexical
-package aliases using C<use ... as ...>.  See L<perlnamespace>.
 
 =head2 Localizable random number generators
 

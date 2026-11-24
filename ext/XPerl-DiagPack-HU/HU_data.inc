@@ -4,7 +4,7 @@
    Any changes made here will be lost!
  */
 
-/* Language-scoped rendered data SHA-256: f92f03d8e84575c9839e1f3fbc3436c54d8779e88e066d5a8f88f4d6906a5424 */
+/* Language-scoped rendered data SHA-256: ca9dd9b00aedb756903cf222f73425f2cb5084441b70e2b3a0cd89f9c415d707 */
 
 STATIC_ASSERT_DECL(OP_max + 2 == 448); /* compiled operation-map bound */
 
@@ -1104,7 +1104,6 @@ static const char perl_diag_template_text_a0853522[] = "A \\p{} \303\241ltal vis
 static const char perl_diag_template_text_6fb9065d[] = "A \\x{%1$s} egy olyan \\w karakter, amely nem \303\251rv\303\251nyes n\303\251vben; ezt jel\303\266li az azonos\303\255t\303\263ban: <-- HERE %2$s<-- HERE %3$s; a regul\303\241ris kifejez\303\251sben pedig: <-- HERE itt: m/%4$s <-- HERE %5$s/";
 static const char perl_diag_template_text_4dd5a087[] = "A \\x{%1$s} k\303\263dpont \\w karakter, de nem \303\251rv\303\251nyes n\303\251vben; a <-- HERE jel\303\266li a hely\303\251t %2$s<-- HERE %3$s ut\303\241n";
 static const char perl_diag_template_text_a1997b0b[] = "A __CLASS__ k\303\255s\303\251rleti";
-static const char perl_diag_template_text_73b901cb[] = "A __NAMESPACE__ k\303\255s\303\251rleti";
 static const char perl_diag_template_text_83cc7fe8[] = "A _configthreadlocale hib\303\241t jelzett";
 static const char perl_diag_template_text_611e1151[] = "A BEGIN blokk attrib\303\272tuma figyelmen k\303\255v\303\274l marad";
 static const char perl_diag_template_text_9fe16fac[] = "A BEGIN blokk protot\303\255pusa figyelmen k\303\255v\303\274l marad";
@@ -1266,7 +1265,6 @@ static const char perl_diag_template_text_1bc402eb[] = "A my_localeconv() v\303\
 static const char perl_diag_template_text_311aedb2[] = "A m\303\241gikus listakonstansok nem t\303\241mogatottak";
 static const char perl_diag_template_text_a09248c2[] = "A m\303\241shol potenci\303\241lisan m\303\263dos\303\255tott lexikai v\303\241ltoz\303\263kb\303\263l k\303\251pzett konstansok t\303\266bb\303\251 nem enged\303\251lyezettek";
 static const char perl_diag_template_text_4d01baec[] = "A m\303\241sol\303\263 met\303\263dus nem hivatkoz\303\241st adott vissza";
-static const char perl_diag_template_text_eb7c170f[] = "A namespace k\303\255s\303\251rleti";
 static const char perl_diag_template_text_72518bb0[] = "A nat\303\255v objektumnak nincs inicializ\303\241lt r\303\251gi selfje";
 static const char perl_diag_template_text_080cce07[] = "A negat\303\255v ism\303\251tl\303\251ssz\303\241m hat\303\241stalan";
 static const char perl_diag_template_text_5ff593b0[] = "A nem ASCII karakter (0x%1$s) haszn\303\241lata nem enged\303\251lyezett, ha a 'use source::encoding \"ascii\"' \303\251rv\303\251nyben van";
@@ -1278,7 +1276,6 @@ static const char perl_diag_template_text_39a50f09[] = "A next::method/next::can
 static const char perl_diag_template_text_8ae89a12[] = "A next::method/next::can/maybe::next::method nem tal\303\241lja a k\303\266r\303\274lvev\305\221 met\303\263dust";
 static const char perl_diag_template_text_e3d00f9c[] = "A nulla hossz\303\272s\303\241g\303\272 \\N{} figyelmen k\303\255v\303\274l marad a karakteroszt\303\241lyban";
 static const char perl_diag_template_text_9559530e[] = "A numerikus form\303\241z\303\241s eredm\303\251nye t\303\272l nagy";
-static const char perl_diag_template_text_b0e01ff2[] = "A n\303\251vt\303\251r neve t\303\272l hossz\303\272";
 static const char perl_diag_template_text_ab1cc471[] = "A n\303\251vvel megadott param\303\251ternek nevet kell adni";
 static const char perl_diag_template_text_d89ef9b9[] = "A n\303\251vvel megadott szignat\303\272raparam\303\251ternek '$' jellel kell kezd\305\221dnie";
 static const char perl_diag_template_text_16370a94[] = "A pack csak el\305\221jel n\303\251lk\303\274li eg\303\251sz sz\303\241mokat tud t\303\266m\303\266r\303\255teni";
@@ -1397,7 +1394,6 @@ static const char perl_diag_template_text_3ffb3e43[] = "A verem lebont\303\241sa
 static const char perl_diag_template_text_8a62fa12[] = "A verzi\303\263sz\303\241mnak konstans sz\303\241mnak kell lennie";
 static const char perl_diag_template_text_163e004e[] = "A visszatekint\303\251s hossza meghaladja a %1$s \303\251rt\303\251ket; ez nincs megval\303\263s\303\255tva ebben a regul\303\241ris kifejez\303\251sben: m/%2$s%3$s/";
 static const char perl_diag_template_text_f1d3be46[] = "A v\303\241ltoz\303\263 hossz\303\272s\303\241g\303\272, r\303\266gz\303\255t\305\221 csoportot tartalmaz\303\263 %1$s lookbehind k\303\255s\303\251rleti";
-static const char perl_diag_template_text_1e7cadd4[] = "A v\303\241ltoz\303\263 neve t\303\272l hossz\303\272";
 static const char perl_diag_template_text_81fa47f2[] = "A v\303\241ltoz\303\263-interpol\303\241ci\303\263 nem enged\303\251lyezett a dupla id\303\251z\305\221jeles dispatch mint\303\241kban";
 static const char perl_diag_template_text_fa86ed84[] = "A waitpid nem haszn\303\241lhat\303\263 jelz\305\221kkel";
 static const char perl_diag_template_text_7ffe1a1a[] = "A yield fut\303\263 gen-en k\303\255v\303\274l lett megh\303\255vva";
@@ -1646,7 +1642,6 @@ static const char perl_diag_template_text_027d0e6b[] = "Az !~ haszn\303\241lata 
 static const char perl_diag_template_text_ce31fc1d[] = "Az -i kapcsol\303\263 haszn\303\241lata f\303\241jlnevek n\303\251lk\303\274l a parancssorban; olvas\303\241s a STDIN-r\305\221l";
 static const char perl_diag_template_text_4b356ccb[] = "Az ADJUST k\303\255s\303\251rleti";
 static const char perl_diag_template_text_ceb8e257[] = "Az aktu\303\241lis \303\266sszevon\303\241s eredm\303\251nye tartalmazza ezt: '%1$s'.";
-static const char perl_diag_template_text_6109fb66[] = "Az alias neve nem \303\274res csomagkomponens kell legyen";
 static const char perl_diag_template_text_010fa5d6[] = "Az all k\303\255s\303\251rleti jelleg\305\261";
 static const char perl_diag_template_text_8a5666a8[] = "Az alpha->numify() inform\303\241ci\303\263veszt\303\251ssel j\303\241r";
 static const char perl_diag_template_text_07df05cf[] = "Az alprogram attrib\303\272tumainak az al\303\241\303\255r\303\241s el\305\221tt kell \303\241llniuk";
@@ -1735,7 +1730,6 @@ static const char perl_diag_template_text_5010edd3[] = "CORE:: szubrutin";
 static const char perl_diag_template_text_fdcf6ab0[] = "Csak a \\N{} \303\241ltal visszaadott els\305\221 karakter haszn\303\241lata a karakteroszt\303\241lyban";
 static const char perl_diag_template_text_fbe1d4cc[] = "Csak olvashat\303\263 \303\251rt\303\251k m\303\263dos\303\255t\303\241s\303\241ra t\303\266rt\303\251nt k\303\255s\303\251rlet";
 static const char perl_diag_template_text_754e14d2[] = "Csak skal\303\241rmez\305\221h\303\266z rendelhet\305\221 :param attrib\303\272tum";
-static const char perl_diag_template_text_17a45006[] = "Csomag\303\241lnevek csak use deklar\303\241ci\303\263ban haszn\303\241lhat\303\263k";
 static const char perl_diag_template_text_180cd3b6[] = "Csonk tal\303\241lhat\303\263 a(z) \342\200\236%1$s\342\200\235 met\303\263dus felold\303\241sakor a(z) \342\200\236%2$s\342\200\235 t\303\272lterhel\303\251s\303\251hez a(z) \342\200\236%3$s\342\200\235 csomagban";
 static const char perl_diag_template_text_68d96d1b[] = "defer {} blokk veremre helyez\303\251se";
 static const char perl_diag_template_text_50b2db8d[] = "defined oper\303\241tor";
@@ -1752,7 +1746,6 @@ static const char perl_diag_template_text_1cb97c3e[] = "dispatch-on z\303\241rad
 static const char perl_diag_template_text_bf7c9502[] = "dispatch-on \303\241gak csak k\303\266zvetlen\303\274l egy dispatch blokkban szerepelhetnek";
 static const char perl_diag_template_text_293f40de[] = "do blokk";
 static const char perl_diag_template_text_04b92d05[] = "DOS alatt nem \303\241ll\303\255that\303\263 be a t\303\255pus";
-static const char perl_diag_template_text_30b46678[] = "Duplik\303\241lt csomagalias: \342\200\236%1$s\342\200\235";
 static const char perl_diag_template_text_e1fd9eae[] = "Duplik\303\241lt kulcs: \342\200\236%1$s\342\200\235 a dispatch hash mint\303\241j\303\241ban";
 static const char perl_diag_template_text_ada63ac7[] = "each alkalmaz\303\241sa t\303\266mbre";
 static const char perl_diag_template_text_e5024509[] = "egyes komplemens k\303\251pz\303\251se (~)";
@@ -1898,7 +1891,6 @@ static const char perl_diag_template_text_80fa8989[] = "Hib\303\241s free() figy
 static const char perl_diag_template_text_6bfd22ad[] = "Hib\303\241s f\303\241jlkezel\305\221: %1$s";
 static const char perl_diag_template_text_8ed35a8b[] = "Hib\303\241s igaz\303\255t\303\241s a free() h\303\255v\303\241sban";
 static const char perl_diag_template_text_951a865a[] = "Hib\303\241s infix plugin-eredm\303\251ny (%1$s) \342\200\223 az azonos\303\255t\303\263 teljes neve nem lett feldolgozva: <%2$s>\n";
-static const char perl_diag_template_text_84a15725[] = "Hib\303\241s n\303\251vt\303\251r-elv\303\241laszt\303\263 a csomagn\303\251vben";
 static const char perl_diag_template_text_bafa1b00[] = "Hib\303\241s PERLLIB_PREFIX";
 static const char perl_diag_template_text_1696cbfa[] = "Hib\303\241s plugin, amely a(z) \342\200\236%1$s\342\200\235 kulcssz\303\263t \303\251rinti";
 static const char perl_diag_template_text_d173c5c9[] = "Hib\303\241s protot\303\255pus ehhez: %1$s: %2$s";
@@ -3698,7 +3690,6 @@ enum {
     perl_diag_template_start_hu_1021,
     perl_diag_template_start_hu_1022,
     perl_diag_template_start_hu_1023,
-    perl_diag_template_start_hu_1024,
     perl_diag_template_start_hu_1025,
     perl_diag_template_start_hu_1026,
     perl_diag_template_start_hu_1027,
@@ -3751,7 +3742,6 @@ enum {
     perl_diag_template_start_hu_1075,
     perl_diag_template_start_hu_1076,
     perl_diag_template_start_hu_1077,
-    perl_diag_template_start_hu_1078,
     perl_diag_template_start_hu_1079,
     perl_diag_template_start_hu_1080,
     perl_diag_template_start_hu_1081,
@@ -3786,7 +3776,6 @@ enum {
     perl_diag_template_start_hu_1112,
     perl_diag_template_start_hu_1113,
     perl_diag_template_start_hu_1114,
-    perl_diag_template_start_hu_1115,
     perl_diag_template_start_hu_1116,
     perl_diag_template_start_hu_1117,
     perl_diag_template_start_hu_1118,
@@ -3830,7 +3819,6 @@ enum {
     perl_diag_template_start_hu_1160,
     perl_diag_template_start_hu_1161,
     perl_diag_template_start_hu_1162,
-    perl_diag_template_start_hu_1163,
     perl_diag_template_start_hu_1164,
     perl_diag_template_start_hu_1165,
     perl_diag_template_start_hu_1166,
@@ -3872,7 +3860,6 @@ enum {
     perl_diag_template_start_hu_1202,
     perl_diag_template_start_hu_1203,
     perl_diag_template_start_hu_1204,
-    perl_diag_template_start_hu_1205,
     perl_diag_template_start_hu_1206,
     perl_diag_template_start_hu_1207,
     perl_diag_template_start_hu_1208,
@@ -3911,7 +3898,6 @@ enum {
     perl_diag_template_start_hu_1241,
     perl_diag_template_start_hu_1242,
     perl_diag_template_start_hu_1243,
-    perl_diag_template_start_hu_1244,
     perl_diag_template_start_hu_1245,
     perl_diag_template_start_hu_1246,
     perl_diag_template_start_hu_1247,
@@ -4765,7 +4751,6 @@ enum {
     perl_diag_template_start_hu_2272,
     perl_diag_template_start_hu_2273,
     perl_diag_template_start_hu_2274,
-    perl_diag_template_start_hu_2275,
     perl_diag_template_start_hu_2276,
     perl_diag_template_start_hu_2277,
     perl_diag_template_start_hu_2278,
@@ -4775,7 +4760,6 @@ enum {
     perl_diag_template_start_hu_2282,
     perl_diag_template_start_hu_2283,
     perl_diag_template_start_hu_2284,
-    perl_diag_template_start_hu_2285,
     perl_diag_template_start_hu_2286,
     perl_diag_template_start_hu_2287,
     perl_diag_template_start_hu_2288,
@@ -5303,7 +5287,6 @@ static const perl_diag_template_case_t perl_diag_template_cases_hu[] = {
     { perl_diag_error_syntax_signature_parameter_after_slurpy_number,                             UINT64_C(         0), perl_diag_template_text_e887aaf2,  0,   0 },
     { perl_diag_error_syntax_signature_mandatory_parameter_after_optional_number,                 UINT64_C(         0), perl_diag_template_text_58abe723,  0,   0 },
     { perl_diag_error_value_hash_key_length_out_of_range_number,                                  UINT64_C(         0), perl_diag_template_text_411d6ad6,  0,   0 },
-    { perl_diag_error_syntax_declaration_namespace_separator_malformed_number,                    UINT64_C(         0), perl_diag_template_text_84a15725,  0,   0 },
     { perl_diag_error_unicode_encoding_variable_unsupported_number,                               UINT64_C(         0), perl_diag_template_text_ee26da15,  0,   0 },
     { perl_diag_error_rng_provider_object_required_number,                                        UINT64_C(         0), perl_diag_template_text_fb5b27f8,  0,   0 },
     { perl_diag_error_pack_format_length_code_requires_numeric_type_number,                       UINT64_C(         0), perl_diag_template_text_52ae8fe2,  0,   0 },
@@ -5356,7 +5339,6 @@ static const perl_diag_template_case_t perl_diag_template_cases_hu[] = {
     { perl_diag_error_pack_format_mismatched_brackets_number,                                     UINT64_C(         0), perl_diag_template_text_1d5351f8,  0,   0 },
     { perl_diag_error_syntax_declaration_variable_loop_sigil_missing_number,                      UINT64_C(         0), perl_diag_template_text_206e5b14,  0,   0 },
     { perl_diag_error_internal_regexp_execution_program_null_number,                              UINT64_C(         0), perl_diag_template_text_46ed624a,  0,   0 },
-    { perl_diag_error_syntax_identifier_namespace_length_exceeded_number,                         UINT64_C(         0), perl_diag_template_text_b0e01ff2,  0,   0 },
     { perl_diag_error_pack_input_negative_length_count_number,                                    UINT64_C(         0), perl_diag_template_text_f16cb381,  0,   0 },
     { perl_diag_error_string_vec_lvalue_offset_negative_number,                                   UINT64_C(         0), perl_diag_template_text_f6081195,  0,   0 },
     { perl_diag_error_type_reference_code_required_number,                                        UINT64_C(         0), perl_diag_template_text_62d5a098,  0,   0 },
@@ -5391,7 +5373,6 @@ static const perl_diag_template_case_t perl_diag_template_cases_hu[] = {
     { perl_diag_error_control_flow_goto_cannot_enter_construct_number,                            UINT64_C(         0), perl_diag_template_text_208fb996,  0,   0 },
     { perl_diag_error_syntax_quoted_string_heredoc_unquoted_delimiter_missing_number,             UINT64_C(         0), perl_diag_template_text_19a33947,  0,   0 },
     { perl_diag_error_internal_iterator_freed_value_number,                                       UINT64_C(         0), perl_diag_template_text_cc28309b,  0,   0 },
-    { perl_diag_error_syntax_identifier_resolved_variable_length_exceeded_number,                 UINT64_C(         0), perl_diag_template_text_1e7cadd4,  0,   0 },
     { perl_diag_error_rng_bytes_count_too_large_number,                                           UINT64_C(         0), perl_diag_template_text_9e53dd2d,  0,   0 },
     { perl_diag_error_rng_bytes_count_invalid_number,                                             UINT64_C(         0), perl_diag_template_text_f40505ae,  0,   0 },
     { perl_diag_error_io_filesystem_path_conversion_empty_input_number,                           UINT64_C(         0), perl_diag_template_text_bc0e62c1,  0,   0 },
@@ -5435,7 +5416,6 @@ static const perl_diag_template_case_t perl_diag_template_cases_hu[] = {
     { perl_diag_error_syntax_declaration_catch_variable_missing_number,                           UINT64_C(         0), perl_diag_template_text_90db6e9c,  0,   0 },
     { perl_diag_error_syntax_dispatch_on_outside_dispatch_number,                                 UINT64_C(         0), perl_diag_template_text_bf7c9502,  0,   0 },
     { perl_diag_error_syntax_dispatch_non_on_statement_number,                                    UINT64_C(         0), perl_diag_template_text_1829bc06,  0,   0 },
-    { perl_diag_error_syntax_declaration_namespace_alias_requires_use_number,                     UINT64_C(         0), perl_diag_template_text_17a45006,  0,   0 },
     { perl_diag_error_syntax_invalid_number,                                                      UINT64_C(         0), perl_diag_template_text_acbc19ee,  0,   0 },
     { perl_diag_error_iterator_generator_yield_outside_generator_number,                          UINT64_C(         0), perl_diag_template_text_f42cd79f,  0,   0 },
     { perl_diag_error_internal_syntax_lexer_api_contract_invalid_number,                          UINT64_C(         0), perl_diag_template_text_9b075b1e,  1,   1 },
@@ -5485,7 +5465,6 @@ static const perl_diag_template_case_t perl_diag_template_cases_hu[] = {
     { perl_diag_error_internal_scalar_copy_target_type_unsupported_number,                        UINT64_C(         0), perl_diag_template_text_eb1dbaa6,  1,   1 },
     { perl_diag_error_internal_regexp_data_next_node_opcode_out_of_range_number,                  UINT64_C(         0), perl_diag_template_text_8ca76551,  2,   1 },
     { perl_diag_error_internal_scalar_magic_type_unknown_number,                                  UINT64_C(         0), perl_diag_template_text_90ca0b3e,  1,   1 },
-    { perl_diag_error_syntax_declaration_namespace_alias_duplicate_number,                        UINT64_C(         0), perl_diag_template_text_30b46678,  1,   1 },
     { perl_diag_error_lexical_export_reference_type_mismatch_number,                              UINT64_C(      0x00), perl_diag_template_text_b9008680,  1,   1 },
     { perl_diag_error_io_inplace_edit_cannot_close_work_file_number,                              UINT64_C(         0), perl_diag_template_text_298a183b,  2,   1 },
     { perl_diag_error_syntax_quoted_string_heredoc_indentation_mismatch_number,                   UINT64_C(         0), perl_diag_template_text_e554b340,  1,   1 },
@@ -5527,7 +5506,6 @@ static const perl_diag_template_case_t perl_diag_template_cases_hu[] = {
     { perl_diag_error_unicode_utf16_script_encoding_unsupported_number,                           UINT64_C(         0), perl_diag_template_text_7cd91d91,  1,   1 },
     { perl_diag_error_pack_format_checksum_directive_in_pack_number,                              UINT64_C(         0), perl_diag_template_text_aa869bcc,  0,   0 },
     { perl_diag_error_pack_bounds_unpack_backup_outside_string_number,                            UINT64_C(         0), perl_diag_template_text_f23d3f7d,  0,   0 },
-    { perl_diag_error_syntax_declaration_namespace_alias_name_invalid_number,                     UINT64_C(         0), perl_diag_template_text_6109fb66,  0,   0 },
     { perl_diag_error_phase_begin_unsafe_after_compilation_errors_number,                         UINT64_C(         0), perl_diag_template_text_c68664e8,  0,   0 },
     { perl_diag_error_control_flow_goto_cannot_enter_given_block_number,                          UINT64_C(         0), perl_diag_template_text_e47eeac7,  0,   0 },
     { perl_diag_error_control_flow_goto_cannot_enter_expression_number,                           UINT64_C(         0), perl_diag_template_text_7f8b4ce1,  0,   0 },
@@ -6518,7 +6496,6 @@ static const perl_diag_template_case_t perl_diag_template_cases_hu[] = {
     { perl_diag_warning_syntax_ambiguous_sigil_resolved_as_operator_number,                       UINT64_C(         0), perl_diag_template_text_c41ed3e0,  2,   1 },
     { perl_diag_warning_syntax_reserved_lowercase_bareword_may_become_reserved_number,            UINT64_C(         0), perl_diag_template_text_f99a0001,  1,   1 },
     { perl_diag_warning_syntax_bareword_package_bareword_has_no_stash_number,                     UINT64_C(         0), perl_diag_template_text_22cb7d20,  1,   1 },
-    { perl_diag_warning_experimental_namespaces_current_namespace_constant_used_number,           UINT64_C(         0), perl_diag_template_text_73b901cb,  0,   0 },
     { perl_diag_warning_experimental_class_current_class_constant_used_number,                    UINT64_C(         0), perl_diag_template_text_a1997b0b,  0,   0 },
     { perl_diag_warning_experimental_class_adjust_block_used_number,                              UINT64_C(         0), perl_diag_template_text_4b356ccb,  0,   0 },
     { perl_diag_warning_experimental_keyword_all_block_operator_used_number,                      UINT64_C(         0), perl_diag_template_text_010fa5d6,  0,   0 },
@@ -6528,7 +6505,6 @@ static const perl_diag_template_case_t perl_diag_template_cases_hu[] = {
     { perl_diag_warning_experimental_equ_undef_aware_string_equality_used_number,                 UINT64_C(         0), perl_diag_template_text_137f2686,  0,   0 },
     { perl_diag_warning_experimental_class_field_declaration_used_number,                         UINT64_C(         0), perl_diag_template_text_6efd2528,  0,   0 },
     { perl_diag_warning_experimental_try_finally_block_used_number,                               UINT64_C(         0), perl_diag_template_text_5d884be5,  0,   0 },
-    { perl_diag_warning_experimental_namespaces_namespace_declaration_used_number,                UINT64_C(         0), perl_diag_template_text_eb7c170f,  0,   0 },
     { perl_diag_warning_experimental_equ_undef_aware_string_inequality_used_number,               UINT64_C(         0), perl_diag_template_text_76b0a234,  0,   0 },
     { perl_diag_warning_syntax_precedence_unparenthesized_open_bareword_number,                   UINT64_C(         0), perl_diag_template_text_956387e9,  2,   1 },
     { perl_diag_warning_experimental_class_role_declaration_used_number,                          UINT64_C(         0), perl_diag_template_text_3c17f6de,  0,   0 },
@@ -7192,7 +7168,6 @@ static const perl_diag_template_t perl_diag_templates_hu[] = {
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1021, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1022, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1023, NULL                        },
-    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1024, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1025, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1026, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1027, NULL                        },
@@ -7245,7 +7220,6 @@ static const perl_diag_template_t perl_diag_templates_hu[] = {
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1075, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1076, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1077, NULL                        },
-    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1078, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1079, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1080, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1081, NULL                        },
@@ -7280,7 +7254,6 @@ static const perl_diag_template_t perl_diag_templates_hu[] = {
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1112, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1113, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1114, NULL                        },
-    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1115, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1116, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1117, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1118, NULL                        },
@@ -7324,7 +7297,6 @@ static const perl_diag_template_t perl_diag_templates_hu[] = {
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1160, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1161, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1162, NULL                        },
-    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1163, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1164, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1165, NULL                        },
     { 0,   1,  perl_diag_word_group_none, perl_diag_template_start_hu_1166, NULL                        },
@@ -7366,7 +7338,6 @@ static const perl_diag_template_t perl_diag_templates_hu[] = {
     { 0,   1,  perl_diag_word_group_none, perl_diag_template_start_hu_1202, NULL                        },
     { 0,   2,  perl_diag_word_group_none, perl_diag_template_start_hu_1203, NULL                        },
     { 0,   1,  perl_diag_word_group_none, perl_diag_template_start_hu_1204, NULL                        },
-    { 0,   1,  perl_diag_word_group_none, perl_diag_template_start_hu_1205, NULL                        },
     { 1,   1,  perl_diag_word_group_none, perl_diag_template_start_hu_1206, perl_diag_selectors_hu_1172 },
     { 0,   2,  perl_diag_word_group_none, perl_diag_template_start_hu_1207, NULL                        },
     { 0,   1,  perl_diag_word_group_none, perl_diag_template_start_hu_1208, NULL                        },
@@ -7405,7 +7376,6 @@ static const perl_diag_template_t perl_diag_templates_hu[] = {
     { 0,   1,  perl_diag_word_group_none, perl_diag_template_start_hu_1241, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1242, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1243, NULL                        },
-    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1244, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1245, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1246, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_1247, NULL                        },
@@ -8259,7 +8229,6 @@ static const perl_diag_template_t perl_diag_templates_hu[] = {
     { 0,   2,  perl_diag_word_group_none, perl_diag_template_start_hu_2272, NULL                        },
     { 0,   1,  perl_diag_word_group_none, perl_diag_template_start_hu_2273, NULL                        },
     { 0,   1,  perl_diag_word_group_none, perl_diag_template_start_hu_2274, NULL                        },
-    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_2275, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_2276, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_2277, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_2278, NULL                        },
@@ -8269,7 +8238,6 @@ static const perl_diag_template_t perl_diag_templates_hu[] = {
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_2282, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_2283, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_2284, NULL                        },
-    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_2285, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_2286, NULL                        },
     { 0,   2,  perl_diag_word_group_none, perl_diag_template_start_hu_2287, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_hu_2288, NULL                        },
@@ -9289,11 +9257,6 @@ static const perl_diagpack_schema_t perl_diagpack_schema_1023 = {
     perl_diagpack_param_schema_ids + 0, 0
 };
 
-static const perl_diagpack_schema_t perl_diagpack_schema_1024 = {
-    1024, "ERROR_SYNTAX_DECLARATION_NAMESPACE_SEPARATOR_MALFORMED",
-    perl_diagpack_param_schema_ids + 0, 0
-};
-
 static const perl_diagpack_schema_t perl_diagpack_schema_1025 = {
     1025, "ERROR_UNICODE_ENCODING_VARIABLE_UNSUPPORTED",
     perl_diagpack_param_schema_ids + 0, 0
@@ -9554,11 +9517,6 @@ static const perl_diagpack_schema_t perl_diagpack_schema_1077 = {
     perl_diagpack_param_schema_ids + 0, 0
 };
 
-static const perl_diagpack_schema_t perl_diagpack_schema_1078 = {
-    1078, "ERROR_SYNTAX_IDENTIFIER_NAMESPACE_LENGTH_EXCEEDED",
-    perl_diagpack_param_schema_ids + 0, 0
-};
-
 static const perl_diagpack_schema_t perl_diagpack_schema_1079 = {
     1079, "ERROR_PACK_INPUT_NEGATIVE_LENGTH_COUNT",
     perl_diagpack_param_schema_ids + 0, 0
@@ -9726,11 +9684,6 @@ static const perl_diagpack_schema_t perl_diagpack_schema_1113 = {
 
 static const perl_diagpack_schema_t perl_diagpack_schema_1114 = {
     1114, "ERROR_INTERNAL_ITERATOR_FREED_VALUE",
-    perl_diagpack_param_schema_ids + 0, 0
-};
-
-static const perl_diagpack_schema_t perl_diagpack_schema_1115 = {
-    1115, "ERROR_SYNTAX_IDENTIFIER_RESOLVED_VARIABLE_LENGTH_EXCEEDED",
     perl_diagpack_param_schema_ids + 0, 0
 };
 
@@ -9949,11 +9902,6 @@ static const perl_diagpack_schema_t perl_diagpack_schema_1162 = {
     perl_diagpack_param_schema_ids + 0, 0
 };
 
-static const perl_diagpack_schema_t perl_diagpack_schema_1163 = {
-    1163, "ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_REQUIRES_USE",
-    perl_diagpack_param_schema_ids + 0, 0
-};
-
 static const perl_diagpack_schema_t perl_diagpack_schema_1164 = {
     1164, "ERROR_SYNTAX_INVALID",
     perl_diagpack_param_schema_ids + 0, 0
@@ -10159,11 +10107,6 @@ static const perl_diagpack_schema_t perl_diagpack_schema_1204 = {
     perl_diagpack_param_schema_ids + 256, 1
 };
 
-static const perl_diagpack_schema_t perl_diagpack_schema_1205 = {
-    1205, "ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_DUPLICATE",
-    perl_diagpack_param_schema_ids + 38, 1
-};
-
 static const perl_diagpack_schema_t perl_diagpack_schema_1206 = {
     1206, "ERROR_LEXICAL_EXPORT_REFERENCE_TYPE_MISMATCH",
     perl_diagpack_param_schema_ids + 609, 1
@@ -10351,11 +10294,6 @@ static const perl_diagpack_schema_t perl_diagpack_schema_1242 = {
 
 static const perl_diagpack_schema_t perl_diagpack_schema_1243 = {
     1243, "ERROR_PACK_BOUNDS_UNPACK_BACKUP_OUTSIDE_STRING",
-    perl_diagpack_param_schema_ids + 0, 0
-};
-
-static const perl_diagpack_schema_t perl_diagpack_schema_1244 = {
-    1244, "ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_NAME_INVALID",
     perl_diagpack_param_schema_ids + 0, 0
 };
 
@@ -14624,11 +14562,6 @@ static const perl_diagpack_schema_t perl_diagpack_schema_2274 = {
     perl_diagpack_param_schema_ids + 38, 1
 };
 
-static const perl_diagpack_schema_t perl_diagpack_schema_2275 = {
-    2275, "WARNING_EXPERIMENTAL_NAMESPACES_CURRENT_NAMESPACE_CONSTANT_USED",
-    perl_diagpack_param_schema_ids + 0, 0
-};
-
 static const perl_diagpack_schema_t perl_diagpack_schema_2276 = {
     2276, "WARNING_EXPERIMENTAL_CLASS_CURRENT_CLASS_CONSTANT_USED",
     perl_diagpack_param_schema_ids + 0, 0
@@ -14671,11 +14604,6 @@ static const perl_diagpack_schema_t perl_diagpack_schema_2283 = {
 
 static const perl_diagpack_schema_t perl_diagpack_schema_2284 = {
     2284, "WARNING_EXPERIMENTAL_TRY_FINALLY_BLOCK_USED",
-    perl_diagpack_param_schema_ids + 0, 0
-};
-
-static const perl_diagpack_schema_t perl_diagpack_schema_2285 = {
-    2285, "WARNING_EXPERIMENTAL_NAMESPACES_NAMESPACE_DECLARATION_USED",
     perl_diagpack_param_schema_ids + 0, 0
 };
 
@@ -17182,36 +17110,35 @@ static const perl_diagpack_schema_t * const perl_diagpack_schemas_hu[] = {
     &perl_diagpack_schema_1014, &perl_diagpack_schema_1015, &perl_diagpack_schema_1016,
     &perl_diagpack_schema_1017, &perl_diagpack_schema_1018, &perl_diagpack_schema_1019,
     &perl_diagpack_schema_1020, &perl_diagpack_schema_1021, &perl_diagpack_schema_1022,
-    &perl_diagpack_schema_1023, &perl_diagpack_schema_1024, &perl_diagpack_schema_1025,
-    &perl_diagpack_schema_1026, &perl_diagpack_schema_1027, &perl_diagpack_schema_1028,
-    &perl_diagpack_schema_1029, &perl_diagpack_schema_1030, &perl_diagpack_schema_1031,
-    &perl_diagpack_schema_1032, &perl_diagpack_schema_1033, &perl_diagpack_schema_1034,
-    &perl_diagpack_schema_1035, &perl_diagpack_schema_1036, &perl_diagpack_schema_1037,
-    &perl_diagpack_schema_1038, &perl_diagpack_schema_1039, &perl_diagpack_schema_1040,
-    &perl_diagpack_schema_1041, &perl_diagpack_schema_1042, &perl_diagpack_schema_1043,
-    &perl_diagpack_schema_1044, &perl_diagpack_schema_1045, &perl_diagpack_schema_1046,
-    &perl_diagpack_schema_1047, &perl_diagpack_schema_1048, &perl_diagpack_schema_1049,
-    &perl_diagpack_schema_1050, &perl_diagpack_schema_1051, &perl_diagpack_schema_1052,
-    &perl_diagpack_schema_1053, &perl_diagpack_schema_1054, &perl_diagpack_schema_1055,
-    &perl_diagpack_schema_1056, &perl_diagpack_schema_1057, &perl_diagpack_schema_1058,
-    &perl_diagpack_schema_1059, &perl_diagpack_schema_1060, &perl_diagpack_schema_1061,
-    &perl_diagpack_schema_1062, &perl_diagpack_schema_1063, &perl_diagpack_schema_1064,
-    &perl_diagpack_schema_1065, &perl_diagpack_schema_1066, &perl_diagpack_schema_1067,
-    &perl_diagpack_schema_1068, &perl_diagpack_schema_1069, &perl_diagpack_schema_1070,
-    &perl_diagpack_schema_1071, &perl_diagpack_schema_1072, &perl_diagpack_schema_1074,
-    &perl_diagpack_schema_1075, &perl_diagpack_schema_1076, &perl_diagpack_schema_1077,
-    &perl_diagpack_schema_1078, &perl_diagpack_schema_1079, &perl_diagpack_schema_1080,
-    &perl_diagpack_schema_1081, &perl_diagpack_schema_1082, &perl_diagpack_schema_1083,
-    &perl_diagpack_schema_1084, &perl_diagpack_schema_1085, &perl_diagpack_schema_1086,
-    &perl_diagpack_schema_1087, &perl_diagpack_schema_1088, &perl_diagpack_schema_1089,
-    &perl_diagpack_schema_1090, &perl_diagpack_schema_1093, &perl_diagpack_schema_1094,
-    &perl_diagpack_schema_1095, &perl_diagpack_schema_1096, &perl_diagpack_schema_1097,
-    &perl_diagpack_schema_1098, &perl_diagpack_schema_1099, &perl_diagpack_schema_1100,
-    &perl_diagpack_schema_1101, &perl_diagpack_schema_1102, &perl_diagpack_schema_1103,
-    &perl_diagpack_schema_1104, &perl_diagpack_schema_1105, &perl_diagpack_schema_1106,
-    &perl_diagpack_schema_1107, &perl_diagpack_schema_1108, &perl_diagpack_schema_1109,
-    &perl_diagpack_schema_1110, &perl_diagpack_schema_1111, &perl_diagpack_schema_1112,
-    &perl_diagpack_schema_1113, &perl_diagpack_schema_1114, &perl_diagpack_schema_1115,
+    &perl_diagpack_schema_1023, &perl_diagpack_schema_1025, &perl_diagpack_schema_1026,
+    &perl_diagpack_schema_1027, &perl_diagpack_schema_1028, &perl_diagpack_schema_1029,
+    &perl_diagpack_schema_1030, &perl_diagpack_schema_1031, &perl_diagpack_schema_1032,
+    &perl_diagpack_schema_1033, &perl_diagpack_schema_1034, &perl_diagpack_schema_1035,
+    &perl_diagpack_schema_1036, &perl_diagpack_schema_1037, &perl_diagpack_schema_1038,
+    &perl_diagpack_schema_1039, &perl_diagpack_schema_1040, &perl_diagpack_schema_1041,
+    &perl_diagpack_schema_1042, &perl_diagpack_schema_1043, &perl_diagpack_schema_1044,
+    &perl_diagpack_schema_1045, &perl_diagpack_schema_1046, &perl_diagpack_schema_1047,
+    &perl_diagpack_schema_1048, &perl_diagpack_schema_1049, &perl_diagpack_schema_1050,
+    &perl_diagpack_schema_1051, &perl_diagpack_schema_1052, &perl_diagpack_schema_1053,
+    &perl_diagpack_schema_1054, &perl_diagpack_schema_1055, &perl_diagpack_schema_1056,
+    &perl_diagpack_schema_1057, &perl_diagpack_schema_1058, &perl_diagpack_schema_1059,
+    &perl_diagpack_schema_1060, &perl_diagpack_schema_1061, &perl_diagpack_schema_1062,
+    &perl_diagpack_schema_1063, &perl_diagpack_schema_1064, &perl_diagpack_schema_1065,
+    &perl_diagpack_schema_1066, &perl_diagpack_schema_1067, &perl_diagpack_schema_1068,
+    &perl_diagpack_schema_1069, &perl_diagpack_schema_1070, &perl_diagpack_schema_1071,
+    &perl_diagpack_schema_1072, &perl_diagpack_schema_1074, &perl_diagpack_schema_1075,
+    &perl_diagpack_schema_1076, &perl_diagpack_schema_1077, &perl_diagpack_schema_1079,
+    &perl_diagpack_schema_1080, &perl_diagpack_schema_1081, &perl_diagpack_schema_1082,
+    &perl_diagpack_schema_1083, &perl_diagpack_schema_1084, &perl_diagpack_schema_1085,
+    &perl_diagpack_schema_1086, &perl_diagpack_schema_1087, &perl_diagpack_schema_1088,
+    &perl_diagpack_schema_1089, &perl_diagpack_schema_1090, &perl_diagpack_schema_1093,
+    &perl_diagpack_schema_1094, &perl_diagpack_schema_1095, &perl_diagpack_schema_1096,
+    &perl_diagpack_schema_1097, &perl_diagpack_schema_1098, &perl_diagpack_schema_1099,
+    &perl_diagpack_schema_1100, &perl_diagpack_schema_1101, &perl_diagpack_schema_1102,
+    &perl_diagpack_schema_1103, &perl_diagpack_schema_1104, &perl_diagpack_schema_1105,
+    &perl_diagpack_schema_1106, &perl_diagpack_schema_1107, &perl_diagpack_schema_1108,
+    &perl_diagpack_schema_1109, &perl_diagpack_schema_1110, &perl_diagpack_schema_1111,
+    &perl_diagpack_schema_1112, &perl_diagpack_schema_1113, &perl_diagpack_schema_1114,
     &perl_diagpack_schema_1116, &perl_diagpack_schema_1117, &perl_diagpack_schema_1118,
     &perl_diagpack_schema_1119, &perl_diagpack_schema_1120, &perl_diagpack_schema_1121,
     &perl_diagpack_schema_1122, &perl_diagpack_schema_1123, &perl_diagpack_schema_1124,
@@ -17226,34 +17153,33 @@ static const perl_diagpack_schema_t * const perl_diagpack_schemas_hu[] = {
     &perl_diagpack_schema_1153, &perl_diagpack_schema_1154, &perl_diagpack_schema_1155,
     &perl_diagpack_schema_1156, &perl_diagpack_schema_1157, &perl_diagpack_schema_1158,
     &perl_diagpack_schema_1159, &perl_diagpack_schema_1160, &perl_diagpack_schema_1161,
-    &perl_diagpack_schema_1162, &perl_diagpack_schema_1163, &perl_diagpack_schema_1164,
-    &perl_diagpack_schema_1165, &perl_diagpack_schema_1166, &perl_diagpack_schema_1167,
-    &perl_diagpack_schema_1168, &perl_diagpack_schema_1169, &perl_diagpack_schema_1170,
-    &perl_diagpack_schema_1171, &perl_diagpack_schema_1172, &perl_diagpack_schema_1173,
-    &perl_diagpack_schema_1174, &perl_diagpack_schema_1175, &perl_diagpack_schema_1176,
-    &perl_diagpack_schema_1177, &perl_diagpack_schema_1178, &perl_diagpack_schema_1179,
-    &perl_diagpack_schema_1180, &perl_diagpack_schema_1181, &perl_diagpack_schema_1182,
-    &perl_diagpack_schema_1183, &perl_diagpack_schema_1184, &perl_diagpack_schema_1185,
-    &perl_diagpack_schema_1186, &perl_diagpack_schema_1187, &perl_diagpack_schema_1188,
-    &perl_diagpack_schema_1189, &perl_diagpack_schema_1190, &perl_diagpack_schema_1191,
-    &perl_diagpack_schema_1192, &perl_diagpack_schema_1193, &perl_diagpack_schema_1194,
-    &perl_diagpack_schema_1195, &perl_diagpack_schema_1196, &perl_diagpack_schema_1197,
-    &perl_diagpack_schema_1198, &perl_diagpack_schema_1199, &perl_diagpack_schema_1200,
-    &perl_diagpack_schema_1201, &perl_diagpack_schema_1202, &perl_diagpack_schema_1203,
-    &perl_diagpack_schema_1204, &perl_diagpack_schema_1205, &perl_diagpack_schema_1206,
-    &perl_diagpack_schema_1207, &perl_diagpack_schema_1208, &perl_diagpack_schema_1209,
-    &perl_diagpack_schema_1210, &perl_diagpack_schema_1211, &perl_diagpack_schema_1212,
-    &perl_diagpack_schema_1213, &perl_diagpack_schema_1214, &perl_diagpack_schema_1215,
-    &perl_diagpack_schema_1216, &perl_diagpack_schema_1217, &perl_diagpack_schema_1218,
-    &perl_diagpack_schema_1219, &perl_diagpack_schema_1220, &perl_diagpack_schema_1221,
-    &perl_diagpack_schema_1222, &perl_diagpack_schema_1223, &perl_diagpack_schema_1224,
-    &perl_diagpack_schema_1225, &perl_diagpack_schema_1226, &perl_diagpack_schema_1227,
-    &perl_diagpack_schema_1228, &perl_diagpack_schema_1229, &perl_diagpack_schema_1230,
-    &perl_diagpack_schema_1231, &perl_diagpack_schema_1232, &perl_diagpack_schema_1233,
-    &perl_diagpack_schema_1234, &perl_diagpack_schema_1235, &perl_diagpack_schema_1236,
-    &perl_diagpack_schema_1237, &perl_diagpack_schema_1238, &perl_diagpack_schema_1239,
-    &perl_diagpack_schema_1240, &perl_diagpack_schema_1241, &perl_diagpack_schema_1242,
-    &perl_diagpack_schema_1243, &perl_diagpack_schema_1244, &perl_diagpack_schema_1245,
+    &perl_diagpack_schema_1162, &perl_diagpack_schema_1164, &perl_diagpack_schema_1165,
+    &perl_diagpack_schema_1166, &perl_diagpack_schema_1167, &perl_diagpack_schema_1168,
+    &perl_diagpack_schema_1169, &perl_diagpack_schema_1170, &perl_diagpack_schema_1171,
+    &perl_diagpack_schema_1172, &perl_diagpack_schema_1173, &perl_diagpack_schema_1174,
+    &perl_diagpack_schema_1175, &perl_diagpack_schema_1176, &perl_diagpack_schema_1177,
+    &perl_diagpack_schema_1178, &perl_diagpack_schema_1179, &perl_diagpack_schema_1180,
+    &perl_diagpack_schema_1181, &perl_diagpack_schema_1182, &perl_diagpack_schema_1183,
+    &perl_diagpack_schema_1184, &perl_diagpack_schema_1185, &perl_diagpack_schema_1186,
+    &perl_diagpack_schema_1187, &perl_diagpack_schema_1188, &perl_diagpack_schema_1189,
+    &perl_diagpack_schema_1190, &perl_diagpack_schema_1191, &perl_diagpack_schema_1192,
+    &perl_diagpack_schema_1193, &perl_diagpack_schema_1194, &perl_diagpack_schema_1195,
+    &perl_diagpack_schema_1196, &perl_diagpack_schema_1197, &perl_diagpack_schema_1198,
+    &perl_diagpack_schema_1199, &perl_diagpack_schema_1200, &perl_diagpack_schema_1201,
+    &perl_diagpack_schema_1202, &perl_diagpack_schema_1203, &perl_diagpack_schema_1204,
+    &perl_diagpack_schema_1206, &perl_diagpack_schema_1207, &perl_diagpack_schema_1208,
+    &perl_diagpack_schema_1209, &perl_diagpack_schema_1210, &perl_diagpack_schema_1211,
+    &perl_diagpack_schema_1212, &perl_diagpack_schema_1213, &perl_diagpack_schema_1214,
+    &perl_diagpack_schema_1215, &perl_diagpack_schema_1216, &perl_diagpack_schema_1217,
+    &perl_diagpack_schema_1218, &perl_diagpack_schema_1219, &perl_diagpack_schema_1220,
+    &perl_diagpack_schema_1221, &perl_diagpack_schema_1222, &perl_diagpack_schema_1223,
+    &perl_diagpack_schema_1224, &perl_diagpack_schema_1225, &perl_diagpack_schema_1226,
+    &perl_diagpack_schema_1227, &perl_diagpack_schema_1228, &perl_diagpack_schema_1229,
+    &perl_diagpack_schema_1230, &perl_diagpack_schema_1231, &perl_diagpack_schema_1232,
+    &perl_diagpack_schema_1233, &perl_diagpack_schema_1234, &perl_diagpack_schema_1235,
+    &perl_diagpack_schema_1236, &perl_diagpack_schema_1237, &perl_diagpack_schema_1238,
+    &perl_diagpack_schema_1239, &perl_diagpack_schema_1240, &perl_diagpack_schema_1241,
+    &perl_diagpack_schema_1242, &perl_diagpack_schema_1243, &perl_diagpack_schema_1245,
     &perl_diagpack_schema_1246, &perl_diagpack_schema_1247, &perl_diagpack_schema_1248,
     &perl_diagpack_schema_1249, &perl_diagpack_schema_1250, &perl_diagpack_schema_1251,
     &perl_diagpack_schema_1252, &perl_diagpack_schema_1253, &perl_diagpack_schema_1254,
@@ -17538,176 +17464,176 @@ static const perl_diagpack_schema_t * const perl_diagpack_schemas_hu[] = {
     &perl_diagpack_schema_2266, &perl_diagpack_schema_2267, &perl_diagpack_schema_2268,
     &perl_diagpack_schema_2269, &perl_diagpack_schema_2270, &perl_diagpack_schema_2271,
     &perl_diagpack_schema_2272, &perl_diagpack_schema_2273, &perl_diagpack_schema_2274,
-    &perl_diagpack_schema_2275, &perl_diagpack_schema_2276, &perl_diagpack_schema_2277,
-    &perl_diagpack_schema_2278, &perl_diagpack_schema_2279, &perl_diagpack_schema_2280,
-    &perl_diagpack_schema_2281, &perl_diagpack_schema_2282, &perl_diagpack_schema_2283,
-    &perl_diagpack_schema_2284, &perl_diagpack_schema_2285, &perl_diagpack_schema_2286,
-    &perl_diagpack_schema_2287, &perl_diagpack_schema_2288, &perl_diagpack_schema_2289,
-    &perl_diagpack_schema_2290, &perl_diagpack_schema_2291, &perl_diagpack_schema_2292,
-    &perl_diagpack_schema_2293, &perl_diagpack_schema_2294, &perl_diagpack_schema_2295,
-    &perl_diagpack_schema_2296, &perl_diagpack_schema_2297, &perl_diagpack_schema_2298,
-    &perl_diagpack_schema_2299, &perl_diagpack_schema_2300, &perl_diagpack_schema_2301,
-    &perl_diagpack_schema_2302, &perl_diagpack_schema_2303, &perl_diagpack_schema_2304,
-    &perl_diagpack_schema_2306, &perl_diagpack_schema_2307, &perl_diagpack_schema_2309,
-    &perl_diagpack_schema_2310, &perl_diagpack_schema_2311, &perl_diagpack_schema_2314,
-    &perl_diagpack_schema_2315, &perl_diagpack_schema_2316, &perl_diagpack_schema_2317,
-    &perl_diagpack_schema_2318, &perl_diagpack_schema_2319, &perl_diagpack_schema_2320,
-    &perl_diagpack_schema_2321, &perl_diagpack_schema_2322, &perl_diagpack_schema_2323,
-    &perl_diagpack_schema_2324, &perl_diagpack_schema_2325, &perl_diagpack_schema_2326,
-    &perl_diagpack_schema_2327, &perl_diagpack_schema_2328, &perl_diagpack_schema_2329,
-    &perl_diagpack_schema_2330, &perl_diagpack_schema_2331, &perl_diagpack_schema_2332,
-    &perl_diagpack_schema_2333, &perl_diagpack_schema_2334, &perl_diagpack_schema_2335,
-    &perl_diagpack_schema_2336, &perl_diagpack_schema_2337, &perl_diagpack_schema_2338,
-    &perl_diagpack_schema_2339, &perl_diagpack_schema_2340, &perl_diagpack_schema_2341,
-    &perl_diagpack_schema_2342, &perl_diagpack_schema_2343, &perl_diagpack_schema_2344,
-    &perl_diagpack_schema_2345, &perl_diagpack_schema_2346, &perl_diagpack_schema_2347,
-    &perl_diagpack_schema_2348, &perl_diagpack_schema_2349, &perl_diagpack_schema_2350,
-    &perl_diagpack_schema_2351, &perl_diagpack_schema_2352, &perl_diagpack_schema_2353,
-    &perl_diagpack_schema_2354, &perl_diagpack_schema_2355, &perl_diagpack_schema_2356,
-    &perl_diagpack_schema_2357, &perl_diagpack_schema_2358, &perl_diagpack_schema_2359,
-    &perl_diagpack_schema_2360, &perl_diagpack_schema_2361, &perl_diagpack_schema_2362,
-    &perl_diagpack_schema_2363, &perl_diagpack_schema_2364, &perl_diagpack_schema_2365,
-    &perl_diagpack_schema_2366, &perl_diagpack_schema_2367, &perl_diagpack_schema_2368,
-    &perl_diagpack_schema_2369, &perl_diagpack_schema_2370, &perl_diagpack_schema_2371,
-    &perl_diagpack_schema_2372, &perl_diagpack_schema_2373, &perl_diagpack_schema_2374,
-    &perl_diagpack_schema_2375, &perl_diagpack_schema_2376, &perl_diagpack_schema_2377,
-    &perl_diagpack_schema_2378, &perl_diagpack_schema_2379, &perl_diagpack_schema_2380,
-    &perl_diagpack_schema_2381, &perl_diagpack_schema_2382, &perl_diagpack_schema_2383,
-    &perl_diagpack_schema_2384, &perl_diagpack_schema_2385, &perl_diagpack_schema_2386,
-    &perl_diagpack_schema_2387, &perl_diagpack_schema_2388, &perl_diagpack_schema_2389,
-    &perl_diagpack_schema_2390, &perl_diagpack_schema_2392, &perl_diagpack_schema_2393,
-    &perl_diagpack_schema_2394, &perl_diagpack_schema_2395, &perl_diagpack_schema_2396,
-    &perl_diagpack_schema_2397, &perl_diagpack_schema_2398, &perl_diagpack_schema_2399,
-    &perl_diagpack_schema_2400, &perl_diagpack_schema_2401, &perl_diagpack_schema_2402,
-    &perl_diagpack_schema_2403, &perl_diagpack_schema_2404, &perl_diagpack_schema_2405,
-    &perl_diagpack_schema_2406, &perl_diagpack_schema_2407, &perl_diagpack_schema_2408,
-    &perl_diagpack_schema_2409, &perl_diagpack_schema_2410, &perl_diagpack_schema_2411,
-    &perl_diagpack_schema_2412, &perl_diagpack_schema_2413, &perl_diagpack_schema_2414,
-    &perl_diagpack_schema_2415, &perl_diagpack_schema_2416, &perl_diagpack_schema_2417,
-    &perl_diagpack_schema_2418, &perl_diagpack_schema_2419, &perl_diagpack_schema_2420,
-    &perl_diagpack_schema_2421, &perl_diagpack_schema_2422, &perl_diagpack_schema_2423,
-    &perl_diagpack_schema_2424, &perl_diagpack_schema_2425, &perl_diagpack_schema_2426,
-    &perl_diagpack_schema_2427, &perl_diagpack_schema_2428, &perl_diagpack_schema_2429,
-    &perl_diagpack_schema_2430, &perl_diagpack_schema_2431, &perl_diagpack_schema_2432,
-    &perl_diagpack_schema_2433, &perl_diagpack_schema_2434, &perl_diagpack_schema_2435,
-    &perl_diagpack_schema_2436, &perl_diagpack_schema_2437, &perl_diagpack_schema_2438,
-    &perl_diagpack_schema_2439, &perl_diagpack_schema_2440, &perl_diagpack_schema_2441,
-    &perl_diagpack_schema_2442, &perl_diagpack_schema_2443, &perl_diagpack_schema_2444,
-    &perl_diagpack_schema_2445, &perl_diagpack_schema_2446, &perl_diagpack_schema_2447,
-    &perl_diagpack_schema_2448, &perl_diagpack_schema_2449, &perl_diagpack_schema_2450,
-    &perl_diagpack_schema_2451, &perl_diagpack_schema_2452, &perl_diagpack_schema_2453,
-    &perl_diagpack_schema_2454, &perl_diagpack_schema_2455, &perl_diagpack_schema_2456,
-    &perl_diagpack_schema_2457, &perl_diagpack_schema_2458, &perl_diagpack_schema_2459,
-    &perl_diagpack_schema_2460, &perl_diagpack_schema_2462, &perl_diagpack_schema_2463,
-    &perl_diagpack_schema_2464, &perl_diagpack_schema_2466, &perl_diagpack_schema_2467,
-    &perl_diagpack_schema_2468, &perl_diagpack_schema_2469, &perl_diagpack_schema_2470,
-    &perl_diagpack_schema_2471, &perl_diagpack_schema_2472, &perl_diagpack_schema_2473,
-    &perl_diagpack_schema_2474, &perl_diagpack_schema_2475, &perl_diagpack_schema_2476,
-    &perl_diagpack_schema_2477, &perl_diagpack_schema_2478, &perl_diagpack_schema_2479,
-    &perl_diagpack_schema_2480, &perl_diagpack_schema_2481, &perl_diagpack_schema_2482,
-    &perl_diagpack_schema_2483, &perl_diagpack_schema_2484, &perl_diagpack_schema_2485,
-    &perl_diagpack_schema_2486, &perl_diagpack_schema_2487, &perl_diagpack_schema_2488,
-    &perl_diagpack_schema_2489, &perl_diagpack_schema_2490, &perl_diagpack_schema_2491,
-    &perl_diagpack_schema_2492, &perl_diagpack_schema_2493, &perl_diagpack_schema_2494,
-    &perl_diagpack_schema_2495, &perl_diagpack_schema_2496, &perl_diagpack_schema_2497,
-    &perl_diagpack_schema_2498, &perl_diagpack_schema_2499, &perl_diagpack_schema_2500,
-    &perl_diagpack_schema_2501, &perl_diagpack_schema_2502, &perl_diagpack_schema_2503,
-    &perl_diagpack_schema_2504, &perl_diagpack_schema_2505, &perl_diagpack_schema_2507,
-    &perl_diagpack_schema_2508, &perl_diagpack_schema_2509, &perl_diagpack_schema_2510,
-    &perl_diagpack_schema_2511, &perl_diagpack_schema_2512, &perl_diagpack_schema_2513,
-    &perl_diagpack_schema_2514, &perl_diagpack_schema_2515, &perl_diagpack_schema_2516,
-    &perl_diagpack_schema_2517, &perl_diagpack_schema_2518, &perl_diagpack_schema_2519,
-    &perl_diagpack_schema_2520, &perl_diagpack_schema_2521, &perl_diagpack_schema_2522,
-    &perl_diagpack_schema_2523, &perl_diagpack_schema_2524, &perl_diagpack_schema_2525,
-    &perl_diagpack_schema_2526, &perl_diagpack_schema_2527, &perl_diagpack_schema_2528,
-    &perl_diagpack_schema_2529, &perl_diagpack_schema_2530, &perl_diagpack_schema_2531,
-    &perl_diagpack_schema_2532, &perl_diagpack_schema_2533, &perl_diagpack_schema_2534,
-    &perl_diagpack_schema_2535, &perl_diagpack_schema_2536, &perl_diagpack_schema_2537,
-    &perl_diagpack_schema_2538, &perl_diagpack_schema_2539, &perl_diagpack_schema_2540,
-    &perl_diagpack_schema_2541, &perl_diagpack_schema_2542, &perl_diagpack_schema_2543,
-    &perl_diagpack_schema_2544, &perl_diagpack_schema_2545, &perl_diagpack_schema_2546,
-    &perl_diagpack_schema_2547, &perl_diagpack_schema_2548, &perl_diagpack_schema_2549,
-    &perl_diagpack_schema_2550, &perl_diagpack_schema_2551, &perl_diagpack_schema_2552,
-    &perl_diagpack_schema_2553, &perl_diagpack_schema_2554, &perl_diagpack_schema_2555,
-    &perl_diagpack_schema_2556, &perl_diagpack_schema_2557, &perl_diagpack_schema_2558,
-    &perl_diagpack_schema_2559, &perl_diagpack_schema_2560, &perl_diagpack_schema_2561,
-    &perl_diagpack_schema_2562, &perl_diagpack_schema_2563, &perl_diagpack_schema_2564,
-    &perl_diagpack_schema_2565, &perl_diagpack_schema_2566, &perl_diagpack_schema_2567,
-    &perl_diagpack_schema_2568, &perl_diagpack_schema_2569, &perl_diagpack_schema_2570,
-    &perl_diagpack_schema_2571, &perl_diagpack_schema_2572, &perl_diagpack_schema_2573,
-    &perl_diagpack_schema_2574, &perl_diagpack_schema_2575, &perl_diagpack_schema_2576,
-    &perl_diagpack_schema_2577, &perl_diagpack_schema_2578, &perl_diagpack_schema_2579,
-    &perl_diagpack_schema_2580, &perl_diagpack_schema_2581, &perl_diagpack_schema_2582,
-    &perl_diagpack_schema_2583, &perl_diagpack_schema_2584, &perl_diagpack_schema_2585,
-    &perl_diagpack_schema_2586, &perl_diagpack_schema_2587, &perl_diagpack_schema_2588,
-    &perl_diagpack_schema_2589, &perl_diagpack_schema_2590, &perl_diagpack_schema_2591,
-    &perl_diagpack_schema_2592, &perl_diagpack_schema_2593, &perl_diagpack_schema_2594,
-    &perl_diagpack_schema_2595, &perl_diagpack_schema_2596, &perl_diagpack_schema_2597,
-    &perl_diagpack_schema_2598, &perl_diagpack_schema_2599, &perl_diagpack_schema_2600,
-    &perl_diagpack_schema_2601, &perl_diagpack_schema_2602, &perl_diagpack_schema_2603,
-    &perl_diagpack_schema_2604, &perl_diagpack_schema_2605, &perl_diagpack_schema_2606,
-    &perl_diagpack_schema_2607, &perl_diagpack_schema_2608, &perl_diagpack_schema_2609,
-    &perl_diagpack_schema_2610, &perl_diagpack_schema_2611, &perl_diagpack_schema_2612,
-    &perl_diagpack_schema_2613, &perl_diagpack_schema_2614, &perl_diagpack_schema_2615,
-    &perl_diagpack_schema_2616, &perl_diagpack_schema_2617, &perl_diagpack_schema_2618,
-    &perl_diagpack_schema_2619, &perl_diagpack_schema_2620, &perl_diagpack_schema_2621,
-    &perl_diagpack_schema_2622, &perl_diagpack_schema_2623, &perl_diagpack_schema_2624,
-    &perl_diagpack_schema_2625, &perl_diagpack_schema_2626, &perl_diagpack_schema_2627,
-    &perl_diagpack_schema_2628, &perl_diagpack_schema_2629, &perl_diagpack_schema_2630,
-    &perl_diagpack_schema_2631, &perl_diagpack_schema_2632, &perl_diagpack_schema_2633,
-    &perl_diagpack_schema_2634, &perl_diagpack_schema_2636, &perl_diagpack_schema_2637,
-    &perl_diagpack_schema_2638, &perl_diagpack_schema_2639, &perl_diagpack_schema_2640,
-    &perl_diagpack_schema_2641, &perl_diagpack_schema_2642, &perl_diagpack_schema_2643,
-    &perl_diagpack_schema_2644, &perl_diagpack_schema_2645, &perl_diagpack_schema_2646,
-    &perl_diagpack_schema_2647, &perl_diagpack_schema_2648, &perl_diagpack_schema_2649,
-    &perl_diagpack_schema_2650, &perl_diagpack_schema_2651, &perl_diagpack_schema_2652,
-    &perl_diagpack_schema_2653, &perl_diagpack_schema_2654, &perl_diagpack_schema_2655,
-    &perl_diagpack_schema_2656, &perl_diagpack_schema_2657, &perl_diagpack_schema_2658,
-    &perl_diagpack_schema_2659, &perl_diagpack_schema_2660, &perl_diagpack_schema_2661,
-    &perl_diagpack_schema_2662, &perl_diagpack_schema_2663, &perl_diagpack_schema_2664,
-    &perl_diagpack_schema_2665, &perl_diagpack_schema_2666, &perl_diagpack_schema_2667,
-    &perl_diagpack_schema_2668, &perl_diagpack_schema_2669, &perl_diagpack_schema_2670,
-    &perl_diagpack_schema_2671, &perl_diagpack_schema_2672, &perl_diagpack_schema_2673,
-    &perl_diagpack_schema_2674, &perl_diagpack_schema_2675, &perl_diagpack_schema_2676,
-    &perl_diagpack_schema_2677, &perl_diagpack_schema_2678, &perl_diagpack_schema_2679,
-    &perl_diagpack_schema_2680, &perl_diagpack_schema_2681, &perl_diagpack_schema_2682,
-    &perl_diagpack_schema_2683, &perl_diagpack_schema_2684, &perl_diagpack_schema_2685,
-    &perl_diagpack_schema_2686, &perl_diagpack_schema_2687, &perl_diagpack_schema_2688,
-    &perl_diagpack_schema_2689, &perl_diagpack_schema_2690, &perl_diagpack_schema_2691,
-    &perl_diagpack_schema_2692, &perl_diagpack_schema_2693, &perl_diagpack_schema_2694,
-    &perl_diagpack_schema_2695, &perl_diagpack_schema_2696, &perl_diagpack_schema_2697,
-    &perl_diagpack_schema_2698, &perl_diagpack_schema_2699, &perl_diagpack_schema_2700,
-    &perl_diagpack_schema_2701, &perl_diagpack_schema_2702, &perl_diagpack_schema_2703,
-    &perl_diagpack_schema_2704, &perl_diagpack_schema_2705, &perl_diagpack_schema_2706,
-    &perl_diagpack_schema_2707, &perl_diagpack_schema_2708, &perl_diagpack_schema_2709,
-    &perl_diagpack_schema_2710, &perl_diagpack_schema_2711, &perl_diagpack_schema_2712,
-    &perl_diagpack_schema_2713, &perl_diagpack_schema_2714, &perl_diagpack_schema_2715,
-    &perl_diagpack_schema_2716, &perl_diagpack_schema_2717, &perl_diagpack_schema_2718,
-    &perl_diagpack_schema_2719, &perl_diagpack_schema_2720, &perl_diagpack_schema_2721,
-    &perl_diagpack_schema_2722, &perl_diagpack_schema_2723, &perl_diagpack_schema_2724,
-    &perl_diagpack_schema_2725, &perl_diagpack_schema_2726, &perl_diagpack_schema_2727,
-    &perl_diagpack_schema_2728, &perl_diagpack_schema_2729, &perl_diagpack_schema_2730,
-    &perl_diagpack_schema_2731, &perl_diagpack_schema_2732, &perl_diagpack_schema_2733,
-    &perl_diagpack_schema_2734, &perl_diagpack_schema_2735, &perl_diagpack_schema_2736,
-    &perl_diagpack_schema_2737, &perl_diagpack_schema_2738, &perl_diagpack_schema_2739,
-    &perl_diagpack_schema_2740, &perl_diagpack_schema_2741, &perl_diagpack_schema_2742,
-    &perl_diagpack_schema_2743, &perl_diagpack_schema_2744, &perl_diagpack_schema_2745,
-    &perl_diagpack_schema_2747, &perl_diagpack_schema_2748, &perl_diagpack_schema_2749,
-    &perl_diagpack_schema_2750, &perl_diagpack_schema_2751, &perl_diagpack_schema_2752,
-    &perl_diagpack_schema_2753, &perl_diagpack_schema_2754, &perl_diagpack_schema_2755,
-    &perl_diagpack_schema_2756, &perl_diagpack_schema_2757, &perl_diagpack_schema_2758,
-    &perl_diagpack_schema_2759, &perl_diagpack_schema_2760, &perl_diagpack_schema_2761,
-    &perl_diagpack_schema_2762, &perl_diagpack_schema_2763, &perl_diagpack_schema_2764,
-    &perl_diagpack_schema_2765, &perl_diagpack_schema_2766, &perl_diagpack_schema_2767,
-    &perl_diagpack_schema_2768, &perl_diagpack_schema_2769, &perl_diagpack_schema_2770,
-    &perl_diagpack_schema_2771, &perl_diagpack_schema_2772, &perl_diagpack_schema_2773,
-    &perl_diagpack_schema_2774, &perl_diagpack_schema_2775, &perl_diagpack_schema_2776,
-    &perl_diagpack_schema_2777, &perl_diagpack_schema_2778, &perl_diagpack_schema_2779,
-    &perl_diagpack_schema_2780, &perl_diagpack_schema_2781, &perl_diagpack_schema_2782,
-    &perl_diagpack_schema_2783, &perl_diagpack_schema_2784, &perl_diagpack_schema_2785,
-    &perl_diagpack_schema_2786, &perl_diagpack_schema_2787, &perl_diagpack_schema_2788,
-    &perl_diagpack_schema_2789, &perl_diagpack_schema_2790, &perl_diagpack_schema_2791,
-    &perl_diagpack_schema_2792, &perl_diagpack_schema_2793, &perl_diagpack_schema_2794,
+    &perl_diagpack_schema_2276, &perl_diagpack_schema_2277, &perl_diagpack_schema_2278,
+    &perl_diagpack_schema_2279, &perl_diagpack_schema_2280, &perl_diagpack_schema_2281,
+    &perl_diagpack_schema_2282, &perl_diagpack_schema_2283, &perl_diagpack_schema_2284,
+    &perl_diagpack_schema_2286, &perl_diagpack_schema_2287, &perl_diagpack_schema_2288,
+    &perl_diagpack_schema_2289, &perl_diagpack_schema_2290, &perl_diagpack_schema_2291,
+    &perl_diagpack_schema_2292, &perl_diagpack_schema_2293, &perl_diagpack_schema_2294,
+    &perl_diagpack_schema_2295, &perl_diagpack_schema_2296, &perl_diagpack_schema_2297,
+    &perl_diagpack_schema_2298, &perl_diagpack_schema_2299, &perl_diagpack_schema_2300,
+    &perl_diagpack_schema_2301, &perl_diagpack_schema_2302, &perl_diagpack_schema_2303,
+    &perl_diagpack_schema_2304, &perl_diagpack_schema_2306, &perl_diagpack_schema_2307,
+    &perl_diagpack_schema_2309, &perl_diagpack_schema_2310, &perl_diagpack_schema_2311,
+    &perl_diagpack_schema_2314, &perl_diagpack_schema_2315, &perl_diagpack_schema_2316,
+    &perl_diagpack_schema_2317, &perl_diagpack_schema_2318, &perl_diagpack_schema_2319,
+    &perl_diagpack_schema_2320, &perl_diagpack_schema_2321, &perl_diagpack_schema_2322,
+    &perl_diagpack_schema_2323, &perl_diagpack_schema_2324, &perl_diagpack_schema_2325,
+    &perl_diagpack_schema_2326, &perl_diagpack_schema_2327, &perl_diagpack_schema_2328,
+    &perl_diagpack_schema_2329, &perl_diagpack_schema_2330, &perl_diagpack_schema_2331,
+    &perl_diagpack_schema_2332, &perl_diagpack_schema_2333, &perl_diagpack_schema_2334,
+    &perl_diagpack_schema_2335, &perl_diagpack_schema_2336, &perl_diagpack_schema_2337,
+    &perl_diagpack_schema_2338, &perl_diagpack_schema_2339, &perl_diagpack_schema_2340,
+    &perl_diagpack_schema_2341, &perl_diagpack_schema_2342, &perl_diagpack_schema_2343,
+    &perl_diagpack_schema_2344, &perl_diagpack_schema_2345, &perl_diagpack_schema_2346,
+    &perl_diagpack_schema_2347, &perl_diagpack_schema_2348, &perl_diagpack_schema_2349,
+    &perl_diagpack_schema_2350, &perl_diagpack_schema_2351, &perl_diagpack_schema_2352,
+    &perl_diagpack_schema_2353, &perl_diagpack_schema_2354, &perl_diagpack_schema_2355,
+    &perl_diagpack_schema_2356, &perl_diagpack_schema_2357, &perl_diagpack_schema_2358,
+    &perl_diagpack_schema_2359, &perl_diagpack_schema_2360, &perl_diagpack_schema_2361,
+    &perl_diagpack_schema_2362, &perl_diagpack_schema_2363, &perl_diagpack_schema_2364,
+    &perl_diagpack_schema_2365, &perl_diagpack_schema_2366, &perl_diagpack_schema_2367,
+    &perl_diagpack_schema_2368, &perl_diagpack_schema_2369, &perl_diagpack_schema_2370,
+    &perl_diagpack_schema_2371, &perl_diagpack_schema_2372, &perl_diagpack_schema_2373,
+    &perl_diagpack_schema_2374, &perl_diagpack_schema_2375, &perl_diagpack_schema_2376,
+    &perl_diagpack_schema_2377, &perl_diagpack_schema_2378, &perl_diagpack_schema_2379,
+    &perl_diagpack_schema_2380, &perl_diagpack_schema_2381, &perl_diagpack_schema_2382,
+    &perl_diagpack_schema_2383, &perl_diagpack_schema_2384, &perl_diagpack_schema_2385,
+    &perl_diagpack_schema_2386, &perl_diagpack_schema_2387, &perl_diagpack_schema_2388,
+    &perl_diagpack_schema_2389, &perl_diagpack_schema_2390, &perl_diagpack_schema_2392,
+    &perl_diagpack_schema_2393, &perl_diagpack_schema_2394, &perl_diagpack_schema_2395,
+    &perl_diagpack_schema_2396, &perl_diagpack_schema_2397, &perl_diagpack_schema_2398,
+    &perl_diagpack_schema_2399, &perl_diagpack_schema_2400, &perl_diagpack_schema_2401,
+    &perl_diagpack_schema_2402, &perl_diagpack_schema_2403, &perl_diagpack_schema_2404,
+    &perl_diagpack_schema_2405, &perl_diagpack_schema_2406, &perl_diagpack_schema_2407,
+    &perl_diagpack_schema_2408, &perl_diagpack_schema_2409, &perl_diagpack_schema_2410,
+    &perl_diagpack_schema_2411, &perl_diagpack_schema_2412, &perl_diagpack_schema_2413,
+    &perl_diagpack_schema_2414, &perl_diagpack_schema_2415, &perl_diagpack_schema_2416,
+    &perl_diagpack_schema_2417, &perl_diagpack_schema_2418, &perl_diagpack_schema_2419,
+    &perl_diagpack_schema_2420, &perl_diagpack_schema_2421, &perl_diagpack_schema_2422,
+    &perl_diagpack_schema_2423, &perl_diagpack_schema_2424, &perl_diagpack_schema_2425,
+    &perl_diagpack_schema_2426, &perl_diagpack_schema_2427, &perl_diagpack_schema_2428,
+    &perl_diagpack_schema_2429, &perl_diagpack_schema_2430, &perl_diagpack_schema_2431,
+    &perl_diagpack_schema_2432, &perl_diagpack_schema_2433, &perl_diagpack_schema_2434,
+    &perl_diagpack_schema_2435, &perl_diagpack_schema_2436, &perl_diagpack_schema_2437,
+    &perl_diagpack_schema_2438, &perl_diagpack_schema_2439, &perl_diagpack_schema_2440,
+    &perl_diagpack_schema_2441, &perl_diagpack_schema_2442, &perl_diagpack_schema_2443,
+    &perl_diagpack_schema_2444, &perl_diagpack_schema_2445, &perl_diagpack_schema_2446,
+    &perl_diagpack_schema_2447, &perl_diagpack_schema_2448, &perl_diagpack_schema_2449,
+    &perl_diagpack_schema_2450, &perl_diagpack_schema_2451, &perl_diagpack_schema_2452,
+    &perl_diagpack_schema_2453, &perl_diagpack_schema_2454, &perl_diagpack_schema_2455,
+    &perl_diagpack_schema_2456, &perl_diagpack_schema_2457, &perl_diagpack_schema_2458,
+    &perl_diagpack_schema_2459, &perl_diagpack_schema_2460, &perl_diagpack_schema_2462,
+    &perl_diagpack_schema_2463, &perl_diagpack_schema_2464, &perl_diagpack_schema_2466,
+    &perl_diagpack_schema_2467, &perl_diagpack_schema_2468, &perl_diagpack_schema_2469,
+    &perl_diagpack_schema_2470, &perl_diagpack_schema_2471, &perl_diagpack_schema_2472,
+    &perl_diagpack_schema_2473, &perl_diagpack_schema_2474, &perl_diagpack_schema_2475,
+    &perl_diagpack_schema_2476, &perl_diagpack_schema_2477, &perl_diagpack_schema_2478,
+    &perl_diagpack_schema_2479, &perl_diagpack_schema_2480, &perl_diagpack_schema_2481,
+    &perl_diagpack_schema_2482, &perl_diagpack_schema_2483, &perl_diagpack_schema_2484,
+    &perl_diagpack_schema_2485, &perl_diagpack_schema_2486, &perl_diagpack_schema_2487,
+    &perl_diagpack_schema_2488, &perl_diagpack_schema_2489, &perl_diagpack_schema_2490,
+    &perl_diagpack_schema_2491, &perl_diagpack_schema_2492, &perl_diagpack_schema_2493,
+    &perl_diagpack_schema_2494, &perl_diagpack_schema_2495, &perl_diagpack_schema_2496,
+    &perl_diagpack_schema_2497, &perl_diagpack_schema_2498, &perl_diagpack_schema_2499,
+    &perl_diagpack_schema_2500, &perl_diagpack_schema_2501, &perl_diagpack_schema_2502,
+    &perl_diagpack_schema_2503, &perl_diagpack_schema_2504, &perl_diagpack_schema_2505,
+    &perl_diagpack_schema_2507, &perl_diagpack_schema_2508, &perl_diagpack_schema_2509,
+    &perl_diagpack_schema_2510, &perl_diagpack_schema_2511, &perl_diagpack_schema_2512,
+    &perl_diagpack_schema_2513, &perl_diagpack_schema_2514, &perl_diagpack_schema_2515,
+    &perl_diagpack_schema_2516, &perl_diagpack_schema_2517, &perl_diagpack_schema_2518,
+    &perl_diagpack_schema_2519, &perl_diagpack_schema_2520, &perl_diagpack_schema_2521,
+    &perl_diagpack_schema_2522, &perl_diagpack_schema_2523, &perl_diagpack_schema_2524,
+    &perl_diagpack_schema_2525, &perl_diagpack_schema_2526, &perl_diagpack_schema_2527,
+    &perl_diagpack_schema_2528, &perl_diagpack_schema_2529, &perl_diagpack_schema_2530,
+    &perl_diagpack_schema_2531, &perl_diagpack_schema_2532, &perl_diagpack_schema_2533,
+    &perl_diagpack_schema_2534, &perl_diagpack_schema_2535, &perl_diagpack_schema_2536,
+    &perl_diagpack_schema_2537, &perl_diagpack_schema_2538, &perl_diagpack_schema_2539,
+    &perl_diagpack_schema_2540, &perl_diagpack_schema_2541, &perl_diagpack_schema_2542,
+    &perl_diagpack_schema_2543, &perl_diagpack_schema_2544, &perl_diagpack_schema_2545,
+    &perl_diagpack_schema_2546, &perl_diagpack_schema_2547, &perl_diagpack_schema_2548,
+    &perl_diagpack_schema_2549, &perl_diagpack_schema_2550, &perl_diagpack_schema_2551,
+    &perl_diagpack_schema_2552, &perl_diagpack_schema_2553, &perl_diagpack_schema_2554,
+    &perl_diagpack_schema_2555, &perl_diagpack_schema_2556, &perl_diagpack_schema_2557,
+    &perl_diagpack_schema_2558, &perl_diagpack_schema_2559, &perl_diagpack_schema_2560,
+    &perl_diagpack_schema_2561, &perl_diagpack_schema_2562, &perl_diagpack_schema_2563,
+    &perl_diagpack_schema_2564, &perl_diagpack_schema_2565, &perl_diagpack_schema_2566,
+    &perl_diagpack_schema_2567, &perl_diagpack_schema_2568, &perl_diagpack_schema_2569,
+    &perl_diagpack_schema_2570, &perl_diagpack_schema_2571, &perl_diagpack_schema_2572,
+    &perl_diagpack_schema_2573, &perl_diagpack_schema_2574, &perl_diagpack_schema_2575,
+    &perl_diagpack_schema_2576, &perl_diagpack_schema_2577, &perl_diagpack_schema_2578,
+    &perl_diagpack_schema_2579, &perl_diagpack_schema_2580, &perl_diagpack_schema_2581,
+    &perl_diagpack_schema_2582, &perl_diagpack_schema_2583, &perl_diagpack_schema_2584,
+    &perl_diagpack_schema_2585, &perl_diagpack_schema_2586, &perl_diagpack_schema_2587,
+    &perl_diagpack_schema_2588, &perl_diagpack_schema_2589, &perl_diagpack_schema_2590,
+    &perl_diagpack_schema_2591, &perl_diagpack_schema_2592, &perl_diagpack_schema_2593,
+    &perl_diagpack_schema_2594, &perl_diagpack_schema_2595, &perl_diagpack_schema_2596,
+    &perl_diagpack_schema_2597, &perl_diagpack_schema_2598, &perl_diagpack_schema_2599,
+    &perl_diagpack_schema_2600, &perl_diagpack_schema_2601, &perl_diagpack_schema_2602,
+    &perl_diagpack_schema_2603, &perl_diagpack_schema_2604, &perl_diagpack_schema_2605,
+    &perl_diagpack_schema_2606, &perl_diagpack_schema_2607, &perl_diagpack_schema_2608,
+    &perl_diagpack_schema_2609, &perl_diagpack_schema_2610, &perl_diagpack_schema_2611,
+    &perl_diagpack_schema_2612, &perl_diagpack_schema_2613, &perl_diagpack_schema_2614,
+    &perl_diagpack_schema_2615, &perl_diagpack_schema_2616, &perl_diagpack_schema_2617,
+    &perl_diagpack_schema_2618, &perl_diagpack_schema_2619, &perl_diagpack_schema_2620,
+    &perl_diagpack_schema_2621, &perl_diagpack_schema_2622, &perl_diagpack_schema_2623,
+    &perl_diagpack_schema_2624, &perl_diagpack_schema_2625, &perl_diagpack_schema_2626,
+    &perl_diagpack_schema_2627, &perl_diagpack_schema_2628, &perl_diagpack_schema_2629,
+    &perl_diagpack_schema_2630, &perl_diagpack_schema_2631, &perl_diagpack_schema_2632,
+    &perl_diagpack_schema_2633, &perl_diagpack_schema_2634, &perl_diagpack_schema_2636,
+    &perl_diagpack_schema_2637, &perl_diagpack_schema_2638, &perl_diagpack_schema_2639,
+    &perl_diagpack_schema_2640, &perl_diagpack_schema_2641, &perl_diagpack_schema_2642,
+    &perl_diagpack_schema_2643, &perl_diagpack_schema_2644, &perl_diagpack_schema_2645,
+    &perl_diagpack_schema_2646, &perl_diagpack_schema_2647, &perl_diagpack_schema_2648,
+    &perl_diagpack_schema_2649, &perl_diagpack_schema_2650, &perl_diagpack_schema_2651,
+    &perl_diagpack_schema_2652, &perl_diagpack_schema_2653, &perl_diagpack_schema_2654,
+    &perl_diagpack_schema_2655, &perl_diagpack_schema_2656, &perl_diagpack_schema_2657,
+    &perl_diagpack_schema_2658, &perl_diagpack_schema_2659, &perl_diagpack_schema_2660,
+    &perl_diagpack_schema_2661, &perl_diagpack_schema_2662, &perl_diagpack_schema_2663,
+    &perl_diagpack_schema_2664, &perl_diagpack_schema_2665, &perl_diagpack_schema_2666,
+    &perl_diagpack_schema_2667, &perl_diagpack_schema_2668, &perl_diagpack_schema_2669,
+    &perl_diagpack_schema_2670, &perl_diagpack_schema_2671, &perl_diagpack_schema_2672,
+    &perl_diagpack_schema_2673, &perl_diagpack_schema_2674, &perl_diagpack_schema_2675,
+    &perl_diagpack_schema_2676, &perl_diagpack_schema_2677, &perl_diagpack_schema_2678,
+    &perl_diagpack_schema_2679, &perl_diagpack_schema_2680, &perl_diagpack_schema_2681,
+    &perl_diagpack_schema_2682, &perl_diagpack_schema_2683, &perl_diagpack_schema_2684,
+    &perl_diagpack_schema_2685, &perl_diagpack_schema_2686, &perl_diagpack_schema_2687,
+    &perl_diagpack_schema_2688, &perl_diagpack_schema_2689, &perl_diagpack_schema_2690,
+    &perl_diagpack_schema_2691, &perl_diagpack_schema_2692, &perl_diagpack_schema_2693,
+    &perl_diagpack_schema_2694, &perl_diagpack_schema_2695, &perl_diagpack_schema_2696,
+    &perl_diagpack_schema_2697, &perl_diagpack_schema_2698, &perl_diagpack_schema_2699,
+    &perl_diagpack_schema_2700, &perl_diagpack_schema_2701, &perl_diagpack_schema_2702,
+    &perl_diagpack_schema_2703, &perl_diagpack_schema_2704, &perl_diagpack_schema_2705,
+    &perl_diagpack_schema_2706, &perl_diagpack_schema_2707, &perl_diagpack_schema_2708,
+    &perl_diagpack_schema_2709, &perl_diagpack_schema_2710, &perl_diagpack_schema_2711,
+    &perl_diagpack_schema_2712, &perl_diagpack_schema_2713, &perl_diagpack_schema_2714,
+    &perl_diagpack_schema_2715, &perl_diagpack_schema_2716, &perl_diagpack_schema_2717,
+    &perl_diagpack_schema_2718, &perl_diagpack_schema_2719, &perl_diagpack_schema_2720,
+    &perl_diagpack_schema_2721, &perl_diagpack_schema_2722, &perl_diagpack_schema_2723,
+    &perl_diagpack_schema_2724, &perl_diagpack_schema_2725, &perl_diagpack_schema_2726,
+    &perl_diagpack_schema_2727, &perl_diagpack_schema_2728, &perl_diagpack_schema_2729,
+    &perl_diagpack_schema_2730, &perl_diagpack_schema_2731, &perl_diagpack_schema_2732,
+    &perl_diagpack_schema_2733, &perl_diagpack_schema_2734, &perl_diagpack_schema_2735,
+    &perl_diagpack_schema_2736, &perl_diagpack_schema_2737, &perl_diagpack_schema_2738,
+    &perl_diagpack_schema_2739, &perl_diagpack_schema_2740, &perl_diagpack_schema_2741,
+    &perl_diagpack_schema_2742, &perl_diagpack_schema_2743, &perl_diagpack_schema_2744,
+    &perl_diagpack_schema_2745, &perl_diagpack_schema_2747, &perl_diagpack_schema_2748,
+    &perl_diagpack_schema_2749, &perl_diagpack_schema_2750, &perl_diagpack_schema_2751,
+    &perl_diagpack_schema_2752, &perl_diagpack_schema_2753, &perl_diagpack_schema_2754,
+    &perl_diagpack_schema_2755, &perl_diagpack_schema_2756, &perl_diagpack_schema_2757,
+    &perl_diagpack_schema_2758, &perl_diagpack_schema_2759, &perl_diagpack_schema_2760,
+    &perl_diagpack_schema_2761, &perl_diagpack_schema_2762, &perl_diagpack_schema_2763,
+    &perl_diagpack_schema_2764, &perl_diagpack_schema_2765, &perl_diagpack_schema_2766,
+    &perl_diagpack_schema_2767, &perl_diagpack_schema_2768, &perl_diagpack_schema_2769,
+    &perl_diagpack_schema_2770, &perl_diagpack_schema_2771, &perl_diagpack_schema_2772,
+    &perl_diagpack_schema_2773, &perl_diagpack_schema_2774, &perl_diagpack_schema_2775,
+    &perl_diagpack_schema_2776, &perl_diagpack_schema_2777, &perl_diagpack_schema_2778,
+    &perl_diagpack_schema_2779, &perl_diagpack_schema_2780, &perl_diagpack_schema_2781,
+    &perl_diagpack_schema_2782, &perl_diagpack_schema_2783, &perl_diagpack_schema_2784,
+    &perl_diagpack_schema_2785, &perl_diagpack_schema_2786, &perl_diagpack_schema_2787,
+    &perl_diagpack_schema_2788, &perl_diagpack_schema_2789, &perl_diagpack_schema_2790,
+    &perl_diagpack_schema_2791, &perl_diagpack_schema_2792, &perl_diagpack_schema_2793,
+    &perl_diagpack_schema_2794,
 };
 
 static const perl_diag_selector_domain_t perl_diag_selector_domains[] = {

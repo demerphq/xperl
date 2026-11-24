@@ -884,10 +884,6 @@ enum perl_diag_index {
     perl_diag_error_syntax_declaration_catch_variable_missing_idx,
     perl_diag_error_syntax_declaration_declarator_repeated_idx,
     perl_diag_error_syntax_declaration_lexical_name_qualified_idx,
-    perl_diag_error_syntax_declaration_namespace_alias_duplicate_idx,
-    perl_diag_error_syntax_declaration_namespace_alias_name_invalid_idx,
-    perl_diag_error_syntax_declaration_namespace_alias_requires_use_idx,
-    perl_diag_error_syntax_declaration_namespace_separator_malformed_idx,
     perl_diag_error_syntax_declaration_our_name_qualified_idx,
     perl_diag_error_syntax_declaration_special_control_name_forbidden_idx,
     perl_diag_error_syntax_declaration_special_name_forbidden_idx,
@@ -974,10 +970,8 @@ enum perl_diag_index {
     perl_diag_error_syntax_identifier_character_invalid_idx,
     perl_diag_error_syntax_identifier_core_keyword_unknown_idx,
     perl_diag_error_syntax_identifier_length_exceeded_idx,
-    perl_diag_error_syntax_identifier_namespace_length_exceeded_idx,
     perl_diag_error_syntax_identifier_numeric_name_leading_zero_idx,
     perl_diag_error_syntax_identifier_qualified_component_missing_idx,
-    perl_diag_error_syntax_identifier_resolved_variable_length_exceeded_idx,
     perl_diag_error_syntax_identifier_scalar_name_incomplete_idx,
     perl_diag_error_syntax_invalid_idx,
     perl_diag_error_syntax_multisub_mixed_declaration_idx,
@@ -1275,8 +1269,6 @@ enum perl_diag_index {
     perl_diag_warning_experimental_keyword_all_block_operator_used_idx,
     perl_diag_warning_experimental_keyword_any_block_operator_used_idx,
     perl_diag_warning_experimental_multisub_declaration_used_idx,
-    perl_diag_warning_experimental_namespaces_current_namespace_constant_used_idx,
-    perl_diag_warning_experimental_namespaces_namespace_declaration_used_idx,
     perl_diag_warning_experimental_private_use_property_override_applied_idx,
     perl_diag_warning_experimental_refaliasing_reference_aliasing_used_idx,
     perl_diag_warning_experimental_signature_named_parameters_parameter_declared_idx,
@@ -2490,10 +2482,6 @@ enum perl_diag_number {
     perl_diag_error_syntax_declaration_catch_variable_missing_number                           = 1160,
     perl_diag_error_syntax_declaration_declarator_repeated_number                              = 1416,
     perl_diag_error_syntax_declaration_lexical_name_qualified_number                           = 2500,
-    perl_diag_error_syntax_declaration_namespace_alias_duplicate_number                        = 1205,
-    perl_diag_error_syntax_declaration_namespace_alias_name_invalid_number                     = 1244,
-    perl_diag_error_syntax_declaration_namespace_alias_requires_use_number                     = 1163,
-    perl_diag_error_syntax_declaration_namespace_separator_malformed_number                    = 1024,
     perl_diag_error_syntax_declaration_our_name_qualified_number                               = 1414,
     perl_diag_error_syntax_declaration_special_control_name_forbidden_number                   = 1426,
     perl_diag_error_syntax_declaration_special_name_forbidden_number                           = 1427,
@@ -2580,10 +2568,8 @@ enum perl_diag_number {
     perl_diag_error_syntax_identifier_character_invalid_number                                 = 2605,
     perl_diag_error_syntax_identifier_core_keyword_unknown_number                              = 1780,
     perl_diag_error_syntax_identifier_length_exceeded_number                                   = 1070,
-    perl_diag_error_syntax_identifier_namespace_length_exceeded_number                         = 1078,
     perl_diag_error_syntax_identifier_numeric_name_leading_zero_number                         = 2606,
     perl_diag_error_syntax_identifier_qualified_component_missing_number                       = 1779,
-    perl_diag_error_syntax_identifier_resolved_variable_length_exceeded_number                 = 1115,
     perl_diag_error_syntax_identifier_scalar_name_incomplete_number                            = 1151,
     perl_diag_error_syntax_invalid_number                                                      = 1164,
     perl_diag_error_syntax_multisub_mixed_declaration_number                                   = 2787,
@@ -2881,8 +2867,6 @@ enum perl_diag_number {
     perl_diag_warning_experimental_keyword_all_block_operator_used_number                      = 2278,
     perl_diag_warning_experimental_keyword_any_block_operator_used_number                      = 2279,
     perl_diag_warning_experimental_multisub_declaration_used_number                            = 2790,
-    perl_diag_warning_experimental_namespaces_current_namespace_constant_used_number           = 2275,
-    perl_diag_warning_experimental_namespaces_namespace_declaration_used_number                = 2285,
     perl_diag_warning_experimental_private_use_property_override_applied_number                = 2233,
     perl_diag_warning_experimental_refaliasing_reference_aliasing_used_number                  = 2120,
     perl_diag_warning_experimental_signature_named_parameters_parameter_declared_number        = 2158,
@@ -5068,7 +5052,7 @@ enum perl_diag_selector_domain_id {
 
 
 #if defined(PERL_CORE) || defined(PERL_EXT_RE_BUILD)
-#define PERL_DIAG_METADATA_COUNT 1602
+#define PERL_DIAG_METADATA_COUNT 1594
 
 #endif
 
@@ -5211,13 +5195,6 @@ enum perl_diag_selector_domain_id {
 #define PERL_THROW_ERROR_VALUE_HASH_KEY_LENGTH_OUT_OF_RANGE() \
     Perl_throw_croak_0_1006( \
         aTHX_ perl_diag_error_value_hash_key_length_out_of_range_idx, \
-        __FILE__, \
-        __LINE__ \
-    )
-
-#define PERL_THROW_ERROR_SYNTAX_DECLARATION_NAMESPACE_SEPARATOR_MALFORMED() \
-    Perl_throw_croak_0_1006( \
-        aTHX_ perl_diag_error_syntax_declaration_namespace_separator_malformed_idx, \
         __FILE__, \
         __LINE__ \
     )
@@ -5586,13 +5563,6 @@ enum perl_diag_selector_domain_id {
         __LINE__ \
     )
 
-#define PERL_THROW_ERROR_SYNTAX_IDENTIFIER_NAMESPACE_LENGTH_EXCEEDED() \
-    Perl_throw_croak_0_1006( \
-        aTHX_ perl_diag_error_syntax_identifier_namespace_length_exceeded_idx, \
-        __FILE__, \
-        __LINE__ \
-    )
-
 #define PERL_THROW_ERROR_PACK_INPUT_NEGATIVE_LENGTH_COUNT() \
     Perl_throw_croak_0_1006( \
         aTHX_ perl_diag_error_pack_input_negative_length_count_idx, \
@@ -5827,13 +5797,6 @@ enum perl_diag_selector_domain_id {
 #define PERL_THROW_ERROR_INTERNAL_ITERATOR_FREED_VALUE() \
     Perl_throw_croak_0_1006( \
         aTHX_ perl_diag_error_internal_iterator_freed_value_idx, \
-        __FILE__, \
-        __LINE__ \
-    )
-
-#define PERL_THROW_ERROR_SYNTAX_IDENTIFIER_RESOLVED_VARIABLE_LENGTH_EXCEEDED() \
-    Perl_throw_croak_0_1006( \
-        aTHX_ perl_diag_error_syntax_identifier_resolved_variable_length_exceeded_idx, \
         __FILE__, \
         __LINE__ \
     )
@@ -6145,11 +6108,6 @@ enum perl_diag_selector_domain_id {
     } STMT_END; \
     } STMT_END; \
         YYERROR; \
-    } STMT_END
-
-#define PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_REQUIRES_USE() \
-    STMT_START { \
-        Perl_yyerror_diag_pvn_params(aTHX_ perl_diag_error_syntax_declaration_namespace_alias_requires_use_idx, NULL, 0, 0, Perl_diag_source_params(NULL, __FILE__, __LINE__)); \
     } STMT_END
 
 #define PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_INVALID() \
@@ -6540,15 +6498,6 @@ enum perl_diag_selector_domain_id {
         ma_arg1 \
     )
 
-#define PERL_THROW_ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_DUPLICATE(ma_arg1) \
-    Perl_throw_croak_1_1166( \
-        aTHX_ perl_diag_error_syntax_declaration_namespace_alias_duplicate_idx, \
-        __FILE__, \
-        __LINE__, \
-        "%s", \
-        (const char *)(ma_arg1) \
-    )
-
 #define PERL_THROW_ERROR_LEXICAL_EXPORT_REFERENCE_TYPE_MISMATCH(ma_reference_type) \
     Perl_throw_croak_1_1172( \
         aTHX_ perl_diag_error_lexical_export_reference_type_mismatch_idx, \
@@ -6882,13 +6831,6 @@ enum perl_diag_selector_domain_id {
 #define PERL_THROW_ERROR_PACK_BOUNDS_UNPACK_BACKUP_OUTSIDE_STRING() \
     Perl_throw_croak_0_1006( \
         aTHX_ perl_diag_error_pack_bounds_unpack_backup_outside_string_idx, \
-        __FILE__, \
-        __LINE__ \
-    )
-
-#define PERL_THROW_ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_NAME_INVALID() \
-    Perl_throw_croak_0_1006( \
-        aTHX_ perl_diag_error_syntax_declaration_namespace_alias_name_invalid_idx, \
         __FILE__, \
         __LINE__ \
     )
@@ -15108,14 +15050,6 @@ enum perl_diag_selector_domain_id {
         packWARN(WARN_BAREWORD) \
     )
 
-#define PERL_WARN_WARNING_EXPERIMENTAL_NAMESPACES_CURRENT_NAMESPACE_CONSTANT_USED() \
-    Perl_throw_ck_warner_d_0_2069( \
-        aTHX_ perl_diag_warning_experimental_namespaces_current_namespace_constant_used_idx, \
-        __FILE__, \
-        __LINE__, \
-        packWARN(WARN_EXPERIMENTAL__NAMESPACES) \
-    )
-
 #define PERL_WARN_WARNING_EXPERIMENTAL_CLASS_CURRENT_CLASS_CONSTANT_USED() \
     Perl_throw_ck_warner_d_0_2069( \
         aTHX_ perl_diag_warning_experimental_class_current_class_constant_used_idx, \
@@ -15186,14 +15120,6 @@ enum perl_diag_selector_domain_id {
         __FILE__, \
         __LINE__, \
         packWARN(WARN_EXPERIMENTAL__TRY) \
-    )
-
-#define PERL_WARN_WARNING_EXPERIMENTAL_NAMESPACES_NAMESPACE_DECLARATION_USED() \
-    Perl_throw_ck_warner_d_0_2069( \
-        aTHX_ perl_diag_warning_experimental_namespaces_namespace_declaration_used_idx, \
-        __FILE__, \
-        __LINE__, \
-        packWARN(WARN_EXPERIMENTAL__NAMESPACES) \
     )
 
 #define PERL_WARN_WARNING_EXPERIMENTAL_EQU_UNDEF_AWARE_STRING_INEQUALITY_USED() \
@@ -20954,7 +20880,6 @@ enum perl_diag_selector_domain_id {
 /* PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_DECLARATION_CATCH_VARIABLE_MISSING => ERROR_SYNTAX_DECLARATION_CATCH_VARIABLE_MISSING */
 /* PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_DECLARATION_DECLARATOR_REPEATED => ERROR_SYNTAX_DECLARATION_DECLARATOR_REPEATED */
 /* PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_DECLARATION_LEXICAL_NAME_QUALIFIED => ERROR_SYNTAX_DECLARATION_LEXICAL_NAME_QUALIFIED */
-/* PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_REQUIRES_USE => ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_REQUIRES_USE */
 /* PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_DECLARATION_OUR_NAME_QUALIFIED => ERROR_SYNTAX_DECLARATION_OUR_NAME_QUALIFIED */
 /* PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_DECLARATION_SPECIAL_CONTROL_NAME_FORBIDDEN => ERROR_SYNTAX_DECLARATION_SPECIAL_CONTROL_NAME_FORBIDDEN */
 /* PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_DECLARATION_SPECIAL_NAME_FORBIDDEN => ERROR_SYNTAX_DECLARATION_SPECIAL_NAME_FORBIDDEN */
@@ -22085,9 +22010,6 @@ enum perl_diag_selector_domain_id {
 /* PERL_THROW_ERROR_SYNTAX_CONTAINER_EXISTS_SUBROUTINE_NAME_REQUIRED => ERROR_SYNTAX_CONTAINER_EXISTS_SUBROUTINE_NAME_REQUIRED */
 /* PERL_THROW_ERROR_SYNTAX_DECLARATION_ATTRIBUTE_EMPTY_LIST_ASSIGNMENT_FORBIDDEN => ERROR_SYNTAX_DECLARATION_ATTRIBUTE_EMPTY_LIST_ASSIGNMENT_FORBIDDEN */
 /* PERL_THROW_ERROR_SYNTAX_DECLARATION_ATTRIBUTE_PARAMETER_UNTERMINATED => ERROR_SYNTAX_DECLARATION_ATTRIBUTE_PARAMETER_UNTERMINATED */
-/* PERL_THROW_ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_DUPLICATE => ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_DUPLICATE */
-/* PERL_THROW_ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_NAME_INVALID => ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_NAME_INVALID */
-/* PERL_THROW_ERROR_SYNTAX_DECLARATION_NAMESPACE_SEPARATOR_MALFORMED => ERROR_SYNTAX_DECLARATION_NAMESPACE_SEPARATOR_MALFORMED */
 /* PERL_THROW_ERROR_SYNTAX_DECLARATION_SUBROUTINE_CONSTANT_CAPTURE_MODIFIABLE => ERROR_SYNTAX_DECLARATION_SUBROUTINE_CONSTANT_CAPTURE_MODIFIABLE */
 /* PERL_THROW_ERROR_SYNTAX_DECLARATION_SUBROUTINE_CONSTANT_MAGICAL_LIST_UNSUPPORTED => ERROR_SYNTAX_DECLARATION_SUBROUTINE_CONSTANT_MAGICAL_LIST_UNSUPPORTED */
 /* PERL_THROW_ERROR_SYNTAX_DECLARATION_SUBROUTINE_LEXICAL_NAME_MISSING => ERROR_SYNTAX_DECLARATION_SUBROUTINE_LEXICAL_NAME_MISSING */
@@ -22143,10 +22065,8 @@ enum perl_diag_selector_domain_id {
 /* PERL_THROW_ERROR_SYNTAX_IDENTIFIER_CHARACTER_INVALID => ERROR_SYNTAX_IDENTIFIER_CHARACTER_INVALID */
 /* PERL_THROW_ERROR_SYNTAX_IDENTIFIER_CORE_KEYWORD_UNKNOWN => ERROR_SYNTAX_IDENTIFIER_CORE_KEYWORD_UNKNOWN */
 /* PERL_THROW_ERROR_SYNTAX_IDENTIFIER_LENGTH_EXCEEDED => ERROR_SYNTAX_IDENTIFIER_LENGTH_EXCEEDED */
-/* PERL_THROW_ERROR_SYNTAX_IDENTIFIER_NAMESPACE_LENGTH_EXCEEDED => ERROR_SYNTAX_IDENTIFIER_NAMESPACE_LENGTH_EXCEEDED */
 /* PERL_THROW_ERROR_SYNTAX_IDENTIFIER_NUMERIC_NAME_LEADING_ZERO => ERROR_SYNTAX_IDENTIFIER_NUMERIC_NAME_LEADING_ZERO */
 /* PERL_THROW_ERROR_SYNTAX_IDENTIFIER_QUALIFIED_COMPONENT_MISSING => ERROR_SYNTAX_IDENTIFIER_QUALIFIED_COMPONENT_MISSING */
-/* PERL_THROW_ERROR_SYNTAX_IDENTIFIER_RESOLVED_VARIABLE_LENGTH_EXCEEDED => ERROR_SYNTAX_IDENTIFIER_RESOLVED_VARIABLE_LENGTH_EXCEEDED */
 /* PERL_THROW_ERROR_SYNTAX_MULTISUB_MIXED_DECLARATION => ERROR_SYNTAX_MULTISUB_MIXED_DECLARATION */
 /* PERL_THROW_ERROR_SYNTAX_MULTISUB_NAMED_DEFINITION_REQUIRED => ERROR_SYNTAX_MULTISUB_NAMED_DEFINITION_REQUIRED */
 /* PERL_THROW_ERROR_SYNTAX_MULTISUB_NAME_REPLACED => ERROR_SYNTAX_MULTISUB_NAME_REPLACED */
@@ -22432,8 +22352,6 @@ enum perl_diag_selector_domain_id {
 /* PERL_WARN_WARNING_EXPERIMENTAL_KEYWORD_ALL_BLOCK_OPERATOR_USED => WARNING_EXPERIMENTAL_KEYWORD_ALL_BLOCK_OPERATOR_USED */
 /* PERL_WARN_WARNING_EXPERIMENTAL_KEYWORD_ANY_BLOCK_OPERATOR_USED => WARNING_EXPERIMENTAL_KEYWORD_ANY_BLOCK_OPERATOR_USED */
 /* PERL_WARN_WARNING_EXPERIMENTAL_MULTISUB_DECLARATION_USED => WARNING_EXPERIMENTAL_MULTISUB_DECLARATION_USED */
-/* PERL_WARN_WARNING_EXPERIMENTAL_NAMESPACES_CURRENT_NAMESPACE_CONSTANT_USED => WARNING_EXPERIMENTAL_NAMESPACES_CURRENT_NAMESPACE_CONSTANT_USED */
-/* PERL_WARN_WARNING_EXPERIMENTAL_NAMESPACES_NAMESPACE_DECLARATION_USED => WARNING_EXPERIMENTAL_NAMESPACES_NAMESPACE_DECLARATION_USED */
 /* PERL_WARN_WARNING_EXPERIMENTAL_PRIVATE_USE_PROPERTY_OVERRIDE_APPLIED => WARNING_EXPERIMENTAL_PRIVATE_USE_PROPERTY_OVERRIDE_APPLIED */
 /* PERL_WARN_WARNING_EXPERIMENTAL_REFALIASING_REFERENCE_ALIASING_USED => WARNING_EXPERIMENTAL_REFALIASING_REFERENCE_ALIASING_USED */
 /* PERL_WARN_WARNING_EXPERIMENTAL_SIGNATURE_NAMED_PARAMETERS_PARAMETER_DECLARED => WARNING_EXPERIMENTAL_SIGNATURE_NAMED_PARAMETERS_PARAMETER_DECLARED */
@@ -22785,7 +22703,7 @@ enum perl_diag_selector_domain_id {
 #endif /* PERL_DIAG_H */
 
 /* Generated from:
- * aad98cfc9ccb7a0732762e6f37a18f84b65f9f229f53ce5d1d1100947e112887 diag_conf.pl
+ * 6126e5e01c2af37cb757eb47535523b4eec06b95e3af6d9dd16cb099be4dba54 diag_conf.pl
  * 4f7f9abb892a0d073bf678e020c547a0c882a3b0d175956fe97b0ee2afca3238 diag_op_conf.pl
  * 08e6e839aab37ef63b9ae313b6bfda289c063825e87138784fd46d465873591b regen/opcodes
  * ex: set ro ft=c: */

@@ -620,8 +620,7 @@ changes the same object that the source refers to.
 
 A class-qualified shape can appear wherever a nested pattern is accepted,
 including inside array and hash shapes and in multisub argument lists.
-Its class name is independent of any same-named subroutine. Class names
-follow the rules of L<perlnamespace> when C<namespaces> is enabled.
+Its class name is independent of any same-named subroutine.
 
 A blessed reference can be matched by putting its class name before an array,
 hash, or reference shape:

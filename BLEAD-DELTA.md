@@ -179,27 +179,6 @@ are machine drafts awaiting review by native speakers.
 
 See [diagpack](lib/diagpack.pm) for language selection and pack loading.
 
-### Lexical namespaces
-
-The experimental `namespaces` feature adds lexical namespace prefixes,
-namespace aliases, and `__NAMESPACE__`.
-
-```perl
-use feature 'namespaces';
-
-namespace MyApp;
-package Model;
-
-sub name { "model" }
-```
-
-Here `Model` means `MyApp::Model` while this code is compiled. The prefix is
-lexical and does not replace Perl's ordinary current package. An explicit
-`:::` boundary resolves a name from the top level. `CORE:::` provides access
-to Perl's implementation namespace.
-
-See [perlnamespace](pod/perlnamespace.pod).
-
 ### Dispatch/on matching
 
 The experimental `dispatch_on` feature selects code according to a value's

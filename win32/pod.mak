@@ -164,7 +164,6 @@ POD = perl.pod	\
 	perlmodstyle.pod	\
 	perlmroapi.pod	\
 	perlmultitut.pod	\
-	perlnamespace.pod	\
 	perlnewmod.pod	\
 	perlnumber.pod	\
 	perlobj.pod	\
@@ -367,7 +366,6 @@ MAN = perl.man	\
 	perlmodstyle.man	\
 	perlmroapi.man	\
 	perlmultitut.man	\
-	perlnamespace.man	\
 	perlnewmod.man	\
 	perlnumber.man	\
 	perlobj.man	\
@@ -570,7 +568,6 @@ HTML = perl.html	\
 	perlmodstyle.html	\
 	perlmroapi.html	\
 	perlmultitut.html	\
-	perlnamespace.html	\
 	perlnewmod.html	\
 	perlnumber.html	\
 	perlobj.html	\
@@ -773,7 +770,6 @@ TEX = perl.tex	\
 	perlmodstyle.tex	\
 	perlmroapi.tex	\
 	perlmultitut.tex	\
-	perlnamespace.tex	\
 	perlnewmod.tex	\
 	perlnumber.tex	\
 	perlobj.tex	\

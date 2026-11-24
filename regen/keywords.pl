@@ -81,9 +81,6 @@ my %feature_kw = (
     implements => 'class',
     any       => 'keyword_any',
     all       => 'keyword_all',
-    namespace           => 'namespaces',
-    as                  => 'namespaces',
-    __NAMESPACE__       => 'namespaces',
     yield               => 'generator',
     gen                 => 'generator',
     multi               => 'multisub',
@@ -103,9 +100,6 @@ my %feature_kw = (
     NumEq               => 'dispatch_on',
     TRUE                => 'dispatch_on',
     FALSE               => 'dispatch_on',
-    namespace           => 'namespaces',
-    as                  => 'namespaces',
-    __NAMESPACE__       => 'namespaces',
 );
 
 my %pos = map { ($_ => 1) } @{$by_strength{'+'}};
@@ -165,7 +159,6 @@ read_only_bottom_close_and_rename($_, [$0]) foreach $c, $h;
 __END__
 
  NULL
--__NAMESPACE__
 -__CLASS__
 +__DATA__
 +__END__
@@ -196,7 +189,6 @@ __END__
 -Strict
 +UNITCHECK
 -abs
--as
 -accept
 -alarm
 -all
@@ -331,7 +323,6 @@ __END__
 -msgsnd
 +my
 +multi
--namespace
 -ne
 -neu
 +next

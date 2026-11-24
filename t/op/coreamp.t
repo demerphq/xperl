@@ -1191,7 +1191,6 @@ like $@, qr'^Undefined format "STDOUT" called',
  DefinedVal Int Float TRUE FALSE
     dispatch on multi
     __DATA__ __END__
-    __NAMESPACE__ as namespace
     all and any catch class cmp default defer do implements dump else elsif
     eq equ eval field finally
     for foreach format ge given goto grep gt if isa last le local lt m map

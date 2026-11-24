@@ -535,11 +535,11 @@ The KIM form Conway proposed for Corinna and Ovid adopted, on the grounds that r
 
 1. **It does not unify.** It needs `:type()` for variables, `:returns()` for subs, and — by Ovid's own account — prefix position or a parser complication for parameters. Prefix-plus-signature is one rule per context with no interaction.
 2. **Attribute arguments are opaque strings today.** Parsing one as a type expression is the same core change as prefix position, with an extra layer. (`:prototype` is precedent that core will do this, so this objection is weaker than it looks.)
-3. **The compatibility argument dissolves** under a feature gate, and under lexical namespaces the namespace-pollution motivation dissolves too.
+3. **The compatibility argument dissolves** under a feature gate.
 
 This remains the decision most worth settling in public. The attribute form has momentum; the prefix form has better ergonomics.
 
-Note that the position argued against here was stated in 2022, and three of its premises have since changed: `:prototype` establishes that core will parse an attribute argument rather than capture it as text, the feature gate resolves the `fields` collision, and lexical namespaces (§8.5) remove the namespace-pollution motivation. Whether the attribute form is still preferred given those changes is a question for its proponents, not something this document should assume an answer to.
+Note that the position argued against here was stated in 2022, and two of its premises have since changed: `:prototype` establishes that core will parse an attribute argument rather than capture it as text, and a feature gate resolves the `fields` collision. Whether the attribute form is still preferred given those changes is a question for its proponents, not something this document should assume an answer to.
 
 ### 11.2 Return type in declarator position — `sub Int foo ($x)`
 
@@ -632,7 +632,7 @@ Deferred pending further thought. Recorded state of the argument:
 - `perldelta` 5.44 — named parameters in signatures; Unicode 17 identifier tightening
 - `perldoc -f my` — the existing type slot and its `fields` binding
 - PPC0021, Optional Chaining — the "currently a syntax error, therefore additive" argument
-- `demerphq/xperl` — `pod/perlclass.pod`, `pod/perlnamespace.pod`, `pod/perlgenerator.pod`
+- `demerphq/xperl` — `pod/perlclass.pod`, `pod/perlgenerator.pod`
 - Haskell `newtype`, Ada derived types, Go type definitions — nominal types over an existing representation
 - F# units of measure — nominal, statically checked, erased at runtime; the closest precedent for dimensioned brands. Note that F# treats measures as a separate kind from types (F# Language Specification §9)
 - Farnsworth (Ryan Voots, 2010) and Frink — dimensioned numbers as a language primitive, implemented in Perl

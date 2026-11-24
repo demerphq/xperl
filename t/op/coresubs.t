@@ -23,7 +23,6 @@ my %unsupported = map +($_=>1), qw (
  IntStr FloatStr Num NumStr Strict NumEq
  DefinedVal Int Float TRUE FALSE
  dispatch on
- __NAMESPACE__ as namespace
   all and any catch class cmp default defer do implements dump else elsif eq equ eval
   field finally for foreach format ge given goto grep gt if isa last le local
   lt m map method my multi ne neu next no or our package print printf q qq qr qw qx
@@ -61,7 +60,7 @@ while(<$kh>) {
     # CORE-sub compiler about them would try to build an opcode-less call.
     next if $word =~ /^(?:dispatch|on|ObjectVal|RefVal|ScalarVal|
                          DefinedVal|Int|Float|TRUE|FALSE|
-                         as|namespace|implements|equ|neu|
+                         implements|equ|neu|
                          gen|yield)$/x;
     if($unsupported{$word}) {
       $tests ++;

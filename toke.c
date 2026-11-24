@@ -178,9 +178,6 @@ static const char ident_var_zero_multi_digit[] = "Numeric variables with more th
 /* Bits in the flags parameter of various functions */
 #define CHECK_KEYWORD               (1 << 0)
 #define ALLOW_PACKAGE               (1 << 1)
-#define RESOLVE_NAMESPACE           (1 << 2)
-#define RESOLVE_NAMESPACE_QUALIFIED (1 << 3)
-#define RESOLVE_NAMESPACE_NONLOWER  (1 << 4)
 #define CHECK_DOLLAR                (1 << 2)
 #define IDFIRST_ONLY                (1 << 3)
 #define STOP_AT_FIRST_NON_DIGIT     (1 << 4)
@@ -2340,32 +2337,14 @@ S_force_word(pTHX_ char *start, int token, U32 flags)
     STRLEN len;
     const bool check_keyword = flags & CHECK_KEYWORD;
     const bool allow_pack    = flags & ALLOW_PACKAGE;
-    const bool resolve_namespace = flags & RESOLVE_NAMESPACE;
-    const bool resolve_namespace_qualified =
-        flags & RESOLVE_NAMESPACE_QUALIFIED;
-    const bool resolve_namespace_nonlower =
-        flags & RESOLVE_NAMESPACE_NONLOWER;
 
     start = skipspace(start);
     s = start;
     if (   isIDFIRST_lazy_if_safe(s, PL_bufend, UTF)
         || (allow_pack && *s == ':' && s[1] == ':') )
     {
-        if (allow_pack && strstr(s, ":::")) {
-            char *start = s;
-            while (s < PL_bufend
-                   && (*s == ':'
-                       || isWORDCHAR_lazy_if_safe(s, PL_bufend, UTF)))
-                s += UTF ? UTF8SKIP(s) : 1;
-            len = s - start;
-            if (len >= C_ARRAY_LENGTH(PL_tokenbuf))
-                PERL_THROW_ERROR_SYNTAX_IDENTIFIER_LENGTH_EXCEEDED();
-            Copy(start, PL_tokenbuf, len, char);
-            PL_tokenbuf[len] = 0;
-        }
-        else
-            s = scan_word(s, PL_tokenbuf, C_ARRAY_LENGTH(PL_tokenbuf),
-                          allow_pack, &len);
+        s = scan_word(s, PL_tokenbuf, C_ARRAY_LENGTH(PL_tokenbuf),
+                      allow_pack, &len);
         if (check_keyword) {
           char *s2 = PL_tokenbuf;
           STRLEN len2 = len;
@@ -2387,17 +2366,6 @@ S_force_word(pTHX_ char *start, int token, U32 flags)
         NEXTVAL_NEXTTOKE.opval
             = newSVOP(OP_CONST,0,
                            S_newSV_maybe_utf8(aTHX_ PL_tokenbuf, len));
-        if (FEATURE_NAMESPACES_IS_ENABLED
-            && (resolve_namespace
-                || (resolve_namespace_qualified
-                    && memchr(PL_tokenbuf, ':', len))
-                || (resolve_namespace_nonlower
-                    && !isLOWER_A(PL_tokenbuf[0])))) {
-            SV *word = cSVOPx(NEXTVAL_NEXTTOKE.opval)->op_sv;
-            SV *resolved = namespace_resolve(word);
-            cSVOPx(NEXTVAL_NEXTTOKE.opval)->op_sv = resolved;
-            SvREFCNT_dec_NN(word);
-        }
         NEXTVAL_NEXTTOKE.opval->op_private |= OPpCONST_BARE;
         force_next(token);
     }
@@ -5835,28 +5803,15 @@ S_tokenize_use(pTHX_ int is_use, char *s)
             force_next(BAREWORD);
         }
         else if (*s == 'v') {
-            s = force_word(s, BAREWORD, ALLOW_PACKAGE
-                           | RESOLVE_NAMESPACE_NONLOWER);
+            s = force_word(s, BAREWORD, ALLOW_PACKAGE);
             s = force_version(s, FALSE);
         }
     }
     else {
-        s = force_word(s, BAREWORD, ALLOW_PACKAGE
-                       | RESOLVE_NAMESPACE_NONLOWER);
+        s = force_word(s, BAREWORD, ALLOW_PACKAGE);
         s = force_version(s, FALSE);
     }
     pl_yylval.ival = is_use;
-    s = skipspace(s);
-    if (FEATURE_NAMESPACES_IS_ENABLED
-        && memEQs(s, 2, "as")
-        && !isWORDCHAR_lazy_if_safe(s + 2, PL_bufend, UTF)) {
-        s += 2;
-        I32 nexttoke = PL_nexttoke;
-        force_next(KW_AS);
-        Move(PL_nexttype, PL_nexttype + 1, nexttoke, I32);
-        Move(PL_nextval, PL_nextval + 1, nexttoke, YYSTYPE);
-        PL_nexttype[0] = KW_AS;
-    }
     return s;
 }
 #ifdef DEBUGGING
@@ -6272,20 +6227,6 @@ yyl_sub(pTHX_ char *s, const int key, const bool is_multi)
 
         PL_expect = XATTRBLOCK;
         d = scan_word(s, tmpbuf, C_ARRAY_LENGTH(PL_tokenbuf) - 1, TRUE, &len);
-        /* scan_word accepts ordinary package separators. Retain explicit
-         * namespace boundaries for the identifier resolver as well. */
-        while (FEATURE_NAMESPACES_IS_ENABLED && *d == ':'
-               && len >= 2 && tmpbuf[len - 1] == ':' && tmpbuf[len - 2] == ':') {
-            STRLEN morelen;
-            while (*d == ':') {
-                if (len + 4 >= C_ARRAY_LENGTH(PL_tokenbuf))
-                    PERL_THROW_ERROR_SYNTAX_IDENTIFIER_LENGTH_EXCEEDED();
-                tmpbuf[len++] = *d++;
-            }
-            d = scan_word(d, tmpbuf + len,
-                C_ARRAY_LENGTH(PL_tokenbuf) - 1 - len, TRUE, &morelen);
-            len += morelen;
-        }
         if (key == KEY_format)
             format_name = S_newSV_maybe_utf8(aTHX_ s, d - s);
         *PL_tokenbuf = '&';
@@ -7821,8 +7762,7 @@ yyl_require(pTHX_ char *s, I32 orig_keyword)
             || (s = force_version(s, TRUE), *s == 'v'))
     {
         *PL_tokenbuf = '\0';
-        s = force_word(s, BAREWORD, CHECK_KEYWORD | ALLOW_PACKAGE
-                       | RESOLVE_NAMESPACE_NONLOWER);
+        s = force_word(s, BAREWORD, CHECK_KEYWORD | ALLOW_PACKAGE);
         if (isIDFIRST_lazy_if_safe(PL_tokenbuf,
                                    C_ARRAY_END(PL_tokenbuf),
                                    UTF))
@@ -8456,23 +8396,9 @@ yyl_just_a_word(pTHX_ char *s, STRLEN len, I32 orig_keyword, struct code c)
     if ((*s == '\'' && FEATURE_APOS_AS_NAME_SEP_IS_ENABLED)
         || (*s == ':' && s[1] == ':')) {
         STRLEN morelen;
-        if (FEATURE_NAMESPACES_IS_ENABLED
-            && *s == ':' && s[1] == ':' && s[2] == ':') {
-            char *const package_start = s;
-            while (s < PL_bufend
-                   && (*s == ':'
-                       || isWORDCHAR_lazy_if_safe(s, PL_bufend, UTF)))
-                s += UTF ? UTF8SKIP(s) : 1;
-            morelen = s - package_start;
-            if (len + morelen >= C_ARRAY_LENGTH(PL_tokenbuf))
-                PERL_THROW_ERROR_SYNTAX_IDENTIFIER_LENGTH_EXCEEDED();
-            Copy(package_start, PL_tokenbuf + len, morelen, char);
-            PL_tokenbuf[len + morelen] = '\0';
-        }
-        else
-            s = scan_word(s, PL_tokenbuf + len,
-                          C_ARRAY_LENGTH(PL_tokenbuf) - len,
-                          TRUE, &morelen);
+        s = scan_word(s, PL_tokenbuf + len,
+                      C_ARRAY_LENGTH(PL_tokenbuf) - len,
+                      TRUE, &morelen);
         if (no_op_error) {
             S_warn_expect_operator(aTHX_ "bareword", s, FALSE);
             no_op_error = FALSE;
@@ -8517,11 +8443,6 @@ yyl_just_a_word(pTHX_ char *s, STRLEN len, I32 orig_keyword, struct code c)
 
         if (shape) {
             SV *classname = S_newSV_maybe_utf8(aTHX_ PL_tokenbuf, len);
-            if (FEATURE_NAMESPACES_IS_ENABLED) {
-                SV *resolved = namespace_resolve(classname);
-                SvREFCNT_dec_NN(classname);
-                classname = resolved;
-            }
             SvREFCNT_dec(c.sv);
             op_free(c.rv2cv_op);
             pl_yylval.opval = newSVOP(OP_CONST, 0, classname);
@@ -8536,12 +8457,6 @@ yyl_just_a_word(pTHX_ char *s, STRLEN len, I32 orig_keyword, struct code c)
 
     if (!c.sv)
         c.sv = S_newSV_maybe_utf8(aTHX_ PL_tokenbuf, len);
-    if (FEATURE_NAMESPACES_IS_ENABLED
-        && (pkgname || (*s == '-' && s[1] == '>'))) {
-        SV *resolved = namespace_resolve(c.sv);
-        SvREFCNT_dec_NN(c.sv);
-        c.sv = resolved;
-    }
     if (c.gvp) {
         SV *sv = newSVpvs("CORE::GLOBAL::");
         sv_catsv(sv, c.sv);
@@ -8744,11 +8659,6 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
                      : &PL_sv_undef))
         );
 
-    case KEY___NAMESPACE__:
-        PERL_WARN_WARNING_EXPERIMENTAL_NAMESPACES_CURRENT_NAMESPACE_CONSTANT_USED();
-        FUN0OP(newSVOP(OP_CONST, OPpCONST_TOKEN_PACKAGE<<8,
-                       namespace_current()));
-
     case KEY___DATA__:
     case KEY___END__:
         if (PL_rsfp && (!PL_in_eval || PL_tokenbuf[2] == 'D'))
@@ -8789,10 +8699,6 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
 
     case KEY_abs:
         UNI(OP_ABS);
-
-    case KEY_as:
-        PL_expect = XTERM;
-        TOKEN(KW_AS);
 
     case KEY_alarm:
         UNI(OP_ALARM);
@@ -8853,7 +8759,7 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
     case KEY_class:
         PERL_WARN_WARNING_EXPERIMENTAL_CLASS_DECLARATION_USED();
 
-        s = force_word(s, BAREWORD, ALLOW_PACKAGE | RESOLVE_NAMESPACE);
+        s = force_word(s, BAREWORD, ALLOW_PACKAGE);
         s = skipspace(s);
         s = force_strict_version(s);
         PL_expect = XATTRBLOCK;
@@ -9294,35 +9200,6 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
     case KEY_msgsnd:
         LOP(OP_MSGSND,XTERM);
 
-    case KEY_namespace:
-        PERL_WARN_WARNING_EXPERIMENTAL_NAMESPACES_NAMESPACE_DECLARATION_USED();
-        s = skipspace(s);
-        if (isIDFIRST_lazy_if_safe(s, PL_bufend, UTF)
-            || (*s == ':' && s[1] == ':')) {
-            STRLEN nslen;
-            char *start = s;
-            if (strstr(s, ":::")) {
-                while (s < PL_bufend
-                       && (*s == ':'
-                           || isWORDCHAR_lazy_if_safe(s, PL_bufend, UTF)))
-                    s++;
-                nslen = s - start;
-                if (nslen >= C_ARRAY_LENGTH(PL_tokenbuf))
-                    PERL_THROW_ERROR_SYNTAX_IDENTIFIER_NAMESPACE_LENGTH_EXCEEDED();
-                Copy(start, PL_tokenbuf, nslen, char);
-                PL_tokenbuf[nslen] = 0;
-            }
-            else
-                s = scan_word(s, PL_tokenbuf, C_ARRAY_LENGTH(PL_tokenbuf),
-                              TRUE, &nslen);
-            NEXTVAL_NEXTTOKE.opval =
-                newSVOP(OP_CONST, 0,
-                        S_newSV_maybe_utf8(aTHX_ PL_tokenbuf, nslen));
-            NEXTVAL_NEXTTOKE.opval->op_private |= OPpCONST_BARE;
-            force_next(BAREWORD);
-        }
-        PREBLOCK(KW_NAMESPACE);
-
     case KEY_our:
     case KEY_my:
     case KEY_state:
@@ -9414,7 +9291,7 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
         LOP(OP_PACK,XTERM);
 
     case KEY_package:
-        s = force_word(s, BAREWORD, ALLOW_PACKAGE | RESOLVE_NAMESPACE);
+        s = force_word(s, BAREWORD, ALLOW_PACKAGE);
         s = skipspace(s);
         s = force_strict_version(s);
         PREBLOCK(KW_PACKAGE);
@@ -9501,7 +9378,7 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
     case KEY_role:
         PERL_WARN_WARNING_EXPERIMENTAL_CLASS_ROLE_DECLARATION_USED();
 
-        s = force_word(s, BAREWORD, ALLOW_PACKAGE | RESOLVE_NAMESPACE);
+        s = force_word(s, BAREWORD, ALLOW_PACKAGE);
         s = skipspace(s);
         s = force_strict_version(s);
         PL_expect = XATTRBLOCK;
@@ -9606,8 +9483,7 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
         S_checkcomma(aTHX_ s,PL_tokenbuf,"subroutine");
         s = skipspace(s);
         PL_expect = XTERM;
-        s = force_word(s, BAREWORD, CHECK_KEYWORD | ALLOW_PACKAGE
-                       | RESOLVE_NAMESPACE_QUALIFIED);
+        s = force_word(s, BAREWORD, CHECK_KEYWORD | ALLOW_PACKAGE);
         LOP(OP_SORT,XREF);
 
     case KEY_TRUE:
@@ -9908,8 +9784,7 @@ yyl_keylookup(pTHX_ char *s, GV *gv)
     anydelim = word_takes_any_delimiter(PL_tokenbuf, len);
 
     /* x::* is just a word, unless x is "CORE" */
-    if (!anydelim && *s == ':' && s[1] == ':'
-        && (!FEATURE_NAMESPACES_IS_ENABLED || s[2] != ':')) {
+    if (!anydelim && *s == ':' && s[1] == ':') {
         if (memEQs(PL_tokenbuf, len, "CORE"))
             return yyl_key_core(aTHX_ s, len, c);
         return yyl_just_a_word(aTHX_ s, len, 0, c);
@@ -10022,10 +9897,6 @@ yyl_keylookup(pTHX_ char *s, GV *gv)
 
     /* Check for built-in keyword */
     key = keyword(PL_tokenbuf, len, 0);
-    if ((!key || key == -KEY_as)
-        && (FEATURE_NAMESPACES_IS_ENABLED || PL_parser->in_dispatch_header)
-        && memEQs(PL_tokenbuf, len, "as"))
-        key = KEY_as;
 
     if (key < 0)
         key = yyl_secondclass_keyword(aTHX_ s, len, key, &orig_keyword, &c.gv, &c.gvp);
@@ -10913,21 +10784,6 @@ S_pending_ident(pTHX)
     STRLEN tokenbuf_len = strlen(PL_tokenbuf);
     /* All routes through this function want to know if there is a colon.  */
     const char *const has_colon = (const char*) memchr (PL_tokenbuf, ':', tokenbuf_len);
-
-    if (FEATURE_NAMESPACES_IS_ENABLED && has_colon && !PL_in_my) {
-        SV *raw = newSVpvn_flags(PL_tokenbuf + 1, tokenbuf_len - 1,
-                                 UTF ? SVf_UTF8 : 0);
-        SV *resolved = namespace_resolve(raw);
-        STRLEN resolved_len;
-        const char *resolved_pv = SvPV_const(resolved, resolved_len);
-        if (resolved_len + 1 >= C_ARRAY_LENGTH(PL_tokenbuf))
-            PERL_THROW_ERROR_SYNTAX_IDENTIFIER_RESOLVED_VARIABLE_LENGTH_EXCEEDED();
-        Copy(resolved_pv, PL_tokenbuf + 1, resolved_len, char);
-        PL_tokenbuf[resolved_len + 1] = 0;
-        tokenbuf_len = resolved_len + 1;
-        SvREFCNT_dec_NN(raw);
-        SvREFCNT_dec_NN(resolved);
-    }
 
     DEBUG_T({ PerlIO_printf(Perl_debug_log,
           "### Pending identifier '%s'\n", PL_tokenbuf); });

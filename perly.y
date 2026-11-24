@@ -64,7 +64,7 @@
 %token <ival> PERLY_STAR
 
 /* Tokens emitted by toke.c on simple keywords */
-%token <ival> KW_FORMAT KW_PACKAGE KW_CLASS KW_ROLE KW_NAMESPACE KW_AS
+%token <ival> KW_FORMAT KW_PACKAGE KW_CLASS KW_ROLE
 %token <ival> KW_LOCAL KW_MY KW_FIELD
 %token <ival> KW_IF KW_ELSE KW_ELSIF KW_UNLESS
 %token <ival> KW_FOR KW_UNTIL KW_WHILE KW_CONTINUE
@@ -124,8 +124,6 @@
 %type <opval> bare_statement_null
 %type <opval> bare_statement_package_declaration
 %type <opval> bare_statement_package_definition
-%type <opval> bare_statement_namespace
-%type <opval> opt_namespace_alias
 %type <opval> bare_statement_phaser
 %type <opval> bare_statement_sub_signature
 %type <opval> bare_statement_sub_traditional
@@ -300,7 +298,6 @@ bare_statement_block
 bare_statement_dispatch
 	: KW_DISPATCH
 		{
-			parser->in_dispatch_header = TRUE;
 			/* Consume the deparser's private mark before nested dispatches. */
 			HV *hints = GvHV(PL_hintgv);
 			SV *mark = hints && hv_existss(hints,
@@ -313,7 +310,6 @@ bare_statement_dispatch
 		PERLY_PAREN_OPEN
 		mexpr
 		PERLY_PAREN_CLOSE
-		{ parser->in_dispatch_header = FALSE; }
 		dispatch_on_block
 		{
 			OP *subject = $mexpr;
@@ -890,28 +886,6 @@ bare_statement_package_definition
 		}
 	;
 
-bare_statement_namespace
-	:	KW_NAMESPACE BAREWORD PERLY_SEMICOLON
-		{
-			namespace_set(cSVOPx($BAREWORD)->op_sv);
-			op_free($BAREWORD);
-			$$ = NULL;
-		}
-	| KW_NAMESPACE BAREWORD PERLY_BRACE_OPEN
-		remember
-		{
-			namespace_set(cSVOPx($BAREWORD)->op_sv);
-			op_free($BAREWORD);
-		}
-		stmtseq
-		PERLY_BRACE_CLOSE
-		{
-			$$ = new_block_statement (block_end ($remember, $stmtseq), NULL);
-			if (parser->copline > (line_t)$PERLY_BRACE_OPEN)
-				parser->copline = (line_t)$PERLY_BRACE_OPEN;
-		}
-	;
-
 bare_statement_phaser
 	:	PHASER
 		startsub
@@ -1057,32 +1031,16 @@ bare_statement_utilize
 		{ CvSPECIAL_on(PL_compcv); /* It's a BEGIN {} */ }
 		BAREWORD[version]
 		BAREWORD[module]
-		opt_namespace_alias[alias]
 		optlistexpr
 		PERLY_SEMICOLON
 		/* version and package appear in reverse order for the same reason as
 		 * KW_PACKAGE; see comment above */
 		{
 			SvREFCNT_inc_simple_void(PL_compcv);
-			if ($alias) {
-				if (!$KW_USE_or_NO)
-					PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_DECLARATION_NAMESPACE_ALIAS_REQUIRES_USE();
-				else
-					namespace_alias(cSVOPx($module)->op_sv,
-					               cSVOPx($alias)->op_sv);
-				op_free($alias);
-			}
 			utilize($KW_USE_or_NO, $startsub, $version, $module, $optlistexpr);
 			parser->parsed_sub = 1;
 			$$ = NULL;
 		}
-	;
-
-opt_namespace_alias
-	:   %empty
-		{ $$ = NULL; }
-	|   KW_AS BAREWORD
-		{ $$ = $BAREWORD; }
 	;
 
 bare_statement_when
@@ -1298,7 +1256,6 @@ barestmt
 	|	bare_statement_null
 	|	bare_statement_package_declaration
 	|	bare_statement_package_definition
-	|	bare_statement_namespace
 	|	bare_statement_phaser
 	|	bare_statement_sub_signature
 	|	bare_statement_sub_traditional

@@ -185,7 +185,10 @@ fresh_perl_like($standalone_failure_source,
     qr/No matching clause for multi sub main::process at standalone-multi\.pl line 12\./,
     {}, 'a standalone call after the final declaration retains its own line');
 
-eval q{ no feature 'multisub'; multi sub disabled($x) { $x } };
+{
+    local $SIG{__WARN__} = sub { };
+    eval q{ no feature 'multisub'; multi sub disabled($x) { $x } };
+}
 ok($@, 'keyword is feature guarded');
 
 my @warnings;

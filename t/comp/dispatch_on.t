@@ -306,7 +306,7 @@ print !$@ && defined($default) && $default == 99
     : "not ok 22 - wildcard clause is the default\n";
 
 my $named_subject = eval q{
-    use feature qw(dispatch_on namespaces);
+    use feature 'dispatch_on';
     use dispatch::Predicates;
     do {
         dispatch my $bound (21) {
@@ -319,7 +319,7 @@ print !$@ && defined($named_subject) && $named_subject == 21
     : "not ok 23 - dispatch binds a named subject\n";
 
 my $scope_error = eval q{
-    use feature qw(dispatch_on namespaces);
+    use feature 'dispatch_on';
     use dispatch::Predicates;
     no warnings 'syntax';
     do {
@@ -488,7 +488,7 @@ print !$@ && $typed_reference_result
 
 my ($typed_expression, $typed_parenthesized) = (undef, undef);
 my $typed_expression_result = eval q{
-    use feature qw(dispatch_on namespaces);
+    use feature 'dispatch_on';
     use dispatch::Predicates;
     my $x = 1;
     dispatch my $bound ($x + 1) {
@@ -505,7 +505,7 @@ print !$@ && $typed_expression_result
     : "not ok 37 - subject expressions bind equivalently\n";
 
 my $with_expression = eval q{
-    use feature qw(dispatch_on namespaces);
+    use feature 'dispatch_on';
     use dispatch::Predicates;
     my $base = 4;
     my $evaluations = 0;
@@ -843,7 +843,7 @@ print !$@ && $multiple_with_aliases
     : "not ok 58 - lexical pins can be used directly\n";
 
 my ($header_subject, $header_pin);
-my $case_as_without_namespaces = eval q{
+my $named_subject_without_other_features = eval q{
     use feature 'dispatch_on';
     use dispatch::Predicates;
     my $value = 7;
@@ -852,9 +852,9 @@ my $case_as_without_namespaces = eval q{
         on (7) { $header_subject == 7 && $header_pin == 7 }
     }
 };
-print !$@ && $case_as_without_namespaces
-    ? "ok 59 - named dispatch subjects do not require namespaces\n"
-    : "not ok 59 - named dispatch subjects do not require namespaces\n";
+print !$@ && $named_subject_without_other_features
+    ? "ok 59 - named dispatch subjects need only dispatch_on\n"
+    : "not ok 59 - named dispatch subjects need only dispatch_on\n";
 
 my ($slurp_result, $slurp_empty_result);
 my $array_slurps = eval q{
@@ -2566,11 +2566,15 @@ print !$@ && $subject_variables && $named_kept_default && $_ eq 'outside'
     ? "ok 173 - named dispatch leaves the default scalar unchanged\n"
     : "not ok 173 - named dispatch leaves the default scalar unchanged\n";
 
-my $old_case_as = eval q{
+my $old_case_as;
+{
+    local $SIG{__WARN__} = sub { };
+    $old_case_as = eval q{
     use feature 'dispatch_on';
     use dispatch::Predicates;
     dispatch (1 as $old_subject) { on (1) { 1 } }
-};
+    };
+}
 print $@ ? "ok 174 - old dispatch subject as syntax is rejected\n"
          : "not ok 174 - old dispatch subject as syntax is rejected\n";
 my ($anonymous_redo_calls, $anonymous_redo_value) = (0, undef);
