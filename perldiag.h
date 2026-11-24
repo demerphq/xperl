@@ -64,6 +64,7 @@ enum perl_diag_index {
     perl_diag_error_compilation_unclassified_error_idx,
     perl_diag_error_compilation_unclassified_parser_context_idx,
     perl_diag_error_compilation_unclassified_parser_error_idx,
+    perl_diag_error_control_flow_dispatch_no_match_idx,
     perl_diag_error_control_flow_goto_cannot_enter_construct_idx,
     perl_diag_error_control_flow_goto_cannot_enter_defer_block_idx,
     perl_diag_error_control_flow_goto_cannot_enter_expression_idx,
@@ -1662,6 +1663,7 @@ enum perl_diag_number {
     perl_diag_error_compilation_unclassified_error_number                                      = 2452,
     perl_diag_error_compilation_unclassified_parser_context_number                             = 2501,
     perl_diag_error_compilation_unclassified_parser_error_number                               = 2437,
+    perl_diag_error_control_flow_dispatch_no_match_number                                      = 2796,
     perl_diag_error_control_flow_goto_cannot_enter_construct_number                            = 1112,
     perl_diag_error_control_flow_goto_cannot_enter_defer_block_number                          = 1038,
     perl_diag_error_control_flow_goto_cannot_enter_expression_number                           = 1247,
@@ -5052,7 +5054,7 @@ enum perl_diag_selector_domain_id {
 
 
 #if defined(PERL_CORE) || defined(PERL_EXT_RE_BUILD)
-#define PERL_DIAG_METADATA_COUNT 1594
+#define PERL_DIAG_METADATA_COUNT 1595
 
 #endif
 
@@ -20419,6 +20421,13 @@ enum perl_diag_selector_domain_id {
         __LINE__ \
     )
 
+#define PERL_THROW_ERROR_CONTROL_FLOW_DISPATCH_NO_MATCH() \
+    Perl_throw_die_0_1001( \
+        aTHX_ perl_diag_error_control_flow_dispatch_no_match_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
 #define PERL_THROW_ERROR_ITERATOR_STOP_REQUIRED() \
     Perl_throw_croak_0_1006( \
         aTHX_ perl_diag_error_iterator_stop_required_idx, \
@@ -21481,6 +21490,7 @@ enum perl_diag_selector_domain_id {
 /* PERL_THROW_ERROR_COMPILATION_EXECUTION_ABORTED => ERROR_COMPILATION_EXECUTION_ABORTED */
 /* PERL_THROW_ERROR_COMPILATION_FILE_HAS_ERRORS => ERROR_COMPILATION_FILE_HAS_ERRORS */
 /* PERL_THROW_ERROR_COMPILATION_TOO_MANY_ERRORS => ERROR_COMPILATION_TOO_MANY_ERRORS */
+/* PERL_THROW_ERROR_CONTROL_FLOW_DISPATCH_NO_MATCH => ERROR_CONTROL_FLOW_DISPATCH_NO_MATCH */
 /* PERL_THROW_ERROR_CONTROL_FLOW_GOTO_CANNOT_ENTER_CONSTRUCT => ERROR_CONTROL_FLOW_GOTO_CANNOT_ENTER_CONSTRUCT */
 /* PERL_THROW_ERROR_CONTROL_FLOW_GOTO_CANNOT_ENTER_DEFER_BLOCK => ERROR_CONTROL_FLOW_GOTO_CANNOT_ENTER_DEFER_BLOCK */
 /* PERL_THROW_ERROR_CONTROL_FLOW_GOTO_CANNOT_ENTER_EXPRESSION => ERROR_CONTROL_FLOW_GOTO_CANNOT_ENTER_EXPRESSION */
@@ -22703,7 +22713,7 @@ enum perl_diag_selector_domain_id {
 #endif /* PERL_DIAG_H */
 
 /* Generated from:
- * 6126e5e01c2af37cb757eb47535523b4eec06b95e3af6d9dd16cb099be4dba54 diag_conf.pl
- * 4f7f9abb892a0d073bf678e020c547a0c882a3b0d175956fe97b0ee2afca3238 diag_op_conf.pl
- * 08e6e839aab37ef63b9ae313b6bfda289c063825e87138784fd46d465873591b regen/opcodes
+ * ea71fcd6cd3d3c66e8306025fba76d3a80999425abcf6589de52d7350bbc9042 diag_conf.pl
+ * 2d782aa7232094113b9b9205138381282d148545c1d4444211939e7659e39734 diag_op_conf.pl
+ * b333aa9910dc95e9259def9af37a920ee035cdde0d414c3162bbf7e48536dde6 regen/opcodes
  * ex: set ro ft=c: */

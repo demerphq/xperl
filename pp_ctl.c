@@ -6939,7 +6939,7 @@ S_dispatch_on_body(const OP *leave_op)
     assert(leave_op && leave_op->op_type == OP_LEAVEDISPATCHON);
     const OP *enter_op = cUNOPx(leave_op)->op_first;
     OP *body = cUNOPx(enter_op)->op_first;
-    return leave_op->op_flags & OPf_SPECIAL ? body : OpSIBLING(body);
+    return enter_op->op_flags & OPf_SPECIAL ? body : OpSIBLING(body);
 }
 
 static OP *
@@ -13603,6 +13603,12 @@ PP(pp_dispatch)
     if (dispatch->miss_target)
         return dispatch->miss_target;
     return NORMAL;
+}
+
+PP(pp_dispatchfail)
+{
+    PERL_THROW_ERROR_CONTROL_FLOW_DISPATCH_NO_MATCH();
+    NOT_REACHED;
 }
 
 PP(pp_dispatchcoerce)

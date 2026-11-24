@@ -112,8 +112,9 @@ This prints:
 The underscore is a wildcard.  It matches any value and does not create a
 binding, so it is useful as a final default clause.
 
-If no clause matches, C<dispatch> returns C<undef> in scalar context and an empty
-list in list context.  Otherwise, it returns the value of the last evaluated
+If no clause matches, C<dispatch> throws an exception. Use C<on (_) { ... }>
+as a final clause to supply a fallback result or custom exception.
+Otherwise, it returns the value of the last evaluated
 expression in the selected clause:
 
     my $description = do {
@@ -810,9 +811,9 @@ prologue removes the invocant before matching, so only explicit arguments
 participate.
 
 Both forms try clauses in source order and use the same capture and guard
-rules. A multi call with no successful clause throws an error; an explicit
-C<dispatch> with no matching clause returns C<undef> in scalar context or
-an empty list in list context. The implicit dispatcher in a multi body also
+rules. Both forms throw an exception when no clause matches. A multi call's
+exception identifies the subroutine or method and its caller.
+The implicit dispatcher in a multi body also
 preserves ordinary subroutine loop control rather than acting as a target
 for C<last>, C<next>, or C<redo>.
 

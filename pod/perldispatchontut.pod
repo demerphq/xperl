@@ -499,8 +499,8 @@ Perl functions and operators:
 =head1 USING A DISPATCH AS A VALUE
 
 A selected clause produces the value of its last evaluated expression. If no
-clause matches, C<dispatch> produces C<undef> in scalar context and an empty list
-in list context.
+clause matches, C<dispatch> throws an exception. Add C<on (_) { ... }> to
+provide a fallback value or a custom exception.
 
 Because C<dispatch> is statement syntax, wrap it in C<do { ... }> when using its
 result in an assignment:

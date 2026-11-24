@@ -795,6 +795,7 @@ $META = {
     "dispatch",
     "dispatch_on",
     "dispatchcoerce",
+    "dispatchfail",
     "divide",
     "do_block",
     "dofile",
@@ -1244,6 +1245,7 @@ $META = {
     "dispatch",
     "dispatch_on",
     "dispatchcoerce",
+    "dispatchfail",
     "divide",
     "dofile",
     "dor",
@@ -1887,6 +1889,9 @@ $CONF = {
       "parent" => "XPerl::Diagnostic::Error::Dispatch"
     },
     "XPerl::Diagnostic::Error::Dispatch::Capture" => {
+      "parent" => "XPerl::Diagnostic::Error::Dispatch"
+    },
+    "XPerl::Diagnostic::Error::Dispatch::NoMatch" => {
       "parent" => "XPerl::Diagnostic::Error::Dispatch"
     },
     "XPerl::Diagnostic::Error::FatalizedWarning" => {
@@ -22612,6 +22617,30 @@ $CONF = {
             "api" => "CROAK"
           },
           "class" => "XPerl::Diagnostic::Error::Compilation"
+        },
+        "ERROR_CONTROL_FLOW_DISPATCH_NO_MATCH" => {
+          "number" => 2796,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_CONTROL_FLOW_DISPATCH_NO_MATCH",
+          "macro" => "PERL_THROW_ERROR_CONTROL_FLOW_DISPATCH_NO_MATCH",
+          "source_files" => [
+            "pp_ctl.c"
+          ],
+          "tags" => [
+            "subject:dispatch_pattern_matching"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "No matching clause for dispatch"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "DIE"
+          },
+          "class" => "XPerl::Diagnostic::Error::Dispatch::NoMatch"
         },
         "ERROR_CONTROL_FLOW_GOTO_CANNOT_ENTER_CONSTRUCT" => {
           "number" => 1112,
@@ -45190,7 +45219,8 @@ $CONF = {
           "counts_as_error" => 1,
           "emit" => {
             "api" => "CROAK_CALLER"
-          }
+          },
+          "class" => "XPerl::Diagnostic::Error::Dispatch::NoMatch"
         },
         "ERROR_RUN_ENVIRONMENT_PERL5OPT_FORBIDDEN_SWITCH" => {
           "number" => 1177,
@@ -114506,12 +114536,19 @@ $CONF = {
         "text" => "(F) An error peculiar to VMS.  Perl handles its own command line\nredirection, and found a '<' on the command line, but can't find the\nname of the file from which to read data for stdin.\n\n"
       },
       {
+        "code" => "PERLDIAG_DISPATCH_NO_MATCH",
+        "headings" => [
+          "No matching clause for dispatch\n\n"
+        ],
+        "text" => "(F) None of the C<on> clauses accepted the C<dispatch> subject. A clause must match its pattern and satisfy its optional guard. Add a suitable clause, or use C<on (_) { ... }> to provide a fallback result or custom exception. See L<perldispatchon>.\n\n"
+      },
+      {
         "code" => "PERLDIAG_MULTISUB_NO_MATCH",
         "headings" => [
           "No matching clause for multi method %s\n\n",
           "No matching clause for multi sub %s\n\n"
         ],
-        "text" => "(F) None of the clauses for the called multi subroutine or method accepted\nits arguments. Each clause requires its argument pattern and optional guard\nto succeed. Fixed argument patterns require an exact argument count; true\nmethods exclude the invocant from that count. Add a suitable clause or\ncorrect the call. Unlike an explicit C<dispatch> with no match, a multi call\nthrows this error at the caller's location. See L<perlmultitut> and L<perlsub/Multisubs>.\n\n"
+        "text" => "(F) None of the clauses for the called multi subroutine or method accepted\nits arguments. Each clause requires its argument pattern and optional guard\nto succeed. Fixed argument patterns require an exact argument count; true\nmethods exclude the invocant from that count. Add a suitable clause or\ncorrect the call. The error identifies the multi sub or method and the caller's location. See L<perlmultitut> and L<perlsub/Multisubs>.\n\n"
       },
       {
         "code" => "PERLDIAG_0684",

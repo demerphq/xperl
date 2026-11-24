@@ -1805,6 +1805,7 @@ sub pp_leavedispatch {
 
 sub pp_leavedispatchon {
     my ($self, $op, $cx) = @_;
+    return '' if $op->flags & OPf_SPECIAL;
     my ($pattern, $guard, $body) = $self->dispatch_on_parts($op);
     my $head;
     {

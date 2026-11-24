@@ -187,10 +187,10 @@ for my $mode (qw(none array-linear array-binary hv auto)) {
                         : $kind eq 'float' ? (0.5, 3.5, 2*$size + 2.5)
                         : (0, 3, 2*$size + 2);
                     for my $miss (@misses) {
-                        my $got = $matcher->($miss);
+                        my $got = eval { $matcher->($miss) };
                         die "$kind/$size/$default miss $miss"
                             unless $default ? defined($got) && $got == -1
-                                            : !defined($got);
+                                            : $@ =~ /No matching clause for dispatch/;
                     }
                 }
             }
@@ -448,6 +448,7 @@ check_case('later clauses read current direct pins', q{
     dispatch ([1]) {
         on ([^$wanted] if do { $wanted = 2; 0 }) { die 'wrong clause' }
         on ([^$wanted]) { say 'stale pin matched' }
+        on (_) {}
     }
     say $wanted;
 }, "2");

@@ -184,14 +184,13 @@ diag $subject_expression_error unless $subject_expression_ran;
 ok($subject_expression_ran && $subject_expression_ok,
     'dispatch accepts ordinary Perl expressions as subjects');
 
-my ($empty_ok, $empty_error) = (0, '');
+my $empty_error = '';
 my $empty_ran = eval q{
     use feature 'dispatch_on';
     use dispatch::Predicates;
-    $empty_ok = !defined(do { dispatch ('not listed') { on (1) { 'wrong' } } });
+    dispatch ('not listed') { on (1) { 'wrong' } }
     1;
 };
 $empty_error = $@ unless $empty_ran;
-diag $empty_error unless $empty_ran;
-ok($empty_ran && $empty_ok,
-    'a dispatch with no matching clause returns undef');
+ok(!$empty_ran && $empty_error =~ /No matching clause for dispatch/,
+    'a dispatch with no matching clause throws');

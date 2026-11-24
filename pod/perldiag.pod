@@ -5099,6 +5099,10 @@ matching counterpart.  See L<perlfunc/pack>.
 redirection, and found a '<' on the command line, but can't find the
 name of the file from which to read data for stdin.
 
+=item No matching clause for dispatch
+
+(F) None of the C<on> clauses accepted the C<dispatch> subject. A clause must match its pattern and satisfy its optional guard. Add a suitable clause, or use C<on (_) { ... }> to provide a fallback result or custom exception. See L<perldispatchon>.
+
 =item No matching clause for multi method %s
 
 =item No matching clause for multi sub %s
@@ -5107,8 +5111,7 @@ name of the file from which to read data for stdin.
 its arguments. Each clause requires its argument pattern and optional guard
 to succeed. Fixed argument patterns require an exact argument count; true
 methods exclude the invocant from that count. Add a suitable clause or
-correct the call. Unlike an explicit C<dispatch> with no match, a multi call
-throws this error at the caller's location. See L<perlmultitut> and L<perlsub/Multisubs>.
+correct the call. The error identifies the multi sub or method and the caller's location. See L<perlmultitut> and L<perlsub/Multisubs>.
 
 =item No next::method '%s' found for %s
 

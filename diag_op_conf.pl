@@ -42154,6 +42154,7 @@ grammatical selector fields; it is not a template parameter.
   "literal_operations" => [
     "allstart",
     "anystart",
+    "dispatchfail",
     "dofile",
     "egrent",
     "ehostent",

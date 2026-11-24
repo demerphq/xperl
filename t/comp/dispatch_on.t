@@ -92,9 +92,9 @@ my $rollback = eval q{
         on ([ { foo => $first }, { foo => $second } ]) { 1; }
     }
 };
-print !$@ && !defined($rollback)
-    ? "ok 8 - failed match rolls back\n"
-    : "not ok 8 - failed match rolls back\n";
+print $@ =~ /No matching clause for dispatch/ && !defined($rollback)
+    ? "ok 8 - failed match throws after rollback\n"
+    : "not ok 8 - failed match throws after rollback\n";
 
 my $open_array = eval q{
     use feature 'dispatch_on';
@@ -278,6 +278,7 @@ my $no_match = eval q{
         }
     }
 };
+my $no_match_error = $@;
 my @no_match = eval q{
     use feature 'dispatch_on';
     use dispatch::Predicates;
@@ -287,9 +288,11 @@ my @no_match = eval q{
         }
     }
 };
-print !$@ && !defined($no_match) && !@no_match
-    ? "ok 21 - no match returns undef or an empty list\n"
-    : "not ok 21 - no match returns undef or an empty list\n";
+print $no_match_error =~ /No matching clause for dispatch/
+    && $@ =~ /No matching clause for dispatch/
+    && !defined($no_match) && !@no_match
+    ? "ok 21 - no match throws in scalar and list context\n"
+    : "not ok 21 - no match throws in scalar and list context\n";
 
 my $default = eval q{
     use feature 'dispatch_on';
@@ -391,7 +394,7 @@ my $with_mismatch = eval q{
         on ({ left => ^$left }) { 1 }
     }
 };
-print !$@ && !defined($with_mismatch)
+print $@ =~ /No matching clause for dispatch/ && !defined($with_mismatch)
     ? "ok 29 - direct pins reject a mismatched value\n"
     : "not ok 29 - direct pins reject a mismatched value\n";
 
@@ -512,6 +515,7 @@ my $with_expression = eval q{
     my $expected = ++$evaluations + $base;
     dispatch (8) {
         on (^$expected) { 1 }
+        on (_) {}
     }
     $evaluations == 1;
 };
@@ -526,7 +530,7 @@ my $typed_boolean = eval q{
     use builtin qw(true false);
     dispatch (true)  { on (true)  { $bool_yes = 1 } }
     dispatch (false) { on (false) { $bool_no = 1 } }
-    dispatch ('yes') { on (true)  { $bool_string = 1 } }
+    dispatch ('yes') { on (true)  { $bool_string = 1 } on (_) {} }
     1;
 };
 print !$@ && $typed_boolean && $bool_yes && $bool_no && !$bool_string
@@ -553,6 +557,7 @@ my $constant_dispatch;
         }
         dispatch (3) {
             on (1) { $dispatch_miss = 1 }
+            on (_) {}
         }
         1;
     };
@@ -648,6 +653,7 @@ my $concat_capture = eval q{
     $unchanged_suffix = 'OLD';
     dispatch ($text) {
         on ('foo_' . $unchanged_suffix) { 1 }
+        on (_) {}
     }
     1;
 };
@@ -667,6 +673,7 @@ my $concat_pin = eval q{
     $p = 'baz';
     dispatch ('foo_bar') {
         on ('foo_' . ^$p) { $pinned_miss = 1 }
+        on (_) {}
     }
     1;
 };
@@ -926,7 +933,7 @@ print $@ ? "ok 64 - predicate captures require scalar assignment targets\n"
 my $typed_pattern_empty = eval q{
     use feature 'dispatch_on';
     use dispatch::Predicates;
-    dispatch ([]) {
+    dispatch ([[]]) {
         on ([RefVal()]) { 1 }
     }
     1;
@@ -962,7 +969,7 @@ my $reference_mismatch = eval q{
         on (\$captured) { 1 }
     }
 };
-print !$@ && !defined($reference_mismatch)
+print $@ =~ /No matching clause for dispatch/ && !defined($reference_mismatch)
     ? "ok 67 - reference shapes reject non-references\n"
     : "not ok 67 - reference shapes reject non-references\n";
 
@@ -1104,6 +1111,7 @@ my $native_numeric = eval q{
     }
     dispatch ('12') {
         on (Number()) { $string_rejected = 1 }
+        on (_) {}
     }
     1;
 };
@@ -1250,6 +1258,7 @@ my $snapshot_ok = eval q{
     dispatch ([ 7 ]) {
         on ([^$snapshot_y] if (($snapshot_y = 8) && 0)) { die 'wrong clause'; }
         on ([^$snapshot_y]) { $snapshot_hit = 1; }
+        on (_) {}
     }
     1;
 };
@@ -1548,6 +1557,7 @@ my $false_identity_guard = eval q{
     my $subject = 'same';
     dispatch ($subject) {
         on ($subject if $subject eq 'different') { die 'wrong clause'; }
+        on (_) {}
     }
     1;
 };
@@ -1577,6 +1587,7 @@ my $object_exact = eval q{
     my $object_hash = bless { '$x' => 10, '$y' => 20 }, 'Point';
     dispatch ($object_hash) {
         on (Point { '$x' => 10 }) { die 'extra field matched'; }
+        on (_) {}
     }
     1;
 };
@@ -1620,6 +1631,7 @@ my $object_wrong_class = eval q{
     my $other = bless { '$x' => 10, '$y' => 20 }, 'Other';
     dispatch ($other) {
         on (Point { '$x' => 10, '$y' => 20 }) { die 'wrong class matched'; }
+        on (_) {}
     }
     1;
 };
@@ -1837,6 +1849,7 @@ my $pinned_identity = eval q{
     my $other = DispatchOn::IdentityString->new;
     dispatch ($other) {
         on (^$wanted) { $pinned_identity_result = 1; }
+        on (_) {}
     }
     1;
 };
@@ -1895,6 +1908,7 @@ my $native_missing = eval q{
         on (NativeMissingPointCase { '$missing' => 10 }) {
             $native_missing_result = 1;
         }
+        on (_) {}
     }
     1;
 };
@@ -1914,6 +1928,7 @@ my $defined_criterion = eval q{
     }
     dispatch (undef) {
         on (DefinedVal()) { $defined_undef = 1 }
+        on (_) {}
     }
     1;
 };
@@ -1948,6 +1963,7 @@ my $native_predicates_reject_strings = eval q{
     dispatch ('42') {
         on (Integer()) { $typed_int_string = 1 }
         on (Number()) { $typed_num_string = 1 }
+        on (_) {}
     }
     1;
 };
@@ -2041,6 +2057,7 @@ my $explicit_subject_pin_ok = eval q{
     my $identity_subject = 42;
     dispatch ($identity_subject) {
         on ([ ^$identity_subject ]) { 1 }
+        on (_) {}
     }
     1;
 };
@@ -2398,7 +2415,7 @@ my $literal_comparisons = eval q{
     use feature 'dispatch_on';
     use dispatch::Predicates;
     dispatch ('01') { on (1) { $numeric_literal_hit = 1 } }
-    dispatch ('01') { on ('1') { $string_literal_hit = 1 } }
+    dispatch ('01') { on ('1') { $string_literal_hit = 1 } on (_) {} }
     dispatch (1)   { on ('1') { $string_number_hit = 1 } }
     1;
 };
@@ -2429,8 +2446,8 @@ my $flag_typed_pins = eval q{
     my $string_pin = '01';
     my $dualvar_pin = dualvar(1, '01');
     dispatch ('01') { on (^$numeric_pin) { $numeric_pin_hit = 1 } }
-    dispatch (1)    { on (^$string_pin) { $string_pin_hit = 1 } }
-    dispatch (1)    { on (^$dualvar_pin) { $dualvar_pin_miss = 1 } }
+    dispatch (1)    { on (^$string_pin) { $string_pin_hit = 1 } on (_) {} }
+    dispatch (1)    { on (^$dualvar_pin) { $dualvar_pin_miss = 1 } on (_) {} }
     dispatch ('01') { on (^$dualvar_pin) { $dualvar_pin_hit = 1 } }
     1;
 };
@@ -2445,7 +2462,7 @@ my $forced_numeric_pin = eval q{
     use dispatch::Predicates;
     my $wanted = '01';
     dispatch (1) { on (0 + ^$wanted) { $forced_numeric_pin_hit = 1 } }
-    dispatch (2) { on (0 + ^$wanted) { $forced_numeric_pin_miss = 1 } }
+    dispatch (2) { on (0 + ^$wanted) { $forced_numeric_pin_miss = 1 } on (_) {} }
     1;
 };
 print !$@ && $forced_numeric_pin && $forced_numeric_pin_hit
@@ -2535,9 +2552,11 @@ my $numeric_match_no_warning = eval q{
     local $SIG{__WARN__} = sub { $numeric_match_warning .= $_[0] };
     dispatch ('not numeric') {
         on (1) { $numeric_match_hit = 1 }
+        on (_) {}
     }
     dispatch ('still not numeric') {
         on (^$wanted) { $numeric_match_hit = 1 }
+        on (_) {}
     }
     1;
 };

@@ -590,6 +590,7 @@ EXTCONST char* const PL_op_name[] INIT({
 	"paramstore",
 	"yield",
 	"multisubfail",
+	"dispatchfail",
         "freed",
 });
 
@@ -1040,6 +1041,7 @@ EXTCONST char* const PL_op_desc[] INIT({
 	"signature parameter default expression",
 	"yield values from a generator",
 	"multisub",
+	"dispatch without a matching clause",
     "freed op",
 });
 
@@ -1495,6 +1497,7 @@ INIT({
 	Perl_pp_paramstore,
 	Perl_pp_yield,
 	Perl_pp_multisubfail,
+	Perl_pp_dispatchfail,
 });
 
 EXT Perl_check_t PL_check[] /* or perlvars.h */
@@ -1945,6 +1948,7 @@ INIT({
 	Perl_ck_null,		/* paramstore */
 	Perl_ck_null,		/* yield */
 	Perl_ck_null,		/* multisubfail */
+	Perl_ck_null,		/* dispatchfail */
 
 /* The final entries are function pointers not attached to an opcode.
  * These are to be used to compare with function pointers in the earlier
@@ -1961,9 +1965,9 @@ INIT({
 
 /* Indexes into PL_check for the comparison function pointers */
 #ifdef PERL_IN_PEEP_C
-  #define PERL_CK_NULL  446
-  #define PERL_CK_EXISTS  447
-  #define PERL_CK_DELETE  448
+  #define PERL_CK_NULL  447
+  #define PERL_CK_EXISTS  448
+  #define PERL_CK_DELETE  449
 #endif
 
 EXTCONST U32 PL_opargs[] INIT({
@@ -2413,6 +2417,7 @@ EXTCONST U32 PL_opargs[] INIT({
 	0x00000100,	/* paramstore */
 	0x00002401,	/* yield */
 	0x00000604,	/* multisubfail */
+	0x00000000,	/* dispatchfail */
 });
 
 END_EXTERN_C
@@ -3218,6 +3223,7 @@ EXTCONST I16  PL_op_private_bitdef_ix[]  INIT( {
        0, /* paramstore */
       -1, /* yield */
       -1, /* multisubfail */
+      -1, /* dispatchfail */
 
 });
 
@@ -3778,6 +3784,7 @@ EXTCONST U8 PL_op_private_valid[] INIT( {
     /* PARAMSTORE */ (OPpARG1_MASK),
     /* YIELD      */ (0),
     /* MULTISUBFAIL */ (0),
+    /* DISPATCHFAIL */ (0),
 
 });
 

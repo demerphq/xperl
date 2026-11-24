@@ -225,6 +225,11 @@ header, and JSON exposes it under C<c_source>.
 
 =head2 Experimental data-shape matching
 
+C<dispatch> now throws an exception when no C<on> clause matches, as
+C<multi> calls do. Add C<on (_) { ... }> for a fallback value or custom
+exception. Both no-match diagnostics use the
+C<XPerl::Diagnostic::Error::Dispatch::NoMatch> class.
+
 The documentation is now split into L<perldispatchontut>, a progressive
 tutorial, and L<perldispatchon>, the detailed language reference.
 

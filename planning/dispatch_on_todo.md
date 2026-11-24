@@ -520,10 +520,8 @@ The implementation confirms that:
 
 - the selected clause supplies the `dispatch` result;
 - scalar/list behavior is ordinary Perl behavior;
-- no-match returns `undef` in scalar context and an empty list in list
-  context;
-- an empty result from a matched clause is distinguishable from no match only by
-  the documented result/context rules;
+- no-match throws an exception in scalar, list, and void context;
+- an explicit default can return an empty result without throwing;
 - subject evaluation and pattern evaluation do not accidentally change
   context.
 

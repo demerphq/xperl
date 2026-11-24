@@ -103,6 +103,7 @@
 
 %type <opval> bare_statement_block
 %type <opval> bare_statement_dispatch bare_statement_on dispatch_subject_binding
+%type <opval> dispatch_header
 %type <opval> bare_statement_multisub multisub_header multisub_pattern
 %type <ival> startmultisub multi_kind
 %type <opval> dispatch_on_block dispatch_on_stmtseq dispatch_on_guard
@@ -297,6 +298,7 @@ bare_statement_block
 
 bare_statement_dispatch
 	: KW_DISPATCH
+		dispatch_header
 		{
 			/* Consume the deparser's private mark before nested dispatches. */
 			HV *hints = GvHV(PL_hintgv);
@@ -315,6 +317,18 @@ bare_statement_dispatch
 			OP *subject = $mexpr;
 			OP *dispatch_op = NULL;
 			OP *body = $dispatch_on_block;
+			/* A missing clause is an error, just as for a multi call.
+			 * An earlier user default takes precedence over this fallback. */
+			OP *wildcard = newSVOP(OP_CONST, 0, newSVpvs("_"));
+			wildcard->op_private |= OPpCONST_BARE;
+			OP *fallback_match = newUNOP_AUX(OP_DISPATCH_ON, 0,
+				newOP(OP_UNDEF, 0), dispatch_pattern_compile(wildcard));
+			fallback_match->op_targ = 2;
+			OP *fallback = newONOP(fallback_match,
+				op_prepend_elem(OP_LINESEQ, $dispatch_header,
+					op_scope(newOP(OP_DISPATCHFAIL, 0))));
+			fallback->op_flags |= OPf_SPECIAL;
+			body = op_append_list(OP_LINESEQ, body, fallback);
 			UNOP_AUX_item *dispatch = dispatch_on_compile(body);
 			if (dispatch) {
 				dispatch_op = newUNOP_AUX(OP_DISPATCH, 0, NULL,
@@ -358,6 +372,16 @@ bare_statement_dispatch
 			parser->copline = (line_t)$KW_DISPATCH;
 		}
 ;
+
+dispatch_header
+	: %empty
+		{
+			const line_t saved_copline = parser->copline;
+			parser->copline = (line_t)$<ival>0;
+			$$ = newSTATEOP(0, NULL, NULL);
+			parser->copline = saved_copline;
+		}
+	;
 
 dispatch_subject_binding
 	: %empty

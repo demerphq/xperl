@@ -408,6 +408,7 @@ for my $files ( [ 'first.pl', 'duplicate.pl' ], [ 'same.pl', 'same.pl' ] ) {
                 on (1) { }
 #line 29 "$duplicate_file"
                 on (1) { }
+                on (_) { }
             }
             1;
         };

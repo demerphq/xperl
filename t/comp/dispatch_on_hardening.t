@@ -86,18 +86,18 @@ ok(!$@ && $empty_result_ok && $empty_matched == 2
    && !defined($empty_scalar) && !@empty_list,
    'a matched clause returning an empty list still runs');
 
-my ($no_scalar, @no_list, $no_void);
-my $no_match_context_ok = eval q{
-    use feature 'dispatch_on';
-    use dispatch::Predicates;
-    $no_scalar = do { dispatch (2) { on (1) { 1 } } };
-    @no_list = do { dispatch (2) { on (1) { 1 } } };
-    dispatch (2) { on (1) { $no_void = 1 } };
-    1;
-};
-ok(!$@ && $no_match_context_ok && !defined($no_scalar)
-   && !@no_list && !defined($no_void),
-   'no-match result follows scalar, list, and void context');
+my @no_match_errors;
+for my $statement (
+    'my $value = do { dispatch (2) { on (1) { 1 } } };',
+    'my @values = do { dispatch (2) { on (1) { 1 } } };',
+    'dispatch (2) { on (1) { 1 } };',
+) {
+    eval "use feature 'dispatch_on'; $statement";
+    push @no_match_errors, $@;
+}
+ok(!grep(!ref($_)
+    || $_->contents->[0]->code ne 'ERROR_CONTROL_FLOW_DISPATCH_NO_MATCH',
+    @no_match_errors), 'no match throws in scalar, list, and void context');
 
 my ($subject_fetches, $subject_result);
 my $subject_once_ok = eval q{
@@ -267,11 +267,11 @@ my $outer_eval_ok = eval q{
     use dispatch::Predicates;
     eval { dispatch (1) { on (1) { die 'uncaught clause' } } };
     $outer_error = $@;
-    $after_error = do { dispatch (2) { on (1) { 1 } } };
+    $after_error = do { dispatch (2) { on (1) { 1 } on (_) { 'fallback' } } };
     1;
 };
 ok(!$@ && $outer_eval_ok && $outer_error =~ /uncaught clause/
-   && !defined($after_error),
+   && $after_error eq 'fallback',
    'dispatch state is restored after an exception and later dispatches still run');
 
 # The dispatch context owns its subject: user code run during matching may
