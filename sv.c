@@ -17069,6 +17069,7 @@ Perl_ss_dup(pTHX_ PerlInterpreter *proto_perl, CLONE_PARAMS* param)
             break;
         case SAVEt_HELEM:		/* hash element */
         case SAVEt_SV:			/* scalar reference */
+        case SAVEt_REVSV:
             sv = (const SV *)POPPTR(ss,ix);
             TOPPTR(nss,ix) = SvREFCNT_inc(sv_dup_inc(sv, param));
             /* FALLTHROUGH */
@@ -17076,7 +17077,7 @@ Perl_ss_dup(pTHX_ PerlInterpreter *proto_perl, CLONE_PARAMS* param)
         case SAVEt_GVSV:			/* scalar slot in GV */
             sv = (const SV *)POPPTR(ss,ix);
             TOPPTR(nss,ix) = sv_dup_inc(sv, param);
-            if (type == SAVEt_SV)
+            if (type == SAVEt_SV || type == SAVEt_REVSV)
                 break;
             /* FALLTHROUGH */
         case SAVEt_FREESV:

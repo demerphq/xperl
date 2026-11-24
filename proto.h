@@ -4868,6 +4868,48 @@ Perl_load_module(pTHX_ U32 flags, SV *name, SV *ver, ...)
                  PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
     } STMT_END
 
+PERL_CALLCONV void
+Perl_local_bindings_discard(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_LOCAL_BINDINGS_DISCARD \
+    STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_local_bindings_free(pTHX_ PERL_LOCAL_BINDINGS *bindings)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_LOCAL_BINDINGS_FREE    \
+    STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV bool
+Perl_local_bindings_park(pTHX_ PERL_LOCAL_BINDINGS **owner)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_LOCAL_BINDINGS_PARK    \
+    STMT_START { Perl_assert_aTHX; assert(owner);      \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_local_bindings_resume(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_LOCAL_BINDINGS_RESUME  \
+    STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV bool
+Perl_local_bindings_validate(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_LOCAL_BINDINGS_VALIDATE \
+    STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
 PERL_CALLCONV_NO_RET void
 Perl_locale_panic(const char *msg, const line_t immediate_caller_line, const char * const higher_caller_file, const line_t higher_caller_line)
         Perl_attribute_nonnull(1)

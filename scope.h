@@ -16,6 +16,29 @@
 #define SAVE_TIGHT_SHIFT	6
 #define SAVE_MASK		0x3F
 
+#define SAVE_REVSV_DISCARD ((UV)1 << SAVE_TIGHT_SHIFT)
+
+typedef struct perl_local_binding {
+    I32 offset;
+    I32 group;
+    I32 oldest;
+} PERL_LOCAL_BINDING;
+
+typedef struct perl_local_slot {
+    SV **slot;
+    I32 group;
+} PERL_LOCAL_SLOT;
+
+typedef struct perl_local_bindings {
+    PERL_LOCAL_BINDING *records;
+    PERL_LOCAL_SLOT *slots;
+    Size_t slot_capacity;
+    Size_t slot_mask;
+    I32 count;
+    I32 capacity;
+    bool parked;
+} PERL_LOCAL_BINDINGS;
+
 #define save_aelem(av,idx,sptr)	save_aelem_flags(av,idx,sptr,SAVEf_SETMAGIC)
 #define save_helem(hv,key,sptr)	save_helem_flags(hv,key,sptr,SAVEf_SETMAGIC)
 

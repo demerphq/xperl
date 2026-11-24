@@ -109,6 +109,8 @@
 #   undef proto_role_dup
 #   undef proto_role_free
 #   undef proto_role_new
+#   undef SAVE_REVSV_DISCARD
+#   undef SAVEt_REVSV
 #   undef SHY_NATIVE
 #   undef sv_2num
 #   undef sv_has_valuemagic
@@ -1225,6 +1227,11 @@
 #   define jmaybe(a)                            Perl_jmaybe(aTHX_ a)
 #   define keyword(a,b,c)                       Perl_keyword(aTHX_ a,b,c)
 #   define list(a)                              Perl_list(aTHX_ a)
+#   define local_bindings_discard(a,b)          Perl_local_bindings_discard(aTHX_ a,b)
+#   define local_bindings_free(a)               Perl_local_bindings_free(aTHX_ a)
+#   define local_bindings_park(a)               Perl_local_bindings_park(aTHX_ a)
+#   define local_bindings_resume(a,b)           Perl_local_bindings_resume(aTHX_ a,b)
+#   define local_bindings_validate(a,b)         Perl_local_bindings_validate(aTHX_ a,b)
 #   define localize(a,b)                        Perl_localize(aTHX_ a,b)
 #   define magic_clear_all_env(a,b)             Perl_magic_clear_all_env(aTHX_ a,b)
 #   define magic_cleararylen_p(a,b)             Perl_magic_cleararylen_p(aTHX_ a,b)

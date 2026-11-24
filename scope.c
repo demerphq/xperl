@@ -1269,6 +1269,26 @@ Perl_leave_scope(pTHX_ I32 base)
             a0.any_sv = NULL; /* what to refcnt_dec */
             goto restore_sv;
 
+        case SAVEt_REVSV:
+        {
+            GV *gv = ap[0].any_gv;
+            SV *saved = ap[1].any_sv;
+            SV *outgoing;
+            SAVEFREESV(gv);
+            if (uv & SAVE_REVSV_DISCARD) {
+                SvREFCNT_dec(saved);
+                SvREFCNT_dec(saved);
+                break;
+            }
+            outgoing = GvSV(gv);
+            GvSV(gv) = saved;
+            /* The caller binding was only displaced. Its magic has no
+             * external state to restore, and an absent slot stays absent. */
+            SvREFCNT_dec(saved);
+            SvREFCNT_dec(outgoing);
+            break;
+        }
+
         case SAVEt_SV:				/* scalar reference */
             a0 = ap[0]; a1 = ap[1];
             a2.any_svp = &GvSV(a0.any_gv);
@@ -2167,6 +2187,301 @@ Perl_magic_freedestruct(pTHX_ SV* sv, MAGIC* mg)
     return 0;
 }
 
+
+/* A scalar localization saves two references to its outside SV: the
+ * displaced glob-slot reference and an extra unwind guard. The installed
+ * SV has the one slot reference. Exchanging bindings must exchange those
+ * ownership weights too. Neither decrement below can free a saved SV. */
+static void
+S_local_binding_exchange(pTHX_ ANY *args)
+{
+    GV *gv = args[0].any_gv;
+    SV *live = GvSV(gv);
+    SV *saved = args[1].any_sv;
+    PERL_UNUSED_CONTEXT;
+    SvREFCNT_inc_simple_void(live);
+    GvSV(gv) = saved;
+    args[1].any_sv = live;
+    SvREFCNT_dec(saved);
+}
+
+static bool
+S_local_binding_plain(SV *sv)
+{
+    return sv && SvTYPE(sv) <= SVt_PVMG && !SvMAGICAL(sv);
+}
+
+static bool
+S_local_binding_special(pTHX_ GV *gv)
+{
+    GP *gp = GvGP(gv);
+    const U8 first = GvNAMELEN(gv) ? (U8)*GvNAME(gv) : 0;
+    return !first || (!isWORDCHAR_L1(first)
+                     && !(GvNAMEUTF8(gv) && !UTF8_IS_INVARIANT(first)))
+        || gp == GvGP(PL_defgv)
+        || (PL_errgv && gp == GvGP(PL_errgv))
+        || (PL_errorobjgv && gp == GvGP(PL_errorobjgv));
+}
+
+/* Decode records without executing them. ALLOC and REGCONTEXT carry an
+ * additional variable-size payload. Other tags use their high bits for
+ * flags or offsets, so those bits are not a length. */
+static bool
+S_local_binding_previous(ANY *stack, I32 *cursor, I32 *offset, U8 *type)
+{
+    const UV tag = stack[*cursor - 1].any_uv;
+    I32 start;
+    *type = tag & SAVE_MASK;
+    if (*type >= C_ARRAY_LENGTH(leave_scope_arg_counts))
+        return FALSE;
+    start = *cursor - 1 - leave_scope_arg_counts[*type];
+    if (start < 0)
+        return FALSE;
+    *offset = start;
+    if (*type == SAVEt_ALLOC || *type == SAVEt_REGCONTEXT) {
+        const UV extra = tag >> SAVE_TIGHT_SHIFT;
+        if (extra > (UV)start)
+            return FALSE;
+        start -= extra;
+    }
+    *cursor = start;
+    return TRUE;
+}
+
+/* Rebuild the slot index for each traversal. Only save-stack offsets and
+ * group numbers identify bindings while the context is parked. Glob aliases
+ * can change the slot addresses before the next resume. */
+static void
+S_local_binding_index_reset(pTHX_ PERL_LOCAL_BINDINGS *bindings)
+{
+    Size_t size = 8;
+    while (size < (Size_t)bindings->count * 2)
+        size *= 2;
+    if (size > bindings->slot_capacity) {
+        PERL_LOCAL_SLOT *slots;
+        Newxz(slots, size, PERL_LOCAL_SLOT);
+        Safefree(bindings->slots);
+        bindings->slots = slots;
+        bindings->slot_capacity = size;
+    }
+    else
+        Zero(bindings->slots, size, PERL_LOCAL_SLOT);
+    bindings->slot_mask = size - 1;
+}
+
+static PERL_LOCAL_SLOT *
+S_local_binding_index(PERL_LOCAL_BINDINGS *bindings, SV **slot)
+{
+    UV hash = PTR2UV(slot) >> 3;
+    Size_t index;
+    hash ^= hash >> 7;
+    hash *= (UV)0x9e3779b1;
+    hash ^= hash >> 16;
+    index = hash & bindings->slot_mask;
+    while (bindings->slots[index].slot
+           && bindings->slots[index].slot != slot)
+        index = (index + 1) & bindings->slot_mask;
+    return &bindings->slots[index];
+}
+
+/* Record each physical slot once. Repeated locals update its oldest entry.
+ * On resume the same lookup detects both merged and split alias groups. */
+static bool
+S_local_binding_partition(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack, bool assign)
+{
+    I32 i;
+    S_local_binding_index_reset(aTHX_ bindings);
+    for (i = 0; i < bindings->count; ++i) {
+        PERL_LOCAL_BINDING *record = &bindings->records[i];
+        GV *gv = stack[record->offset].any_gv;
+        SV **slot;
+        PERL_LOCAL_SLOT *entry;
+        I32 group;
+        if (!gv || !isGV_with_GP(gv) || !GvGP(gv))
+            return FALSE;
+        slot = &GvSV(gv);
+        entry = S_local_binding_index(bindings, slot);
+        if (!entry->slot) {
+            entry->slot = slot;
+            entry->group = i;
+        }
+        group = entry->group;
+        if (assign) {
+            record->group = group;
+            bindings->records[group].oldest = i;
+        }
+        else if (record->group != group)
+            return FALSE;
+    }
+    return TRUE;
+}
+
+static bool
+S_local_binding_conflicts(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack, I32 top)
+{
+    I32 cursor = top, offset, i;
+    U8 type;
+    while (cursor) {
+        ANY *args;
+        SV **slot = NULL;
+        GV *gv = NULL;
+        if (!S_local_binding_previous(stack, &cursor, &offset, &type))
+            return TRUE;
+        args = &stack[offset];
+        switch (type) {
+        case SAVEt_GENERIC_SVREF:
+        case SAVEt_SVREF:
+            slot = args[0].any_svp;
+            break;
+        case SAVEt_GVSLOT:
+            slot = args[1].any_svp;
+            gv = args[0].any_gv;
+            break;
+        case SAVEt_GP:
+        case SAVEt_GVSV:
+            gv = args[0].any_gv;
+            break;
+        default:
+            continue;
+        }
+        if ((slot && S_local_binding_index(bindings, slot)->slot)
+            || (gv && S_local_binding_index(bindings, &GvSV(gv))->slot))
+            return TRUE;
+    }
+    for (i = 0; i <= cxstack_ix; ++i) {
+        PERL_CONTEXT *cx = &cxstack[i];
+        if (!CxFOREACH(cx) || CxPADLOOP(cx))
+            continue;
+        if (!(cx->cx_type & CXp_FOR_GV))
+            return TRUE;
+        if (S_local_binding_index(bindings, CxITERVAR(cx))->slot)
+            return TRUE;
+    }
+    return FALSE;
+}
+
+bool
+Perl_local_bindings_park(pTHX_ PERL_LOCAL_BINDINGS **owner)
+{
+    PERL_ARGS_ASSERT_LOCAL_BINDINGS_PARK;
+    PERL_LOCAL_BINDINGS *bindings = *owner;
+    I32 cursor = PL_savestack_ix, offset, i;
+    U8 type;
+    if (bindings) {
+        assert(!bindings->parked);
+        bindings->count = 0;
+    }
+    while (cursor) {
+        GV *gv;
+        if (!S_local_binding_previous(PL_savestack, &cursor, &offset, &type))
+            return FALSE;
+        if (type != SAVEt_SV && type != SAVEt_REVSV)
+            continue;
+        gv = PL_savestack[offset].any_gv;
+        if (!gv || !isGV_with_GP(gv) || !GvGP(gv))
+            return FALSE;
+        if (S_local_binding_special(aTHX_ gv)) {
+            if (type == SAVEt_REVSV)
+                return FALSE;
+            continue;
+        }
+        if (!bindings) {
+            Newxz(bindings, 1, PERL_LOCAL_BINDINGS);
+            *owner = bindings;
+        }
+        if (bindings->count == bindings->capacity) {
+            const I32 capacity = bindings->capacity ? 2 * bindings->capacity : 8;
+            Renew(bindings->records, capacity, PERL_LOCAL_BINDING);
+            bindings->capacity = capacity;
+        }
+        bindings->records[bindings->count++].offset = offset;
+    }
+    if (!bindings)
+        return TRUE;
+    if (!bindings->count) {
+        bindings->parked = TRUE;
+        return TRUE;
+    }
+    if (!S_local_binding_partition(aTHX_ bindings, PL_savestack, TRUE)
+        || S_local_binding_conflicts(aTHX_ bindings, PL_savestack, PL_savestack_ix))
+        return FALSE;
+
+    /* Only the oldest converted entry in a slot may hold an opaque caller
+     * binding. Every binding owned by the private stack must be plain.
+     * Validate the whole plan before changing a tag or exchanging a slot. */
+    for (i = 0; i < bindings->count; ++i) {
+        PERL_LOCAL_BINDING *record = &bindings->records[i];
+        ANY *args = &PL_savestack[record->offset];
+        const bool oldest = bindings->records[record->group].oldest == i;
+        if (!S_local_binding_plain(GvSV(args[0].any_gv))
+            || ((!oldest || args[2].any_uv != SAVEt_REVSV)
+                && !S_local_binding_plain(args[1].any_sv)))
+            return FALSE;
+    }
+    for (i = 0; i < bindings->count; ++i) {
+        ANY *args = &PL_savestack[bindings->records[i].offset];
+        args[2].any_uv = SAVEt_REVSV;
+        S_local_binding_exchange(aTHX_ args);
+    }
+    bindings->parked = TRUE;
+    return TRUE;
+}
+
+bool
+Perl_local_bindings_validate(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
+{
+    I32 i;
+    PERL_ARGS_ASSERT_LOCAL_BINDINGS_VALIDATE;
+    if (!bindings || !bindings->parked || !bindings->count)
+        return TRUE;
+    for (i = 0; i < bindings->count; ++i) {
+        GV *gv = stack[bindings->records[i].offset].any_gv;
+        if (!gv || !isGV_with_GP(gv) || !GvGP(gv)
+            || S_local_binding_special(aTHX_ gv))
+            return FALSE;
+    }
+    return S_local_binding_partition(aTHX_ bindings, stack, FALSE);
+}
+
+void
+Perl_local_bindings_resume(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
+{
+    I32 i;
+    PERL_ARGS_ASSERT_LOCAL_BINDINGS_RESUME;
+    if (!bindings || !bindings->parked)
+        return;
+    for (i = bindings->count; i > 0; --i)
+        S_local_binding_exchange(aTHX_ &stack[bindings->records[i - 1].offset]);
+    bindings->parked = FALSE;
+}
+
+void
+Perl_local_bindings_free(pTHX_ PERL_LOCAL_BINDINGS *bindings)
+{
+    PERL_ARGS_ASSERT_LOCAL_BINDINGS_FREE;
+    PERL_UNUSED_CONTEXT;
+    if (bindings) {
+        Safefree(bindings->records);
+        Safefree(bindings->slots);
+        Safefree(bindings);
+    }
+}
+
+/* Structural alias changes cannot provide the owner's dynamic environment.
+ * Destruction must nevertheless release its parked bindings without writing
+ * through those new aliases. Ordinary scope cleanup owns the final releases. */
+void
+Perl_local_bindings_discard(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
+{
+    I32 i;
+    PERL_ARGS_ASSERT_LOCAL_BINDINGS_DISCARD;
+    PERL_UNUSED_CONTEXT;
+    if (!bindings || !bindings->parked)
+        return;
+    for (i = 0; i < bindings->count; ++i)
+        stack[bindings->records[i].offset + 2].any_uv |= SAVE_REVSV_DISCARD;
+    bindings->parked = FALSE;
+}
 
 /*
  * ex: set ts=8 sts=4 sw=4 et:

@@ -86,6 +86,10 @@
 #define SAVEt_DELETE              59
 #define SAVEt_HINTS_HH            60
 
+/* two args */
+
+#define SAVEt_REVSV               61
+
 static const U8 leave_scope_arg_counts[] = {
     0, /* SAVEt_ALLOC               */
     0, /* SAVEt_CLEARPADRANGE       */
@@ -147,9 +151,10 @@ static const U8 leave_scope_arg_counts[] = {
     3, /* SAVEt_GVSLOT              */
     3, /* SAVEt_AELEM               */
     3, /* SAVEt_DELETE              */
-    3  /* SAVEt_HINTS_HH            */
+    3, /* SAVEt_HINTS_HH            */
+    2  /* SAVEt_REVSV               */
 };
 
-#define MAX_SAVEt 60
+#define MAX_SAVEt 61
 
 /* ex: set ro ft=c: */

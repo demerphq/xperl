@@ -2511,6 +2511,20 @@ AFdp	|void	|load_module	|U32 flags				\
 				|NN SV *name				\
 				|NULLOK SV *ver 			\
 				|...
+p	|void	|local_bindings_discard 				\
+				|NULLOK PERL_LOCAL_BINDINGS *bindings	\
+				|NULLOK ANY *stack
+p	|void	|local_bindings_free					\
+				|NULLOK PERL_LOCAL_BINDINGS *bindings
+
+p	|bool	|local_bindings_park					\
+				|NN PERL_LOCAL_BINDINGS **owner
+p	|void	|local_bindings_resume					\
+				|NULLOK PERL_LOCAL_BINDINGS *bindings	\
+				|NULLOK ANY *stack
+p	|bool	|local_bindings_validate				\
+				|NULLOK PERL_LOCAL_BINDINGS *bindings	\
+				|NULLOK ANY *stack
 CTopr	|void	|locale_panic	|NN const char *msg				\
 				|const line_t immediate_caller_line		\
 				|NN const char * const higher_caller_file	\

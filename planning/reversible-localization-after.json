@@ -1,0 +1,265 @@
+{
+   "ccflags" : "-fwrapv -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64",
+   "iterations" : 10000,
+   "label" : "ordered-index",
+   "optimize" : "-O3",
+   "perl" : "v5.45.5",
+   "results" : [
+      {
+         "case" : "ordinary_read",
+         "median_ns_per_operation" : 17.2884549829178,
+         "operations_per_sample" : 200000,
+         "seconds_in_measurement_order" : [
+            0.00349286399432458,
+            0.00337823999871034,
+            0.00345576299878303,
+            0.0034830569929909,
+            0.00345769099658355,
+            0.0032452039886266,
+            0.00348564500745852,
+            0.00366975199722219,
+            0.00326936499914154
+         ]
+      },
+      {
+         "case" : "ordinary_local",
+         "median_ns_per_operation" : 45.033880014671,
+         "operations_per_sample" : 200000,
+         "seconds_in_measurement_order" : [
+            0.00884505099384114,
+            0.00919360900297761,
+            0.00883851099933963,
+            0.00918812199961394,
+            0.00897263300430495,
+            0.0090067760029342,
+            0.00886434900166932,
+            0.0101685579866171,
+            0.00933120799891185
+         ]
+      },
+      {
+         "case" : "switch_0_distinct_0_lexical_blocks",
+         "median_ns_per_operation" : 320.839100459125,
+         "operations_per_sample" : 10000,
+         "save_stack_words_before_yield_loop" : 2,
+         "seconds_in_measurement_order" : [
+            0.00330296700121835,
+            0.00314775999868289,
+            0.0032190450001508,
+            0.00320839100459125,
+            0.00290774898894597,
+            0.00324734998866916,
+            0.00279576300818007,
+            0.00333746100659482,
+            0.00287150101212319
+         ]
+      },
+      {
+         "case" : "switch_1_distinct_0_lexical_blocks",
+         "median_ns_per_operation" : 335.386999358889,
+         "operations_per_sample" : 10000,
+         "save_stack_words_before_yield_loop" : 5,
+         "seconds_in_measurement_order" : [
+            0.00333493699145038,
+            0.00389514799462631,
+            0.00335386999358889,
+            0.00406944900169037,
+            0.00330667800153606,
+            0.00390121100645047,
+            0.00331622699741274,
+            0.00377723899146076,
+            0.00333658000454307
+         ]
+      },
+      {
+         "case" : "switch_8_distinct_0_lexical_blocks",
+         "median_ns_per_operation" : 554.722099332139,
+         "operations_per_sample" : 10000,
+         "save_stack_words_before_yield_loop" : 26,
+         "seconds_in_measurement_order" : [
+            0.00554722099332139,
+            0.00589333700190764,
+            0.00541462299588602,
+            0.00563514599343762,
+            0.00552818899450358,
+            0.00561487599043176,
+            0.00562459099455737,
+            0.00554492499213666,
+            0.00548894700477831
+         ]
+      },
+      {
+         "case" : "switch_32_distinct_0_lexical_blocks",
+         "median_ns_per_operation" : 1276.46220062161,
+         "operations_per_sample" : 10000,
+         "save_stack_words_before_yield_loop" : 98,
+         "seconds_in_measurement_order" : [
+            0.012905955009046,
+            0.0133044620015426,
+            0.0124826870014658,
+            0.0128282790101366,
+            0.0127470769948559,
+            0.0127646220062161,
+            0.012809029998607,
+            0.0126478919992223,
+            0.0125244470109465
+         ]
+      },
+      {
+         "case" : "switch_64_distinct_0_lexical_blocks",
+         "median_ns_per_operation" : 2089.53399996972,
+         "operations_per_sample" : 10000,
+         "save_stack_words_before_yield_loop" : 194,
+         "seconds_in_measurement_order" : [
+            0.0207845060067484,
+            0.0208953399996972,
+            0.0254147670057137,
+            0.0209681580017786,
+            0.0213623250019737,
+            0.0207678379956633,
+            0.0210876439959975,
+            0.0208187529933639,
+            0.0207664949994069
+         ]
+      },
+      {
+         "case" : "switch_128_distinct_0_lexical_blocks",
+         "median_ns_per_operation" : 3918.19950018544,
+         "operations_per_sample" : 10000,
+         "save_stack_words_before_yield_loop" : 386,
+         "seconds_in_measurement_order" : [
+            0.0388703950011404,
+            0.03980684299313,
+            0.0400984729931224,
+            0.0391819950018544,
+            0.0390801549947355,
+            0.042411345988512,
+            0.0391101270070067,
+            0.0395194709999487,
+            0.0385567449993687
+         ]
+      },
+      {
+         "case" : "switch_256_distinct_0_lexical_blocks",
+         "median_ns_per_operation" : 8432.19160014996,
+         "operations_per_sample" : 10000,
+         "save_stack_words_before_yield_loop" : 770,
+         "seconds_in_measurement_order" : [
+            0.0865235390083399,
+            0.0847496560018044,
+            0.0836678439954994,
+            0.0837166819983395,
+            0.0853940789966146,
+            0.0827446929906728,
+            0.0828159069933463,
+            0.0843219160014996,
+            0.0853482329985127
+         ]
+      },
+      {
+         "case" : "switch_8_same_0_lexical_blocks",
+         "median_ns_per_operation" : 538.583000889048,
+         "operations_per_sample" : 10000,
+         "save_stack_words_before_yield_loop" : 26,
+         "seconds_in_measurement_order" : [
+            0.00534794499981217,
+            0.00538583000889048,
+            0.00564566798857413,
+            0.00527330800832715,
+            0.00530040598823689,
+            0.0056006829981925,
+            0.00558912400447298,
+            0.00561987700348254,
+            0.00510728100198321
+         ]
+      },
+      {
+         "case" : "switch_32_same_0_lexical_blocks",
+         "median_ns_per_operation" : 1226.72689903993,
+         "operations_per_sample" : 10000,
+         "save_stack_words_before_yield_loop" : 98,
+         "seconds_in_measurement_order" : [
+            0.0124331650004024,
+            0.0122873189975508,
+            0.0122245910024503,
+            0.0123282879940234,
+            0.0122638840111904,
+            0.012055295999744,
+            0.0120598810026422,
+            0.0122672689903993,
+            0.0123389560030773
+         ]
+      },
+      {
+         "case" : "switch_0_distinct_8_lexical_blocks",
+         "median_ns_per_operation" : 339.734900626354,
+         "operations_per_sample" : 10000,
+         "save_stack_words_before_yield_loop" : 10,
+         "seconds_in_measurement_order" : [
+            0.00373090799257625,
+            0.00311984799918719,
+            0.00357896200148389,
+            0.00332420199993066,
+            0.0034942430065712,
+            0.00331597498734482,
+            0.00345902399567422,
+            0.00338697400002275,
+            0.00339734900626354
+         ]
+      },
+      {
+         "case" : "switch_0_distinct_32_lexical_blocks",
+         "median_ns_per_operation" : 518.717299564742,
+         "operations_per_sample" : 10000,
+         "save_stack_words_before_yield_loop" : 34,
+         "seconds_in_measurement_order" : [
+            0.00518717299564742,
+            0.00519541899848264,
+            0.00575030199252069,
+            0.00519414700102061,
+            0.00524873699760064,
+            0.00502187199890614,
+            0.00491726199106779,
+            0.00513498600048479,
+            0.00513646101171616
+         ]
+      },
+      {
+         "case" : "switch_0_distinct_64_lexical_blocks",
+         "median_ns_per_operation" : 699.384100153111,
+         "operations_per_sample" : 10000,
+         "save_stack_words_before_yield_loop" : 66,
+         "seconds_in_measurement_order" : [
+            0.00697083798877429,
+            0.00731092299974989,
+            0.00766535098955501,
+            0.00721691799117252,
+            0.00705968900001608,
+            0.00686682800005656,
+            0.00690611699246801,
+            0.00699384100153111,
+            0.00694541799020953
+         ]
+      },
+      {
+         "case" : "switch_8_distinct_32_lexical_blocks",
+         "median_ns_per_operation" : 917.699300043751,
+         "operations_per_sample" : 10000,
+         "save_stack_words_before_yield_loop" : 58,
+         "seconds_in_measurement_order" : [
+            0.00904816600086633,
+            0.00904872400860768,
+            0.00921821800875477,
+            0.00958553300006315,
+            0.00924022500112187,
+            0.00904316599189769,
+            0.00935665301221889,
+            0.00917699300043751,
+            0.00916165100352373
+         ]
+      }
+   ],
+   "samples" : 9,
+   "timer" : "CLOCK_MONOTONIC",
+   "useithreads" : null
+}

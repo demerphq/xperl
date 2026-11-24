@@ -1,0 +1,118 @@
+#!./perl
+use v5.40;
+use generator;
+use Config;
+use Getopt::Long qw(GetOptions);
+use JSON::PP ();
+use Time::HiRes qw(clock_gettime CLOCK_MONOTONIC);
+use XS::APItest ();
+
+my ($iterations, $samples, $label) = (10_000, 7, '');
+{ package LocalBench; our ($checksum, $words) = (0, 0) }
+GetOptions(
+    'iterations=i' => \$iterations,
+    'samples=i' => \$samples,
+    'label=s' => \$label,
+) or die "Invalid options\n";
+die "Iterations and samples must be positive\n" if $iterations < 1 || $samples < 1;
+
+our $plain = 7;
+sub access_loop {
+    my ($n) = @_;
+    my $sum = 0;
+    $sum += $plain for 1 .. $n;
+    return $sum;
+}
+sub local_loop {
+    my ($n) = @_;
+    my $sum = 0;
+    for (1 .. $n) {
+        local $plain = 7;
+        $sum += $plain;
+    }
+    return $sum;
+}
+
+sub factory {
+    my ($bindings, $scratch_depth, $same) = @_;
+    my $src = "sub { gen {\n";
+    for my $i (1 .. $bindings) {
+        my $index = $same ? 1 : $i;
+        $src .= "local \$LocalBench::field_$index = $i;\n";
+    }
+    # Each lexical has its own block and is read after suspension.
+    # These saves add work to the scanner without adding package bindings.
+    for my $i (1 .. $scratch_depth) {
+        $src .= "{ my \$scratch_$i = $i;\n";
+    }
+    $src .= "\$LocalBench::words = XS::APItest::savestack::get_savestack_ix();\n";
+    $src .= "while (1) { my \$stop = yield 1; last if \$stop; }\n";
+    my $sum = '$LocalBench::checksum';
+    for my $i (reverse 1 .. $scratch_depth) {
+        $src .= "$sum += \$scratch_$i; }\n";
+    }
+    $src .= "return 1; } }\n";
+    my $create = eval $src;
+    die "Could not compile workload: $@" unless $create;
+    return $create;
+}
+
+my @cases;
+for my $control (['ordinary_read', \&access_loop], ['ordinary_local', \&local_loop]) {
+    my ($name, $run) = @$control;
+    my $n = 20 * $iterations;
+    push @cases, [$name, $n, sub {}, sub { $run->($n) == 7 * $n or die "wrong control sum" }];
+}
+for my $spec ([0, 0, 0], [1, 0, 0], [8, 0, 0], [32, 0, 0], [64, 0, 0],
+              [128, 0, 0], [256, 0, 0],
+              [8, 0, 1], [32, 0, 1], [0, 8, 0], [0, 32, 0], [0, 64, 0], [8, 32, 0]) {
+    my ($nlocals, $depth, $same) = @$spec;
+    my $name = join '_', 'switch', $nlocals, $same ? 'same' : 'distinct', $depth, 'lexical_blocks';
+    my $create = factory(@$spec);
+    my $prime = sub {
+        my $g = $create->();
+        my $first = $g->();
+        die "wrong initial yield" unless $first == 1;
+        return $g;
+    };
+    push @cases, [$name, $iterations, $prime, sub {
+        my ($g) = @_;
+        my $sum = 0;
+        $sum += $g->() for 1 .. $iterations;
+        die "wrong yield sum" unless $sum == $iterations;
+    }];
+}
+
+my @results;
+for my $case (@cases) {
+    my ($name, $count, $prepare, $run) = @$case;
+    my @seconds;
+    my $stack_words;
+    for my $round (0 .. $samples) {
+        my $g = $prepare->();
+        $stack_words = $LocalBench::words if defined $g;
+        my $start = clock_gettime(CLOCK_MONOTONIC);
+        $run->($g);
+        my $elapsed = clock_gettime(CLOCK_MONOTONIC) - $start;
+        push @seconds, $elapsed if $round;
+        if (defined $g) {
+            local $LocalBench::checksum = 0;
+            my $done = $g->(1);
+            die "workload did not finish" unless $done == 1;
+        }
+    }
+    my @sorted = sort { $a <=> $b } @seconds;
+    my $median = ($sorted[int($#sorted / 2)] + $sorted[int(@sorted / 2)]) / 2;
+    push @results, {
+        case => $name,
+        (defined($stack_words) ? (save_stack_words_before_yield_loop => $stack_words) : ()),
+        operations_per_sample => $count,
+        seconds_in_measurement_order => \@seconds,
+        median_ns_per_operation => 1e9 * $median / $count,
+    };
+}
+say JSON::PP->new->canonical->pretty->encode({
+    label => $label, samples => $samples, iterations => $iterations,
+    perl => "$^V", ccflags => $Config{ccflags}, optimize => $Config{optimize},
+    useithreads => $Config{useithreads}, timer => 'CLOCK_MONOTONIC', results => \@results,
+});

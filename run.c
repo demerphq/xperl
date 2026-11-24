@@ -364,6 +364,8 @@ S_generator_park_pads(pTHX_ PERL_GENERATOR *generator)
         S_suspended_pad_unlink(aTHX_ pad);
         S_suspended_pad_link(aTHX_ pad);
     }
+    if (!local_bindings_park(&generator->local_bindings))
+        PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE();
     S_generator_restore_pads(aTHX_ generator);
     LEAVE_SCOPE(oldsave);
 }
@@ -1075,6 +1077,10 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
                 S_generator_attach_stackinfo(aTHX_ generator);
             S_generator_install_pads(aTHX_ generator);
             process_state_restore(&generator->process);
+            if (local_bindings_validate(generator->local_bindings, PL_savestack))
+                local_bindings_resume(generator->local_bindings, PL_savestack);
+            else
+                local_bindings_discard(generator->local_bindings, PL_savestack);
             if (generator->eval_active)
                 dounwind(-1);
             generator->eval_active = FALSE;
@@ -1088,6 +1094,7 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
         S_generator_free_process_stacks(aTHX_ &generator->process);
     }
     S_generator_free_pads(aTHX_ generator);
+    local_bindings_free(generator->local_bindings);
     SvREFCNT_dec(generator->value);
     SvREFCNT_dec((SV *)generator->values);
     SvREFCNT_dec(generator->defsv);
@@ -1422,8 +1429,11 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
     volatile bool default_variables_swapped = FALSE;
     GENERATOR_RUN run = { generator, NULL, NULL };
     int ret;
+    I32 caller_save;
 
     PERL_ARGS_ASSERT_GENERATOR_RESUME;
+    if (generator->pads_switching)
+        PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE();
     if (generator->state == PERL_GENERATOR_EXHAUSTED) {
         SvREFCNT_dec((SV *)generator->result);
         generator->result = newAV();
@@ -1434,15 +1444,30 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
     if (generator->state != PERL_GENERATOR_NEW && !generator->captured)
         PERL_THROW_ERROR_ITERATOR_GENERATOR_NO_SUSPENDED_CONTINUATION();
 
+    caller_save = PL_savestack_ix;
+    SAVEBOOL(generator->pads_switching);
+    SAVEFREESV(args);
+    generator->pads_switching = TRUE;
+    if (!local_bindings_validate(generator->local_bindings,
+                                generator->process.context.Isavestack))
+        PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE();
     if (new_generator) {
         if (generator->initial_args)
             PERL_THROW_ERROR_ITERATOR_GENERATOR_ALREADY_INVOKED();
-        generator->initial_args = args;
+        generator->initial_args = (AV *)SvREFCNT_inc(args);
     }
     else {
-        SvREFCNT_dec((SV *)generator->resume_args);
-        generator->resume_args = args;
+        AV *old_args = generator->resume_args;
+        generator->resume_args = NULL;
+        SvREFCNT_dec((SV *)old_args);
+        /* Releasing old arguments can call Perl and change the resumer's
+         * aliases. The new arguments stay guarded until validation succeeds. */
+        if (!local_bindings_validate(generator->local_bindings,
+                                    generator->process.context.Isavestack))
+            PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE();
+        generator->resume_args = (AV *)SvREFCNT_inc(args);
     }
+    LEAVE_SCOPE(caller_save);
 
     process_state_save(&caller_state);
     generator->invoke.op_flags = OPf_STACKED
@@ -1457,6 +1482,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             S_generator_attach_stackinfo(aTHX_ generator);
         S_generator_install_pads(aTHX_ generator);
         process_state_restore(&generator->process);
+        local_bindings_resume(generator->local_bindings, PL_savestack);
     }
     /* Native callbacks can run another loop on this same Perl stack. Their
      * return is not completion of the generator. Only its owning loop gets
