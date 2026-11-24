@@ -1367,6 +1367,7 @@ retain their normal behavior.
 #define PERLSI_SMARTMATCH      12
 #define PERLSI_CONSTRUCTOR     13
 #define PERL_SI_EXCEPTHOOK      14
+#define PERLSI_GENERATOR       15
 
 struct stackinfo {
     AV *		si_stack;	/* stack for current runlevel */

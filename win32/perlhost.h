@@ -2002,6 +2002,9 @@ PerlProcFork(const struct IPerlProc** piPerl)
     HANDLE handle;
     CPerlHost *h;
 
+    /* This check can throw. Run it before allocating the child or host. */
+    Perl_check_generator_stack_clone(aTHX, CLONEf_COPY_STACKS);
+
     if (w32_num_pseudo_children >= MAXIMUM_WAIT_OBJECTS) {
         errno = EAGAIN;
         return -1;

@@ -8093,6 +8093,7 @@ t/op/generator.t			See if generator blocks work
 t/op/generator_bindings.t		Default binding identity across suspension
 t/op/generator_cleanup.t		Default variables during generator cleanup
 t/op/generator_context.t		Generator exception scopes across suspension
+t/op/generator_exit.t			Process exit across private execution roots
 t/op/generator_local.t			Reversible package scalar localization tests
 t/op/generator_local_random.t		Randomized dynamic binding ownership tests
 t/op/generator_pad.t			Suspended activation pad ownership tests

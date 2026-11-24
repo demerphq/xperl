@@ -1355,6 +1355,13 @@ even when restoring a local variable throws.
 
 =item *
 
+C<exit> inside a generator unwinds its private execution before its
+callers, preserving process exit status and releasing resources before
+C<END>.  Copied-stack interpreter cloning rejects an active generator
+instead of copying a continuation without its native owner.
+
+=item *
+
 A string C<eval> inside a method which names a field that the method does
 not otherwise use now reports "Field %s is not accessible outside a
 method".

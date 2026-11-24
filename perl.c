@@ -5631,8 +5631,8 @@ Perl_my_failure_exit(pTHX)
     my_exit_jump();
 }
 
-static void
-S_my_exit_jump(pTHX)
+void
+Perl_my_exit_jump(pTHX)
 {
     PERL_ARGS_ASSERT_MY_EXIT_JUMP;
 
@@ -5641,7 +5641,14 @@ S_my_exit_jump(pTHX)
         PL_e_script = NULL;
     }
 
-    POPSTACK_TO(PL_mainstack);
+    /* Each generator owns its save and scope stacks. Its native owner must
+     * restore the caller before exit can unwind below that private root. */
+    while (PL_curstack != PL_mainstack
+           && PL_curstackinfo->si_type != PERLSI_GENERATOR) {
+        dounwind(-1);
+        rpp_obliterate_stack_to(0);
+        POPSTACK;
+    }
     if (cxstack_ix >= 0) {
         dounwind(-1);
     }
