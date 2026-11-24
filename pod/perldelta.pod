@@ -602,6 +602,14 @@ release manager will have to investigate the situation carefully.)
 
 =item *
 
+L<xperl> enables the current XPerl language with C<use xperl;>. It turns on
+strictness and warnings, enables modern and experimental features, imports
+builtins and standard pattern predicates lexically, and loads generator
+support. Experimental warnings are silenced. The older syntax disabled by
+modern Perl version bundles remains disabled.
+
+=item *
+
 L<Perl::Tidy> 20260826.04 is bundled from the local development checkout,
 including support for XPerl dispatch syntax, C<multi sub>, and
 C<multi method> declarations. The F<perltidy> and

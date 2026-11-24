@@ -537,6 +537,7 @@ make C<map> or C<grep> return a lazy result: list context collects the
 output, while scalar context returns its count.
 
 This function is experimental and is not included in Perl version bundles.
+C<use xperl> imports it along with the other builtins.
 
 =head2 indexed
 

@@ -7246,6 +7246,8 @@ lib/vmsish.t				Tests for vmsish.pm
 lib/warnings.pm				For "use warnings"
 lib/warnings.t				See if warning controls work
 lib/warnings/register.pm		For "use warnings::register"
+lib/xperl.pm				Enable the XPerl language and supporting functions
+lib/xperl.t				Tests for the xperl pragma
 lib/XPerl/DiagGroup.pm			Common diagnostic collector operations
 lib/XPerl/Diagnostic.pm			Structured diagnostic object
 lib/XPerl/Diagnostic/Catalog.pm		Experimental module diagnostic declarations
