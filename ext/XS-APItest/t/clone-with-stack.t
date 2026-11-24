@@ -36,11 +36,12 @@ use generator;
         $_[0][0] = $_[1];
     }
 }
-our $value;
-tie $value, 'CleanupTie';
+our @value;
+# Element locals exercise throwing restoration in the scalar prototype too.
+tie $value[0], 'CleanupTie';
 {
     my $g = gen {
-        local $value = 'inside';
+        local $value[0] = 'inside';
         yield 1;
     };
     $g->();

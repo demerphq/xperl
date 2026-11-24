@@ -4,6 +4,11 @@ This assessment concerns the scalar prototype at commit `46e254d668` on
 `xperl/proto-localize`. It identifies a limitation to resolve before
 promising safe cleanup after arbitrary glob-alias changes.
 
+After the default-binding fixes, the special-retarget probe sees an
+undefined owner topic instead of the host topic. Neither result is the
+localized scalar that its destructor needs. The underlying alias-policy
+problem remains the same.
+
 The ordered swap works whenever the caller still gives the localized
 globs the same scalar-slot relationships. Keep that path. The caller may
 have different scalar values, ties or an empty slot. Those are already

@@ -220,6 +220,29 @@ for my $when (qw(before_first_yield after_first_yield)) {
     ok(\$slot == $root_ref && $slot eq 'root', 'neither nested record leaked into the caller');
 }
 
+{
+    my (@calls, @errors);
+    my $weak_packet;
+    my $g = gen {
+        eval {
+            local $other = 'plain';
+            tie $other, 'LocalTestTie', 'tied', \@calls;
+            my $packet = bless {}, 'LocalTestPacket';
+            $weak_packet = $packet;
+            weaken($weak_packet);
+            yield $packet;
+        };
+        push @errors, $@;
+        yield 'valid';
+        return 'finished';
+    };
+    is($g->(), 'valid', 'a caught park failure does not deliver its rejected packet');
+    check_unavailable($errors[0], 'the owner catches its park failure');
+    ok(!defined($weak_packet), 'the rejected packet is released before the next suspension');
+    is($g->(), 'finished', 'the handler can continue to normal completion');
+    is($other, 'other root', 'caught rejection restores the caller binding');
+}
+
 for my $kind (qw(glob_slot foreach)) {
     my @seen;
     my $g = gen {

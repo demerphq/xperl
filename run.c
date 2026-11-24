@@ -1613,6 +1613,19 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         if (generator->captured)
             break;
         if (ret == 3 && PL_restartjmpenv == PL_top_env && PL_restartop) {
+            /* A failed park is a caught exception, not a completed yield.
+             * Do not hand its packet to the caller at the next boundary. */
+            if (generator->yield_pending) {
+                SV * const value = generator->value;
+                AV * const values = generator->values;
+                generator->yield_pending = FALSE;
+                generator->value = NULL;
+                generator->values = NULL;
+                if (value)
+                    sv_2mortal(value);
+                if (values)
+                    sv_2mortal(MUTABLE_SV(values));
+            }
             PL_op = PL_restartop;
             PL_restartop = NULL;
             PL_restartjmpenv = NULL;

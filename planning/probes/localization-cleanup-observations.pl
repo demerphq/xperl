@@ -11,7 +11,11 @@ sub park_pair ($events) {
     my $g = gen {
         local $left = 'owner left';
         local $right = 'owner right';
-        my $guard = bless [sub { push @$events, "$left / $right" }], 'Observer';
+        my $guard = bless [sub {
+            my $visible_left = $left // '<undef>';
+            my $visible_right = $right // '<undef>';
+            push @$events, "$visible_left / $visible_right";
+        }], 'Observer';
         yield 'parked';
     };
     my $ready = $g->();

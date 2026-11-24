@@ -55,6 +55,16 @@ arguments, foreach aliases, tied topics, nested abandonment, throwing
 restorations, repeated exceptions and throwing warning hooks. A copied-stack
 interpreter clone also exercises a pending cleanup warning.
 
+The scalar prototype additionally cancels a pending yield if its
+localization checks fail and an owner-local handler catches the exception.
+The rejected packet must not reach the caller before that handler runs.
+Its references are released before the next successful suspension.
+
+On this branch, the generic throwing-cleanup fixtures use tied array
+elements. Magical package locals are deliberately rejected by the scalar
+prototype. Element restoration exercises the same throwing cleanup path,
+but does not establish isolation of element localizations while parked.
+
 The focused suites passed on the normal build and on regular-stack and
 threaded reference-counted DEBUGGING builds with ASan and LSan. Leak runs
 used `PERL_DESTRUCT_LEVEL=2` outside a tracing process. The clone suite's

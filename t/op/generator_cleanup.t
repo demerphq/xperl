@@ -110,16 +110,18 @@ abandon_with_arguments('caller argument');
         $self->{value} = $value;
     }
 }
+# The scalar prototype rejects magical package locals. Tied array elements
+# exercise the same throwing restore without replaying a package binding.
 {
     local $_ = 'cleanup caller';
-    our $tied;
-    tie $tied, 'GeneratorCleanupTie';
+    our @tied;
+    tie $tied[0], 'GeneratorCleanupTie';
     my ($continued, $cleaned) = (0, 0);
     my $g = gen {
         $_ = 'cleanup owner';
         my $guard = bless sub { ++$cleaned }, 'GeneratorCleanupGuard';
         eval {
-            local $tied = 'inside';
+            local $tied[0] = 'inside';
             yield 'tied local';
         };
         ++$continued;
@@ -140,20 +142,20 @@ abandon_with_arguments('caller argument');
     is(scalar @warnings, 1, 'throwing cleanup reports a warning');
     like($warnings[0][1] // '', qr/cleanup store failed/, 'warning explains the cleanup failure');
     is($warnings[0][0], 'cleanup caller', 'warning runs after restoring the caller');
-    untie $tied;
+    untie $tied[0];
 }
 
 {
-    our ($first_tied, $second_tied);
-    tie $first_tied, 'GeneratorCleanupTie';
-    tie $second_tied, 'GeneratorCleanupTie';
+    our (@first_tied, @second_tied);
+    tie $first_tied[0], 'GeneratorCleanupTie';
+    tie $second_tied[0], 'GeneratorCleanupTie';
     eval { die "repeated cleanup failure\n" };
     local $GeneratorCleanupTie::failure = ${^ERROR_OBJ};
     my $g = gen {
         eval {
-            local $first_tied = 'first';
+            local $first_tied[0] = 'first';
             eval {
-                local $second_tied = 'second';
+                local $second_tied[0] = 'second';
                 yield 'two tied locals';
             };
         };
@@ -169,15 +171,15 @@ abandon_with_arguments('caller argument');
     my $original_messages = () = "$GeneratorCleanupTie::failure"
         =~ /^repeated cleanup failure$/mg;
     is($original_messages, 1, 'reporting does not duplicate the original diagnostic');
-    untie $first_tied;
-    untie $second_tied;
+    untie $first_tied[0];
+    untie $second_tied[0];
 }
 
 {
-    our $fatal_tied;
-    tie $fatal_tied, 'GeneratorCleanupTie';
+    our @fatal_tied;
+    tie $fatal_tied[0], 'GeneratorCleanupTie';
     my $g = gen {
-        local $fatal_tied = 'inside';
+        local $fatal_tied[0] = 'inside';
         yield 'fatal warning';
     };
     is($g->(), 'fatal warning', 'fatal cleanup warning test suspends');
@@ -186,7 +188,7 @@ abandon_with_arguments('caller argument');
     my $ok = eval { undef $g; 1 };
     ok(!$ok, 'a throwing warning hook reaches the caller');
     like($@, qr/warning hook failed/, 'caller receives the warning hook exception');
-    untie $fatal_tied;
+    untie $fatal_tied[0];
 }
 
 done_testing;
