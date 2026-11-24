@@ -657,6 +657,8 @@ Perl_generator_new(pTHX_ CV *body)
     generator->defsv = newSVsv(GvSV(PL_defgv)
                                ? GvSV(PL_defgv) : &PL_sv_undef);
     generator->defav = newAV();
+    generator->errsv = newSV(0);
+    generator->errorobj = newSV(0);
     generator->invoke.op_ppaddr = PL_ppaddr[OP_ENTERSUB];
     generator->invoke.op_type = OP_ENTERSUB;
     generator->invoke.op_flags = OPf_STACKED | OPf_WANT_SCALAR;
@@ -668,10 +670,10 @@ static int
 S_generator_magic_free(pTHX_ SV *sv, MAGIC *mg)
 {
     PERL_GENERATOR * const generator = (PERL_GENERATOR *)mg->mg_ptr;
-    PERL_UNUSED_ARG(sv);
     if (generator) {
-        generator_free(generator);
         mg->mg_ptr = NULL;
+        CvXSUBANY(MUTABLE_CV(sv)).any_ptr = NULL;
+        generator_free(generator);
     }
     return 0;
 }
@@ -977,46 +979,22 @@ static void S_generator_detach_stackinfo(pTHX_ PERL_GENERATOR *generator);
 static void S_generator_attach_stackinfo(pTHX_ PERL_GENERATOR *generator);
 
 static void
-S_generator_swap_sv(SV *a, SV *b)
-{
-    const U32 keep = SVs_PADSTALE | SVs_PADTMP | SVs_PADMY;
-    SV tmp;
-
-    SvANY(&tmp) = SvANY(a);
-    SvANY(a) = SvANY(b);
-    SvANY(b) = SvANY(&tmp);
-
-    SvFLAGS(&tmp) = SvFLAGS(a);
-    SvFLAGS(a) = (SvFLAGS(a) & keep) | (SvFLAGS(b) & ~keep);
-    SvFLAGS(b) = (SvFLAGS(b) & keep) | (SvFLAGS(&tmp) & ~keep);
-
-    tmp.sv_u = a->sv_u;
-    a->sv_u = b->sv_u;
-    b->sv_u = tmp.sv_u;
-
-    if (SvTYPE(a) == SVt_NULL || SvTYPE(a) == SVt_IV
-#if NVSIZE <= IVSIZE
-        || SvTYPE(a) == SVt_NV
-#endif
-    )
-        SvANY(a) = (void *)((PTRV)SvANY(a) - (PTRV)b + (PTRV)a);
-
-    if (SvTYPE(b) == SVt_NULL || SvTYPE(b) == SVt_IV
-#if NVSIZE <= IVSIZE
-        || SvTYPE(b) == SVt_NV
-#endif
-    )
-        SvANY(b) = (void *)((PTRV)SvANY(b) - (PTRV)a + (PTRV)b);
-}
-
-static void
 S_generator_swap_default_variables(pTHX_ PERL_GENERATOR *generator)
 {
+    SV * const defsv = GvSV(PL_defgv);
     AV * const defav = GvAV(PL_defgv);
+    SV * const errsv = ERRSV;
+    SV * const errorobj = PERL_ERROR_OBJ;
 
-    S_generator_swap_sv(GvSVn(PL_defgv), generator->defsv);
+    /* Exchange bindings so references and argument aliases keep their SVs. */
+    GvSV(PL_defgv) = generator->defsv;
+    generator->defsv = defsv;
     GvAV(PL_defgv) = generator->defav;
     generator->defav = defav;
+    GvSV(PL_errgv) = generator->errsv;
+    generator->errsv = errsv;
+    GvSV(PL_errorobjgv) = generator->errorobj;
+    generator->errorobj = errorobj;
 }
 
 static void
@@ -1051,10 +1029,22 @@ S_generator_free_process_stacks(pTHX_ PERL_PROCESS_STATE *process)
     context->Itmps_stack = NULL;
 }
 
+static void
+S_generator_warn_cleanup(pTHX_ void *data)
+{
+    const I32 index = PTR2IV(data);
+    AV * const errors = MUTABLE_AV(PL_savestack[index].any_sv);
+    SSize_t i;
+
+    for (i = 0; i <= AvFILLp(errors); ++i)
+        PERL_WARN_WARNING_MISC_EXCEPTION_DURING_CLEANUP(AvARRAY(errors)[i]);
+}
+
 void
 Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
 {
     PERL_PROCESS_STATE caller_state;
+    AV * volatile cleanup_errors = NULL;
 
     PERL_ARGS_ASSERT_GENERATOR_FREE;
     if (generator->stack_pushed) {
@@ -1072,6 +1062,12 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
             generator->stack_pushed = FALSE;
         }
         else {
+            runops_boundary_proc_t const old_hook = PL_runops_boundary_hook;
+            void * const old_data = PL_runops_boundary_data;
+            JMPENV * const old_restartjmpenv = PL_restartjmpenv;
+            int ret;
+            dJMPENV;
+
             process_state_save(&caller_state);
             if (generator->stack_detached)
                 S_generator_attach_stackinfo(aTHX_ generator);
@@ -1081,13 +1077,60 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
                 local_bindings_resume(generator->local_bindings, PL_savestack);
             else
                 local_bindings_discard(generator->local_bindings, PL_savestack);
-            if (generator->eval_active)
-                dounwind(-1);
+            /* Scope cleanup can run Perl destructors. They belong to the
+             * abandoned execution, including its default variables. */
+            S_generator_swap_default_variables(aTHX_ generator);
+            PL_runops_boundary_hook = NULL;
+            PL_runops_boundary_data = NULL;
+            JMPENV_PUSH(ret);
+            if (ret && ret != 3) {
+                process_state_save(&generator->process);
+                JMPENV_POP;
+                S_generator_restore_pads(aTHX_ generator);
+                S_generator_swap_default_variables(aTHX_ generator);
+                process_state_restore(&caller_state);
+                PL_runops_boundary_hook = old_hook;
+                PL_runops_boundary_data = old_data;
+                PL_restartjmpenv = old_restartjmpenv;
+                JMPENV_JUMP(ret);
+            }
+            if (ret == 3) {
+                SV * const error = SvROK(PERL_ERROR_OBJ) ? PERL_ERROR_OBJ : ERRSV;
+                if (!cleanup_errors)
+                    cleanup_errors = newAV();
+                av_push(cleanup_errors, newSVsv(error));
+            }
+            {
+                I32 i;
+                /* Cleanup must not jump into a handler in the abandoned body. */
+                for (i = 0; i <= cxstack_ix; ++i) {
+                    if (CxTYPE(&cxstack[i]) == CXt_EVAL) {
+                        cxstack[i].blk_eval.cur_top_env = &cur_env;
+                        cxstack[i].blk_eval.retop = NULL;
+                    }
+                }
+            }
+            dounwind(-1);
             generator->eval_active = FALSE;
+            /* Destructors can grow the private stacks and create more
+             * temporaries. Drain the live stacks before saving their final
+             * addresses for the raw storage release below. */
+            PL_op = (OP *)&generator->invoke;
+            create_eval_scope(NULL, PL_stack_base, G_FAKINGEVAL);
+            rpp_obliterate_stack_to(0);
+            PL_tmps_floor = -1;
+            FREETMPS;
+            dounwind(-1);
+            process_state_save(&generator->process);
+            JMPENV_POP;
             S_generator_pop_stackinfo(aTHX_ generator);
-            S_generator_free_process_stacks(aTHX_ &generator->process);
             S_generator_restore_pads(aTHX_ generator);
+            S_generator_swap_default_variables(aTHX_ generator);
             process_state_restore(&caller_state);
+            PL_runops_boundary_hook = old_hook;
+            PL_runops_boundary_data = old_data;
+            PL_restartjmpenv = old_restartjmpenv;
+            S_generator_free_process_stacks(aTHX_ &generator->process);
         }
     }
     else if (generator->process.context.Itmps_stack) {
@@ -1099,12 +1142,23 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
     SvREFCNT_dec((SV *)generator->values);
     SvREFCNT_dec(generator->defsv);
     SvREFCNT_dec((SV *)generator->defav);
+    SvREFCNT_dec(generator->errsv);
+    SvREFCNT_dec(generator->errorobj);
     SvREFCNT_dec(generator->error);
     SvREFCNT_dec((SV *)generator->initial_args);
     SvREFCNT_dec((SV *)generator->resume_args);
     SvREFCNT_dec((SV *)generator->result);
     SvREFCNT_dec((SV *)generator->body);
     Safefree(generator);
+    if (cleanup_errors) {
+        const I32 index = PL_savestack_ix;
+        /* A warning hook can throw. Wait until the free-magic callback has
+         * returned so reporting cannot interrupt the wrapper's destruction.
+         * A typed save entry lets a cloned interpreter own its copy of the
+         * diagnostics. Pass its index rather than a pointer to the AV. */
+        SAVEFREESV(cleanup_errors);
+        SAVEDESTRUCTOR_X(S_generator_warn_cleanup, INT2PTR(void *, index));
+    }
 }
 
 static void
@@ -1406,21 +1460,15 @@ S_generator_push_resume_result(pTHX_ PERL_GENERATOR *generator)
 {
     AV * const args = generator->resume_args;
     const SSize_t count = args ? AvFILLp(args) + 1 : 0;
-    SV * const topic = GvSV(PL_defgv);
     SSize_t i;
 
     if (generator->yield_context == G_SCALAR) {
-        SV * const value = count ? *av_fetch(args, 0, 0) : &PL_sv_undef;
-        /* The caller's topic has moved out of the shared SV header. */
-        rpp_xpush_1(sv_mortalcopy(value == topic
-                                    ? generator->defsv : value));
+        rpp_xpush_1(sv_mortalcopy(count ? *av_fetch(args, 0, 0)
+                                      : &PL_sv_undef));
     }
     else if (generator->yield_context == G_LIST) {
-        for (i = 0; i < count; i++) {
-            SV * const value = *av_fetch(args, i, 0);
-            rpp_xpush_1(sv_mortalcopy(value == topic
-                                        ? generator->defsv : value));
-        }
+        for (i = 0; i < count; i++)
+            rpp_xpush_1(sv_mortalcopy(*av_fetch(args, i, 0)));
     }
 }
 
@@ -1529,6 +1577,8 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
              * Do not save an unowned pointer to the initial caller's pad. */
             PL_comppad = NULL;
             PL_curpad = NULL;
+            S_generator_swap_default_variables(aTHX_ generator);
+            default_variables_swapped = TRUE;
             PL_in_eval = 0;
             PL_restartop = NULL;
             PUSHMARK(PL_stack_sp);
@@ -1542,8 +1592,6 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             }
             rpp_xpush_1(MUTABLE_SV(generator->body));
             PL_op = (OP *)&generator->invoke;
-            S_generator_swap_default_variables(aTHX_ generator);
-            default_variables_swapped = TRUE;
         }
         else {
             I32 i;

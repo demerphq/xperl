@@ -17,7 +17,46 @@ if (not $Config{'useithreads'}) {
     skip_all("clone_with_stack requires threads");
 }
 
-plan(8);
+plan(9);
+
+fresh_perl_is( <<'----', <<'====', undef, 'clone deferred generator cleanup warnings' );
+use warnings;
+use XS::APItest;
+use generator;
+{
+    package CleanupTie;
+    our $fail;
+    sub TIESCALAR { bless ['outside'], shift }
+    sub FETCH { $_[0][0] }
+    sub STORE {
+        if ($fail && $_[1] eq 'outside') {
+            $fail = 0;
+            die "cleanup failed\n";
+        }
+        $_[0][0] = $_[1];
+    }
+}
+our $value;
+tie $value, 'CleanupTie';
+{
+    my $g = gen {
+        local $value = 'inside';
+        yield 1;
+    };
+    $g->();
+    local $SIG{__WARN__} = sub { print "cleanup warning\n" };
+    $CleanupTie::fail = 1;
+    undef $g;
+    clone_with_stack();
+    print "cloned\n";
+}
+print "done\n";
+----
+cleanup warning
+cloned
+cleanup warning
+done
+====
 
 fresh_perl_is( <<'----', <<'====', undef, "minimal clone_with_stack" );
 use XS::APItest;
