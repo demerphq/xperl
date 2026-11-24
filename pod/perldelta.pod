@@ -1341,6 +1341,12 @@ mistake the thread-cloning callback's return for generator completion.
 
 =item *
 
+C<eval> and C<try> inside a generator can catch exceptions after resuming
+from C<yield>.  Exceptions which escape a generator preserve their
+structured exception object.
+
+=item *
+
 A string C<eval> inside a method which names a field that the method does
 not otherwise use now reports "Field %s is not accessible outside a
 method".
