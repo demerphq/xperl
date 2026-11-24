@@ -1347,6 +1347,14 @@ structured exception object.
 
 =item *
 
+Generators preserve the identities of C<$_> references and argument
+aliases across suspension.  They have independent C<$@> and
+C<${^ERROR_OBJ}> bindings.  Destroying a suspended generator runs its
+scope cleanup with its own bindings, preserving the caller's defaults
+even when restoring a local variable throws.
+
+=item *
+
 A string C<eval> inside a method which names a field that the method does
 not otherwise use now reports "Field %s is not accessible outside a
 method".

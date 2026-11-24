@@ -137,4 +137,44 @@ is(refaddr($outside_meta), refaddr($saved_meta), 'the boundary forwards the orig
        'list arguments retain repeated caller topic values');
 }
 
+{
+    my $owner_exception;
+    my $g = gen {
+        eval { die "owner error\n" };
+        $owner_exception = ${^ERROR_OBJ};
+        yield 'saved error';
+        yield [$@, ${^ERROR_OBJ}];
+    };
+    eval { die "first caller error\n" };
+    my ($caller_error, $caller_exception) = ($@, ${^ERROR_OBJ});
+    is($g->(), 'saved error', 'generator suspends with a caught exception');
+    is($@, $caller_error, 'first invocation preserves the caller error');
+    is(${^ERROR_OBJ}, $caller_exception, 'first invocation preserves its canonical exception');
+    eval { die "second caller error\n" };
+    ($caller_error, $caller_exception) = ($@, ${^ERROR_OBJ});
+    my $result = $g->();
+    is($result->[0], "owner error\n", 'resumption restores the owner error');
+    is($result->[1], $owner_exception, 'resumption restores the canonical owner exception');
+    is($@, $caller_error, 'resumption preserves the current caller error');
+    is(${^ERROR_OBJ}, $caller_exception, 'resumption preserves the current caller exception');
+
+    my $arguments = gen {
+        my @initial = @_;
+        yield \@initial;
+        my @resumed = yield 'ready for errors';
+        yield \@resumed;
+    };
+    eval { die "argument error\n" };
+    ($caller_error, $caller_exception) = ($@, ${^ERROR_OBJ});
+    $result = $arguments->($@, ${^ERROR_OBJ});
+    is($result->[0], $caller_error, 'initial argument can be the caller error');
+    is($result->[1], $caller_exception, 'initial argument can be the canonical caller exception');
+    is($arguments->(), 'ready for errors', 'generator reaches the next argument receiver');
+    eval { die "resume argument error\n" };
+    ($caller_error, $caller_exception) = ($@, ${^ERROR_OBJ});
+    $result = $arguments->($@, ${^ERROR_OBJ});
+    is($result->[0], $caller_error, 'resume argument can be the caller error');
+    is($result->[1], $caller_exception, 'resume argument can be the canonical caller exception');
+}
+
 done_testing;

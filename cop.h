@@ -1493,6 +1493,8 @@ typedef struct perl_generator {
     CV *                    body;
     SV *                    defsv;
     AV *                    defav;
+    SV *                    errsv;
+    SV *                    errorobj;
     LOGOP                   invoke;
     PERL_PROCESS_STATE       process;
     AV *                    initial_args;

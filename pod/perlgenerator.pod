@@ -336,6 +336,19 @@ permanently failed: the call that resumed it sees the original exception, and
 later calls raise an invalid-resume exception.  An exception caught by an
 C<eval> inside the generator does not by itself finish or fail the generator.
 
+Each generator has its own C<$_>, C<@_>, C<$@> and C<${^ERROR_OBJ}>
+bindings.  Suspending restores the current caller's bindings.  References
+to the generator's scalars and argument aliases retain their identity
+while it is suspended.
+
+Dropping the last reference to a suspended generator unwinds its scopes.
+Scope destructors run with the generator's bindings.  An exception while
+restoring a local variable does not resume the abandoned body.  Cleanup
+continues, and errors from restoring local variables are reported as
+C<misc> warnings at the end of the caller's current scope.  Reporting
+waits until the generator wrapper has been freed, so a throwing warning
+hook cannot interrupt its destruction.
+
 A generator cannot be called while it is already running.  For example, a
 generator cannot call itself before it reaches a yield.  This prevents two
 executions from trying to use the same saved state at the same time.
