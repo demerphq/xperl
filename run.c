@@ -38,6 +38,7 @@ static XS(XS_generator_exhausted);
 static XS(XS_generator_completed);
 static XS(XS_generator_failed);
 static XS(XS_generator_running);
+static XS(XS_generator_clone_skip);
 static XS(XS_iterator_new);
 static XS(XS_iterator_state);
 static XS(XS_iterator_set_state);
@@ -46,6 +47,8 @@ static XS(XS_iterator_completed);
 static XS(XS_iterator_failed);
 static XS(XS_iterator_running);
 static int S_runops_with_boundary(pTHX);
+static XS(S_generator_xsub);
+
 
 static int
 S_iterator_magic_free(pTHX_ SV *sv, MAGIC *mg)
@@ -59,9 +62,29 @@ S_iterator_magic_free(pTHX_ SV *sv, MAGIC *mg)
     return 0;
 }
 
+#ifdef USE_ITHREADS
+static int
+S_iterator_magic_dup(pTHX_ MAGIC *mg, CLONE_PARAMS *param)
+{
+    PERL_ITERATOR *copy;
+    PERL_UNUSED_CONTEXT;
+    PERL_UNUSED_ARG(param);
+    Newx(copy, 1, PERL_ITERATOR);
+    Copy(mg->mg_ptr, copy, 1, PERL_ITERATOR);
+    mg->mg_ptr = (char *)copy;
+    return 0;
+}
+#endif
+
 static MGVTBL S_iterator_magic = {
     0, 0, 0, 0, S_iterator_magic_free,
-    0, 0, 0
+    0,
+#ifdef USE_ITHREADS
+    S_iterator_magic_dup,
+#else
+    0,
+#endif
+    0
 };
 
 static PERL_ITERATOR *
@@ -83,6 +106,7 @@ S_iterator_is_generator(pTHX_ SV *sv)
     if (sv && SvROK(sv))
         sv = SvRV(sv);
     return sv && SvTYPE(sv) == SVt_PVCV && CvISXSUB((CV *)sv)
+        && CvXSUB((CV *)sv) == S_generator_xsub
         && (PERL_GENERATOR *)CvXSUBANY((CV *)sv).any_ptr
         && ((PERL_GENERATOR *)CvXSUBANY((CV *)sv).any_ptr)->magic
                                                         == PERL_GENERATOR_MAGIC;
@@ -110,7 +134,6 @@ S_iterator_state(pTHX_ SV *sv)
     }
     return PERL_ITERATOR_INVALID;
 }
-
 
 void
 Perl_process_state_save(pTHX_ PERL_PROCESS_STATE *state)
@@ -266,6 +289,16 @@ static MGVTBL S_generator_magic = {
     0, 0, 0
 };
 
+/* A generator's saved Perl stack belongs to the interpreter that created
+ * it. We cannot copy that continuation into a new thread. */
+static XS(XS_generator_clone_skip)
+{
+    dXSARGS;
+    if (items != 1)
+        croak_xs_usage(cv, "class");
+    XSRETURN_YES;
+}
+
 static void
 S_generator_xsub(pTHX_ CV *cv)
 {
@@ -278,6 +311,12 @@ S_generator_xsub(pTHX_ CV *cv)
     PERL_UNUSED_ARG(cv);
     if (!generator || generator->magic != PERL_GENERATOR_MAGIC)
         PERL_THROW_ERROR_ITERATOR_GENERATOR_INVALID_WRAPPER();
+    if (generator->state == PERL_GENERATOR_EXHAUSTED
+        || generator->state == PERL_GENERATOR_FAILED
+        || (generator->state != PERL_GENERATOR_NEW && !generator->captured)) {
+        generator_resume(generator, NULL);
+        XSRETURN_EMPTY;
+    }
     args = newAV();
     for (i = 0; i < items; i++)
         av_push(args, SvREFCNT_inc_simple(ST(i)));
@@ -287,14 +326,14 @@ S_generator_xsub(pTHX_ CV *cv)
         if (GIMME_V == G_SCALAR) {
             if (!result || AvFILLp(result) < 0)
                 XSRETURN_EMPTY;
-            ST(0) = newSVsv(*av_fetch(result, 0, 0));
+            ST(0) = sv_mortalcopy(*av_fetch(result, 0, 0));
             XSRETURN(1);
         }
         if (!result)
             XSRETURN_EMPTY;
         EXTEND(SP, AvFILLp(result) + 1);
         for (i = 0; i <= AvFILLp(result); i++)
-            ST(i) = newSVsv(*av_fetch(result, i, 0));
+            ST(i) = sv_mortalcopy(*av_fetch(result, i, 0));
         XSRETURN(AvFILLp(result) + 1);
     }
     {
@@ -304,14 +343,14 @@ S_generator_xsub(pTHX_ CV *cv)
         if (GIMME_V == G_SCALAR) {
             if (!count)
                 XSRETURN_EMPTY;
-            ST(0) = newSVsv(*av_fetch(values, 0, 0));
+            ST(0) = sv_mortalcopy(*av_fetch(values, 0, 0));
             XSRETURN(1);
         }
         if (GIMME_V == G_VOID)
             XSRETURN_EMPTY;
         EXTEND(SP, count);
         for (i = 0; i < count; i++)
-            ST(i) = newSVsv(*av_fetch(values, i, 0));
+            ST(i) = sv_mortalcopy(*av_fetch(values, i, 0));
         XSRETURN(count);
     }
 }
@@ -356,8 +395,9 @@ static XS(XS_iterator_new)
         Newxz(iterator, 1, PERL_ITERATOR);
         iterator->magic = PERL_ITERATOR_MAGIC;
         iterator->state = PERL_ITERATOR_RUNNING;
-        sv_magicext(MUTABLE_SV(iterator_cv), NULL, PERL_MAGIC_ext,
-                    &S_iterator_magic, (char *)iterator, 0);
+        MAGIC *mg = sv_magicext(MUTABLE_SV(iterator_cv), NULL, PERL_MAGIC_ext,
+                               &S_iterator_magic, (char *)iterator, 0);
+        mg->mg_flags |= MGf_DUP;
     }
     sv_bless(iterator_sv, gv_stashpvs("iterator", GV_ADD));
     ST(0) = iterator_sv;
@@ -374,8 +414,7 @@ static XS(XS_iterator_state)
     state = S_iterator_state(aTHX_ ST(0));
     if (state == PERL_ITERATOR_INVALID)
         XSRETURN_UNDEF;
-    ST(0) = newSVuv((UV)state);
-    XSRETURN(1);
+    XSRETURN_UV((UV)state);
 }
 
 static XS(XS_iterator_set_state)
@@ -535,6 +574,8 @@ Perl_boot_core_generator(pTHX)
                 __FILE__, "$", 0);
     newXS_flags("generator::running", &XS_generator_running,
                 __FILE__, "@", 0);
+    newXS_flags("generator::CLONE_SKIP", &XS_generator_clone_skip,
+                __FILE__, "$", 0);
 }
 
 static void S_generator_pop_stackinfo(pTHX_ PERL_GENERATOR *generator);
@@ -669,6 +710,8 @@ S_generator_pop_stackinfo(pTHX_ PERL_GENERATOR *generator)
         return;
     PL_curstackinfo = saved_si;
     switch_argstack(saved_si->si_stack);
+    /* Unwinding contexts does not release values left on the stack. */
+    rpp_obliterate_stack_to(0);
     pop_stackinfo();
     generator->stack_pushed = FALSE;
 }
@@ -958,12 +1001,12 @@ S_generator_push_resume_result(pTHX_ PERL_GENERATOR *generator)
     SSize_t i;
 
     if (generator->yield_context == G_SCALAR) {
-        rpp_xpush_1(count ? newSVsv(*av_fetch(args, 0, 0))
-                          : newSVsv(&PL_sv_undef));
+        rpp_xpush_1(sv_mortalcopy(count ? *av_fetch(args, 0, 0)
+                                      : &PL_sv_undef));
     }
     else if (generator->yield_context == G_LIST) {
         for (i = 0; i < count; i++)
-            rpp_xpush_1(newSVsv(*av_fetch(args, i, 0)));
+            rpp_xpush_1(sv_mortalcopy(*av_fetch(args, i, 0)));
     }
 }
 
@@ -1033,7 +1076,11 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             && generator->state == PERL_GENERATOR_RUNNING
             && !generator->captured) {
             process_state_capture(&generator->process);
+#ifdef PERL_RC_STACK
+            push_stackinfo(PERLSI_UNKNOWN, 1);
+#else
             push_stackinfo(PERLSI_UNKNOWN, 0);
+#endif
             generator->stack_pushed = TRUE;
             S_generator_new_stacks(aTHX);
             PL_in_eval = 0;

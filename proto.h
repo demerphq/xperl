@@ -3088,12 +3088,11 @@ Perl_generator_new(pTHX_ CV *body)
 PERL_CALLCONV int
 Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         Perl_attribute_nonnull_aTHX
-        Perl_attribute_nonnull(pTHX_1)
-        Perl_attribute_nonnull(pTHX_2);
+        Perl_attribute_nonnull(pTHX_1);
 #define PERL_ARGS_ASSERT_GENERATOR_RESUME       \
-    STMT_START { Perl_assert_aTHX; assert(generator); assert(args);  \
-                 assert(SvTYPE(args) == SVt_PVAV);                   \
-                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;                \
+    STMT_START { Perl_assert_aTHX; assert(generator);        \
+                 assert(!args || SvTYPE(args) == SVt_PVAV);  \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;        \
     } STMT_END
 
 PERL_CALLCONV SV *

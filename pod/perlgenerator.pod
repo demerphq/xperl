@@ -346,6 +346,13 @@ not valid in an ordinary subroutine or in callback code such as C<sort>,
 C<map>, C<grep>, or a regular-expression code block.  Such callbacks cannot
 pause the operation that called them.
 
+=head1 THREADS
+
+A generator's saved execution state belongs to the interpreter which
+created it. Generators are skipped when a new interpreter thread is
+created. A child cannot resume its parent's generator. The parent can
+continue using its generator normally.
+
 =head1 SEE ALSO
 
 L<perlfunc/gen BLOCK> gives the short function-reference entries

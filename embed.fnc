@@ -1884,7 +1884,7 @@ Chp	|PERL_GENERATOR *|generator_new 				\
 				|NN CV *body
 Chp	|int	|generator_resume					\
 				|NN PERL_GENERATOR *generator		\
-				|NN AV *args
+				|NULLOK AV *args
 Chp	|SV *	|generator_wrap |NN CV *body
 Chp	|void	|generator_yield_suspend
 Chp	|void	|generator_yield_values 				\
