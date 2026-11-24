@@ -8,12 +8,13 @@ BEGIN {
 
 use strict;
 use warnings;
+use feature 'lexical_subs';
 use XS::APItest;
 use generator;
 use builtin 'iter';
 no warnings 'experimental::builtin';
 
-plan(tests => 8);
+plan(tests => 11);
 
 ok(process_state_roundtrip(), 'process state saves and restores');
 is(process_scheduler_reject(), -1, 'scheduler rejects an incomplete setup');
@@ -55,3 +56,29 @@ is(growth(sub {
     $it->();
     $it->(23, 24) for 1 .. 100;
 }), 0, 'list yield expressions release resumed values');
+
+sub escaping_subs {
+    gen {
+        my $x = $_[0];
+        my sub reader { $x }
+        my $fail = yield [\&reader, sub { $x }];
+        die "generator failed\n" if $fail;
+        return $x;
+    };
+}
+for my $exit (qw(return fail drop)) {
+    is(growth(sub {
+        for (1 .. 25) {
+            my $owner = escaping_subs();
+            my $readers = $owner->('value');
+            if ($exit eq 'return') {
+                $owner->();
+            }
+            elsif ($exit eq 'fail') {
+                eval { $owner->(1) };
+            }
+            undef $owner;
+            $_->() for @$readers;
+        }
+    }), 0, "escaped lexical and anonymous subs release their pads after $exit");
+}

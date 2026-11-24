@@ -3217,6 +3217,9 @@ p	|void	|pad_add_weakref|NN CV *func
 Adpx	|PADOFFSET|pad_alloc	|I32 optype				\
 				|U32 tmptype
 dp	|void	|pad_block_start|int full
+p	|PAD *	|pad_clone_frame|NN PADLIST *padlist			\
+				|NN PAD *prototype			\
+				|bool inactive
 Adp	|PADOFFSET|pad_fetchmy_pvn					\
 				|NN const char *namepv			\
 				|STRLEN namelen 			\
@@ -3234,11 +3237,15 @@ Adp	|PADOFFSET|pad_findmy_pvn					\
 				|U32 flags
 Adp	|PADOFFSET|pad_findmy_sv|NN SV *name				\
 				|U32 flags
+p	|PAD *	|pad_find_suspended_frame				\
+				|NN const CV *cv
 dp	|void	|pad_fixup_inner_anons					\
 				|NN PADLIST *padlist			\
 				|NN CV *old_cv				\
 				|NN CV *new_cv
 dp	|void	|pad_free	|PADOFFSET po
+p	|bool	|pad_in_suspended_execution				\
+				|NN CV *cv
 dp	|OP *	|pad_leavemy
 p	|PAD ** |padlist_store	|NN PADLIST *padlist			\
 				|I32 key				\

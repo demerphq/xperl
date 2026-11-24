@@ -1,23 +1,16 @@
 # Shared activation pads and suspended Perl stacks
 
-Status: confirmed existing correctness bug, not yet fixed. Investigated on
-24 November 2026 against the generator runtime based on `f97d2b8bd4`.
+The fix gives each suspended execution exclusive ownership of its live
+activation pads. It does not copy lexical values or clone the executing
+CVs. Bookkeeping runs at execution boundaries rather than on ordinary
+subroutine entry, exit, or opcode dispatch.
 
-## Confirmed behavior
+## The bug
 
-The runtime can suspend an entire private Perl call chain, including
-ordinary nested subroutine frames. That does not make independently
-scheduled call chains safe. Perl keeps `CvDEPTH` on the shared CV, outside
-the swappable execution record. Normal subroutine exit restores the depth
-saved when that activation was entered.
-
-If context A and context B suspend in the same CV, B can own a deeper pad.
-Returning from or closing A restores an earlier depth even though B still
-owns its activation. A new invocation can consequently reuse B's pad and
-overwrite its arguments and lexical variables.
-
-The issue is reachable through existing public generators. It does not
-require a proposed fiber API or an unsafe XS callback:
+Two generators made by the same factory can share the compiled generator
+body. They must nevertheless keep separate arguments and lexical
+variables. Before this fix, finishing one generator could let a new call
+reuse another suspended generator's storage:
 
 ```perl
 use generator;
@@ -39,69 +32,154 @@ print $d->('D'), "\n";
 print $b->(), "\n"; # Must be B; the affected runtime returns D.
 ```
 
-The CV template in this factory does not require ordinary closure cloning,
-so the wrappers share it. The independent probe using two distinct leaf CVs
-also reproduced corruption in a shared ordinary named helper. Finishing
-the younger activation before the older one preserved the expected
-values. A debug/reference-counted build can stop on a pad/depth invariant
-instead of silently returning the wrong value.
+This reproduces on the generator runtime at `f97d2b8bd4`. The same problem
+applies to ordinary named subs called on private execution stacks.
+Destroying an older generator or unwinding it after an exception can cause
+the same corruption.
 
-`close` makes this existing ownership problem easier to exercise, but does
-not introduce it. Ordinary out-of-order return is enough.
+Perl normally associates a CV's activation pads with its recursion depth.
+Returning from a call restores the depth saved on entry. That assumes
+nested call lifetimes. A suspended call can outlive a call which entered
+before it, so restoring that earlier depth can expose storage which is
+still in use. Saving `CvDEPTH` alone cannot prevent another call from
+reusing that storage.
 
-## Constraints on the fix
+## Ownership rules
 
-Each parked execution must retain exclusive ownership of its live
-activation pads. Outside execution must not allocate those pads again.
-Restoring only `PL_curpad`, or only `CvDEPTH`, is insufficient.
+On first suspension, we inspect the private Perl context stack and find
+each CV's live activations. We move their actual pad AVs into a private
+padlist owned by the execution record. The CV receives spare pads made
+using the existing recursion-allocation rules. Outer captures, constants,
+and `state` bindings retain the sharing those rules require.
 
-The fix must preserve ordinary closure bindings, shared state variables,
-constants, lexical subs, argument aliases, recursive calls, and caller
-frames which are live below a nested execution owner. Cloning every CV
-without examining those semantics is not an established solution.
+The following invariants apply:
 
-The suspension boundary provides a place to discover the actual live
-`CXt_SUB` frames, their CVs, saved depths, and pad AVs. A candidate design
-detaches those activation pads while the context is parked and reinstalls
-them on resume. `pad_push` is the existing source of rules for constructing
-recursion-equivalent pads while sharing outer/state bindings correctly.
+- A parked activation's live pad AV belongs to its execution record. It is
+  absent from the padlist available to outside calls.
+- Each lexical SV, argument alias, and escaped reference keeps its identity.
+  Moving the pad AV does not replace or copy its contents.
+- A CV has the running execution's padlist and depth installed. Normal Perl
+  calls and returns use those values without additional checks.
+- Resume saves the currently installed outside padlist and depth before
+  installing the private pair. Suspension restores that saved pair. We do
+  not assume that the resumer is the original caller.
+- Callers below the execution boundary retain their own padlist and live
+  frames. Only activations on the private stack move into private storage.
+- Completed CV activations release their private padlists at the next
+  boundary. Failure and abandonment reinstall private pads before unwinding.
 
-The candidate must account for padlist identities, saved argument arrays,
-saved compilation-pad pointers, and the outside depth/padlist displaced
-during a resume. Directly predicting an `OP_ENTERSUB` target is fragile in
-the presence of method dispatch, overload, AUTOLOAD, XS and tail calls.
+Private padlists retain their CV and pad names. Escaped lexical subs with
+weak outside links receive a strong outside link before their private pad
+is released, so later CV destruction cannot leave them pointing at freed
+code. Their statically captured lexical SVs already have their own normal
+references. The private stack's initial compilation pad is null rather
+than a borrowed pointer into its first caller's activation.
 
-This is a design direction, not a completed implementation. It should be
-tested at context boundaries before considering changes to ordinary
-opcode dispatch. There is no requirement for a scheduler or async-state
-poll on every synchronous opcode.
+A CV-local list records parked owners. It prevents `undef &name` from
+freeing code with suspended activations. Interpreter cloning starts with
+an empty owner list because generator continuations are not cloned.
+Relinking an owner's record in this list takes constant time.
 
-## Required regression cases
+## String eval
 
-- Out-of-order normal return, explicit close, failure, and abandonment.
-- A third invocation while an older context remains suspended.
-- Several wrappers from the same generator factory.
-- Shared ordinary helpers and recursion at different depths.
-- Captured lexicals and shared `state` variables.
-- Arguments and references to arguments or lexical variables.
-- A running caller invoking an execution context using that same CV.
-- Regular and reference-counted stacks, debug assertions, and leak checks.
+A closure which explicitly mentions an outer lexical already captures its
+SV. A closure which mentions that lexical only inside string `eval` can
+instead look through `CvOUTSIDE` at eval time. Detaching a pad must not
+make that existing lookup find an empty spare frame.
 
-## Consequences for async and fibers
+A running activation retains the usual precedence. If no activation of
+the outside CV is running, lookup uses its most recently parked live
+activation. Parking again updates that order. This retains the dynamic
+nature of string-eval lookup rather than turning it into a new static
+capture. Different outside CVs have independent lists.
 
-Whole-stack preservation is confirmed. Full independent activation
-ownership is not. A general-purpose fiber scheduler must not be described
-as safe until this bug is fixed.
+When the last activation retires, ordinary inactive-pad lookup applies.
+Fresh spare lexical slots are marked stale so an unavailable lexical
+produces the usual warning. The lookup does not keep a generator or its
+resources alive. A child interpreter receives no parent suspension state;
+static captures follow ordinary thread-cloning rules.
 
-Conventional async which restricts `await` to an async body still needs
-independent pads for concurrent invocations of that body. Allowing `await`
-from an ordinary nested Perl helper additionally requires protecting each
-intervening activation. There is no demonstrated interpreter requirement
-to declare every such helper async once that ownership problem is solved.
+## Validation
 
-Native C activations remain a separate restriction. Preserving Perl frames
-does not preserve a native callback which has not returned. A safe explicit
-suspension operation parks only when control returns to its owning Perl
-run loop. Scheduler-aware I/O can be built above that boundary using
-nonblocking operations and readiness notifications; it cannot make an
-arbitrary blocking XS routine suspend safely.
+`op/generator_pad.t` covers shared body CVs, shared ordinary helpers,
+recursion, outside callers, current-resumer restoration, argument aliases,
+lexical references, captured state, lexical subs, string eval, exceptions,
+abandonment, thread cloning, and explicit reference cycles.
+
+`op/generator_pad_random.t` exercises reproducible interleavings at varied
+call depths. It checks frame values and arguments, weak resource references,
+and exact destruction after arbitrary completion, failure, or abandonment.
+It verifies that retiring one context leaves the resources of its parked
+siblings alive. `XS-APItest` checks warmed SV counts after escaped closures
+outlive their owners and are then released.
+
+The focused generator, iterator, closure, recursion, state, and XS tests
+pass on the optimized regular build. Ownership and resource tests pass
+with debugging and AddressSanitizer on both regular stacks and threaded
+reference-counted stacks. Leak runs use `PERL_DESTRUCT_LEVEL=2` and
+`detect_leaks=1` outside a traced process. Shutdown probes include live
+global generators and a retained reference cycle. Warmed SV counts show no
+growth after escaped closures and their owners are released.
+
+## Performance
+
+`Porting/bench-generator-pads` measures ordinary arithmetic and subroutine
+calls, generator creation, first suspension, resumption, destruction, and
+switching through recursive call stacks. Run it with the built interpreter:
+
+```sh
+./perl -Ilib Porting/bench-generator-pads --iterations 10000 --samples 7
+```
+
+Measurements below are from one x86-64 Linux host on 24 November 2026.
+Both interpreters use the same unthreaded `-O3` configuration. The baseline
+is the saved `f97d2b8bd4` interpreter. The comparison uses this patch,
+10,000 iterations, and medians of nine samples after a warm-up sample.
+Units are nanoseconds per operation. Depth labels count additional
+recursive helper levels, beyond the owner, helper, and yielding leaf.
+
+| Operation | Before | After |
+| --- | ---: | ---: |
+| Arithmetic loop iteration | 22.6 | 17.0 |
+| Ordinary subroutine call | 65.0 | 67.2 |
+| Explicit-return subroutine call | 64.8 | 66.0 |
+| Create generator | 197.7 | 198.6 |
+| Start and suspend | 670.2 | 622.6 |
+| Resume and suspend among parked peers | 631.4 | 541.8 |
+| Destroy unstarted generator | 307.5 | 273.9 |
+| Destroy suspended generator | 1164.0 | 1227.8 |
+| Resume at depth 0 | 198.8 | 241.1 |
+| Resume at depth 1 | 203.2 | 263.1 |
+| Resume at depth 4 | 205.4 | 263.4 |
+| Resume at depth 16 | 220.6 | 309.4 |
+| Resume at depth 64 | 291.5 | 466.1 |
+
+Creation, destruction and ordinary-execution timings vary between runs,
+including paths whose implementation is unchanged. These are relative
+measurements on one machine, not evidence that ordinary execution becomes
+faster.
+
+The source adds no ordinary subroutine-entry, subroutine-exit, or
+opcode-dispatch checks.
+The extra helper call in `pad_push` is confined to allocating a missing
+recursion frame. String-eval lookup and explicit CV undefinition perform
+the additional CV-owner lookup.
+
+Each yield inspects live frames and allocates replacement frames and
+private padlist metadata for newly encountered CVs. Resumption installs
+the saved private padlists without another live-frame scan.
+A stack with many distinct CVs requires more record lookups than recursion
+through the same CV. The implementation uses a linear owner-record search
+for each live Perl frame, so the worst-case boundary scan is quadratic in
+the number of distinct CVs on that stack. There is no corresponding scan
+on ordinary synchronous calls.
+
+## Remaining limits
+
+This fixes activation-pad ownership. Dynamic package localizations still
+need separate switching support: swapping save-stack pointers alone does
+not deactivate a paused `local`. Native C frames are not preserved by the
+Perl stack snapshot. Existing exception-resumption and cleanup issues are
+separate changes, described in [the suspension audit](execution-suspension.md).
+
+The patch adds no public generator operations or other execution APIs.

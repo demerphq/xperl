@@ -333,7 +333,10 @@ Perl_cv_undef_flags(pTHX_ CV *cv, U32 flags)
     if (!CvISXSUB(&cvbody)) {
         if(CvROOT(&cvbody)) {
             assert(SvTYPE(cv) == SVt_PVCV || SvTYPE(cv) == SVt_PVFM); /*unsafe is safe */
-            if (CvDEPTHunsafe(&cvbody)) {
+            if (CvDEPTHunsafe(&cvbody)
+                || (PL_phase != PERL_PHASE_DESTRUCT
+                    && SvTYPE(cv) == SVt_PVCV
+                    && pad_in_suspended_execution(cv))) {
                 assert(SvTYPE(cv) == SVt_PVCV);
                 PERL_THROW_ERROR_MUTATION_SUBROUTINE_CANNOT_UNDEFINE_ACTIVE();
             }
@@ -1368,14 +1371,19 @@ S_pad_findlex(pTHX_ const char *namepv, STRLEN namelen, U32 flags, const CV* cv,
                         return offset;
                     }
 
-                    *out_capture = AvARRAY(PadlistARRAY(padlist)[
-                                    CvDEPTH(cv) ? CvDEPTH(cv) : 1])[offset];
+                    PAD *frame = CvDEPTH(cv)
+                        ? PadlistARRAY(padlist)[CvDEPTH(cv)]
+                        : pad_find_suspended_frame(cv);
+                    const bool live = frame != NULL;
+                    if (!frame)
+                        frame = PadlistARRAY(padlist)[1];
+                    *out_capture = AvARRAY(frame)[offset];
                     DEBUG_Xv(PerlIO_printf(Perl_debug_log,
                         "Pad findlex cv=0x%" UVxf " found lex=0x%" UVxf "\n",
                         PTR2UV(cv), PTR2UV(*out_capture)));
 
                     if (*out_capture && SvPADSTALE(*out_capture)
-                        && (!CvDEPTH(cv) || !staleok)
+                        && (!live || !staleok)
                         && !PadnameIsSTATE(name_p[offset]))
                     {
                         S_unavailable(aTHX_
@@ -2099,6 +2107,7 @@ S_cv_clone_pad(pTHX_ CV *proto, CV *cv, CV *outside, HV *cloned,
     long depth;
     U32 subclones = 0;
     bool trouble = FALSE;
+    bool outside_live = outside && CvDEPTH(outside);
     const bool cv_is_method = CvIsMETHOD(cv);
 
     assert(!CvUNIQUE(proto));
@@ -2149,9 +2158,14 @@ S_cv_clone_pad(pTHX_ CV *proto, CV *cv, CV *outside, HV *cloned,
 
     PL_curpad = AvARRAY(PL_comppad);
 
-    outpad = outside && CvPADLIST(outside)
-        ? AvARRAY(PadlistARRAY(CvPADLIST(outside))[depth])
-        : NULL;
+    {
+        PAD *frame = outside && !CvDEPTH(outside)
+            ? pad_find_suspended_frame(outside) : NULL;
+        outside_live = frame || (outside && CvDEPTH(outside));
+        outpad = frame ? AvARRAY(frame)
+            : outside && CvPADLIST(outside)
+                ? AvARRAY(PadlistARRAY(CvPADLIST(outside))[depth]) : NULL;
+    }
     if (outpad) CvPADLIST(cv)->xpadl_outid = CvPADLIST(outside)->xpadl_id;
 
     for (ix = fpad; ix > 0; ix--) {
@@ -2180,7 +2194,7 @@ S_cv_clone_pad(pTHX_ CV *proto, CV *cv, CV *outside, HV *cloned,
                    but state vars are always available. */
                 if (!outpad || !(sv = outpad[PARENT_PAD_INDEX(namesv)])
                  || (  SvPADSTALE(sv) && !PadnameIsSTATE(namesv)
-                    && (!outside || !CvDEPTH(outside)))  ) {
+                    && !outside_live)  ) {
                     S_unavailable(aTHX_ namesv);
                     sv = NULL;
                 }
@@ -2614,69 +2628,81 @@ void
 Perl_pad_push(pTHX_ PADLIST *padlist, int depth)
 {
     PERL_ARGS_ASSERT_PAD_PUSH;
-
     if (depth > PadlistMAX(padlist) || !PadlistARRAY(padlist)[depth]) {
-        PAD** const svp = PadlistARRAY(padlist);
-        AV* const newpad = newAV();
-        SV** const oldpad = AvARRAY(svp[depth-1]);
-        PADOFFSET ix = AvFILLp((const AV *)svp[1]);
-        const PADOFFSET names_fill = PadnamelistMAX((PADNAMELIST *)svp[0]);
-        PADNAME ** const names = PadnamelistARRAY((PADNAMELIST *)svp[0]);
-        AV *av;
-
-        Newxz( AvALLOC(newpad), ix + 1, SV *);
-        AvARRAY(newpad) = AvALLOC(newpad);
-        AvMAX(newpad) = AvFILLp(newpad) = ix;
-
-        for ( ;ix > 0; ix--) {
-            SV *sv;
-            if (names_fill >= ix && PadnameLEN(names[ix])) {
-                const char sigil = PadnamePV(names[ix])[0];
-                if (PadnameOUTER(names[ix])
-                        || PadnameIsSTATE(names[ix])
-                        || sigil == '&')
-                {
-                    SV *tmp = oldpad[ix];
-                    if (sigil == '&' && SvTYPE(tmp) == SVt_PVCV
-                        && !PadnameOUTER(names[ix])
-                        && CvLEXICAL(tmp) && CvCLONED(tmp)
-                        && !PadnameIsOUR(names[ix])
-                        && !PadnameIsSTATE(names[ix])) {
-                        /* lexical sub that needs cloning */
-                        sv = newSV_type(SVt_PVCV);
-                    }
-                    else {
-                        /* outer non-cloning lexical or anon code */
-                        sv = SvREFCNT_inc(tmp);
-                    }
-                }
-                else {		/* our own lexical */
-                    if (sigil == '@')
-                        sv = MUTABLE_SV(newAV());
-                    else if (sigil == '%')
-                        sv = MUTABLE_SV(newHV());
-                    else
-                        sv = newSV_type(SVt_NULL);
-                }
-            }
-            else if (PadnamePV(names[ix])) {
-                sv = SvREFCNT_inc_NN(oldpad[ix]);
-            }
-            else {
-                /* save temporaries on recursion? */
-                sv = newSV_type(SVt_NULL);
-                SvPADTMP_on(sv);
-            }
-            AvARRAY(newpad)[ix] = sv;
-        }
-        av = newAV();
-        AvARRAY(newpad)[0] = MUTABLE_SV(av);
-#ifndef PERL_RC_STACK
-        AvREIFY_only(av);
-#endif
-
+        PAD *newpad = pad_clone_frame(padlist, PadlistARRAY(padlist)[depth - 1], FALSE);
         padlist_store(padlist, depth, newpad);
     }
+}
+
+/* Use the recursion rules when separating a parked activation from the
+ * pads available to other calls. Outer bindings and state stay shared. */
+PAD *
+Perl_pad_clone_frame(pTHX_ PADLIST *padlist, PAD *prototype, bool inactive)
+{
+    PERL_ARGS_ASSERT_PAD_CLONE_FRAME;
+    PAD ** const svp = PadlistARRAY(padlist);
+
+    AV* const newpad = newAV();
+    SV** const oldpad = AvARRAY(prototype);
+    PADOFFSET ix = AvFILLp((const AV *)svp[1]);
+    const PADOFFSET names_fill = PadnamelistMAX((PADNAMELIST *)svp[0]);
+    PADNAME ** const names = PadnamelistARRAY((PADNAMELIST *)svp[0]);
+    AV *av;
+
+    Newxz( AvALLOC(newpad), ix + 1, SV *);
+    AvARRAY(newpad) = AvALLOC(newpad);
+    AvMAX(newpad) = AvFILLp(newpad) = ix;
+
+    for ( ;ix > 0; ix--) {
+        SV *sv;
+        if (names_fill >= ix && PadnameLEN(names[ix])) {
+            const char sigil = PadnamePV(names[ix])[0];
+            if (PadnameOUTER(names[ix])
+                    || PadnameIsSTATE(names[ix])
+                    || sigil == '&')
+            {
+                SV *tmp = oldpad[ix];
+                if (sigil == '&' && tmp && SvTYPE(tmp) == SVt_PVCV
+                    && !PadnameOUTER(names[ix])
+                    && CvLEXICAL(tmp) && CvCLONED(tmp)
+                    && !PadnameIsOUR(names[ix])
+                    && !PadnameIsSTATE(names[ix])) {
+                    /* lexical sub that needs cloning */
+                    sv = newSV_type(SVt_PVCV);
+                }
+                else {
+                    /* outer non-cloning lexical or anon code */
+                    sv = SvREFCNT_inc(tmp);
+                }
+            }
+            else {		/* our own lexical */
+                if (sigil == '@')
+                    sv = MUTABLE_SV(newAV());
+                else if (sigil == '%')
+                    sv = MUTABLE_SV(newHV());
+                else
+                    sv = newSV_type(SVt_NULL);
+                if (inactive)
+                    SvPADSTALE_on(sv);
+            }
+        }
+        else if (PadnamePV(names[ix])) {
+            sv = SvREFCNT_inc_NN(oldpad[ix]);
+        }
+        else {
+            /* save temporaries on recursion? */
+            sv = newSV_type(SVt_NULL);
+            SvPADTMP_on(sv);
+        }
+        AvARRAY(newpad)[ix] = sv;
+    }
+    av = newAV();
+    AvARRAY(newpad)[0] = MUTABLE_SV(av);
+#ifndef PERL_RC_STACK
+    AvREIFY_only(av);
+#endif
+
+    return newpad;
 }
 
 #if defined(USE_ITHREADS)

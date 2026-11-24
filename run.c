@@ -51,6 +51,322 @@ static XS(S_generator_xsub);
 
 static MGVTBL S_iter_adapter_magic = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
+/* A suspended Perl call keeps its live pad AVs, not copies of their values.
+ * Otherwise returning from one generator can lower the shared CvDEPTH and
+ * let a new call overwrite another generator's lexicals and arguments.
+ *
+ * On the first suspension we move each live activation's pad into a private
+ * padlist and give the CV spare frames made by the normal recursion rules.
+ * Caller frames below this execution boundary stay in the outside padlist.
+ * Resuming installs the private padlist and depth. Suspending restores the
+ * padlist and depth displaced by that particular resume, since the current
+ * caller may differ from the caller which first started the generator.
+ *
+ * Normal subroutine calls use the installed padlist without extra checks.
+ * The bookkeeping belongs here at execution boundaries. The CV's magic lets
+ * string eval find a parked activation and prevents undefining its body.
+ */
+typedef struct perl_suspended_pad {
+    CV *cv;
+    PADLIST *private_padlist;
+    PADLIST *outside_padlist;
+    I32 private_depth;
+    I32 outside_depth;
+    bool installed;
+    bool live;
+    struct perl_suspended_pad *next;
+    struct perl_suspended_pad *cv_next;
+    struct perl_suspended_pad **cv_prev;
+} SUSPENDED_PAD;
+
+static int
+S_suspended_cv_free(pTHX_ SV *sv, MAGIC *mg)
+{
+    PERL_UNUSED_CONTEXT;
+    PERL_UNUSED_ARG(sv);
+    Safefree(mg->mg_ptr);
+    mg->mg_ptr = NULL;
+    return 0;
+}
+
+#ifdef USE_ITHREADS
+static int
+S_suspended_cv_dup(pTHX_ MAGIC *mg, CLONE_PARAMS *param)
+{
+    SUSPENDED_PAD **head;
+    PERL_UNUSED_CONTEXT;
+    PERL_UNUSED_ARG(param);
+    Newxz(head, 1, SUSPENDED_PAD *);
+    /* Generator continuations are not cloned into the child interpreter. */
+    mg->mg_ptr = (char *)head;
+    return 0;
+}
+#endif
+
+static MGVTBL S_suspended_cv_magic = {
+    0, 0, 0, 0, S_suspended_cv_free, 0,
+#ifdef USE_ITHREADS
+    S_suspended_cv_dup,
+#else
+    0,
+#endif
+    0
+};
+
+static SUSPENDED_PAD **
+S_suspended_cv_pads(pTHX_ CV *cv, bool create)
+{
+    MAGIC *mg = mg_findext(MUTABLE_SV(cv), PERL_MAGIC_ext, &S_suspended_cv_magic);
+    if (!mg && create) {
+        SUSPENDED_PAD **head;
+        Newxz(head, 1, SUSPENDED_PAD *);
+        mg = sv_magicext(MUTABLE_SV(cv), NULL, PERL_MAGIC_ext,
+                         &S_suspended_cv_magic, (char *)head, 0);
+        mg->mg_flags |= MGf_DUP;
+    }
+    return mg ? (SUSPENDED_PAD **)mg->mg_ptr : NULL;
+}
+
+bool
+Perl_pad_in_suspended_execution(pTHX_ CV *cv)
+{
+    SUSPENDED_PAD **head;
+    PERL_ARGS_ASSERT_PAD_IN_SUSPENDED_EXECUTION;
+    head = S_suspended_cv_pads(aTHX_ cv, FALSE);
+    return head && *head;
+}
+
+/* String eval follows CvOUTSIDE dynamically. With no running activation,
+ * it must find the most recently parked activation rather than a spare pad.
+ * Ordinary active calls retain their usual depth-based lookup. */
+PAD *
+Perl_pad_find_suspended_frame(pTHX_ const CV *cv)
+{
+    SUSPENDED_PAD **head;
+    SUSPENDED_PAD *pad;
+    PERL_ARGS_ASSERT_PAD_FIND_SUSPENDED_FRAME;
+    head = S_suspended_cv_pads(aTHX_ (CV *)cv, FALSE);
+    for (pad = head ? *head : NULL; pad; pad = pad->cv_next) {
+        if (pad->live && !pad->installed)
+            return PadlistARRAY(pad->private_padlist)[pad->private_depth];
+    }
+    return NULL;
+}
+
+static void
+S_suspended_pad_unlink(pTHX_ SUSPENDED_PAD *pad)
+{
+    PERL_UNUSED_CONTEXT;
+    assert(pad->cv_prev && *pad->cv_prev == pad);
+    *pad->cv_prev = pad->cv_next;
+    if (pad->cv_next)
+        pad->cv_next->cv_prev = pad->cv_prev;
+    pad->cv_next = NULL;
+    pad->cv_prev = NULL;
+}
+
+static void
+S_suspended_pad_link(pTHX_ SUSPENDED_PAD *pad)
+{
+    SUSPENDED_PAD **head = S_suspended_cv_pads(aTHX_ pad->cv, TRUE);
+    assert(!pad->cv_prev);
+    pad->cv_next = *head;
+    pad->cv_prev = head;
+    if (*head)
+        (*head)->cv_prev = &pad->cv_next;
+    *head = pad;
+}
+
+static void
+S_suspended_pad_restore(pTHX_ SUSPENDED_PAD *pad)
+{
+    PERL_UNUSED_CONTEXT;
+    if (!pad->installed)
+        return;
+    pad->private_padlist = CvPADLIST(pad->cv);
+    pad->private_depth = CvDEPTH(pad->cv);
+    CvPADLIST_set(pad->cv, pad->outside_padlist);
+    CvDEPTH(pad->cv) = pad->outside_depth;
+    pad->outside_padlist = NULL;
+    pad->installed = FALSE;
+}
+
+static void
+S_generator_restore_pads(pTHX_ PERL_GENERATOR *generator)
+{
+    SUSPENDED_PAD *pad;
+    for (pad = generator->pads; pad; pad = pad->next)
+        S_suspended_pad_restore(aTHX_ pad);
+}
+
+static void
+S_generator_install_pads(pTHX_ PERL_GENERATOR *generator)
+{
+    SUSPENDED_PAD *pad;
+    for (pad = generator->pads; pad; pad = pad->next) {
+        assert(!pad->installed);
+        pad->outside_padlist = CvPADLIST(pad->cv);
+        pad->outside_depth = CvDEPTH(pad->cv);
+        CvPADLIST_set(pad->cv, pad->private_padlist);
+        CvDEPTH(pad->cv) = pad->private_depth;
+        pad->installed = TRUE;
+    }
+}
+
+static void
+S_suspended_pad_free(pTHX_ SUSPENDED_PAD *pad)
+{
+    PADLIST *list = pad->private_padlist;
+    PADNAMELIST *names = PadlistNAMES(list);
+    AV *garbage = newAV();
+    const bool destroying = PL_phase == PERL_PHASE_DESTRUCT;
+    const I32 oldsave = PL_savestack_ix;
+    SSize_t i;
+    assert(!pad->installed);
+    S_suspended_pad_unlink(aTHX_ pad);
+
+    /* Release the temporary owner here, even if this is the last boundary
+     * before global destruction. Its exception guard belongs to this scope,
+     * rather than a private mortal stack which may never run again. */
+    if (!destroying) {
+        SAVEFREESV(garbage);
+    }
+
+    /* The AV owns everything before any destructor runs. Its reverse
+     * cleanup order releases the pads before the CV itself. */
+    av_push(garbage, MUTABLE_SV(pad->cv));
+    for (i = 1; i <= PadlistMAX(list); ++i) {
+        PAD *frame = PadlistARRAY(list)[i];
+        SSize_t j;
+        if (!frame)
+            continue;
+        /* Escaped lexical subs need their outside CV after this private
+         * pad disappears. The CV's ordinary padlist cannot find them when
+         * it later clears its weak outside links. */
+        for (j = 1; j <= AvFILLp(frame) && j <= PadnamelistMAX(names); ++j) {
+            PADNAME *name = PadnamelistARRAY(names)[j];
+            SV *sv = AvARRAY(frame)[j];
+            if (name && PadnameLEN(name) && PadnamePV(name)[0] == '&'
+                && !PadnameOUTER(name) && !PadnameIsSTATE(name)
+                && sv && SvTYPE(sv) == SVt_PVCV && SvREFCNT(sv) > 1
+                && CvLEXICAL((CV *)sv) && CvCLONED((CV *)sv)
+                && CvWEAKOUTSIDE((CV *)sv) && CvOUTSIDE((CV *)sv) == pad->cv) {
+                CvWEAKOUTSIDE_off((CV *)sv);
+                SvREFCNT_inc_simple_void_NN(pad->cv);
+            }
+        }
+        av_push(garbage, MUTABLE_SV(frame));
+    }
+    PadnamelistREFCNT_dec(names);
+    Safefree(PadlistARRAY(list));
+    Safefree(list);
+    Safefree(pad);
+    if (destroying)
+        SvREFCNT_dec_NN(garbage);
+    else {
+        av_clear(garbage);
+        LEAVE_SCOPE(oldsave);
+    }
+}
+
+static void
+S_generator_free_pads(pTHX_ PERL_GENERATOR *generator)
+{
+    while (generator->pads) {
+        SUSPENDED_PAD *pad = generator->pads;
+        generator->pads = pad->next;
+        S_suspended_pad_restore(aTHX_ pad);
+        S_suspended_pad_free(aTHX_ pad);
+    }
+}
+
+static SUSPENDED_PAD *
+S_generator_own_pad(pTHX_ PERL_GENERATOR *generator, CV *cv, I32 base)
+{
+    PADLIST *outside = CvPADLIST(cv);
+    PADLIST *owned;
+    SUSPENDED_PAD *pad;
+    const I32 depth = CvDEPTH(cv);
+    SSize_t i;
+    assert(base >= 0 && base < depth);
+    Newxz(pad, 1, SUSPENDED_PAD);
+    Newx(owned, 1, PADLIST);
+    *owned = *outside;
+    PadlistMAX(owned) = depth;
+    Newxz(PadlistARRAY(owned), depth + 1, PAD *);
+    PadlistNAMES(owned) = PadnamelistREFCNT_inc(PadlistNAMES(outside));
+
+    /* Keep live pad AVs intact. Only the spare recursion frames are new.
+     * The outside padlist keeps its identity for callers below this owner. */
+    for (i = 1; i <= depth; ++i) {
+        PAD *frame = PadlistARRAY(outside)[i];
+        if (i > base) {
+            PadlistARRAY(owned)[i] = frame;
+            PadlistARRAY(outside)[i] = pad_clone_frame(outside, frame, TRUE);
+        }
+        else
+            PadlistARRAY(owned)[i] = pad_clone_frame(outside, frame, TRUE);
+    }
+    pad->cv = (CV *)SvREFCNT_inc_simple_NN(cv);
+    pad->private_padlist = owned;
+    pad->outside_padlist = outside;
+    pad->private_depth = depth;
+    pad->outside_depth = base;
+    pad->installed = TRUE;
+    pad->live = TRUE;
+    pad->next = generator->pads;
+    generator->pads = pad;
+    S_suspended_pad_link(aTHX_ pad);
+    CvPADLIST_set(cv, owned);
+    return pad;
+}
+
+static void
+S_generator_park_pads(pTHX_ PERL_GENERATOR *generator)
+{
+    SUSPENDED_PAD *pad;
+    SUSPENDED_PAD **link;
+    I32 i;
+    const I32 oldsave = PL_savestack_ix;
+    SAVEBOOL(generator->pads_switching);
+    generator->pads_switching = TRUE;
+    for (pad = generator->pads; pad; pad = pad->next)
+        pad->live = FALSE;
+    for (i = 0; i <= cxstack_ix; ++i) {
+        PERL_CONTEXT *cx = &cxstack[i];
+        CV *cv;
+        if (CxTYPE(cx) != CXt_SUB)
+            continue;
+        cv = cx->blk_sub.cv;
+        if (CvISXSUB(cv) || !CvPADLIST(cv))
+            continue;
+        for (pad = generator->pads; pad && pad->cv != cv; pad = pad->next)
+            NOOP;
+        if (!pad)
+            pad = S_generator_own_pad(aTHX_ generator, cv, cx->blk_sub.olddepth);
+        pad->live = TRUE;
+    }
+    /* Release completed activations while the private context and its
+     * exception guard are still active. No callbacks run after detaching. */
+    link = &generator->pads;
+    while (*link) {
+        pad = *link;
+        if (pad->live) {
+            link = &pad->next;
+            continue;
+        }
+        *link = pad->next;
+        S_suspended_pad_restore(aTHX_ pad);
+        S_suspended_pad_free(aTHX_ pad);
+    }
+    for (pad = generator->pads; pad; pad = pad->next) {
+        S_suspended_pad_unlink(aTHX_ pad);
+        S_suspended_pad_link(aTHX_ pad);
+    }
+    S_generator_restore_pads(aTHX_ generator);
+    LEAVE_SCOPE(oldsave);
+}
+
 static int
 S_iterator_magic_free(pTHX_ SV *sv, MAGIC *mg)
 {
@@ -384,6 +700,8 @@ S_generator_xsub(pTHX_ CV *cv)
     PERL_UNUSED_ARG(cv);
     if (!generator || generator->magic != PERL_GENERATOR_MAGIC)
         PERL_THROW_ERROR_ITERATOR_GENERATOR_INVALID_WRAPPER();
+    if (generator->pads_switching)
+        PERL_THROW_ERROR_ITERATOR_GENERATOR_NO_SUSPENDED_CONTINUATION();
     if (generator->state == PERL_GENERATOR_EXHAUSTED
         || generator->state == PERL_GENERATOR_FAILED
         || (generator->state != PERL_GENERATOR_NEW && !generator->captured)) {
@@ -750,18 +1068,21 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
             process_state_save(&caller_state);
             if (generator->stack_detached)
                 S_generator_attach_stackinfo(aTHX_ generator);
+            S_generator_install_pads(aTHX_ generator);
             process_state_restore(&generator->process);
             if (generator->eval_active)
                 dounwind(-1);
             generator->eval_active = FALSE;
             S_generator_pop_stackinfo(aTHX_ generator);
             S_generator_free_process_stacks(aTHX_ &generator->process);
+            S_generator_restore_pads(aTHX_ generator);
             process_state_restore(&caller_state);
         }
     }
     else if (generator->process.context.Itmps_stack) {
         S_generator_free_process_stacks(aTHX_ &generator->process);
     }
+    S_generator_free_pads(aTHX_ generator);
     SvREFCNT_dec(generator->value);
     SvREFCNT_dec((SV *)generator->values);
     SvREFCNT_dec(generator->defsv);
@@ -1039,6 +1360,7 @@ S_generator_boundary(pTHX_ OP *nextop, void *data)
         SvREFCNT_dec((SV *)generator->result);
         generator->result = result;
     }
+    S_generator_park_pads(aTHX_ generator);
     process_state_save(&generator->process);
     generator->captured = TRUE;
     generator->state = nextop && generator->yield_pending
@@ -1127,6 +1449,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
     if (generator->stack_pushed) {
         if (generator->stack_detached)
             S_generator_attach_stackinfo(aTHX_ generator);
+        S_generator_install_pads(aTHX_ generator);
         process_state_restore(&generator->process);
     }
     PL_runops_boundary_hook = S_generator_boundary;
@@ -1156,6 +1479,10 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
 #endif
             generator->stack_pushed = TRUE;
             S_generator_new_stacks(aTHX);
+            /* The owner is an execution boundary, not a Perl caller frame.
+             * Do not save an unowned pointer to the initial caller's pad. */
+            PL_comppad = NULL;
+            PL_curpad = NULL;
             PL_in_eval = 0;
             PL_restartop = NULL;
             PUSHMARK(PL_stack_sp);
@@ -1203,12 +1530,14 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             process_state_save(&generator->process);
             S_generator_pop_stackinfo(aTHX_ generator);
         }
+        S_generator_restore_pads(aTHX_ generator);
         JMPENV_POP;
         PL_runops_boundary_hook = old_hook;
         PL_runops_boundary_data = old_data;
         if (default_variables_swapped)
             S_generator_swap_default_variables(aTHX_ generator);
         process_state_restore(&caller_state);
+        S_generator_free_pads(aTHX_ generator);
         PL_restartjmpenv = PL_top_env;
         {
             SV * const error = generator->error;

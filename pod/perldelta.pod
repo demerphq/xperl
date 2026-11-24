@@ -1330,6 +1330,12 @@ manager will later use a regex to expand these into links.
 
 =item *
 
+Interleaved generators keep their own arguments and lexical variables when
+another generator using the same subroutine returns, dies, or is destroyed.
+New calls no longer reuse storage belonging to a suspended call.
+
+=item *
+
 A string C<eval> inside a method which names a field that the method does
 not otherwise use now reports "Field %s is not accessible outside a
 method".

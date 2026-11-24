@@ -1,0 +1,93 @@
+#!/usr/bin/env perl
+use v5.40;
+use generator;
+use B ();
+use Getopt::Long qw(GetOptions);
+use Time::HiRes qw(time);
+use JSON::PP;
+no warnings 'recursion';
+
+my ($iterations, $samples, $label) = (10_000, 5, 'current');
+GetOptions('iterations=i' => \$iterations, 'samples=i' => \$samples,
+           'label=s' => \$label) or die "Invalid options\n";
+die "Positive iterations and samples required\n" if $iterations < 1 || $samples < 1;
+
+sub increment { $_[0] + 1 }
+sub explicit_increment { return $_[0] + 1 }
+sub contexts {
+    return [map { gen { yield 1; yield 2 } } 1 .. $iterations];
+}
+sub paused {
+    my $contexts = contexts();
+    $_->() for @$contexts;
+    return $contexts;
+}
+
+sub leaf_template { gen { while (1) { yield 1 } } }
+my @template = B::svref_2object(\&leaf_template)->PADLIST->ARRAY;
+my ($body) = grep { ref($_) eq 'B::CV' } $template[1]->ARRAY;
+my $leaf = $body->object_2svref;
+sub recursive_frame {
+    my ($leaf, $depth) = @_;
+    return $depth ? recursive_frame($leaf, $depth - 1) : $leaf->();
+}
+sub nested_owner { gen { return recursive_frame(@_) } }
+
+my @cases = (
+    ['arithmetic_loop', 100 * $iterations, sub { undef }, sub {
+        my $sum = 0;
+        $sum += $_ for 1 .. 100 * $iterations;
+        return $sum;
+    }],
+    ['ordinary_call', 100 * $iterations, sub { undef }, sub {
+        my $sum = 0;
+        $sum = increment($sum) for 1 .. 100 * $iterations;
+        return $sum;
+    }],
+    ['create', $iterations, sub { undef }, sub { contexts() }],
+    ['explicit_return_call', 100 * $iterations, sub { undef }, sub {
+        my $sum = 0;
+        $sum = explicit_increment($sum) for 1 .. 100 * $iterations;
+        return $sum;
+    }],
+    ['start_and_suspend', $iterations, \&contexts, sub {
+        $_->() for @{$_[0]};
+    }],
+    ['resume_and_suspend', $iterations, \&paused, sub {
+        $_->() for @{$_[0]};
+    }],
+    ['destroy_unstarted', $iterations, \&contexts, sub { @{$_[0]} = () }],
+    ['destroy_suspended', $iterations, \&paused, sub { @{$_[0]} = () }],
+);
+for my $depth (0, 1, 4, 16, 64) {
+    push @cases, ["resume_depth_$depth", $iterations, sub {
+        my $context = nested_owner();
+        my $value = $context->($leaf, $depth);
+        die "Unexpected initial yield\n" unless $value == 1;
+        return $context;
+    }, sub {
+        my ($context) = @_;
+        my $value;
+        $value = $context->() for 1 .. $iterations;
+        die "Unexpected resumed yield\n" unless $value == 1;
+    }];
+}
+
+my %result;
+for my $case (@cases) {
+    my ($name, $count, $prepare, $run) = @$case;
+    my @times;
+    for (1 .. $samples + 1) {
+        my $input = $prepare->();
+        my $start = time;
+        my $output = $run->($input);
+        my $elapsed = time - $start;
+        push @times, 1e9 * $elapsed / $count unless $_ == 1;
+    }
+    @times = sort { $a <=> $b } @times;
+    $result{$name} = {median_ns => $times[int(@times / 2)], samples_ns => \@times};
+}
+say JSON::PP->new->canonical->pretty->encode({
+    label => $label, iterations => $iterations, samples => $samples,
+    perl => "$^V", results => \%result,
+});

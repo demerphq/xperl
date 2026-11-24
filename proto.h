@@ -7402,6 +7402,17 @@ Perl_pad_block_start(pTHX_ int full)
     STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
     } STMT_END
 
+PERL_CALLCONV PAD *
+Perl_pad_clone_frame(pTHX_ PADLIST *padlist, PAD *prototype, bool inactive)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_PAD_CLONE_FRAME        \
+    STMT_START { Perl_assert_aTHX; assert(padlist); assert(prototype);  \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;                   \
+    } STMT_END
+
 PERL_CALLCONV PADOFFSET
 Perl_pad_fetchmy_pvn(pTHX_ const char *namepv, STRLEN namelen, U32 flags, SV **svp)
         Perl_attribute_nonnull_aTHX
@@ -7417,6 +7428,16 @@ Perl_pad_fetchmy_sv(pTHX_ SV *name, U32 flags, SV **svp)
         Perl_attribute_nonnull(pTHX_1);
 #define PERL_ARGS_ASSERT_PAD_FETCHMY_SV         \
     STMT_START { Perl_assert_aTHX; assert(name);       \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV PAD *
+Perl_pad_find_suspended_frame(pTHX_ const CV *cv)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_PAD_FIND_SUSPENDED_FRAME \
+    STMT_START { Perl_assert_aTHX; assert(cv);         \
                  PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
     } STMT_END
 
@@ -7468,6 +7489,17 @@ Perl_pad_free(pTHX_ PADOFFSET po)
         __attribute__visibility__("hidden");
 #define PERL_ARGS_ASSERT_PAD_FREE               \
     STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV bool
+Perl_pad_in_suspended_execution(pTHX_ CV *cv)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_PAD_IN_SUSPENDED_EXECUTION \
+    STMT_START { Perl_assert_aTHX; assert(cv);                              \
+                 assert(SvTYPE(cv) == SVt_PVCV || SvTYPE(cv) == SVt_PVFM);  \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;                       \
     } STMT_END
 
 PERL_CALLCONV OP *

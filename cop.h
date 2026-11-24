@@ -1501,6 +1501,8 @@ typedef struct perl_generator {
     AV *                    values;
     SV *                    value;
     SV *                    error;
+    struct perl_suspended_pad *pads;
+    bool                    pads_switching;
     PERL_GENERATOR_STATE    state;
     bool                    captured;
     bool                    yield_pending;
