@@ -254,10 +254,14 @@ chaining by default, with an optional open-addressed backend.
 
 ### Implementation scope
 
-The existing implementation notes describe append-ordered entry storage
-but do not promise public insertion-order semantics. The scope of the
-ordering guarantee needs to be established separately from the storage
-mechanism.
+Ordinary, unrestricted hashes preserve insertion order through both
+indexing backends and the small-hash representation. `keys`, `values`, and
+`each` traverse keys in their insertion order. Updating an existing key
+keeps its position. Deleting and reinserting a key appends it at the end.
+Growth, promotion and compaction preserve the relative order of surviving entries.
+Key-restricted hashes retain placeholders for deleted allowed keys, so
+reinsertion can restore the old position. Tied hashes define their own
+iteration order.
 
 ### An indexed shared string table could save more memory
 

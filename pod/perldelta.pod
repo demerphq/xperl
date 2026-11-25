@@ -1165,9 +1165,14 @@ already has enough capacity. New-key insertion reuses its initial probe
 result unless an index rebuild invalidates it.
 The entry allocation can exceed index capacity, but identifier width
 continues to depend on index capacity: one byte through 128 slots, two bytes
-through 32,768 slots, and four bytes above that. The
-entry traversal order is an implementation detail and does not guarantee
-public hash iteration order. C<HV> and C<XPVHV> sizes are unchanged.
+through 32,768 slots, and four bytes above that.
+
+Unrestricted hash traversal preserves insertion order. Updating an existing
+key keeps its position. Deleting and reinserting a key moves it to the
+end. Growth and compaction preserve the relative order of surviving
+entries. Key-restricted hashes can retain a deleted key's old position.
+Tied hashes define their own iteration order.
+C<HV> and C<XPVHV> sizes are unchanged.
 The ordinary hash index is capped at C<2^31> slots, supporting at most
 1,431,655,765 live keys at its two-thirds load limit. Inserting beyond this
 count or explicitly pre-sizing beyond it throws

@@ -158,6 +158,10 @@ the hash from being bless()ed while it is in a locked state. Any attempt
 to do so will raise an exception. Of course you can still bless()
 the hash before you call lock_keys() so this shouldn't be a problem.
 
+In XPerl, a deleted allowed key retains its position while the hash is
+restricted. Reinserting it can reuse that position instead of appending it
+as an unrestricted hash would.
+
   unlock_keys(%hash);
 
 Removes the restriction on the %hash's keyset.
@@ -490,7 +494,8 @@ unrestricted hash.
 
     my $hash_seed = hash_seed();
 
-hash_seed() returns the seed bytes used to randomise hash ordering.
+hash_seed() returns the seed bytes used by the hash function. The seed
+affects lookup placement, not insertion-order traversal.
 
 B<Note that the hash seed is sensitive information>: by knowing it one
 can craft a denial-of-service attack against Perl code, even remotely,

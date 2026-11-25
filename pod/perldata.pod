@@ -12,8 +12,9 @@ associative arrays of scalars, known as "hashes".  A scalar is a
 single string (of any size, limited only by the available memory),
 number, or a reference to something (which will be discussed
 in L<perlref>).  Normal arrays are ordered lists of scalars indexed
-by number, starting with 0.  Hashes are unordered collections of scalar
-values indexed by their associated string key.
+by number, starting with 0. Hashes are collections of scalar values
+indexed by their associated string key. Ordinary, unrestricted XPerl hashes
+preserve insertion order.
 
 Values are usually referred to by name, or through a named reference.
 The first character of the name tells you to what sort of data
@@ -1081,12 +1082,14 @@ or for using call-by-named-parameter to complicated functions:
                labels    => \%labels
    );
 
-Note that just because a hash is initialized in that order doesn't
-mean that it comes out in that order.  See L<perlfunc/sort> for examples
-of how to arrange for an output ordering.
+Unrestricted hashes return entries in insertion order. Updating an existing
+key keeps its position. Deleting and reinserting a key moves it to the
+end. Key-restricted hashes can retain a deleted key's old position. Tied
+hashes may use a different order. See L<perlfunc/sort> for
+examples of how to arrange for a different output ordering.
 
 If a key appears more than once in the initializer list of a hash, the last
-occurrence wins:
+value wins while the key keeps its first position:
 
     %circle = (
                   center => [5, 10],
@@ -1099,8 +1102,8 @@ occurrence wins:
     # same as
     %circle = (
                   center => [27, 9],
-                  color => [0xDF, 0xFF, 0x00],
                   radius => 54,
+                  color => [0xDF, 0xFF, 0x00],
     );
 
 This can be used to provide overridable configuration defaults:

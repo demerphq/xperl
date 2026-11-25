@@ -2147,19 +2147,13 @@ element of the array so that you can iterate over it; older Perls
 consider this a syntax error.  When called in scalar context, returns
 only the index in the array.
 
-Hash entries are returned in an apparently random order.  The actual random
-order is specific to a given hash; the exact same series of operations
-on two hashes may result in a different order for each hash.  Any insertion
-into the hash may change the order, as will any deletion, with the exception
-that the most recent key returned by C<each> or
-L<C<keys>|/keys HASH> may be deleted without changing the order.  So
-long as a given hash is unmodified you may rely on
-L<C<keys>|/keys HASH>, L<C<values>|/values HASH> and
-C<each> to repeatedly return the same order
-as each other.  See L<perlsec/"Algorithmic Complexity Attacks"> for
-details on why hash order is randomized.  Aside from the guarantees
-provided here, the exact details of Perl's hash algorithm and the hash
-traversal order are subject to change in any release of Perl.
+Unrestricted hash entries are returned in insertion order. Updating an
+existing key keeps its position. Deleting and reinserting a key moves it
+to the end.
+Growth and compaction preserve the order of surviving entries.
+L<C<keys>|/keys HASH>, L<C<values>|/values HASH>, and C<each> traverse the
+same order. Key-restricted hashes can retain a deleted key's old position.
+Tied hashes define their own iteration order.
 
 Array entries are returned lowest index first.
 
@@ -2191,9 +2185,6 @@ returned by C<each>, so the following code works properly:
         print $key, "\n";
         delete $hash{$key};   # This is safe
     }
-
-Tied hashes may have a different ordering behaviour to perl's hash
-implementation.
 
 The generator used by C<each> is attached to the hash or array, and is
 shared between all iteration operations applied to the same hash or array.
@@ -4081,21 +4072,13 @@ array argument.  In scalar context, returns the number of keys or indices.
 
 Array entries are returned lowest index first.
 
-Hash entries are returned in an apparently random order.  The actual random
-order is specific to a given hash; the exact same series of operations
-on two hashes may result in a different order for each hash.  Any insertion
-into the hash may change the order, as will any deletion, with the exception
-that the most recent key returned by L<C<each>|/each HASH> or
-C<keys> may be deleted without changing the order.  So
-long as a given hash is unmodified you may rely on
-C<keys>, L<C<values>|/values HASH> and L<C<each>|/each
-HASH> to repeatedly return the same order
-as each other.  See L<perlsec/"Algorithmic Complexity Attacks"> for
-details on why hash order is randomized.  Aside from the guarantees
-provided here, the exact details of Perl's hash algorithm and the hash
-traversal order are subject to change in any release of Perl.  Tied hashes
-may behave differently to Perl's hashes with respect to changes in order on
-insertion and deletion of items.
+Unrestricted hash keys are returned in insertion order. Updating an
+existing key keeps its position. Deleting and reinserting a key moves it
+to the end.
+Growth and compaction preserve the order of surviving entries.
+C<keys>, L<C<values>|/values HASH>, and L<C<each>|/each HASH> traverse the
+same order. Key-restricted hashes can retain a deleted key's old position.
+Tied hashes define their own iteration order.
 
 As a side effect, calling C<keys> resets the internal
 generator of the HASH or ARRAY (see L<C<each>|/each HASH>) before
@@ -10743,21 +10726,12 @@ array argument.  In scalar context, returns the number of keys or indices.
 
 Array entries are returned in the order of lowest index first.
 
-Hash entries are returned in an apparently random order.  The actual random
-order is specific to a given hash; the exact same series of operations
-on two hashes may result in a different order for each hash.  Any insertion
-into the hash may change the order, as will any deletion, with the exception
-that the most recent key returned by L<C<each>|/each HASH> or
-L<C<keys>|/keys HASH> may be deleted without changing the order.  So
-long as a given hash is unmodified you may rely on
-L<C<keys>|/keys HASH>, C<values> and
-L<C<each>|/each HASH> to repeatedly return the same order
-as each other.  See L<perlsec/"Algorithmic Complexity Attacks"> for
-details on why hash order is randomized.  Aside from the guarantees
-provided here, the exact details of Perl's hash algorithm and the hash
-traversal order are subject to change in any release of Perl.  Tied hashes
-may behave differently to Perl's hashes with respect to changes in order on
-insertion and deletion of items.
+Unrestricted hash values are returned in their keys' insertion order.
+Updating an existing key keeps its position. Deleting and reinserting a
+key moves it to the end. Growth and compaction preserve the order of surviving
+entries. L<C<keys>|/keys HASH>, C<values>, and L<C<each>|/each HASH> traverse
+the same order. Key-restricted hashes can retain a deleted key's old
+position. Tied hashes define their own iteration order.
 
 As a side effect, calling C<values> resets the HASH or
 ARRAY's internal generator (see L<C<each>|/each HASH>) before yielding the

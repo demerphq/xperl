@@ -120,7 +120,11 @@ coupled range, incremental insertion grows a full entry array by 25 percent.
 Since deleted positions are not reused, entry allocation can exceed index
 capacity. Identifier width remains tied to index capacity:
 one byte through 128 slots, two bytes through 32,768 slots, and four bytes
-above that. The compacted order is internal and does not promise public
+above that. Unrestricted hash iteration preserves insertion order, including
+across growth, promotion and compaction. Updating an existing key keeps
+its position. Deleting and reinserting a key moves it to the end.
+Key-restricted hashes retain placeholders for deleted allowed keys, so
+reinsertion can restore the old position. Tied hashes define their own
 iteration order.
 
 With the default positive threshold, a singleton uses one arena-backed
@@ -210,8 +214,8 @@ hash fingerprint with each entry's next-link record. Its width follows the
 link identifier: 8, 16, or 32 bits. Lookup checks the fingerprint before
 loading the candidate entry and its C<HEK>. This can avoid key-record reads
 for misses, at the cost of a larger link array. The fingerprint option is
-experimental and does not establish a stable API or public iteration-order
-guarantee.
+experimental and does not establish a stable internal API. It does not
+change the insertion-order guarantee.
 
 The chain form adds a packed next-identifier array sized by entry capacity,
 as well as the bucket-head array. Its lookup follows a bucket head and then

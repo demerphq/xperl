@@ -525,9 +525,10 @@ C<keys>, C<values> and C<each>.
 =item Entry Traversal Independent of Hash Values
 
 XPerl traverses the compact entry array rather than the lookup index.
-The order returned by C<keys>, C<values>, and C<each> therefore does not
-expose bucket positions or probe distances. Key-order randomization and
-C<PERL_PERTURB_KEYS> are removed. Hash-function seed randomization remains.
+The order returned by C<keys>, C<values>, and C<each> follows entry storage,
+not bucket positions or probe distances. Key-order
+randomization and C<PERL_PERTURB_KEYS> are removed. Hash-function seed
+randomization remains.
 
 =item New Default Hash Function
 
@@ -544,15 +545,13 @@ not the default as it is much slower than the default hash.
 
 =back
 
-B<Perl has never guaranteed any ordering of the hash keys>, and
-the ordering has already changed several times during the lifetime of
-Perl 5.  Also, the ordering of hash keys has always been, and continues
-to be, affected by the insertion order and the history of changes made
-to the hash over its lifetime.
+Mainline Perl does not guarantee hash iteration order. XPerl's ordinary
+unrestricted hashes preserve insertion order. Updating an existing key
+keeps its position. Deleting and reinserting it moves it to the end.
+Key-restricted hashes can retain a deleted key's old position.
 
-Also note that while the order of the hash elements might be
-randomized, this "pseudo-ordering" should B<not> be used for
-applications like shuffling a list randomly (use C<List::Util::shuffle()>
+Hash iteration should B<not> be used for applications like shuffling a
+list randomly (use C<List::Util::shuffle()>
 for that, see L<List::Util>, a standard core module since Perl 5.8.0;
 or the CPAN module C<Algorithm::Numerical::Shuffle>), or for generating
 permutations (use e.g. the CPAN modules C<Algorithm::Permute> or
