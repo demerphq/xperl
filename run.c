@@ -700,9 +700,10 @@ S_generator_xsub(pTHX_ CV *cv)
     AV *args;
     I32 i;
 
-    PERL_UNUSED_ARG(cv);
     if (!generator || generator->magic != PERL_GENERATOR_MAGIC)
         PERL_THROW_ERROR_ITERATOR_GENERATOR_INVALID_WRAPPER();
+    /* Argument cleanup can drop the caller's last wrapper reference. */
+    SAVEFREESV(SvREFCNT_inc_simple_NN(cv));
     if (generator->pads_switching)
         PERL_THROW_ERROR_ITERATOR_GENERATOR_NO_SUSPENDED_CONTINUATION();
     if (generator->state == PERL_GENERATOR_EXHAUSTED
@@ -1493,11 +1494,16 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
     AV * volatile exit_errors = NULL;
     GENERATOR_RUN run = { generator, NULL, NULL };
     int ret;
+    I32 caller_save;
 
     PERL_ARGS_ASSERT_GENERATOR_RESUME;
+    if (generator->pads_switching)
+        PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE();
     if (generator->state == PERL_GENERATOR_EXHAUSTED) {
-        SvREFCNT_dec((SV *)generator->result);
+        AV * const old_result = generator->result;
+        /* Releasing old values can call this exhausted wrapper again. */
         generator->result = newAV();
+        SvREFCNT_dec((SV *)old_result);
         return 0;
     }
     if (generator->state == PERL_GENERATOR_FAILED)
@@ -1505,15 +1511,24 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
     if (generator->state != PERL_GENERATOR_NEW && !generator->captured)
         PERL_THROW_ERROR_ITERATOR_GENERATOR_NO_SUSPENDED_CONTINUATION();
 
+    caller_save = PL_savestack_ix;
+    SAVEBOOL(generator->pads_switching);
+    SAVEFREESV(args);
+    generator->pads_switching = TRUE;
     if (new_generator) {
         if (generator->initial_args)
             PERL_THROW_ERROR_ITERATOR_GENERATOR_ALREADY_INVOKED();
-        generator->initial_args = args;
+        generator->initial_args = (AV *)SvREFCNT_inc(args);
     }
     else {
-        SvREFCNT_dec((SV *)generator->resume_args);
-        generator->resume_args = args;
+        AV * const old_args = generator->resume_args;
+        /* Clear ownership before calling argument destructors, and reject
+         * reentry until replacement ends. */
+        generator->resume_args = NULL;
+        SvREFCNT_dec((SV *)old_args);
+        generator->resume_args = (AV *)SvREFCNT_inc(args);
     }
+    LEAVE_SCOPE(caller_save);
 
     process_state_save(&caller_state);
     generator->invoke.op_flags = OPf_STACKED

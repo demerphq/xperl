@@ -19,9 +19,13 @@ no warnings 'experimental::builtin';
 
 my ($mode, $status) = @ARGV;
 our (@weak, @released, @keep);
+our $ambient = 'root';
 {
     package ExitArgument;
-    sub DESTROY { push @main::released, $_[0][0] }
+    sub DESTROY {
+        push @main::released, $_[0][0];
+        exit $status if $_[0][0] eq 'old resume';
+    }
 }
 {
     package ExitGuard;
@@ -29,14 +33,23 @@ our (@weak, @released, @keep);
 }
 sub argument {
     my $value = bless [$_[0]], 'ExitArgument';
-    push @weak, $value;
-    weaken($weak[-1]);
+    # An exiting DESTROY can retain its own argument on a callback's mortal
+    # stack. Its call is checked in @released. Track the other resources here.
+    if ($_[0] ne 'old resume') {
+        push @weak, $value;
+        weaken($weak[-1]);
+    }
     return $value;
 }
 
 $_ = 'root';
 END {
+    if ($mode eq 'argument_exit') {
+        print 'END resumed=', $keep[0]->(), "\n";
+        @keep = ();
+    }
     print 'END topic=', $_ // '<undef>',
+          ' slot=', $ambient,
           ' alive=', scalar(grep { defined } @weak),
           ' released=', join(',', sort @released), "\n";
 }
@@ -48,6 +61,7 @@ sub run_case {
     local $_ = 'caller';
     my $g = gen {
         $_ = 'body';
+        local $ambient = 'body local';
         if ($mode eq 'body') {
             exit $status;
         }
@@ -70,13 +84,14 @@ sub run_case {
             die "invoke exception hook\n";
         }
         if ($mode eq 'nested') {
-            my $child = gen { $_ = 'child'; exit $status };
+            my $child = gen { $_ = 'child'; local $ambient = 'child local'; exit $status };
             push @keep, $child;
             $child->(argument('child'));
         }
         if ($mode eq 'nested_abandon') {
             my $child = gen {
                 $_ = 'child';
+                local $ambient = 'child local';
                 my $guard = bless sub { exit $status }, 'ExitGuard';
                 yield 1;
             };
@@ -91,6 +106,11 @@ sub run_case {
             yield 1;
             exit $status;
         }
+        if ($mode eq 'argument_exit') {
+            yield 1;
+            yield 2;
+            yield 3;
+        }
         die "continued in generator";
     };
     push @keep, $g unless $mode =~ /abandon/;
@@ -100,6 +120,10 @@ sub run_case {
     }
     elsif ($mode eq 'resume') {
         $g->(argument('resume'));
+    }
+    elsif ($mode eq 'argument_exit') {
+        $g->(argument('old resume'));
+        $g->(argument('incoming'));
     }
     die "continued after exit";
 }
@@ -117,17 +141,19 @@ for my $status (0, 1, 23, 173, 255) {
     $exit_status{$status} = $?;
 }
 
-for my $mode (qw(body resume eval sort xs exception_hook outside_hook nested abandon nested_abandon)) {
+for my $mode (qw(body resume eval sort xs exception_hook outside_hook nested abandon nested_abandon argument_exit)) {
     SKIP: {
         skip 'List::Util is unavailable', 2 if $mode eq 'xs' && !$have_list_util;
         my $output = runperl(progfile => $program_file, switches => \@status_switches,
                              args => [$mode, 23], stderr => 1);
         my $status = $?;
-        my $labels = $mode eq 'outside_hook' ? ''
+        my $labels = $mode eq 'argument_exit' ? 'body,incoming,old resume'
+                   : $mode eq 'outside_hook' ? ''
                    : $mode =~ /nested/ ? 'body,child'
                    : $mode eq 'resume' ? 'body,resume' : 'body';
         is($status, $exit_status{23}, "$mode preserves process exit status");
-        is($output, "END topic=root alive=0 released=$labels\n",
+        my $prefix = $mode eq 'argument_exit' ? "END resumed=3\n" : '';
+        is($output, "${prefix}END topic=root slot=root alive=0 released=$labels\n",
            "$mode releases execution resources before END");
     }
 }
@@ -135,7 +161,7 @@ for my $status (0, 1, 173, 255) {
     my $output = runperl(progfile => $program_file, switches => \@status_switches,
                          args => ['nested', $status], stderr => 1);
     is($?, $exit_status{$status}, "nested exit preserves status $status");
-    is($output, "END topic=root alive=0 released=body,child\n",
+    is($output, "END topic=root slot=root alive=0 released=body,child\n",
        'nested exit preserves the caller and releases arguments');
 }
 

@@ -9,7 +9,7 @@ use warnings;
 use generator;
 use feature 'try';
 no warnings 'experimental::try';
-use builtin 'refaddr';
+use builtin qw(refaddr weaken);
 no warnings 'experimental::builtin';
 
 my $caught = gen {
@@ -177,4 +177,37 @@ is(refaddr($outside_meta), refaddr($saved_meta), 'the boundary forwards the orig
     is($result->[1], $caller_exception, 'resume argument can be the canonical caller exception');
 }
 
+{
+    package GeneratorArgumentCleanup;
+    sub DESTROY { $_[0][0]->() }
+}
+{
+    local $_ = 'argument caller';
+    my ($destroyed, $reentry_error, $cleanup_topic);
+    my $g = gen { while (1) { yield 'next' } };
+    is($g->(), 'next', 'argument cleanup test starts');
+    is($g->(bless [sub {
+        ++$destroyed;
+        $cleanup_topic = $_;
+        eval { $g->('nested') };
+        $reentry_error = "$@";
+    }], 'GeneratorArgumentCleanup'), 'next', 'generator retains the old resume argument');
+    is($g->(), 'next', 'outer resumption succeeds after argument cleanup');
+    like($reentry_error, qr/no suspended continuation/, 'argument cleanup cannot reenter its generator');
+    is($destroyed, 1, 'old resume argument is destroyed once');
+    is($cleanup_topic, 'argument caller', 'old argument cleanup runs in its resumer');
+    is($g->(), 'next', 'guard clears after replacing resume arguments');
+}
+
+{
+    my $g = gen { while (1) { yield 'alive' } };
+    my $weak = $g;
+    weaken($weak);
+    $g->();
+    $g->(bless [sub { undef $g }], 'GeneratorArgumentCleanup');
+    my $value = $g->();
+    is($value, 'alive', 'argument destructor can drop the last external wrapper reference');
+    ok(!defined($g), 'argument destructor cleared the caller reference');
+    ok(!defined($weak), 'the executing wrapper is released after returning its value');
+}
 done_testing;
