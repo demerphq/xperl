@@ -12856,7 +12856,10 @@ S_dispatch_pattern_match(pTHX_ const struct dispatch_pattern_node *node, SV *val
 
     if (pattern->op_type == OP_MATCH) {
         PMOP *pattern_pm = cPMOPx(pattern);
-        PMOP *matcher = S_make_matcher(aTHX_ PM_GETRE(pattern_pm));
+        REGEXP * const re = PM_GETRE(pattern_pm);
+        /* The enclosing pattern expression has compiled this regexp. */
+        ASSUME(re);
+        PMOP *matcher = S_make_matcher(aTHX_ re);
         const bool matched = S_matcher_matches_sv(aTHX_ matcher, value);
 
         S_destroy_matcher(aTHX_ matcher);
@@ -13124,8 +13127,10 @@ S_dispatch_pattern_bind_regex(pTHX_ const struct dispatch_pattern_node *node,
 
         if (!name_svp || !padix_svp)
             continue;
+        REGEXP * const re = PM_GETRE(cPMOPx(node->op));
+        ASSUME(re);
         captured = CALLREG_NAMED_BUFF_FETCH(
-            PM_GETRE(cPMOPx(node->op)),
+            re,
             *name_svp, 0);
         if (!captured)
             captured = newSVsv(&PL_sv_undef);
