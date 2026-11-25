@@ -702,9 +702,10 @@ S_generator_xsub(pTHX_ CV *cv)
     AV *args;
     I32 i;
 
-    PERL_UNUSED_ARG(cv);
     if (!generator || generator->magic != PERL_GENERATOR_MAGIC)
         PERL_THROW_ERROR_ITERATOR_GENERATOR_INVALID_WRAPPER();
+    /* Argument cleanup can drop the caller's last wrapper reference. */
+    SAVEFREESV(SvREFCNT_inc_simple_NN(cv));
     if (generator->pads_switching)
         PERL_THROW_ERROR_ITERATOR_GENERATOR_NO_SUSPENDED_CONTINUATION();
     if (generator->state == PERL_GENERATOR_EXHAUSTED
@@ -1506,8 +1507,10 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
     if (generator->pads_switching)
         PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE();
     if (generator->state == PERL_GENERATOR_EXHAUSTED) {
-        SvREFCNT_dec((SV *)generator->result);
+        AV * const old_result = generator->result;
+        /* Releasing old values can call this exhausted wrapper again. */
         generator->result = newAV();
+        SvREFCNT_dec((SV *)old_result);
         return 0;
     }
     if (generator->state == PERL_GENERATOR_FAILED)

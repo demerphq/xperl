@@ -1362,6 +1362,12 @@ instead of copying a continuation without its native owner.
 
 =item *
 
+Argument cleanup keeps an active generator alive if C<DESTROY> drops its
+last external reference.  Recursive calls while previous resume arguments
+are being destroyed are rejected instead of releasing the same values again.
+
+=item *
+
 A string C<eval> inside a method which names a field that the method does
 not otherwise use now reports "Field %s is not accessible outside a
 method".

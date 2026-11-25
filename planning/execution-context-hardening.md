@@ -70,6 +70,25 @@ threaded reference-counted DEBUGGING builds with ASan and LSan. Leak runs
 used `PERL_DESTRUCT_LEVEL=2` outside a tracing process. The clone suite's
 existing TODO for cloning inside BEGIN is unchanged.
 
+## Reentrant argument cleanup
+
+Replacing resume arguments happens in the resumer, before installing the
+generator's private environment. Releasing an old argument can call its
+`DESTROY`, which may invoke the same generator or clear the caller's last
+reference to its wrapper.
+
+The invocation keeps the wrapper CV alive through replacement and return.
+The old argument field is cleared before releasing its values, and the
+switching guard rejects recursive entry during replacement. Incoming
+arguments have a typed owner on the resumer's save stack until their
+transfer succeeds. They are released if cleanup exits instead. An `END`
+block can subsequently resume the still-parked generator.
+
+Regression coverage checks destructor reentry, destruction of the last
+external wrapper reference, and exit while replacing arguments. The exit
+fixtures also localize an ordinary package scalar so the prototype
+exercises its binding records across suspension and exit.
+
 ## Boundary costs
 
 These are relative measurements on one Linux host on 2026-11-25, using
