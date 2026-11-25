@@ -27,6 +27,12 @@ resident memory. The Perl driver runs isolated Perl workers in randomized
 order and saves raw samples, generated classes, build details, and CSV
 summaries. See the worker's POD for the cases and comparison limits.
 
+=head2 F<bench-generator-pads>
+
+Measure generator creation, suspension, resumption, and destruction,
+including switching at different Perl call depths. Includes ordinary call
+and arithmetic controls, and writes sampled timings as JSON.
+
 =head2 F<BenchHashCompare.pm>
 
 Shared paired summaries for the hash benchmark comparison drivers. Uses
