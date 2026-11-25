@@ -84,7 +84,7 @@ is(
     selector_layout_signature( $base_output->{layouts} ),
     'canonical selector domains do not depend on caller diagnostic order'
 );
-my $base_root   = File::Spec->rel2abs( File::Temp::tempdir( DIR => '../tmp', CLEANUP => 1 ) );
+my $base_root   = File::Spec->rel2abs( File::Temp::tempdir( TMPDIR => 1, CLEANUP => 1 ) );
 generate_all_packs( $base_output, $base_root );
 
 my $dump_diagnostics = Storable::dclone($base_diagnostics);
@@ -92,7 +92,7 @@ my ($dump_plural) = grep { $_->{number} == 2479 } @$dump_diagnostics;
 $dump_plural->{message_template}{en}{0}  = 'English exact zero';
 $dump_plural->{message_template}{fr}{21} = 'French exact twenty-one';
 my $dump_output = ordered_output($dump_diagnostics);
-my $dump_root   = File::Spec->rel2abs( File::Temp::tempdir( DIR => '../tmp', CLEANUP => 1 ) );
+my $dump_root   = File::Spec->rel2abs( File::Temp::tempdir( TMPDIR => 1, CLEANUP => 1 ) );
 File::Path::make_path("$dump_root/ext");
 Diag::Pack::generate( ['fr'], $dump_diagnostics, $dump_output->{table}, $dump_output->{layouts},
     $CONF->{languages}, $CONF->{plural_rules}, $dump_root );
@@ -129,7 +129,7 @@ for my $definition ( @{ $changed_words->{selector_definitions} } ) {
     $definition->{values} = $word_domains->{ $definition->{name} };
 }
 my $changed_output = ordered_output($changed_diagnostics);
-my $changed_root   = File::Spec->rel2abs( File::Temp::tempdir( DIR => '../tmp', CLEANUP => 1 ) );
+my $changed_root   = File::Spec->rel2abs( File::Temp::tempdir( TMPDIR => 1, CLEANUP => 1 ) );
 generate_all_packs( $changed_output, $changed_root );
 
 is( $changed_output->{header}, $base_output->{header}, 'German plural cases and tags leave producer enums unchanged' );

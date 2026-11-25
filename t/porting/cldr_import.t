@@ -109,7 +109,9 @@ ok(!(grep { /[cCeE]/ } @plain), 'compact samples are not plain integer samples')
         'retained inputs match generated table');
 }
 
-my $tmp = tempdir('cldr-import-XXXXXX', DIR => '../tmp', CLEANUP => 1);
+my $tmp = File::Spec->rel2abs(
+    tempdir('cldr-import-XXXXXX', TMPDIR => 1, CLEANUP => 1)
+);
 my $good_output = File::Spec->catdir($tmp, 'good-output');
 make_path($good_output);
 {
@@ -157,7 +159,7 @@ make_path($regional_output);
         $regional_source, '--output-dir', $regional_output);
 }
 is($status, 0, 'full parentLocales source is filtered');
-my $regional_loaded = do "./$regional_output/plural.pl";
+my $regional_loaded = do "$regional_output/plural.pl";
 ok($regional_loaded, 'filtered parent table loads') or diag($@ || $!);
 my $regional_data = $CLDR_DATA->{plural_parents};
 is(scalar keys %{$regional_data->{cardinal}}, 1,
@@ -284,7 +286,7 @@ make_path($precision_output);
         $precision_source, '--output-dir', $precision_output);
 }
 is($status, 0, 'large decimal strings import successfully');
-my $precision_table = "./$precision_output/plural.pl";
+my $precision_table = "$precision_output/plural.pl";
 my $precision_loaded = do $precision_table;
 ok($precision_loaded, 'synthetic precision table loads') or diag($@ || $!);
 my $precision_data = $CLDR_DATA;
@@ -337,7 +339,7 @@ close $out_fh;
 sub check_rejected_import {
     my ($description, $expected_error, @args) = @_;
     my ($stderr_fh) = File::Temp::tempfile('cldr-import-stderr-XXXXXX',
-        DIR => '../tmp', UNLINK => 1);
+        TMPDIR => 1, UNLINK => 1);
     my $status;
     open my $saved_stderr, '>&', STDERR or die "save stderr: $!";
     {

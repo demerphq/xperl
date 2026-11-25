@@ -389,7 +389,9 @@ SKIP: {
     my $selected_context = Diag::Translation::diagnostic_context(
         $selected_conf, $selected_diagnostics->[0], 'fr', Diag::Translation::documentation_index($selected_conf)
     );
-    my $directory = File::Spec->rel2abs( File::Temp::tempdir( DIR => '../tmp', CLEANUP => 1 ) );
+    my $directory = File::Spec->rel2abs(
+        File::Temp::tempdir( TMPDIR => 1, CLEANUP => 1 )
+    );
     my $fake_model = "$directory/fake-model";
     my $resume_marker = "$directory/allow-exhausted-resume";
     open my $script, '>:raw', $fake_model or die "Cannot create fake model: $!\n";
