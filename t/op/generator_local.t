@@ -522,17 +522,233 @@ for my $end (qw(return fail abandon)) {
         local $_ = 'host topic';
         local *left = *main::_;
         my $topic = \$_;
-        eval { scalar $g->() };
-        my $error = $@;
-        my $same_after_rejection = \$left == $topic && \$_ == $topic && $_ eq 'host topic';
+        is($g->(), 1, 'an ordinary local resumes through a new alias to the topic');
+        my $same_after_completion = \$left == $topic && \$_ == $topic && $_ eq 'host topic';
         undef $g;
         my $same_after_drop = \$left == $topic && \$_ == $topic && $_ eq 'host topic';
-        check_unavailable($error, 'a formerly ordinary GV now aliases a special GV');
-        ok($same_after_rejection && $same_after_drop,
-           'rejecting and dropping the owner leave the caller topic intact');
+        ok($same_after_completion && $same_after_drop,
+           'completion and dropping the owner leave the caller topic intact');
     }
-    ok(!defined($weak) && $destroyed == 1, 'discard releases both parked references to the resource');
+    ok(!defined($weak) && $destroyed == 1, 'completion releases the parked resource');
     is($left, 'left root', 'leaving the caller alias scope restores the original glob');
+}
+
+for my $ending (qw(return fail abandon)) {
+    local *left;
+    $left = 'outside left';
+    local $_ = 'outside topic';
+    my $topic = \$_;
+    my @cleanup;
+    my $g = gen {
+        $_ = 'owner topic';
+        local $left = 'private left';
+        my $guard = bless [sub { push @cleanup, [$left, $_, \$left, \$_] }],
+                          'LocalTestGuard';
+        yield \$left;
+        yield [$left, $_, \$left, \$_];
+        die "topic owner failed\n" if $ending eq 'fail';
+        return $left;
+    };
+    my $private = $g->();
+    {
+        local *left = *main::_;
+        my $resumed = $g->();
+        is("$resumed->[0]/$resumed->[1]", 'private left/private left',
+           "$ending: local binding overrides the owner's topic root");
+        ok($resumed->[2] == $private && $resumed->[3] == $private,
+           "$ending: both names expose the original private scalar");
+        ok(\$_ == $topic && $_ eq 'outside topic',
+           "$ending: suspension restores the caller topic by identity");
+        $_ = 'edited outside topic';
+        if ($ending eq 'return') {
+            is($g->(), 'private left', 'return resumes with the local binding');
+        }
+        elsif ($ending eq 'fail') {
+            eval { scalar $g->() };
+            like($@, qr/topic owner failed/, 'topic-alias failure propagates');
+        }
+        undef $g;
+        is("$cleanup[0][0]/$cleanup[0][1]", 'private left/private left',
+           "$ending: cleanup sees the owner's local through both names");
+        ok($cleanup[0][2] == $private && $cleanup[0][3] == $private,
+           "$ending: cleanup retains the private scalar identity");
+        ok(\$_ == $topic && $_ eq 'edited outside topic',
+           "$ending: cleanup preserves the caller's intervening write");
+    }
+    is($left, 'outside left', "$ending: caller glob scope restores its old slot");
+}
+
+for my $direction (qw(to_topic from_topic scalar_only)) {
+    local *main::_;
+    local @_ = ('caller first', 'caller second');
+    local *left;
+    $left = 'outside left';
+    local $_ = 'outside topic';
+    my $left_root = \$left;
+    my $topic = \$_;
+    my $arguments = \@_;
+    my @outside_args = @_;
+    my $g = gen {
+        $_ = 'owner topic';
+        local $left = 'private left';
+        if ($direction eq 'to_topic') { *left = *main::_ }
+        elsif ($direction eq 'from_topic') { *main::_ = *left }
+        else { *left = \$_ }
+        yield [$left, $_, \$left, \$_];
+        return [$left, $_];
+    };
+    my $first = $g->('owner argument');
+    my $value = $direction eq 'from_topic' ? 'private left' : 'owner topic';
+    is("$first->[0]/$first->[1]", "$value/$value",
+       "$direction: active alias has ordinary Perl's visible value");
+    ok($first->[2] == $first->[3], "$direction: active values share their scalar");
+    my $last = $g->();
+    is("$last->[0]/$last->[1]", "$value/$value", "$direction: resumption preserves owner values");
+    ok(\$_ == $topic && $_ eq 'outside topic', "$direction: return restores caller topic");
+    if ($direction eq 'scalar_only') {
+        ok(\$left == $left_root && $left eq 'outside left',
+           'a scalar-only alias leaves two independently restored slots');
+    }
+    else {
+        ok(\$left == $topic, "$direction: caller observes the explicit whole-glob alias");
+    }
+    ok(\@_ == $arguments, "$direction: caller argument array retains its identity");
+    is(join(',', @_), join(',', @outside_args), "$direction: caller arguments retain their contents");
+}
+
+for my $topic_first (0, 1) {
+    local *left;
+    $left = 'outside left';
+    local $_ = 'outside topic';
+    my $locals = $topic_first
+        ? q{local $_ = 'localized topic'; local $left = 'private left';}
+        : q{local $left = 'private left'; local $_ = 'localized topic';};
+    my $g = eval 'gen { ' . $locals . 'yield "parked"; return "$left/$_"; }';
+    die $@ unless $g;
+    is($g->(), 'parked', 'separate scalar and direct topic locals can park');
+    {
+        local *left = *main::_;
+        my $topic = \$_;
+        eval { scalar $g->() };
+        check_unavailable($@, 'owner direct topic save cannot overlap scalar replay');
+        ok(\$_ == $topic && $_ eq 'outside topic', 'rejected overlap leaves caller intact');
+    }
+    is($g->(), 'private left/localized topic', 'removing the topic overlap allows retry');
+}
+
+{
+    package LocalTopicArgument;
+    sub TIESCALAR { bless $_[1], $_[0] }
+    sub FETCH { $_[0][0]->(); return 'argument' }
+}
+{
+    local *left;
+    local $_ = 'outside topic';
+    my @seen;
+    my $g = gen {
+        $_ = 'owner topic';
+        local $left = 'private';
+        my $value = yield 'parked';
+        return "$left/$_/$value";
+    };
+    is($g->(), 'parked', 'argument test parks before aliasing to the topic');
+    {
+        local *left = *main::_;
+        tie my $argument, 'LocalTopicArgument', [sub { push @seen, "$left/$_" }];
+        is($g->($argument), 'private/private/argument', 'resume argument is fetched after replay');
+    }
+    is(join(',', @seen), 'private/private', 'argument FETCH sees the owner local and topic');
+    is($_, 'outside topic', 'argument magic leaves the caller topic intact');
+}
+
+for my $name ('main::@', "main::\cERROR_OBJ") {
+    local *left;
+    my $g = gen { local $left = 'private'; yield 'parked'; return $left };
+    is($g->(), 'parked', 'owner parks before aliasing to an error slot');
+    {
+        no strict 'refs';
+        local *left = *{$name};
+        my $error_slot = \$left;
+        eval { scalar $g->() };
+        check_unavailable($@, 'ordinary locals cannot replay through an error root');
+        ok(\$left == $error_slot, 'rejection preserves the error slot identity');
+    }
+    is($g->(), 'private', 'owner retries after removing the error-root alias');
+}
+
+for my $kind (qw(given dispatch)) {
+    local *left;
+    $left = 'outside left';
+    local $_ = 'outside topic';
+    my $source = $kind eq 'given'
+        ? q{use feature 'switch'; no warnings 'experimental::smartmatch';
+            gen { local $left = 'private'; given ('inner topic') {
+                yield 'parked'; return "$left/$_";
+            } }}
+        : q{use feature 'dispatch_on';
+            gen { local $left = 'private'; dispatch ('inner topic') {
+                on (_) { yield 'parked'; return "$left/$_" }
+            } }};
+    my $g = eval $source;
+    die $@ unless $g;
+    is($g->(), 'parked', "$kind topic owner parks with a separate scalar local");
+    {
+        local *left = *main::_;
+        my $topic = \$_;
+        eval { scalar $g->() };
+        check_unavailable($@, "$kind topic save cannot overlap scalar replay");
+        ok(\$_ == $topic && $_ eq 'outside topic', "$kind rejection preserves the caller");
+    }
+    is($g->(), 'private/inner topic', "$kind resumes after removing the overlap");
+}
+
+{
+    local *left;
+    local *right;
+    my $g;
+    {
+        no strict 'refs';
+        local *right = *{'main::@'};
+        $g = gen {
+            local $left = 'outer';
+            local $right = 'inner';
+            yield 'parked';
+            return "$left/$right";
+        };
+        is($g->(), 'parked', 'owner parks with a tracked scalar and untracked error alias');
+    }
+    {
+        local *right = *left;
+        eval { scalar $g->() };
+        check_unavailable($@, 'a formerly special save remains untracked after retargeting');
+    }
+    {
+        no strict 'refs';
+        local *right = *{'main::@'};
+        is($g->(), 'outer/inner', 'restoring the original error alias allows retry');
+    }
+}
+
+{
+    local *left;
+    local $_ = 'outside topic';
+    my $topic = \$_;
+    my $g;
+    {
+        local *left = *main::_;
+        $g = gen {
+            local $left = 'private alias';
+            yield \$left;
+            return [$left, $_];
+        };
+        my $private = $g->();
+        is($$private, 'private alias', 'ordinary topic alias can localize before the first yield');
+        ok(\$_ == $topic && $_ eq 'outside topic', 'first park restores the caller topic');
+    }
+    my $last = $g->();
+    is($last->[0], 'private alias', 'resumption follows the split ordinary slot');
+    is($last->[1], 'outside topic', 'splitting the alias preserves the owner topic root');
+    ok(\$_ == $topic && $_ eq 'outside topic', 'completion preserves caller topic identity');
 }
 
 {

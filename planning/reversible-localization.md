@@ -135,9 +135,11 @@ in [the execution-boundary report](execution-context-hardening.md).
 Scalar replay follows each GV's current slot, just as ordinary restoration
 does. A merged slot exposes the inner local through both names. A split
 installs each local scalar into its current slot. Neither operation needs
-to reconstruct the old alias layout. Aliases to special GVs, overlapping
-owner-side glob saves, and an owner merge which relocates an opaque saved
-caller binding remain outside this plain-scalar prototype.
+to reconstruct the old alias layout. An ordinary name may alias the topic:
+the owner's default bindings are installed before its scalar locals, and
+removed after them. Aliases to error variables, overlaps with independent
+owner-side topic or glob saves, and an owner merge which relocates an opaque
+saved caller binding remain outside this plain-scalar prototype.
 Destruction cannot request a retry. Its fallback marks all still-parked
 `REVSV` saves for discard: real unwind releases their two private
 SV references and GV guards without writing the new host slots. Owner-local
@@ -176,15 +178,17 @@ or XS activations cannot be preserved by exchanging Perl save stacks.
 ## Supported cases and limits
 
 The implementation supports named, initially non-magical scalar bindings,
-nested locals, stable glob aliases, scalar references, and values containing
+nested locals, changing glob aliases, scalar references, and values containing
 references to objects. After suspension the caller may modify, tie, or remove
 its scalar slot with `undef *name`. Its actual binding is restored without
 copying it or invoking its magic.
 
 Active magical locals are rejected. Some internal magic might be harmless,
-but this prototype makes no such classification. Special GVs, including the
-default topic and error variables, retain their existing handling rather
-than joining this scalar protocol. Arrays, hashes and elements retain their
+but this prototype makes no such classification. Direct localizations of
+the default topic and error variables retain their existing handling rather
+than joining this scalar protocol. An ordinary name sharing the topic's GP
+can participate if its scalar is plain and no independent owner-side topic
+save overlaps it. Arrays, hashes and elements retain their
 existing behavior. Unsupported interactions within a tracked scalar group,
 including scalar-slot alias saves and package foreach aliases, are rejected
 before exchanging any bindings. This is not a blanket isolation guarantee
@@ -266,6 +270,29 @@ need conflict checks at suspension, avoiding a full rescan when no such
 records exist. These measurements do not isolate that cost from the
 intervening lifecycle changes.
 
+The topic-alias update was measured on 2026-11-25 using the same optimized
+regular build, 10,000 switch pairs per sample and nine measured samples.
+The before column is the current-glob run above. The after samples are in
+[reversible-localization-topic-aliases.json](reversible-localization-topic-aliases.json).
+
+| Workload | Before ns | After ns |
+| --- | ---: | ---: |
+| Ordinary scalar read | 19.4 | 18.2 |
+| Ordinary scalar localization | 43.3 | 41.6 |
+| Switch pair, no package locals | 276 | 287 |
+| Switch pair, 8 distinct locals | 571 | 559 |
+| Switch pair, 32 distinct locals | 1399 | 1421 |
+| Switch pair, 64 distinct locals | 2512 | 2493 |
+| Switch pair, 128 distinct locals | 5391 | 4609 |
+| Switch pair, 256 distinct locals | 10053 | 10394 |
+| Switch pair, 8 locals and 32 lexical scopes | 1240 | 1248 |
+
+These are medians on one machine, not evidence of an ordinary-execution
+speedup. The unchanged controls vary too. The implementation adds no work
+to ordinary variable access, localization, subroutine entry or opcode
+dispatch. The extra conflict checks run in the existing context-switch
+scans, whose cost continues to grow with the owner's saved state.
+
 The scratch table adds memory in exchange for avoiding repeated searches.
 It uses a power-of-two bucket array at most half full, plus ordered records
 and cached oldest-entry indices. Capacity is reused across yields. There is
@@ -293,8 +320,9 @@ make
   exchanging bindings.
 - Add reversible handling for owner-side glob saves in their real save-stack
   order. Ordinary scalar restoration follows current globs and needs no
-  frozen alias graph. Special-default overlap and opaque saved bindings
-  need their own handling before removing the remaining discard fallback.
+  frozen alias graph. Independent topic saves, error slots and opaque saved
+  bindings need their own handling before removing the remaining discard
+  fallback.
 - Give special interpreter variables, ties, `%ENV`, and `%SIG` their own
   protocols. External state and arbitrary callbacks require failure and
   rollback policies beyond pointer exchange. Do not run tie or signal hooks

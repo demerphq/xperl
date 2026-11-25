@@ -1113,13 +1113,16 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
                 S_generator_attach_stackinfo(aTHX_ generator);
             S_generator_install_pads(aTHX_ generator);
             process_state_restore(&generator->process);
-            if (local_bindings_validate(generator->local_bindings, &generator->process))
+            const bool bindings_valid = local_bindings_validate(
+                generator->local_bindings, &generator->process);
+            /* Locals can use the same slots as the owner's defaults.
+             * Install the defaults first, then replay the inner bindings.
+             * Parking removes those bindings in the opposite order. */
+            S_generator_swap_default_variables(aTHX_ generator);
+            if (bindings_valid)
                 local_bindings_resume(generator->local_bindings, PL_savestack);
             else
                 local_bindings_discard(generator->local_bindings, PL_savestack);
-            /* Scope cleanup can run Perl destructors. They belong to the
-             * abandoned execution, including its default variables. */
-            S_generator_swap_default_variables(aTHX_ generator);
             PL_runops_boundary_hook = NULL;
             PL_runops_boundary_data = NULL;
             JMPENV_PUSH(ret);
@@ -1556,7 +1559,6 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             S_generator_attach_stackinfo(aTHX_ generator);
         S_generator_install_pads(aTHX_ generator);
         process_state_restore(&generator->process);
-        local_bindings_resume(generator->local_bindings, PL_savestack);
     }
     /* Native callbacks can run another loop on this same Perl stack. Their
      * return is not completion of the generator. Only its owning loop gets
@@ -1619,10 +1621,9 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
                 if (CxTYPE(&cxstack[i]) == CXt_EVAL)
                     cxstack[i].blk_eval.cur_top_env = &cur_env;
             }
-            /* Argument magic may throw and unwind private scopes. Install
-             * the owner's defaults before running that code. */
             S_generator_swap_default_variables(aTHX_ generator);
             default_variables_swapped = TRUE;
+            local_bindings_resume(generator->local_bindings, PL_savestack);
             S_generator_push_resume_result(aTHX_ generator);
         }
     run_execution:

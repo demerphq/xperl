@@ -2218,7 +2218,7 @@ S_local_binding_special(pTHX_ GV *gv)
     const U8 first = GvNAMELEN(gv) ? (U8)*GvNAME(gv) : 0;
     return !first || (!isWORDCHAR_L1(first)
                      && !(GvNAMEUTF8(gv) && !UTF8_IS_INVARIANT(first)))
-        || gp == GvGP(PL_defgv)
+        || gv == PL_defgv
         || (PL_errgv && gp == GvGP(PL_errgv))
         || (PL_errorobjgv && gp == GvGP(PL_errorobjgv));
 }
@@ -2324,6 +2324,15 @@ S_local_binding_conflicts(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack,
             return TRUE;
         args = &stack[offset];
         switch (type) {
+        case SAVEt_SV:
+            gv = args[0].any_gv;
+            /* Collection includes ordinary SV saves in the replay plan.
+             * Once parked, every planned save has become REVSV. Any SV
+             * left over is untracked, even if its glob has changed since. */
+            if (!bindings->parked && gv && isGV_with_GP(gv) && GvGP(gv)
+                && !S_local_binding_special(aTHX_ gv))
+                continue;
+            break;
         case SAVEt_GENERIC_SVREF:
         case SAVEt_SVREF:
             slot = args[0].any_svp;
@@ -2331,6 +2340,9 @@ S_local_binding_conflicts(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack,
         case SAVEt_GVSLOT:
             slot = args[1].any_svp;
             gv = args[0].any_gv;
+            break;
+        case SAVEt_SPTR:
+            slot = args[1].any_svp;
             break;
         case SAVEt_GP:
         case SAVEt_GVSV:
@@ -2347,6 +2359,11 @@ S_local_binding_conflicts(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack,
     }
     for (i = 0; i <= stackinfo->si_cxix; ++i) {
         PERL_CONTEXT *cx = &stackinfo->si_cxstack[i];
+        if ((CxTYPE(cx) == CXt_GIVEN
+             || (CxTYPE(cx) == CXt_DISPATCH
+                 && cx->blk_dispatch.localizes_defsv))
+            && S_local_binding_index(bindings, &GvSV(PL_defgv))->slot)
+            return TRUE;
         if (!CxFOREACH(cx) || CxPADLOOP(cx))
             continue;
         if (!(cx->cx_type & CXp_FOR_GV))
