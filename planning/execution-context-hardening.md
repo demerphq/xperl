@@ -55,6 +55,16 @@ arguments, foreach aliases, tied topics, nested abandonment, throwing
 restorations, repeated exceptions and throwing warning hooks. A copied-stack
 interpreter clone also exercises a pending cleanup warning.
 
+The scalar prototype additionally cancels a pending yield if its
+localization checks fail and an owner-local handler catches the exception.
+The rejected packet must not reach the caller before that handler runs.
+Its references are released before the next successful suspension.
+
+In the scalar prototype, the generic throwing-cleanup fixtures use tied array
+elements. Magical package locals are deliberately rejected by the scalar
+prototype. Element restoration exercises the same throwing cleanup path,
+but does not establish isolation of element localizations while parked.
+
 The focused suites passed on the normal build and on regular-stack and
 threaded reference-counted DEBUGGING builds with ASan and LSan. Leak runs
 used `PERL_DESTRUCT_LEVEL=2` outside a tracing process. The clone suite's
@@ -159,20 +169,26 @@ while the process returns 23. A dying hook can instead reach a caller's
 eval while the process ultimately returns 23. This broader cleanup and
 status-precedence problem needs separate work.
 
-## Unresolved glob-alias changes
+## Current glob aliases and remaining overlaps
 
-The prototype's fallback after incompatible glob-alias changes preserves
-the caller but runs cleanup in the wrong scalar environment. It is not a
-general solution. The [alias assessment](reversible-localization-aliases.md)
-explains why retaining an old GP does not preserve both scalar aliases and
-the caller's unlocalized array bindings.
+Ordinary scalar restoration follows the glob's current scalar slot. The
+prototype now follows that rule when the caller or owner merges or splits
+aliases. The inner local can hide the outer one through both names. It
+need not preserve the original alias layout. Earlier proposals to freeze
+that layout or introduce new slot representations imposed a stronger
+requirement than Perl itself.
 
-Rejecting incompatible assignments alone is insufficient. Leaving an
-already-open `local *glob` scope can change the alias relationships while
-an owner is parked. A restriction would have to cover pending restorations
-as well as new assignments. Alternatively, independently rebindable scalar
-slots need a separate representation design. No such policy or
-representation change is implemented here.
+The [alias assessment](reversible-localization-aliases.md) explains the
+reference behavior and its identity checks. Validation now checks the
+owner's saved scopes for unsupported overlap under the current aliases.
+It does not reject an ordinary merge or split by itself.
+
+Overlapping owner-side glob saves and aliases to the generator's special
+default bindings still need separate handling. An owner-side merge which
+relocates an opaque saved caller binding can also exceed the prototype's
+plain-binding checks. The discard fallback remains a limitation in those
+unsupported cases, including destructor visibility. It is no longer the
+cleanup path for ordinary alias changes.
 
 ## Ordinary execution
 

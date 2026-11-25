@@ -11,7 +11,11 @@ sub park_pair ($events) {
     my $g = gen {
         local $left = 'owner left';
         local $right = 'owner right';
-        my $guard = bless [sub { push @$events, "$left / $right" }], 'Observer';
+        my $guard = bless [sub {
+            my $visible_left = $left // '<undef>';
+            my $visible_right = $right // '<undef>';
+            push @$events, "$visible_left / $visible_right";
+        }], 'Observer';
         yield 'parked';
     };
     my $ready = $g->();
@@ -34,7 +38,7 @@ sub park_pair ($events) {
         $left = 'temporary host';
         $g = park_pair(\@seen);
     }
-    # The incompatible merge occurred on scope exit.
+    # Leaving the inner scope makes left and right aliases again.
     undef $g;
     say "implicit merge, current prototype DESTROY: @seen; caller: $left / $right";
 }

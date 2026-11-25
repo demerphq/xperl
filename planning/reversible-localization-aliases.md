@@ -1,119 +1,107 @@
-# Replaying scalar locals during generator cleanup
+# Scalar localization follows the current glob
 
-This assessment concerns the scalar prototype at commit `46e254d668` on
-`xperl/proto-localize`. It identifies a limitation to resolve before
-promising safe cleanup after arbitrary glob-alias changes.
+This assessment describes the scalar prototype on `xperl/proto-localize`.
+Code and test references refer to that branch.
 
-The ordered swap works whenever the caller still gives the localized
-globs the same scalar-slot relationships. Keep that path. The caller may
-have different scalar values, ties or an empty slot. Those are already
-handled by exchanging the actual SV pointers.
+Perl restores a localized package scalar through the glob's current scalar
+slot. It does not promise to preserve the alias relationships that existed
+when the scope began.
 
-The troublesome case is a change to which names share a slot. The
-prototype detects it on explicit resume, but if the generator is destroyed
-in that state its DESTROY methods run in the wrong scalar environment.
-In the merge probe the destructor reads `host right / host right`; the
-two live locals should read `owner left / owner right`. In the special
-glob probe the destructor reads the caller's topic. The caller's values
-survive, but that alone is insufficient for cleanup.
+```perl
+$A = "bar";
+$B = "baz";
+{
+    local $A = "foo";
+    *A = *B;
+}
+print "$A / $B";  # bar / bar
+```
 
-## Why saving the original glob does not settle it
+The glob assignment makes A and B share a GP and its scalar slot. Leaving
+the scope installs A's saved scalar through that shared slot. A reference
+taken to B's previous scalar still refers to that old scalar. References
+to the globs themselves do not show the change: A and B remain distinct
+GV objects even while sharing a GP.
 
-In `gv.h:11`, a GP holds the scalar, array, hash, code, format and IO
-slots together. `GvSV(gv)` is the actual `gp_sv` field. A full-glob
-alias shares this *slot*. Assigning the same scalar reference to two
-separate globs shares the *current SV*. A subsequent `local` replaces
-the slot, which exposes the difference.
+With `local *A = *B`, the glob save unwinds before the scalar save. That
+restores A's old GP first, so the final values are `bar / baz`.
 
-Suppose A and B shared a GP when the owner suspended. The caller splits
-them and installs different arrays. During cleanup, a destructor performs
-both of these ordinary operations:
+Our earlier assessment assumed that a suspended owner must retain its
+original alias groups. That was stronger than ordinary Perl semantics.
+It led to unnecessary resume rejection and an incorrect discard fallback
+for ordinary merges and splits. Pinning old GPs or introducing new scalar
+slot representations is not required for these cases.
 
-* Reading `$A[0]` and `$B[0]` should see the two caller arrays. The
-  generator never localized either array.
-* Inside `{ local $A = 'nested'; ... }`, reading `$B` should see
-  `nested` if the owner retains its original shared scalar slot.
+## Suspension and replay
 
-`slot-topology.pl` demonstrates that one GP meets the second condition
-but exposes the same array twice. Two GPs with the same scalar referent
-meet the first condition but `$B` keeps the previous scalar. Installing
-different GPs on entry and restoring them on exit cannot meet both
-conditions throughout the callback using Perl's current representation.
-The reverse case involves two private scalar locals that now need to
-appear distinct while their caller shares the two complete globs.
+Suspension exchanges owned scalar bindings in reverse save order.
+Resumption exchanges them in forward order. Each operation resolves its
+saved GV's current scalar slot.
 
-Keeping the original GP alive also has an observable cost. With a caller
-using `local *original`, a GP pin kept objects in both the caller's
-scalar and array alive after its scope ended. Without the pin both
-destructors ran on scope exit. A pin cannot freeze changes made through
-another alias. It also does not change the GV used by an already compiled
-variable access. In core, `gp_ref` clears a cached method CV, and
-`gp_free` can release user objects or clear the effective GV. The
-existing glob restore in `scope.c` deals with ISA and method caches.
-Treating these operations as raw, callback-free pointer exchanges would
-introduce separate lifetime and method-lookup changes.
+If the caller merges A and B while the owner is parked, replaying an
+outer `local $A` and an inner `local $B` makes the inner binding visible
+through both names. Leaving the inner scope exposes the outer binding
+through both names. Both scalar objects retain their identity, including
+through escaped references. The current caller binding is restored when
+the owner parks or finishes.
 
-## Identity and aliases outside the saved records
+If the caller splits a previously shared slot, replay installs each
+local scalar in its current slot. Each caller slot gets its own outside
+scalar back. Caller writes between activations remain intact.
 
-After deleting and recreating a stash entry, a compiled closure and a
-symbolic lookup can correctly name different globs with the same spelling.
-The teardown probe reads `owner / replacement`. Afterwards it reads
-`original / replacement`. Keep save records keyed to the actual GV and
-compare current slot addresses at each boundary. Recreating names from
-package strings would rebind the replacement symbol by mistake.
+If the owner itself changes aliases while running, deactivation follows
+those changed globs, just as ordinary scope exit would. This can change
+which outside scalar a name exposes. The example above deliberately
+restores A's original scalar into B's slot.
 
-An untracked alias created while the owner is parked can also legitimately
-see the local. In the probe, `local *untracked = *left` makes cleanup
-observe `private / private`, and both names read the host value afterwards.
-A shadow GP installed only on the tracked GV loses this relationship.
-The GP has one effective GV and a reference count. It has no list of
-every alias, including globs reachable solely through saved references.
+The exchanges operate only on scalar slots. They do not reinstall an old
+GP or replace unlocalized array, hash, code or IO slots. Whole-glob changes
+made explicitly by Perl code have their ordinary effects on those slots.
 
-## Two ways forward
+## Validation uses the owner's saved state
 
-1. **Keep destructive topology changes out of a parked owner's lifetime.**
-   With this policy, the current ordered swaps give cleanup the full owner
-   environment. Reject incompatible full-glob reassignments before changing
-   any slot. A guard must include the special GVs: rebinding a special GV
-   to a tracked GP can create the conflict in the opposite direction. A
-   singleton change to an unrelated ordinary GP can remain valid.
+The slot index describes the current globs. It detects overlapping saves
+which the scalar prototype cannot replay, rather than requiring the old
+and current alias groups to match.
 
-   An assignment guard alone is insufficient. A generator can first park
-   inside a caller's `local *A` when A and B are independent. Leaving that
-   already-open caller scope can merge A and B. The probe reproduces this
-   with no explicit glob assignment after suspension. Scope exit must
-   remain possible. A conservative first version could reject suspension
-   before exchanging anything if an outstanding glob restore might create
-   a conflict. It must account for pending restores in resumers as well
-   as in the private stack. A registry updated on glob localization and
-   restoration is one way to avoid searching across saved stacks. The
-   policy needs an explicit contract for native code that changes GPs
-   directly. These hooks belong on structural changes and at suspension;
-   neither ordinary scalar reads nor ordinary scalar `local` needs a
-   check. This approach changes which glob operations or suspensions are
-   allowed, so it calls for a language policy decision first.
+A changed alias can introduce overlap with an owner's saved glob or
+package foreach binding. Resume checks the parked owner's save and
+context stacks. A foreach in the resumer is a different scope and must not
+be mistaken for an owner conflict. Checks run again after old argument
+cleanup because its destructors can change globs.
 
-2. **Allow arbitrary topology changes and give each scalar alias group an
-   independently rebindable slot.** This needs a representation that can
-   share a scalar slot while the containing GPs differ, or an equivalent
-   mechanism that intercepts every scalar-slot rebind during replay.
-   Simply caching the same SV in several GPs fails at nested `local`.
-   The lvalue form of `GvSV` is also used by native code. This route
-   needs a separate design covering ordinary accesses, structural writes,
-   references and extension compatibility. The two probes above rule out
-   accomplishing it by rearranging current GPs only at the boundaries.
+The index keeps this work expected-linear. Revalidation scans save records
+and loop contexts at execution boundaries. Ordinary scalar access and
+ordinary subroutine calls gain no checks.
 
-An intermediate policy could promise only the values of explicitly
-localized scalars during incompatible teardown and use private globs for
-those names. That gives up some behavior inside user destructors (nested
-localization, untracked aliases or unlocalized glob slots). It would also
-need to remove the overlay at each group's last actual scope exit so
-later cleanup sees that caller's outside bindings. Do not ship such a
-fallback as restoration of the full owner environment.
+## Remaining prototype limits
 
-Run the accompanying probes with the prototype interpreter and its library
-directory. The first demonstrates the GP representation without requiring
-reversible localization. The second exercises the prototype's cleanup:
+Ordinary merges and splits now replay and unwind normally, including
+abandonment. Three distinct cases remain outside this change:
+
+* An overlapping owner-side `local *glob` has its own GP restoration.
+  It needs reversible handling in the right order with scalar saves.
+  A resumer's `local *glob` may establish the current alias relationships
+  normally.
+* Aliasing a tracked ordinary name to `$_`, `$@` or
+  `${^ERROR_OBJ}` overlaps the generator's independent default-binding
+  switch. Its activation order needs separate work.
+* An owner-side merge can move a displaced magical or absent caller
+  binding into a record now considered an inner localization. The current
+  plain-binding checks conservatively reject that combination. Supporting
+  it needs provenance for outside bindings, without admitting magical
+  localizations created by the owner.
+
+For unsupported overlaps and special slots, the discard fallback can
+still release references without reconstructing the owner's full
+environment for destructors. That remaining limitation must not be
+described as a reason to reject ordinary alias changes.
+
+The regression cases are in
+[generator_local.t](https://github.com/demerphq/xperl/blob/xperl/proto-localize/t/op/generator_local.t). They check values,
+scalar identities, nested scope order, outside writes, active-owner
+aliasing, destruction and exceptions. The planning probes illustrate
+ordinary alias layout and cleanup visibility:
 
 ```sh
 ./perl -Ilib planning/probes/localization-slot-topology.pl
