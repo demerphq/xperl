@@ -105,6 +105,37 @@ is($parent->(), 'parent/child/parent ambient', 'the parent owns its local across
     package LocalTestObject;
     sub DESTROY { ++${$_[0][0]} }
 }
+for my $kind (qw(glob foreach)) {
+    our ($left, $right);
+    local *left;
+    local *right;
+    $left = 'left root';
+    $right = 'right root';
+    my $g = gen {
+        local $left = 'private';
+        if ($kind eq 'glob') {
+            local *right;
+            $right = 'private glob';
+            yield 'parked';
+        }
+        else {
+            for $right ('private loop') {
+                yield 'parked';
+            }
+        }
+        return $left;
+    };
+    is($g->(), 'parked', "$kind save initially uses a different slot");
+    {
+        local *left = *right;
+        eval { scalar $g->() };
+        check_unavailable($@, "rebind detects new overlap with an owner's $kind save");
+        ok(!$g->failed, "$kind overlap leaves the owner retryable");
+    }
+    is($g->(), 'private', "$kind owner resumes after removing the unsupported overlap");
+    is("$left/$right", 'left root/right root', "$kind completion restores the caller");
+}
+
 for my $end (qw(return fail abandon)) {
     my ($weak_object, @seen);
     my $destroyed = 0;
@@ -267,10 +298,15 @@ for my $kind (qw(glob_slot foreach)) {
 
 our ($left, $right) = ('left root', 'right root');
 sub pair_owner {
+    my ($events, $finish) = @_;
     gen {
         local $left = 'left owner';
         local $right = 'right owner';
+        my $guard = $events
+            ? bless([sub { push @$events, "$left/$right" }], 'LocalTestGuard')
+            : undef;
         yield 'started';
+        die "alias failure\n" if defined($finish) && $finish eq 'fail';
         return "$left/$right";
     };
 }
@@ -281,6 +317,97 @@ sub transient_argument {
     weaken($$weak);
     return $object;
 }
+
+# Ordinary scalar restoration follows the current glob, including its aliases.
+for my $layout (qw(merged split)) {
+    our (@left, @right);
+    local *left;
+    local *right;
+    $left = 'left host';
+    $right = 'right host';
+    @left = ('left array');
+    @right = ('right array');
+    *left = *right if $layout eq 'split';
+    my $g = gen {
+        local $left = 'left owner';
+        local $right = 'right owner';
+        yield 'arrays parked';
+        return [$left, $right, $left[0], $right[0]];
+    };
+    is($g->(), 'arrays parked', "$layout array view starts before caller rebinding");
+    if ($layout eq 'merged') {
+        *left = *right;
+        is(join('/', @{$g->()}), 'right owner/right owner/right array/right array',
+           'scalar replay leaves merged caller array slots in place');
+    }
+    else {
+        local *left;
+        $left = 'split host';
+        @left = ('new array');
+        is(join('/', @{$g->()}), 'left owner/right owner/new array/right array',
+           'scalar replay leaves split caller array slots in place');
+    }
+}
+{
+    local *left;
+    local *right;
+    $left = 'bar';
+    $right = 'baz';
+    my ($old_left, $old_right) = (\$left, \$right);
+    my $g = gen {
+        local $left = 'foo';
+        *left = *right;
+        yield "$left/$right";
+        return "$left/$right";
+    };
+    is($g->(), 'baz/baz', 'an owner can alias its localized name before suspension');
+    is("$left/$right", 'bar/bar', 'deactivation restores through the new alias like scope exit');
+    is(\$right, $old_left, 'restoration installs the original scalar in the new shared slot');
+    is($$old_right, 'baz', 'an escaped reference keeps the displaced scalar');
+    is($g->(), 'baz/baz', 'reactivation restores the view from before suspension');
+    is("$left/$right", 'bar/bar', 'completion follows the same alias as ordinary Perl');
+    is(\$left, $old_left, 'completion preserves the restored scalar identity');
+}
+{
+    local *left;
+    local *right;
+    $left = 'bar';
+    $right = 'baz';
+    {
+        local $left = 'foo';
+        local *left = *right;
+        is("$left/$right", 'baz/baz', 'native local glob assignment aliases the slots');
+    }
+    is("$left/$right", 'bar/baz', 'native glob restoration precedes scalar restoration');
+}
+{
+    my $g = gen {
+        local $left = 'outer';
+        my $outer = \$left;
+        {
+            local $right = 'inner';
+            yield [$outer, \$right];
+            yield "$left/$right";
+        }
+        yield "$left/$right";
+        return "$left/$right";
+    };
+    my $private = $g->();
+    {
+        local *left = *right;
+        my $host = \$right;
+        $right = 'caller write';
+        is($g->(), 'inner/inner', 'merged names see the innermost local');
+        is(${$private->[0]}, 'outer', 'escaped outer scalar survives while hidden');
+        $right = 'later write';
+        is($g->(), 'outer/outer', 'leaving the inner scope exposes the outer binding');
+        is($g->(), 'outer/outer', 'outer local remains visible until completion');
+        is(\$right, $host, 'completion restores the current resumer scalar');
+        is($right, 'later write', 'caller writes between suspensions are preserved');
+    }
+    $right = 'right root';
+}
+
 {
     local *left = *right;
     my $host = \$right;
@@ -291,37 +418,63 @@ sub transient_argument {
     {
         local *left;
         $left = 'split caller';
-        eval { scalar $g->() };
-        check_unavailable($@, 'resume rejects a formerly shared slot split into two');
+        is($g->(), 'left owner/right owner', 'resume follows a shared slot split into two');
         ok(\$left != $host && $left eq 'split caller' && \$right == $host,
-           'rejecting the split leaves both caller bindings intact');
+           'completion restores both current caller bindings');
     }
-    is($g->(), 'right owner/right owner', 'both names resolve to the innermost binding');
+    ok($g->completed, 'the split owner completed normally');
     ok(\$left == $host && \$right == $host, 'completion restored the alias by identity');
 }
-for my $end (qw(retry abandon)) {
-    my $g = pair_owner();
+for my $end (qw(return fail abandon)) {
+    my @seen;
+    my $g = pair_owner(\@seen, $end);
     is($g->(), 'started', "$end suspends with two independent slots");
     {
         local *left = *right;
         my $aliased = \$right;
-        my ($argument, $released) = (undef, 0);
-        eval { scalar $g->(transient_argument(\$argument, \$released)) };
-        check_unavailable($@, "$end rejects a caller that merged the two glob slots");
-        ok(!defined($argument) && $released == 1, "$end rejected resume releases its argument");
-        ok(!$g->failed && !$g->completed, "$end leaves the generator retryable");
-        ok(\$left == $aliased && \$right == $aliased && $right eq 'right root',
-           "$end rejection leaves the current alias binding untouched");
-        if ($end eq 'abandon') {
-            undef $g;
-            ok(\$left == $aliased && \$right == $aliased && $right eq 'right root',
-               'abandonment preserves the merged caller binding');
+        if ($end eq 'return') {
+            is($g->(), 'right owner/right owner', 'the inner local wins after merging slots');
         }
-    }
-    if ($end eq 'retry') {
-        is($g->(), 'left owner/right owner', 'retry succeeds when the original slot partition returns');
+        elsif ($end eq 'fail') {
+            eval { scalar $g->() };
+            like("$@", qr/alias failure/, 'failure unwinds through the merged slots');
+        }
+        undef $g;
+        is(join(',', @seen), 'right owner/right owner', "$end cleanup sees the current alias");
+        ok(\$left == $aliased && \$right == $aliased && $right eq 'right root',
+           "$end restores the merged caller binding by identity");
     }
     is("$left/$right", 'left root/right root', "$end structural cleanup preserved both ordinary bindings");
+}
+
+{
+    my $g = gen { local $left = 'owner'; yield 'parked'; return $left };
+    is($g->(), 'parked', 'owner parks before a resumer foreach');
+    for $left ('resumer iterator') {
+        is($g->(), 'owner', 'a resumer foreach does not conflict with owner saves');
+        is($left, 'resumer iterator', 'completion preserves the resumer iteration binding');
+    }
+    is($left, 'left root', 'the resumer loop restores its own outside binding');
+}
+{
+    local *left;
+    local *right;
+    $left = 'caller left';
+    $right = 'caller right';
+    my @calls;
+    my $g = gen {
+        local $left = 'owner left';
+        local $right = 'owner right';
+        yield 'parked';
+        *left = *right;
+        yield 'unsupported opaque merge';
+    };
+    is($g->(), 'parked', 'plain locals park before installing an opaque caller');
+    tie $right, 'LocalTestTie', 'opaque caller', \@calls;
+    eval { scalar $g->() };
+    check_unavailable($@, 'an owner merge moving an opaque caller to an inner record is unsupported');
+    ok($g->failed, 'unsupported opaque merge follows ordinary failure unwind');
+    is(join(',', @calls), '', 'rejecting the opaque combination invokes no tie methods');
 }
 
 {
@@ -344,14 +497,15 @@ for my $end (qw(retry abandon)) {
             *left = *right;
         }], 'LocalTestGuard'), 'second', 'owner parks with the old argument');
         my ($argument, $released) = (undef, 0);
-        eval { scalar $g->(transient_argument(\$argument, \$released)) };
-        check_unavailable($@, 'caller aliases changed while replacing the old argument');
+        is($g->(transient_argument(\$argument, \$released)), 'right owner/right owner',
+           'replay follows aliases changed by an old argument destructor');
         like($reentry_error, qr/no suspended continuation/, 'old argument cannot recursively resume its owner');
         is($destroyed, 1, 'old argument was destroyed once');
-        ok(!defined($argument) && $released == 1, 'late rejection releases the incoming argument');
-        ok(\$left == \$right && $right eq 'right root', 'late rejection preserved the new caller alias');
+        undef $g;
+        ok(!defined($argument) && $released == 1, 'completion releases the incoming argument');
+        ok(\$left == \$right && $right eq 'right root', 'completion preserved the new caller alias');
     }
-    is($g->(), 'left owner/right owner', 'owner can resume after the alias-changing destructor has run');
+    is("$left/$right", 'left root/right root', 'leaving the caller glob scope restores its names');
 }
 
 {

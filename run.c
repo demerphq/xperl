@@ -1113,7 +1113,7 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
                 S_generator_attach_stackinfo(aTHX_ generator);
             S_generator_install_pads(aTHX_ generator);
             process_state_restore(&generator->process);
-            if (local_bindings_validate(generator->local_bindings, PL_savestack))
+            if (local_bindings_validate(generator->local_bindings, &generator->process))
                 local_bindings_resume(generator->local_bindings, PL_savestack);
             else
                 local_bindings_discard(generator->local_bindings, PL_savestack);
@@ -1523,7 +1523,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
     SAVEFREESV(args);
     generator->pads_switching = TRUE;
     if (!local_bindings_validate(generator->local_bindings,
-                                generator->process.context.Isavestack))
+                                &generator->process))
         PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE();
     if (new_generator) {
         if (generator->initial_args)
@@ -1537,7 +1537,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         /* Releasing old arguments can call Perl and change the resumer's
          * aliases. The new arguments stay guarded until validation succeeds. */
         if (!local_bindings_validate(generator->local_bindings,
-                                    generator->process.context.Isavestack))
+                                    &generator->process))
             PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE();
         generator->resume_args = (AV *)SvREFCNT_inc(args);
     }

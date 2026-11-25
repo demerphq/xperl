@@ -2248,9 +2248,8 @@ S_local_binding_previous(ANY *stack, I32 *cursor, I32 *offset, U8 *type)
     return TRUE;
 }
 
-/* Rebuild the slot index for each traversal. Only save-stack offsets and
- * group numbers identify bindings while the context is parked. Glob aliases
- * can change the slot addresses before the next resume. */
+/* Rebuild the slot index from current globs. Parked records keep offsets,
+ * rather than slot addresses which a whole-glob assignment can invalidate. */
 static void
 S_local_binding_index_reset(pTHX_ PERL_LOCAL_BINDINGS *bindings)
 {
@@ -2284,10 +2283,9 @@ S_local_binding_index(PERL_LOCAL_BINDINGS *bindings, SV **slot)
     return &bindings->slots[index];
 }
 
-/* Record each physical slot once. Repeated locals update its oldest entry.
- * On resume the same lookup detects both merged and split alias groups. */
+/* Record each current slot once. Repeated locals update its oldest entry. */
 static bool
-S_local_binding_partition(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack, bool assign)
+S_local_binding_partition(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
 {
     I32 i;
     S_local_binding_index_reset(aTHX_ bindings);
@@ -2306,18 +2304,15 @@ S_local_binding_partition(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack, bool 
             entry->group = i;
         }
         group = entry->group;
-        if (assign) {
-            record->group = group;
-            bindings->records[group].oldest = i;
-        }
-        else if (record->group != group)
-            return FALSE;
+        record->group = group;
+        bindings->records[group].oldest = i;
     }
     return TRUE;
 }
 
 static bool
-S_local_binding_conflicts(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack, I32 top)
+S_local_binding_conflicts(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack,
+                         I32 top, const PERL_SI *stackinfo)
 {
     I32 cursor = top, offset, i;
     U8 type;
@@ -2344,12 +2339,14 @@ S_local_binding_conflicts(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack, I32 t
         default:
             continue;
         }
+        if (gv && (!isGV_with_GP(gv) || !GvGP(gv)))
+            return TRUE;
         if ((slot && S_local_binding_index(bindings, slot)->slot)
             || (gv && S_local_binding_index(bindings, &GvSV(gv))->slot))
             return TRUE;
     }
-    for (i = 0; i <= cxstack_ix; ++i) {
-        PERL_CONTEXT *cx = &cxstack[i];
+    for (i = 0; i <= stackinfo->si_cxix; ++i) {
+        PERL_CONTEXT *cx = &stackinfo->si_cxstack[i];
         if (!CxFOREACH(cx) || CxPADLOOP(cx))
             continue;
         if (!(cx->cx_type & CXp_FOR_GV))
@@ -2402,8 +2399,9 @@ Perl_local_bindings_park(pTHX_ PERL_LOCAL_BINDINGS **owner)
         bindings->parked = TRUE;
         return TRUE;
     }
-    if (!S_local_binding_partition(aTHX_ bindings, PL_savestack, TRUE)
-        || S_local_binding_conflicts(aTHX_ bindings, PL_savestack, PL_savestack_ix))
+    if (!S_local_binding_partition(aTHX_ bindings, PL_savestack)
+        || S_local_binding_conflicts(aTHX_ bindings, PL_savestack,
+                                    PL_savestack_ix, PL_curstackinfo))
         return FALSE;
 
     /* Only the oldest converted entry in a slot may hold an opaque caller
@@ -2428,19 +2426,28 @@ Perl_local_bindings_park(pTHX_ PERL_LOCAL_BINDINGS **owner)
 }
 
 bool
-Perl_local_bindings_validate(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
+Perl_local_bindings_validate(pTHX_ PERL_LOCAL_BINDINGS *bindings,
+                            const PERL_PROCESS_STATE *process)
 {
+    ANY *stack;
     I32 i;
     PERL_ARGS_ASSERT_LOCAL_BINDINGS_VALIDATE;
     if (!bindings || !bindings->parked || !bindings->count)
         return TRUE;
+    stack = process->context.Isavestack;
     for (i = 0; i < bindings->count; ++i) {
         GV *gv = stack[bindings->records[i].offset].any_gv;
         if (!gv || !isGV_with_GP(gv) || !GvGP(gv)
             || S_local_binding_special(aTHX_ gv))
             return FALSE;
     }
-    return S_local_binding_partition(aTHX_ bindings, stack, FALSE);
+    /* Rebuild from the current globs. Merges and splits are ordinary Perl
+     * behavior, but can introduce overlap with saves we cannot replay. */
+    return process->context.Icurstackinfo
+        && S_local_binding_partition(aTHX_ bindings, stack)
+        && !S_local_binding_conflicts(aTHX_ bindings, stack,
+                                     process->context.Isavestack_ix,
+                                     process->context.Icurstackinfo);
 }
 
 void
@@ -2467,9 +2474,8 @@ Perl_local_bindings_free(pTHX_ PERL_LOCAL_BINDINGS *bindings)
     }
 }
 
-/* Structural alias changes cannot provide the owner's dynamic environment.
- * Destruction must nevertheless release its parked bindings without writing
- * through those new aliases. Ordinary scope cleanup owns the final releases. */
+/* These records overlap state the prototype cannot switch yet. Unwind owns
+ * their references, but must not write through the unsupported slots. */
 void
 Perl_local_bindings_discard(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
 {

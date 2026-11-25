@@ -1,7 +1,7 @@
 # Reversible localization across execution contexts
 
 Status: an experimental implementation for ordinary non-magical package
-scalars, on `prototype/reversible-localization`, based on `25a9a387ee`.
+scalars, on `xperl/proto-localize`. Its original base was `25a9a387ee`.
 It adds no public generator, async, or fiber API. The other localization
 classes discussed below are not implemented.
 
@@ -84,8 +84,9 @@ An ordered list alone suffices for the exchanges. Additional validation
 checks nested locals and glob aliases. A scratch C hash table maps current
 scalar-slot addresses to their first list entry. A single traversal assigns
 alias groups and remembers each group's oldest entry. Resume rebuilds the
-index from the current GVs and detects groups that have merged or split.
-Conflicting saves and package foreach aliases use the same index.
+index from current GVs and checks the owner's saved state for conflicting
+saves and package foreach aliases. Merging or splitting ordinary slots
+does not itself prevent replay.
 
 The first prototype repeatedly searched the other entries for these answers,
 which made its validation quadratic. The current implementation uses expected
@@ -112,8 +113,8 @@ All validation and allocation finish before any binding exchange. Pad
 cleanup which can call Perl finishes before localization deactivation;
 active pads and the exception guard remain installed during validation.
 A failed yield leaves the bindings installed for ordinary exception unwind.
-An incompatible resumer is rejected while the owner remains parked and can
-be retried after restoring compatible aliases.
+An unsupported overlap is rejected while the owner remains parked and can
+be retried after removing that overlap.
 
 Resume arguments have a save-stack guard. Validation runs before changing
 argument ownership, then runs again after releasing old arguments because
@@ -128,18 +129,22 @@ destructors or tie methods.
 
 Explicit close or exceptional resumption would need this same reactivation
 before running or unwinding the private scopes. That integration is not
-implemented here. Existing eval/try continuation defects are separate;
-binding exchanges do not repair exception resumption across a yield.
+implemented here. The independent eval/try and lifecycle fixes are described
+in [the execution-boundary report](execution-context-hardening.md).
 
-If tracked slots merge or split, or a tracked glob is retargeted to a
-special GV, ordinary resume rejects that environment. An ordinary GP
-replacement which preserves the group relationships is accepted.
+Scalar replay follows each GV's current slot, just as ordinary restoration
+does. A merged slot exposes the inner local through both names. A split
+installs each local scalar into its current slot. Neither operation needs
+to reconstruct the old alias layout. Aliases to special GVs, overlapping
+owner-side glob saves, and an owner merge which relocates an opaque saved
+caller binding remain outside this plain-scalar prototype.
 Destruction cannot request a retry. Its fallback marks all still-parked
 `REVSV` saves for discard: real unwind releases their two private
 SV references and GV guards without writing the new host slots. Owner-local
 visibility during cleanup is unsupported on this fallback. User cleanup code
 can itself access or modify currently visible globals. This is a limitation,
-not a complete solution for arbitrary glob rebinding.
+not a complete solution for those unsupported overlaps. Ordinary alias
+merges and splits reactivate and unwind without this fallback.
 
 Global interpreter destruction retains the existing stack-purge policy. It
 does not reactivate every parked dynamic environment for language-level
@@ -195,7 +200,7 @@ embedding clones with that flag need separate validation.
 ## Validation and measurements
 
 `op/generator_local.t` checks binding identity, nested locals, current-resumer
-inheritance, tied and absent caller slots, alias merges/splits and retry,
+inheritance, tied and absent caller slots, ordinary alias merges/splits,
 reentrant preparation, cleanup visibility, weak resources, and thread
 snapshots. Its index stress case grows from one binding to many distinct
 slots mixed with repeated locals and aliases, shrinks, then regrows through
@@ -238,6 +243,29 @@ about 2,090 ns. Unchanged-path variation, particularly the early read
 control, shows why these should be treated as relative measurements rather
 than evidence of an ordinary-execution speedup.
 
+The current-glob replay update was measured separately on 2026-11-25 with
+the same optimized regular configuration, iteration count and sampling
+method. It includes the intervening lifecycle fixes. Raw samples are in
+[reversible-localization-current-globs.json](reversible-localization-current-globs.json).
+
+| Current replay workload | ns per switch pair |
+| --- | ---: |
+| No package locals | 276 |
+| 8 distinct locals | 571 |
+| 32 distinct locals | 1399 |
+| 64 distinct locals | 2512 |
+| 128 distinct locals | 5391 |
+| 256 distinct locals | 10053 |
+| 8 distinct locals and 32 lexical scopes | 1240 |
+
+Validation now rechecks the parked owner's save records and loop contexts
+against the current aliases. Argument destruction can change those aliases,
+so the check is repeated before installing incoming arguments. The work
+remains expected-linear. A future optimization could record which scopes
+need conflict checks at suspension, avoiding a full rescan when no such
+records exist. These measurements do not isolate that cost from the
+intervening lifecycle changes.
+
 The scratch table adds memory in exchange for avoiding repeated searches.
 It uses a power-of-two bucket array at most half full, plus ordered records
 and cached oldest-entry indices. Capacity is reused across yields. There is
@@ -263,9 +291,10 @@ make
   or deleted hash entry invalidates a cached slot pointer. Preserve absence
   separately from an existing undefined value, and plan any allocation before
   exchanging bindings.
-- Model GP/glob operations as a complete binding graph. Decide cleanup
-  semantics after structural edits instead of extending the discard fallback
-  into a claim of full support.
+- Add reversible handling for owner-side glob saves in their real save-stack
+  order. Ordinary scalar restoration follows current globs and needs no
+  frozen alias graph. Special-default overlap and opaque saved bindings
+  need their own handling before removing the remaining discard fallback.
 - Give special interpreter variables, ties, `%ENV`, and `%SIG` their own
   protocols. External state and arbitrary callbacks require failure and
   rollback policies beyond pointer exchange. Do not run tie or signal hooks

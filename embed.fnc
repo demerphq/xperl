@@ -2524,7 +2524,7 @@ p	|void	|local_bindings_resume					\
 				|NULLOK ANY *stack
 p	|bool	|local_bindings_validate				\
 				|NULLOK PERL_LOCAL_BINDINGS *bindings	\
-				|NULLOK ANY *stack
+				|NN const PERL_PROCESS_STATE *process
 CTopr	|void	|locale_panic	|NN const char *msg				\
 				|const line_t immediate_caller_line		\
 				|NN const char * const higher_caller_file	\

@@ -38,7 +38,7 @@ sub park_pair ($events) {
         $left = 'temporary host';
         $g = park_pair(\@seen);
     }
-    # The incompatible merge occurred on scope exit.
+    # Leaving the inner scope makes left and right aliases again.
     undef $g;
     say "implicit merge, current prototype DESTROY: @seen; caller: $left / $right";
 }

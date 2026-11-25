@@ -4903,11 +4903,13 @@ Perl_local_bindings_resume(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
     } STMT_END
 
 PERL_CALLCONV bool
-Perl_local_bindings_validate(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
+Perl_local_bindings_validate(pTHX_ PERL_LOCAL_BINDINGS *bindings, const PERL_PROCESS_STATE *process)
         Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_2)
         __attribute__visibility__("hidden");
 #define PERL_ARGS_ASSERT_LOCAL_BINDINGS_VALIDATE \
-    STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    STMT_START { Perl_assert_aTHX; assert(process);    \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
     } STMT_END
 
 PERL_CALLCONV_NO_RET void
