@@ -183,8 +183,14 @@ reference behavior and its identity checks. Validation now checks the
 owner's saved scopes for unsupported overlap under the current aliases.
 It does not reject an ordinary merge or split by itself.
 
-Overlapping owner-side glob saves and aliases to the generator's special
-default bindings still need separate handling. An owner-side merge which
+Ordinary aliases to the topic use the owner's default bindings as the
+outside environment for scalar replay. The defaults are installed first
+on resume and abandonment, and removed last on suspension. This preserves
+the scalar and caller argument-array identities even when their GPs are
+shared.
+
+Overlapping owner-side glob or topic saves and aliases to the error
+bindings still need separate handling. An owner-side merge which
 relocates an opaque saved caller binding can also exceed the prototype's
 plain-binding checks. The discard fallback remains a limitation in those
 unsupported cases, including destructor visibility. It is no longer the

@@ -74,6 +74,26 @@ The index keeps this work expected-linear. Revalidation scans save records
 and loop contexts at execution boundaries. Ordinary scalar access and
 ordinary subroutine calls gain no checks.
 
+## Aliases to the topic
+
+An ordinary name can share the topic's GP, including after the owner has
+parked. Install the owner's default bindings before replaying its scalar
+locals. An ordinary local can then override the owner's topic through the
+shared slot. Suspension removes the locals first and swaps the caller's
+defaults back afterwards. These operations must be exact inverses.
+
+Real scope exit, failure and abandonment run with the owner's defaults and
+locals installed. Cleanup therefore sees the private scalar, while the
+caller gets its own topic and argument array back by identity. A caller
+write to the topic between activations survives.
+
+This supports ordinary topic aliases, not every operation which binds the
+topic. A direct owner-side `local $_`, package foreach, `given`, or unnamed
+`dispatch` has its own restoration order. If it overlaps scalar replay,
+the prototype rejects the overlap before changing bindings. Removing the
+alias allows the owner to resume. A resumer's topic scope is outside the
+owner and is not such a conflict.
+
 ## Remaining prototype limits
 
 Ordinary merges and splits now replay and unwind normally, including
@@ -83,9 +103,9 @@ abandonment. Three distinct cases remain outside this change:
   It needs reversible handling in the right order with scalar saves.
   A resumer's `local *glob` may establish the current alias relationships
   normally.
-* Aliasing a tracked ordinary name to `$_`, `$@` or
-  `${^ERROR_OBJ}` overlaps the generator's independent default-binding
-  switch. Its activation order needs separate work.
+* Aliases to `$@` and `${^ERROR_OBJ}` remain excluded. So do overlaps with
+  an owner's independent topic saves, as described above. Supporting these
+  needs ordered replay of the additional saves, not just scalar locals.
 * An owner-side merge can move a displaced magical or absent caller
   binding into a record now considered an inner localization. The current
   plain-binding checks conservatively reject that combination. Supporting
