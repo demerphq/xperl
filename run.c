@@ -1048,7 +1048,7 @@ S_generator_defer_cleanup_errors(pTHX_ AV *errors)
      * A typed save entry lets a cloned interpreter own its copy of the
      * diagnostics. Pass its index rather than a pointer to the AV. */
     SAVEFREESV(errors);
-    SAVEDESTRUCTOR_X(S_generator_warn_cleanup, INT2PTR(void *, index));
+    SAVEDESTRUCTOR_X(S_generator_warn_cleanup, INT2PTR(void *, (IV)index));
 }
 
 static void

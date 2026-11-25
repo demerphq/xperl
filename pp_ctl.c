@@ -12164,7 +12164,10 @@ Perl_dispatch_on_compile(pTHX_ OP *body)
         if (OP_TYPE_IS_COP_NN(kid))
             continue;
         OP *target;
-        (void)S_dispatch_clause(aTHX_ kid, &pattern_aux, &target);
+        const bool valid_clause = S_dispatch_clause(aTHX_ kid, &pattern_aux, &target);
+        /* The first pass has already validated these clauses. */
+        ASSUME(valid_clause);
+        PERL_UNUSED_VAR(valid_clause);
         pattern = pattern_aux->root->op;
         pattern_aux->dispatch = dispatch;
         pattern_aux->dispatch_clause = nclause++;

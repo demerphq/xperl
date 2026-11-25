@@ -356,8 +356,6 @@ void openssl_dynlocking_destroy_function (struct CRYPTO_dynlock_value *l, const 
 
 void openssl_threads_init(void)
 {
-    int i;
-
     PR1("STARTED: openssl_threads_init\n");
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -368,6 +366,7 @@ void openssl_threads_init(void)
 #else
         if ( !CRYPTO_THREADID_get_callback() ) {
 #endif
+            int i;
             PR2("openssl_threads_init static locking %d\n", CRYPTO_num_locks());
             New(0, GLOBAL_openssl_mutex, CRYPTO_num_locks(), perl_mutex);
             if (!GLOBAL_openssl_mutex) return;

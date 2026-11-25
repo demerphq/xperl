@@ -4383,7 +4383,7 @@ Perl_diag_stack_argument(pTHX_ const SV *value)
         return newSVpvs("FREED");
     magical = cBOOL(SvMAGICAL(value));
     if (SvROK(value)) {
-        const SV *referent = SvRV(value);
+        const SV *referent = SvRV_const(value);
         summary = newSVpvs("");
         if (SvOBJECT(referent)) {
             const HEK *name = HvNAME_HEK(SvSTASH(referent));
