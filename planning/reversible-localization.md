@@ -2,8 +2,20 @@
 
 Status: an experimental implementation for ordinary non-magical package
 scalars, on `xperl/proto-localize`. Its original base was `25a9a387ee`.
-It adds no public generator, async, or fiber API. The other localization
-classes discussed below are not implemented.
+It adds no public generator, async, or fiber API. The scalar design below
+is the original implementation. Whole array/hash bindings, package loop
+bindings and signal-entry
+locals now extend it as described in the current support report.
+
+Unsupported active localizations now prevent yield. See the
+[yield check report](generator-yield-localization.md) for the current
+policy and diagnostic. The scalar implementation history below describes
+the earlier, narrower checks.
+
+The prototype also preserves a defined set of interpreter settings based
+on Coro's environment. See the [current support report](generator-coro-environment.md)
+for those settings and their limits. This does not make other special
+variables or aggregate localizations generally reversible.
 
 ## The problem and the design
 
@@ -85,7 +97,8 @@ checks nested locals and glob aliases. A scratch C hash table maps current
 scalar-slot addresses to their first list entry. A single traversal assigns
 alias groups and remembers each group's oldest entry. Resume rebuilds the
 index from current GVs and checks the owner's saved state for conflicting
-saves and package foreach aliases. Merging or splitting ordinary slots
+saves. Package foreach bindings join the replay list in their unwind order.
+Merging or splitting ordinary slots
 does not itself prevent replay.
 
 The first prototype repeatedly searched the other entries for these answers,
@@ -190,7 +203,7 @@ than joining this scalar protocol. An ordinary name sharing the topic's GP
 can participate if its scalar is plain and no independent owner-side topic
 save overlaps it. Arrays, hashes and elements retain their
 existing behavior. Unsupported interactions within a tracked scalar group,
-including scalar-slot alias saves and package foreach aliases, are rejected
+including independent scalar-slot alias saves, are rejected
 before exchanging any bindings. This is not a blanket isolation guarantee
 for every unsupported localization elsewhere in the context.
 
@@ -310,25 +323,27 @@ make
 
 ## Roadmap
 
-- Classify harmless internal scalar magic and add a precise unsupported-case
-  diagnostic before enabling this generally.
-- Extend container binding exchange to plain package AVs/HVs only after
-  establishing their reference and magic rules.
-- Treat elements by container identity and logical index/key. An AV resize
-  or deleted hash entry invalidates a cached slot pointer. Preserve absence
-  separately from an existing undefined value, and plan any allocation before
-  exchanging bindings.
+- Classify harmless internal scalar magic before extending its support.
+  Yield now reports unsupported active localizations explicitly.
+- Plain whole package arrays and hashes now use reversible bindings.
+  Their saves own one aggregate reference, unlike the scalar save's two.
+  Internal iterator and weak-reference bookkeeping stays with the object.
+  Ties, inheritance arrays, symbol tables and other externally meaningful
+  magic need their own handling.
+- Ordinary aggregate element locals cannot cross yield. Supporting them
+  needs a separate semantic decision and must account for deletion,
+  resizing and existing references to elements.
 - Add reversible handling for owner-side glob saves in their real save-stack
   order. Ordinary scalar restoration follows current globs and needs no
   frozen alias graph. Independent topic saves, error slots and opaque saved
   bindings need their own handling before removing the remaining discard
   fallback.
-- Give special interpreter variables, ties, `%ENV`, and `%SIG` their own
-  protocols. External state and arbitrary callbacks require failure and
-  rollback policies beyond pointer exchange. Do not run tie or signal hooks
-  halfway through a switch.
-- Audit arbitrary pointer/numeric saves individually. Their tag alone does
-  not identify private versus shared storage or prove its lifetime.
+- Extend the signal-entry protocol only after resolving its unsupported
+  forms, including direct `delete local`, whole hashes and ties. Other
+  special interpreter variables and `%ENV` need their own protocols.
+  Do not run tie or signal hooks halfway through a switch.
+- Extend the pointer/numeric allowlist only after auditing each target.
+  Their tag alone does not establish private storage or its lifetime.
 
 Reversible localization does not capture a parent dynamic environment.
 A future execution abstraction wanting that inheritance must choose an

@@ -87,12 +87,16 @@ locals installed. Cleanup therefore sees the private scalar, while the
 caller gets its own topic and argument array back by identity. A caller
 write to the topic between activations survives.
 
-This supports ordinary topic aliases, not every operation which binds the
-topic. A direct owner-side `local $_`, package foreach, `given`, or unnamed
-`dispatch` has its own restoration order. If it overlaps scalar replay,
-the prototype rejects the overlap before changing bindings. Removing the
-alias allows the owner to resume. A resumer's topic scope is outside the
-owner and is not such a conflict.
+Explicit `local $_` joins ordinary scalar replay when there is no active
+implicit topic scope. If the caller merges their names while the owner is
+parked, the innermost local supplies the visible scalar on resume and during
+cleanup. Real scope exit retains Perl's scalar restoration and magic rules.
+
+Implicit topic scopes, including canonical foreach, `map`, `grep`, `given`
+and unnamed `dispatch`, retain their separate handling. An overlapping
+ordinary scalar replay still rejects resume in those scopes. Removing the
+alias allows retry. A resumer's topic scope is outside the owner and is not
+such a conflict. See the [explicit topic report](generator-topic-locals.md).
 
 ## Remaining prototype limits
 
@@ -104,7 +108,7 @@ abandonment. Three distinct cases remain outside this change:
   A resumer's `local *glob` may establish the current alias relationships
   normally.
 * Aliases to `$@` and `${^ERROR_OBJ}` remain excluded. So do overlaps with
-  an owner's independent topic saves, as described above. Supporting these
+  an owner's implicit topic scopes, as described above. Supporting these
   needs ordered replay of the additional saves, not just scalar locals.
 * An owner-side merge can move a displaced magical or absent caller
   binding into a record now considered an inner localization. The current
@@ -118,7 +122,7 @@ environment for destructors. That remaining limitation must not be
 described as a reason to reject ordinary alias changes.
 
 The regression cases are in
-[generator_local.t](https://github.com/demerphq/xperl/blob/xperl/proto-localize/t/op/generator_local.t). They check values,
+[generator_local.t](../t/op/generator_local.t). They check values,
 scalar identities, nested scope order, outside writes, active-owner
 aliasing, destruction and exceptions. The planning probes illustrate
 ordinary alias layout and cleanup visibility:

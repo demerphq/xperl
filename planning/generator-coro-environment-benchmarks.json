@@ -1,0 +1,766 @@
+{
+   "after" : {
+      "ccflags" : "-fwrapv -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64",
+      "iterations" : 50000,
+      "mode" : "after",
+      "optimize" : "-O3",
+      "results" : [
+         {
+            "case" : "ordinary_call",
+            "median_ns_per_operation" : 52.2287405328825,
+            "samples_seconds" : [
+               0.00263025698950514,
+               0.00254982200567611,
+               0.00261785599286668,
+               0.00262822900549509,
+               0.00274809499387629,
+               0.00260580200119875,
+               0.00261143702664413,
+               0.00261015701107681,
+               0.00258146799751557
+            ]
+         },
+         {
+            "case" : "ordinary_read",
+            "median_ns_per_operation" : 17.9657404078171,
+            "samples_seconds" : [
+               0.000906399014638737,
+               0.000879002007422969,
+               0.000882802007254213,
+               0.000903860025573522,
+               0.000893135002115741,
+               0.000890129012987018,
+               0.000898287020390853,
+               0.000907220994122326,
+               0.000927243992919102
+            ]
+         },
+         {
+            "case" : "ordinary_local",
+            "median_ns_per_operation" : 40.4266000259668,
+            "samples_seconds" : [
+               0.00200694898376241,
+               0.00196334900101647,
+               0.00203247199533507,
+               0.00201089997426607,
+               0.00205076998099685,
+               0.00203771900851279,
+               0.00202133000129834,
+               0.00208371199551038,
+               0.00201821702648886
+            ]
+         },
+         {
+            "case" : "ordinary_hash_read",
+            "median_ns_per_operation" : 27.111999806948,
+            "samples_seconds" : [
+               0.00132985902018845,
+               0.00131485098972917,
+               0.00142038901685737,
+               0.00169668201124296,
+               0.0013555999903474,
+               0.00130486299167387,
+               0.00140122999437153,
+               0.00136444802046753,
+               0.00135528601822443
+            ]
+         },
+         {
+            "case" : "generator_create_destroy",
+            "median_ns_per_operation" : 700.38289995864,
+            "samples_seconds" : [
+               0.034793869999703,
+               0.035019144997932,
+               0.0351466540014371,
+               0.0352439289854374,
+               0.0349591069971211,
+               0.036097856995184,
+               0.0349441040016245,
+               0.0350112380110659,
+               0.0353355639963411
+            ]
+         },
+         {
+            "case" : "switch_empty",
+            "median_ns_per_operation" : 257.015639799647,
+            "samples_seconds" : [
+               0.012847633974161,
+               0.0133217360125855,
+               0.0128071700164583,
+               0.0128214150026906,
+               0.0133506749989465,
+               0.0128507819899824,
+               0.0131518020061776,
+               0.0128027629980352,
+               0.012907741998788
+            ]
+         },
+         {
+            "case" : "switch_package_foreach",
+            "median_ns_per_operation" : 334.936620201916,
+            "samples_seconds" : [
+               0.0165930149960332,
+               0.0173217929841485,
+               0.016598376998445,
+               0.0174845140136313,
+               0.0167468310100958,
+               0.0171867910248693,
+               0.0164888059953228,
+               0.0188390800030902,
+               0.0166916479938664
+            ]
+         },
+         {
+            "case" : "switch_one_signal_local",
+            "median_ns_per_operation" : 1110.414119903,
+            "samples_seconds" : [
+               0.0563689240079839,
+               0.0555207059951499,
+               0.0558933680003975,
+               0.0556911839812528,
+               0.0553175509849098,
+               0.0552215400093701,
+               0.0551966300117783,
+               0.0552629480080213,
+               0.0562616370152682
+            ]
+         }
+      ],
+      "samples" : 9,
+      "useithreads" : null
+   },
+   "baseline_commit" : "1fbec59d5037594f82d7d352df76b3088fd38548",
+   "before" : {
+      "ccflags" : "-fwrapv -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64",
+      "iterations" : 50000,
+      "mode" : "before",
+      "optimize" : "-O3",
+      "results" : [
+         {
+            "case" : "ordinary_call",
+            "median_ns_per_operation" : 58.5068599320948,
+            "samples_seconds" : [
+               0.0032964349957183,
+               0.00302450300659984,
+               0.00530654998146929,
+               0.0028607260028366,
+               0.00286995602073148,
+               0.00292534299660474,
+               0.00287352799205109,
+               0.00289940601214767,
+               0.00296930101467296
+            ]
+         },
+         {
+            "case" : "ordinary_read",
+            "median_ns_per_operation" : 19.7138602379709,
+            "samples_seconds" : [
+               0.00094896400696598,
+               0.00106286999653094,
+               0.00100588699569926,
+               0.000932067021494731,
+               0.000940994010306895,
+               0.000963038997724652,
+               0.000985693011898547,
+               0.000991932000033557,
+               0.00099838399910368
+            ]
+         },
+         {
+            "case" : "ordinary_local",
+            "median_ns_per_operation" : 49.1782202152535,
+            "samples_seconds" : [
+               0.00223764599650167,
+               0.00235017901286483,
+               0.0022816690034233,
+               0.00249719398561865,
+               0.00245891101076268,
+               0.00239545799558982,
+               0.00280331500107422,
+               0.00303836099919863,
+               0.00263071802328341
+            ]
+         },
+         {
+            "case" : "ordinary_hash_read",
+            "median_ns_per_operation" : 28.9797800360247,
+            "samples_seconds" : [
+               0.00162647501565516,
+               0.00193428501370363,
+               0.00161345399101265,
+               0.00144898900180124,
+               0.00144854999962263,
+               0.00139632399077527,
+               0.00151828798698261,
+               0.00140727800317109,
+               0.00144086201908067
+            ]
+         },
+         {
+            "case" : "generator_create_destroy",
+            "median_ns_per_operation" : 321.262319921516,
+            "samples_seconds" : [
+               0.0157914980081841,
+               0.0160631159960758,
+               0.0157150030136108,
+               0.0162252300069667,
+               0.016386679984862,
+               0.0156339040258899,
+               0.0146185089834034,
+               0.0165781679970678,
+               0.0166026530205272
+            ]
+         },
+         {
+            "case" : "switch_empty",
+            "median_ns_per_operation" : 240.018200129271,
+            "samples_seconds" : [
+               0.0117958319897298,
+               0.0131599479936995,
+               0.0120009100064635,
+               0.0118751209811307,
+               0.0119907099870034,
+               0.0135273470077664,
+               0.0129063150088768,
+               0.0120372409874108,
+               0.011852628987981
+            ]
+         }
+      ],
+      "samples" : 9,
+      "useithreads" : null
+   },
+   "date" : "2026-11-26",
+   "local-after" : {
+      "ccflags" : "-fwrapv -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64",
+      "iterations" : 10000,
+      "label" : "after",
+      "optimize" : "-O3",
+      "perl" : "v5.45.5",
+      "results" : [
+         {
+            "case" : "ordinary_read",
+            "median_ns_per_operation" : 15.8205999468919,
+            "operations_per_sample" : 200000,
+            "seconds_in_measurement_order" : [
+               0.00345655900309794,
+               0.00316411998937838,
+               0.00316469700192101,
+               0.00313796402770095,
+               0.00331719798850827,
+               0.00314763601636514,
+               0.0031236239883583,
+               0.00318856097874232,
+               0.00314870500005782
+            ]
+         },
+         {
+            "case" : "ordinary_local",
+            "median_ns_per_operation" : 41.3195948931389,
+            "operations_per_sample" : 200000,
+            "seconds_in_measurement_order" : [
+               0.00820259001920931,
+               0.00830410901107825,
+               0.00820672902045771,
+               0.00824833998922259,
+               0.00820589700015262,
+               0.00853575998917222,
+               0.00829320302000269,
+               0.00828126899432391,
+               0.00826391897862777
+            ]
+         },
+         {
+            "case" : "switch_0_distinct_0_lexical_blocks",
+            "median_ns_per_operation" : 297.894998220727,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 2,
+            "seconds_in_measurement_order" : [
+               0.00341357899014838,
+               0.00297888601198792,
+               0.00298518498311751,
+               0.00307308498304337,
+               0.00297143901116215,
+               0.00298294800450094,
+               0.00296992401126772,
+               0.0029756180010736,
+               0.00297894998220727
+            ]
+         },
+         {
+            "case" : "switch_1_distinct_0_lexical_blocks",
+            "median_ns_per_operation" : 389.556100708432,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 5,
+            "seconds_in_measurement_order" : [
+               0.00390462801442482,
+               0.00421985200955532,
+               0.00386325499857776,
+               0.00387153500923887,
+               0.00385784698300995,
+               0.00389556100708432,
+               0.00389950099634007,
+               0.00385719598853029,
+               0.00393828199594282
+            ]
+         },
+         {
+            "case" : "switch_8_distinct_0_lexical_blocks",
+            "median_ns_per_operation" : 644.262702553533,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 26,
+            "seconds_in_measurement_order" : [
+               0.00644262702553533,
+               0.00635678402613848,
+               0.00649864101433195,
+               0.00633389901486225,
+               0.00673063599970192,
+               0.00645111399353482,
+               0.00643410399788991,
+               0.00638854299904779,
+               0.00666999499662779
+            ]
+         },
+         {
+            "case" : "switch_32_distinct_0_lexical_blocks",
+            "median_ns_per_operation" : 1661.75169870257,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 98,
+            "seconds_in_measurement_order" : [
+               0.0164234800031409,
+               0.0193845719913952,
+               0.0184373399824835,
+               0.0166082220093813,
+               0.0164365439850371,
+               0.016633514984278,
+               0.0164518759993371,
+               0.0166175169870257,
+               0.0166884520149324
+            ]
+         },
+         {
+            "case" : "switch_64_distinct_0_lexical_blocks",
+            "median_ns_per_operation" : 3034.89119978622,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 194,
+            "seconds_in_measurement_order" : [
+               0.0303489119978622,
+               0.0300738779769745,
+               0.0302363410010003,
+               0.0311899829830509,
+               0.0309640580089763,
+               0.0301689759944566,
+               0.0301230670011137,
+               0.0309587509837002,
+               0.0305957300006412
+            ]
+         },
+         {
+            "case" : "switch_128_distinct_0_lexical_blocks",
+            "median_ns_per_operation" : 5851.95099993143,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 386,
+            "seconds_in_measurement_order" : [
+               0.0581585619947873,
+               0.0583112860040274,
+               0.0585195099993143,
+               0.0588254330214113,
+               0.0582375719968695,
+               0.0581839199876413,
+               0.0585205359966494,
+               0.0585636349860579,
+               0.0592873659916222
+            ]
+         },
+         {
+            "case" : "switch_256_distinct_0_lexical_blocks",
+            "median_ns_per_operation" : 12001.591999433,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 770,
+            "seconds_in_measurement_order" : [
+               0.119711389997974,
+               0.119187791977311,
+               0.125422706012614,
+               0.12001591999433,
+               0.12675712298369,
+               0.119243861001451,
+               0.123239740001736,
+               0.124822361016413,
+               0.119570543989539
+            ]
+         },
+         {
+            "case" : "switch_8_same_0_lexical_blocks",
+            "median_ns_per_operation" : 648.527601151727,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 26,
+            "seconds_in_measurement_order" : [
+               0.00649535001139157,
+               0.00648527601151727,
+               0.00681158399675041,
+               0.00662595400353894,
+               0.00641189498128369,
+               0.00639390101423487,
+               0.00645088998135179,
+               0.00665497800218873,
+               0.00644023899803869
+            ]
+         },
+         {
+            "case" : "switch_32_same_0_lexical_blocks",
+            "median_ns_per_operation" : 1654.63320154231,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 98,
+            "seconds_in_measurement_order" : [
+               0.016419459017925,
+               0.016420105996076,
+               0.0164269700180739,
+               0.0165589539974462,
+               0.0165167959930841,
+               0.0166284049919341,
+               0.0165463320154231,
+               0.0184672359901015,
+               0.0167357700120192
+            ]
+         },
+         {
+            "case" : "switch_0_distinct_8_lexical_blocks",
+            "median_ns_per_operation" : 362.691399641335,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 10,
+            "seconds_in_measurement_order" : [
+               0.00358680699719116,
+               0.00360645601176657,
+               0.00363561199628748,
+               0.00362691399641335,
+               0.00360024499241263,
+               0.00390179199166596,
+               0.00362638497608714,
+               0.00363954700878821,
+               0.00364091401570477
+            ]
+         },
+         {
+            "case" : "switch_0_distinct_32_lexical_blocks",
+            "median_ns_per_operation" : 560.219198814593,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 34,
+            "seconds_in_measurement_order" : [
+               0.00566009400063194,
+               0.00576189701678231,
+               0.00576952297706157,
+               0.00560219198814593,
+               0.00557223201030865,
+               0.00555672097834758,
+               0.00558093699510209,
+               0.00554818400996737,
+               0.00588096599676646
+            ]
+         },
+         {
+            "case" : "switch_0_distinct_64_lexical_blocks",
+            "median_ns_per_operation" : 789.163599256426,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 66,
+            "seconds_in_measurement_order" : [
+               0.00787648197729141,
+               0.00788912401185371,
+               0.0079212719865609,
+               0.00792023100075312,
+               0.00789163599256426,
+               0.00807644199812785,
+               0.00788156999624334,
+               0.00792958200327121,
+               0.00788040299084969
+            ]
+         },
+         {
+            "case" : "switch_8_distinct_32_lexical_blocks",
+            "median_ns_per_operation" : 1313.01420042291,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 58,
+            "seconds_in_measurement_order" : [
+               0.0136013049923349,
+               0.0137301509967074,
+               0.0134219690226018,
+               0.0131008890166413,
+               0.0131036129896529,
+               0.0131301420042291,
+               0.0131070530042052,
+               0.0130399409972597,
+               0.0131426739972085
+            ]
+         }
+      ],
+      "samples" : 9,
+      "timer" : "CLOCK_MONOTONIC",
+      "useithreads" : null
+   },
+   "local-before" : {
+      "ccflags" : "-fwrapv -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64",
+      "iterations" : 10000,
+      "label" : "before",
+      "optimize" : "-O3",
+      "perl" : "v5.45.5",
+      "results" : [
+         {
+            "case" : "ordinary_read",
+            "median_ns_per_operation" : 16.5175800793804,
+            "operations_per_sample" : 200000,
+            "seconds_in_measurement_order" : [
+               0.00359524600207806,
+               0.00320578701212071,
+               0.00331284801359288,
+               0.00325638698996045,
+               0.00330351601587608,
+               0.00330738097545691,
+               0.00326290400698781,
+               0.00325744799920358,
+               0.00351225101621822
+            ]
+         },
+         {
+            "case" : "ordinary_local",
+            "median_ns_per_operation" : 41.2859549396671,
+            "operations_per_sample" : 200000,
+            "seconds_in_measurement_order" : [
+               0.00820582499727607,
+               0.00814331200672314,
+               0.00817291700514033,
+               0.00825719098793343,
+               0.00826552900252864,
+               0.00845024699810892,
+               0.00819787397631444,
+               0.00837418701848947,
+               0.00901004200568423
+            ]
+         },
+         {
+            "case" : "switch_0_distinct_0_lexical_blocks",
+            "median_ns_per_operation" : 280.770400422625,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 2,
+            "seconds_in_measurement_order" : [
+               0.00281999100116082,
+               0.00278677200549282,
+               0.00277902299421839,
+               0.00279900399618782,
+               0.00281467099557631,
+               0.00280770400422625,
+               0.00280819099862128,
+               0.0031369480129797,
+               0.00280560099054128
+            ]
+         },
+         {
+            "case" : "switch_1_distinct_0_lexical_blocks",
+            "median_ns_per_operation" : 353.318601264618,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 5,
+            "seconds_in_measurement_order" : [
+               0.0035072929749731,
+               0.00348382300580852,
+               0.00347535702167079,
+               0.00353406101930887,
+               0.00353318601264618,
+               0.00363449001451954,
+               0.00383859302382916,
+               0.00390097300987691,
+               0.00352994498098269
+            ]
+         },
+         {
+            "case" : "switch_8_distinct_0_lexical_blocks",
+            "median_ns_per_operation" : 551.999101298861,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 26,
+            "seconds_in_measurement_order" : [
+               0.00551514100516215,
+               0.00551999101298861,
+               0.00554548500804231,
+               0.00585462898015976,
+               0.0054772830044385,
+               0.00554968800861388,
+               0.00556293901172467,
+               0.00551582500338554,
+               0.00551311299204826
+            ]
+         },
+         {
+            "case" : "switch_32_distinct_0_lexical_blocks",
+            "median_ns_per_operation" : 1466.2991015939,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 98,
+            "seconds_in_measurement_order" : [
+               0.0144798350229394,
+               0.0146891500044148,
+               0.0145972519821953,
+               0.014662991015939,
+               0.014488272019662,
+               0.0146233820123598,
+               0.0173282930045389,
+               0.0152679430029821,
+               0.0147116990119684
+            ]
+         },
+         {
+            "case" : "switch_64_distinct_0_lexical_blocks",
+            "median_ns_per_operation" : 2498.39070020244,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 194,
+            "seconds_in_measurement_order" : [
+               0.0247013390180655,
+               0.025064948014915,
+               0.0249685579910874,
+               0.0249122609966435,
+               0.0249839070020244,
+               0.0247319319751114,
+               0.0254624389926903,
+               0.0251019379938953,
+               0.0268632229999639
+            ]
+         },
+         {
+            "case" : "switch_128_distinct_0_lexical_blocks",
+            "median_ns_per_operation" : 4688.28860030044,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 386,
+            "seconds_in_measurement_order" : [
+               0.046973602991784,
+               0.0468430790060665,
+               0.0468368629808538,
+               0.0479246130271349,
+               0.0482329450023826,
+               0.0466442919860128,
+               0.0467742400069255,
+               0.0468828860030044,
+               0.0477603229810484
+            ]
+         },
+         {
+            "case" : "switch_256_distinct_0_lexical_blocks",
+            "median_ns_per_operation" : 9832.54790189676,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 770,
+            "seconds_in_measurement_order" : [
+               0.0972642900014762,
+               0.108628882997436,
+               0.0983636520104483,
+               0.0985909340088256,
+               0.098715928994352,
+               0.0982812240254134,
+               0.0978561849915422,
+               0.0983254790189676,
+               0.0968806690070778
+            ]
+         },
+         {
+            "case" : "switch_8_same_0_lexical_blocks",
+            "median_ns_per_operation" : 564.270498580299,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 26,
+            "seconds_in_measurement_order" : [
+               0.00564270498580299,
+               0.00547726199147291,
+               0.00555430501117371,
+               0.00561496301088482,
+               0.00577534301555716,
+               0.00627783697564155,
+               0.00614499600487761,
+               0.00557205901714042,
+               0.00603876099921763
+            ]
+         },
+         {
+            "case" : "switch_32_same_0_lexical_blocks",
+            "median_ns_per_operation" : 1416.83980182279,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 98,
+            "seconds_in_measurement_order" : [
+               0.014217969001038,
+               0.0144272799952887,
+               0.0141571269778069,
+               0.0140935700037517,
+               0.0141683980182279,
+               0.0143718229955994,
+               0.0142333940020762,
+               0.0141080000030342,
+               0.0141627020202577
+            ]
+         },
+         {
+            "case" : "switch_0_distinct_8_lexical_blocks",
+            "median_ns_per_operation" : 313.642801484093,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 10,
+            "seconds_in_measurement_order" : [
+               0.00313420599559322,
+               0.00304656999651343,
+               0.00312688999110833,
+               0.00313642801484093,
+               0.00315063699963503,
+               0.00363019900396466,
+               0.0031765780004207,
+               0.00311285100178793,
+               0.00316312597715296
+            ]
+         },
+         {
+            "case" : "switch_0_distinct_32_lexical_blocks",
+            "median_ns_per_operation" : 459.295700420626,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 34,
+            "seconds_in_measurement_order" : [
+               0.00471694601583295,
+               0.00457835898851044,
+               0.00459295700420626,
+               0.00487883100868203,
+               0.0045774930040352,
+               0.00456251099240035,
+               0.00468166801147163,
+               0.00487189702107571,
+               0.00456116002169438
+            ]
+         },
+         {
+            "case" : "switch_0_distinct_64_lexical_blocks",
+            "median_ns_per_operation" : 656.60809923429,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 66,
+            "seconds_in_measurement_order" : [
+               0.00660144598805346,
+               0.00658010999904945,
+               0.00679048401070759,
+               0.00654816499445587,
+               0.00654363699140958,
+               0.00655756998457946,
+               0.00655145201017149,
+               0.00657915600459091,
+               0.0065660809923429
+            ]
+         },
+         {
+            "case" : "switch_8_distinct_32_lexical_blocks",
+            "median_ns_per_operation" : 1216.44050232135,
+            "operations_per_sample" : 10000,
+            "save_stack_words_before_yield_loop" : 58,
+            "seconds_in_measurement_order" : [
+               0.0121863850217778,
+               0.0122019490227103,
+               0.0121435020118952,
+               0.0121747649973258,
+               0.0121644050232135,
+               0.0120786970073823,
+               0.0121544520079624,
+               0.0123136330221314,
+               0.0121531200129539
+            ]
+         }
+      ],
+      "samples" : 9,
+      "timer" : "CLOCK_MONOTONIC",
+      "useithreads" : null
+   },
+   "platform" : "linux",
+   "protocol" : "Optimized unthreaded -O3 builds on one Linux x86_64 host. Nine measured samples after a warmup. Core operations use 50000 iterations, existing Porting/bench-generator-local uses 10000. Medians are nanoseconds per operation; switch means suspend plus resume. Before and after ran sequentially after builds finished. Controls vary, so lower after timings do not demonstrate synchronous speedups."
+}

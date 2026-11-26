@@ -1,5 +1,10 @@
 # Generator and Coro context audit
 
+This is the initial comparison. The localization prototype now preserves
+the wider environment described in
+[the current support report](generator-coro-environment.md). The tables
+below describe the earlier implementation, not its current support level.
+
 This document records the relationship between the generator implementation in
 the `perl/` checkout, Perl's interpreter-variable machinery, and the mature
 Coro implementation in `../Coro-6.57`. It is design material, not a promise

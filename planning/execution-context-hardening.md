@@ -60,10 +60,11 @@ localization checks fail and an owner-local handler catches the exception.
 The rejected packet must not reach the caller before that handler runs.
 Its references are released before the next successful suspension.
 
-In the scalar prototype, the generic throwing-cleanup fixtures use tied array
-elements. Magical package locals are deliberately rejected by the scalar
-prototype. Element restoration exercises the same throwing cleanup path,
-but does not establish isolation of element localizations while parked.
+The original throwing-cleanup fixtures used tied array elements. The yield
+guard now rejects these active localizations. The cloning regression instead
+uses a supported `local $/`: changing its saved record length to zero while
+parked makes restoration throw. Both cloned interpreters report the queued
+cleanup warning when their caller scopes end.
 
 The focused suites passed on the normal build and on regular-stack and
 threaded reference-counted DEBUGGING builds with ASan and LSan. Leak runs

@@ -1,0 +1,155 @@
+{
+   "PERL_HASH_SEED" : 0,
+   "PERL_PERTURB_KEYS" : 0,
+   "before_revision" : "991a91b2a5",
+   "clock" : "CLOCK_PROCESS_CPUTIME_ID",
+   "cpu" : 0,
+   "date" : "2026-11-26",
+   "description" : "Same-host ithreads DEBUGGING PERL_RC_STACK -O3 -g; CPU time per resume through next yield; both processes pinned to CPU 0 after validation jobs finished",
+   "runs" : [
+      {
+         "ccflags" : "-D_REENTRANT -D_GNU_SOURCE -DPERL_RC_STACK -fwrapv -DDEBUGGING -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64",
+         "clock" : "CLOCK_PROCESS_CPUTIME_ID",
+         "cpu" : "0",
+         "iterations" : 10000,
+         "label" : "before",
+         "optimize" : "-O3 -g",
+         "results" : [
+            {
+               "median_ns_per_resume_yield" : 412.2448,
+               "samples_cpu_seconds" : [
+                  0.004228449,
+                  0.004832388,
+                  0.003805836,
+                  0.003845377,
+                  0.004038635,
+                  0.004175564,
+                  0.004122448,
+                  0.003858134,
+                  0.00475476599999999
+               ],
+               "topic_locals" : 0
+            },
+            {
+               "median_ns_per_resume_yield" : 426.2293,
+               "samples_cpu_seconds" : [
+                  0.004262293,
+                  0.003993414,
+                  0.003919229,
+                  0.00511977499999999,
+                  0.00455807799999999,
+                  0.004275524,
+                  0.003985373,
+                  0.00399118000000001,
+                  0.004391094
+               ],
+               "topic_locals" : 1
+            },
+            {
+               "median_ns_per_resume_yield" : 496.371500000001,
+               "samples_cpu_seconds" : [
+                  0.00514972400000001,
+                  0.00469905600000001,
+                  0.00510981999999999,
+                  0.00531883499999999,
+                  0.00540454099999998,
+                  0.004694171,
+                  0.00496371500000001,
+                  0.00493311099999999,
+                  0.00485977099999998
+               ],
+               "topic_locals" : 8
+            },
+            {
+               "median_ns_per_resume_yield" : 727.158,
+               "samples_cpu_seconds" : [
+                  0.00723770400000001,
+                  0.007261881,
+                  0.00727158,
+                  0.00782052699999999,
+                  0.00780009300000001,
+                  0.00722447299999998,
+                  0.00720975999999998,
+                  0.007288766,
+                  0.00753769599999998
+               ],
+               "topic_locals" : 32
+            }
+         ],
+         "samples" : 9,
+         "useithreads" : "define"
+      },
+      {
+         "ccflags" : "-D_REENTRANT -D_GNU_SOURCE -DPERL_RC_STACK -fwrapv -DDEBUGGING -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64",
+         "clock" : "CLOCK_PROCESS_CPUTIME_ID",
+         "cpu" : "0",
+         "iterations" : 10000,
+         "label" : "after",
+         "optimize" : "-O3 -g",
+         "results" : [
+            {
+               "median_ns_per_resume_yield" : 380.0979,
+               "samples_cpu_seconds" : [
+                  0.004011434,
+                  0.003788601,
+                  0.00376710700000001,
+                  0.004614671,
+                  0.00373468,
+                  0.003774531,
+                  0.004300691,
+                  0.003800979,
+                  0.003809795
+               ],
+               "topic_locals" : 0
+            },
+            {
+               "median_ns_per_resume_yield" : 689.0113,
+               "samples_cpu_seconds" : [
+                  0.007000222,
+                  0.006640141,
+                  0.00613256100000001,
+                  0.006890113,
+                  0.006496951,
+                  0.007316904,
+                  0.007810254,
+                  0.00633676599999999,
+                  0.00783685399999999
+               ],
+               "topic_locals" : 1
+            },
+            {
+               "median_ns_per_resume_yield" : 1776.8113,
+               "samples_cpu_seconds" : [
+                  0.017768113,
+                  0.016470191,
+                  0.018429718,
+                  0.017209213,
+                  0.017138084,
+                  0.017532941,
+                  0.020078087,
+                  0.01850365,
+                  0.018897314
+               ],
+               "topic_locals" : 8
+            },
+            {
+               "median_ns_per_resume_yield" : 5150.4359,
+               "samples_cpu_seconds" : [
+                  0.051980872,
+                  0.049770549,
+                  0.051504359,
+                  0.049891617,
+                  0.052113486,
+                  0.049626441,
+                  0.052217106,
+                  0.051043325,
+                  0.05250365
+               ],
+               "topic_locals" : 32
+            }
+         ],
+         "samples" : 9,
+         "useithreads" : "define"
+      }
+   ]
+}
