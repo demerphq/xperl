@@ -7545,6 +7545,7 @@ Porting/add-pod-file				Utility to add new pod/*.pod file to core distribution
 Porting/bench.pl				Run benchmarks against t/perf/benchmarks
 Porting/bench-class-value.pl			Class, Moo, and bless benchmark worker
 Porting/bench-class-value-compare.pl		Run isolated object performance comparisons
+Porting/bench-generator-local			Dynamic localization switching benchmarks
 Porting/bench-generator-pads			Generator ownership and switching benchmarks
 Porting/bench-hash-oa.pl			Benchmark experimental hash storage
 Porting/bench-hash-oa-compare.pl		Run paired hash storage benchmarks
