@@ -63,7 +63,7 @@ by the current XPerl interpreter. It enables L<strict> and L<warnings>, and
 silences the C<experimental> warning categories.
 
 The pragma enables all features in L<feature>, including classes and roles,
-dispatch patterns, multi declarations, generators, and
+dispatch patterns, multi declarations, generators, C<defer> blocks, and
 signatures. The exceptions are the older syntax disabled by modern Perl
 version bundles: C<apostrophe_as_package_separator>,
 C<bareword_filehandles>, C<indirect>, C<multidimensional>, C<smartmatch>, and

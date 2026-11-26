@@ -42,6 +42,21 @@ fresh_perl_is($program, "55\nvalue\n7\ncompleted\n4\nclass\n9\nbuiltins\n", {},
               'one pragma enables XPerl syntax and supporting functions');
 
 $program = <<'PROG';
+use xperl;
+sub work () {
+    defer { say 'outer cleanup' }
+    {
+        defer { say 'inner cleanup' }
+        say 'body';
+    }
+    say 'after inner';
+}
+work();
+PROG
+fresh_perl_is($program, "body\ninner cleanup\nafter inner\nouter cleanup\n", {},
+              'xperl enables defer with cleanup at each scope exit');
+
+$program = <<'PROG';
 use feature ();
 my (@before, @after);
 BEGIN { @before = sort(feature::features_enabled(0)) }
