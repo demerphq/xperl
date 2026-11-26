@@ -67,10 +67,16 @@ create no threads or scheduler. Calls can send values back into a suspended
 failed, or exhausted.
 
 Each generator keeps its lexical variables, `$_`, `@_`, and error bindings
-across suspension. Ordinary package-variable localizations such as
-`local $Package::value` are not isolated between generators. Reversible
-localization is being developed on a separate prototype branch and is not
-part of `xperl/main`.
+across suspension. Supported package-variable localizations, including
+ordinary scalars, whole arrays and hashes, and individual signal handlers,
+are put aside on yield and reinstated on resume. The caller sees its own
+bindings while the generator is suspended. Generators preserve selected
+interpreter settings too, including the input record separator.
+
+A generator cannot yield with unsupported localizations still in scope,
+such as ordinary array or hash elements, whole globs, or tied variables.
+These may be used in scopes which end before yielding. Suspension checks
+report an exception before putting any bindings aside.
 
 See [perlgenerator](pod/perlgenerator.pod) for calling rules, cleanup,
 and suspension limits.

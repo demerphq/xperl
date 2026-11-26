@@ -341,6 +341,61 @@ bindings.  Suspending restores the current caller's bindings.  References
 to the generator's scalars and argument aliases retain their identity
 while it is suspended.
 
+Generators also preserve their input record separator C<$/>, selected
+output handle and compiler hints. These start with the creator's settings
+and become independent.
+After a generator yields, the caller sees its own settings.
+The saved separator controls both the value of C<$/> and subsequent input
+operations. Lexical pragmas in the body retain their usual compiled meaning.
+
+Localized C<%SIG> entries, including C<__DIE__>, C<__WARN__> and
+C<__EXCEPT__>, are removed from view on yield and reinstated on resume.
+Native signal handlers require C<sigaction> and C<sigprocmask>. Their masks
+and flags move with the handler. An ordinary assignment remains global;
+creating a generator does not copy C<%SIG>. Its key order and iterator
+position are not preserved across generator switches.
+
+The prototype does not support suspension across C<local %SIG>,
+C<local *SIG>, tied signal localizations or every form of
+C<delete local $SIG{...}>. To suspend with a signal key absent, use
+C<local $SIG{...}; delete $SIG{...};>.
+
+Ordinary package scalar locals, whole-array and whole-hash locals, and
+package C<foreach> iterator bindings are restored to the caller on yield.
+C<local @array> and C<local %hash> retain their actual aggregate objects,
+so held references and iterator positions survive suspension. The array,
+hash and scalar slots of one name remain independent.
+
+Explicit C<local $_> participates in that scope order too. If the caller
+aliases an ordinary scalar to the topic while the generator is paused,
+the innermost local wins when it resumes or runs cleanup. The caller gets
+its own scalar back afterwards. Overlaps with implicit topic scopes such
+as C<map>, or with error variables and C<$/>, remain restricted.
+
+A generator cannot yield while it has an unsupported localization in
+scope. These include ordinary array and hash elements, whole globs, tied
+variables, inheritance arrays and symbol tables. Their restoration can
+affect shared state which the generator cannot safely put aside. Supported
+individual C<%SIG> locals are an exception to the element restriction.
+
+The check happens at C<yield>, before any bindings are removed. Failure
+throws an exception which the generator may catch. Its localizations stay
+installed until their scopes end normally. Such locals are allowed in
+scopes which finish before yielding, including ordinary helper calls.
+Locals belonging to the caller are outside the generator's checked scopes.
+
+A localized ordinary scalar or package loop variable cannot be replayed
+through the input separator's glob. That would change the visible C<$/>
+without changing the separator used by C<readline>. Resume rejects this
+overlap before exchanging bindings. Removing the caller's alias permits
+retry. A direct C<local $/> uses the glob retained by the generator, even
+if the caller replaces its symbol-table entry.
+
+This environment handling follows Coro's separation of execution stacks
+from interpreter settings. XPerl inherits the creator's settings instead
+of starting with Coro's newline separator and standard output defaults.
+It does not isolate arbitrary package variables or all uses of C<local>.
+
 Dropping the last reference to a suspended generator unwinds its scopes.
 Scope destructors run with the generator's bindings.  An exception while
 restoring a local variable does not resume the abandoned body.  Cleanup
@@ -364,10 +419,11 @@ refer to the same sequence.
 
 =head1 WHERE C<yield> MAY BE USED
 
-C<yield> is valid only inside a C<gen> block.  It is
-not valid in an ordinary subroutine or in callback code such as C<sort>,
-C<map>, C<grep>, or a regular-expression code block.  Such callbacks cannot
-pause the operation that called them.
+C<yield> is valid only inside a C<gen> block. A C<map> or C<grep> block
+inside that body can yield. An ordinary subroutine, including an anonymous
+subroutine nested inside the body, cannot use C<yield>. Native callbacks
+such as a C<sort> comparator or a regular-expression code block cannot
+suspend the operation that called them.
 
 =head1 THREADS
 

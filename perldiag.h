@@ -483,6 +483,7 @@ enum perl_diag_index {
     perl_diag_error_iterator_generator_cannot_resume_failed_idx,
     perl_diag_error_iterator_generator_continuation_unavailable_idx,
     perl_diag_error_iterator_generator_invalid_wrapper_idx,
+    perl_diag_error_iterator_generator_localization_unsupported_idx,
     perl_diag_error_iterator_generator_no_suspended_continuation_idx,
     perl_diag_error_iterator_generator_running_invalid_argument_idx,
     perl_diag_error_iterator_generator_state_mutation_forbidden_idx,
@@ -1123,6 +1124,11 @@ enum perl_diag_index {
     perl_diag_error_system_signal_handler_missing_idx,
     perl_diag_error_system_signal_kill_process_id_not_numeric_idx,
     perl_diag_error_system_signal_kill_signal_name_unknown_idx,
+    perl_diag_error_system_signal_localization_block_failed_idx,
+    perl_diag_error_system_signal_localization_read_failed_idx,
+    perl_diag_error_system_signal_localization_reinstall_failed_idx,
+    perl_diag_error_system_signal_localization_restore_failed_idx,
+    perl_diag_error_system_signal_localization_rollback_failed_idx,
     perl_diag_error_system_signal_pending_limit_reached_idx,
     perl_diag_error_system_signal_unknown_hook_idx,
     perl_diag_error_system_syscall_function_unavailable_idx,
@@ -2082,6 +2088,7 @@ enum perl_diag_number {
     perl_diag_error_iterator_generator_cannot_resume_failed_number                             = 1053,
     perl_diag_error_iterator_generator_continuation_unavailable_number                         = 1127,
     perl_diag_error_iterator_generator_invalid_wrapper_number                                  = 1129,
+    perl_diag_error_iterator_generator_localization_unsupported_number                         = 2803,
     perl_diag_error_iterator_generator_no_suspended_continuation_number                        = 1068,
     perl_diag_error_iterator_generator_running_invalid_argument_number                         = 1128,
     perl_diag_error_iterator_generator_state_mutation_forbidden_number                         = 1119,
@@ -2722,6 +2729,11 @@ enum perl_diag_number {
     perl_diag_error_system_signal_handler_missing_number                                       = 2676,
     perl_diag_error_system_signal_kill_process_id_not_numeric_number                           = 1044,
     perl_diag_error_system_signal_kill_signal_name_unknown_number                              = 1689,
+    perl_diag_error_system_signal_localization_block_failed_number                             = 2800,
+    perl_diag_error_system_signal_localization_read_failed_number                              = 2798,
+    perl_diag_error_system_signal_localization_reinstall_failed_number                         = 2802,
+    perl_diag_error_system_signal_localization_restore_failed_number                           = 2799,
+    perl_diag_error_system_signal_localization_rollback_failed_number                          = 2801,
     perl_diag_error_system_signal_pending_limit_reached_number                                 = 1660,
     perl_diag_error_system_signal_unknown_hook_number                                          = 1180,
     perl_diag_error_system_syscall_function_unavailable_number                                 = 1988,
@@ -5054,7 +5066,7 @@ enum perl_diag_selector_domain_id {
 
 
 #if defined(PERL_CORE) || defined(PERL_EXT_RE_BUILD)
-#define PERL_DIAG_METADATA_COUNT 1595
+#define PERL_DIAG_METADATA_COUNT 1601
 
 #endif
 
@@ -20435,6 +20447,48 @@ enum perl_diag_selector_domain_id {
         __LINE__ \
     )
 
+#define PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_READ_FAILED() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_system_signal_localization_read_failed_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
+#define PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_RESTORE_FAILED() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_system_signal_localization_restore_failed_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
+#define PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_BLOCK_FAILED() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_system_signal_localization_block_failed_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
+#define PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_ROLLBACK_FAILED() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_system_signal_localization_rollback_failed_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
+#define PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_REINSTALL_FAILED() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_system_signal_localization_reinstall_failed_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
+#define PERL_THROW_ERROR_ITERATOR_GENERATOR_LOCALIZATION_UNSUPPORTED() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_iterator_generator_localization_unsupported_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
 #define PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_INVALID_ABORT() \
     STMT_START { \
         PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_INVALID(); \
@@ -21655,6 +21709,7 @@ enum perl_diag_selector_domain_id {
 /* PERL_THROW_ERROR_ITERATOR_GENERATOR_CANNOT_RESUME_FAILED => ERROR_ITERATOR_GENERATOR_CANNOT_RESUME_FAILED */
 /* PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE => ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE */
 /* PERL_THROW_ERROR_ITERATOR_GENERATOR_INVALID_WRAPPER => ERROR_ITERATOR_GENERATOR_INVALID_WRAPPER */
+/* PERL_THROW_ERROR_ITERATOR_GENERATOR_LOCALIZATION_UNSUPPORTED => ERROR_ITERATOR_GENERATOR_LOCALIZATION_UNSUPPORTED */
 /* PERL_THROW_ERROR_ITERATOR_GENERATOR_NO_SUSPENDED_CONTINUATION => ERROR_ITERATOR_GENERATOR_NO_SUSPENDED_CONTINUATION */
 /* PERL_THROW_ERROR_ITERATOR_GENERATOR_RUNNING_INVALID_ARGUMENT => ERROR_ITERATOR_GENERATOR_RUNNING_INVALID_ARGUMENT */
 /* PERL_THROW_ERROR_ITERATOR_GENERATOR_STATE_MUTATION_FORBIDDEN => ERROR_ITERATOR_GENERATOR_STATE_MUTATION_FORBIDDEN */
@@ -22183,6 +22238,11 @@ enum perl_diag_selector_domain_id {
 /* PERL_THROW_ERROR_SYSTEM_PROCESS_WAIT_FLAGS_UNSUPPORTED => ERROR_SYSTEM_PROCESS_WAIT_FLAGS_UNSUPPORTED */
 /* PERL_THROW_ERROR_SYSTEM_SIGNAL_KILL_PROCESS_ID_NOT_NUMERIC => ERROR_SYSTEM_SIGNAL_KILL_PROCESS_ID_NOT_NUMERIC */
 /* PERL_THROW_ERROR_SYSTEM_SIGNAL_KILL_SIGNAL_NAME_UNKNOWN => ERROR_SYSTEM_SIGNAL_KILL_SIGNAL_NAME_UNKNOWN */
+/* PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_BLOCK_FAILED => ERROR_SYSTEM_SIGNAL_LOCALIZATION_BLOCK_FAILED */
+/* PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_READ_FAILED => ERROR_SYSTEM_SIGNAL_LOCALIZATION_READ_FAILED */
+/* PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_REINSTALL_FAILED => ERROR_SYSTEM_SIGNAL_LOCALIZATION_REINSTALL_FAILED */
+/* PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_RESTORE_FAILED => ERROR_SYSTEM_SIGNAL_LOCALIZATION_RESTORE_FAILED */
+/* PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_ROLLBACK_FAILED => ERROR_SYSTEM_SIGNAL_LOCALIZATION_ROLLBACK_FAILED */
 /* PERL_THROW_ERROR_SYSTEM_SIGNAL_PENDING_LIMIT_REACHED => ERROR_SYSTEM_SIGNAL_PENDING_LIMIT_REACHED */
 /* PERL_THROW_ERROR_SYSTEM_SIGNAL_UNKNOWN_HOOK => ERROR_SYSTEM_SIGNAL_UNKNOWN_HOOK */
 /* PERL_THROW_ERROR_SYSTEM_SYSCALL_FUNCTION_UNAVAILABLE => ERROR_SYSTEM_SYSCALL_FUNCTION_UNAVAILABLE */
@@ -22713,7 +22773,7 @@ enum perl_diag_selector_domain_id {
 #endif /* PERL_DIAG_H */
 
 /* Generated from:
- * 4d707d82abe55447c786ecb25fa4ea9a683d01e4ff5ee4d84e95b1526f48894b diag_conf.pl
+ * c825756baabff6e2fa75cfb2cc241886c6223e7f433808258b4db05e9b389940 diag_conf.pl
  * 2d782aa7232094113b9b9205138381282d148545c1d4444211939e7659e39734 diag_op_conf.pl
  * b333aa9910dc95e9259def9af37a920ee035cdde0d414c3162bbf7e48536dde6 regen/opcodes
  * ex: set ro ft=c: */

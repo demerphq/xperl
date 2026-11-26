@@ -2228,6 +2228,9 @@ Cdop	|void	|hv_riter_set	|NN HV *hv				\
 				|I32 riter
 
 ARdp	|SV *	|hv_scalar	|NN HV *hv
+Chp	|SV **	|hv_sig_fetch	|NN HV *hv				\
+				|NN const char *key			\
+				|STRLEN len
 Admp	|SV **	|hv_store	|NULLOK HV *hv				\
 				|NULLOK const char *key 		\
 				|I32 klen				\
@@ -2511,6 +2514,25 @@ AFdp	|void	|load_module	|U32 flags				\
 				|NN SV *name				\
 				|NULLOK SV *ver 			\
 				|...
+p	|void	|local_bindings_check					\
+				|I32 top				\
+				|NN GV *rsgv
+p	|void	|local_bindings_discard 				\
+				|NULLOK PERL_LOCAL_BINDINGS *bindings	\
+				|NULLOK ANY *stack
+p	|void	|local_bindings_free					\
+				|NULLOK PERL_LOCAL_BINDINGS *bindings
+
+p	|bool	|local_bindings_park					\
+				|NN PERL_LOCAL_BINDINGS **owner 	\
+				|NN GV *rsgv
+p	|void	|local_bindings_resume					\
+				|NULLOK PERL_LOCAL_BINDINGS *bindings	\
+				|NULLOK ANY *stack
+p	|bool	|local_bindings_validate				\
+				|NULLOK PERL_LOCAL_BINDINGS *bindings	\
+				|NN const PERL_PROCESS_STATE *process	\
+				|NN GV *rsgv
 CTopr	|void	|locale_panic	|NN const char *msg				\
 				|const line_t immediate_caller_line		\
 				|NN const char * const higher_caller_file	\
@@ -3860,10 +3882,36 @@ CRdp	|AV *	|shared_keys
 Adp	|HEK *	|share_hek	|NN const char *str			\
 				|SSize_t len				\
 				|U32 hash
+Chp	|void	|sig_bindings_record					\
+				|NN HV *hv				\
+				|NN const char *key			\
+				|STRLEN len				\
+				|NULLOK SV *value
+Chp	|void	|sig_bindings_sync					\
+				|NN HV *hv				\
+				|NULLOK SV *keysv			\
+				|NULLOK const char *key 		\
+				|STRLEN len
 Tp	|Signal_t|sighandler1	|int sig
 Tp	|Signal_t|sighandler3	|int sig				\
 				|NULLOK Siginfo_t *info 		\
 				|NULLOK void *uap
+Chp	|void	|sig_local_block|NN AV *record
+Chp	|bool	|sig_local_exchange					\
+				|NN AV *record
+Chp	|void	|sig_local_finish					\
+				|NN AV *record				\
+				|bool discard
+Chp	|void	|sig_local_freeze					\
+				|NN AV *record
+Chp	|AV *	|sig_local_prepare					\
+				|NN HV *hv				\
+				|NN SV *keysv				\
+				|bool absent
+Chp	|SV **	|sig_local_slot |NN AV *record
+Chp	|void	|sig_local_unblock					\
+				|NN AV *record
+Chp	|bool	|sig_local_valid|NN AV *record
 CRTip	|unsigned|single_1bit_pos32					\
 				|U32 word
 ERXpx	|char * |skipspace_flags|NN char *s				\

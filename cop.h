@@ -1489,6 +1489,29 @@ typedef enum {
 #define CvGENERATOR_on(cv)      (CvFLAGS(cv) |= PERL_CVf_GENERATOR)
 #define CvGENERATOR_off(cv)     (CvFLAGS(cv) &= ~PERL_CVf_GENERATOR)
 
+/* Coro keeps these interpreter settings with its Perl execution stacks.
+ * They are separate from the stacks and from ordinary package locals. */
+typedef struct perl_generator_environment {
+    GV *                    rsgv;
+    SV *                    irs;
+    SV *                    rs;
+    HV *                    hinthv;
+    GV *                    defoutgv;
+    bool                    sig_local_owner;
+    OP *                    sortcop;
+    HV *                    sortstash;
+    CV *                    compcv;
+    PADNAMELIST *            comppad_name;
+    PADOFFSET               comppad_name_fill;
+    PADOFFSET               comppad_name_floor;
+    U32                     hints;
+    COPHH *                 hints_hash;
+    struct cop_feature_t    features;
+    U16                     prevailing_version;
+    struct yy_parser *      parser;
+    int                   (*runops)(pTHX);
+} PERL_GENERATOR_ENVIRONMENT;
+
 typedef struct perl_generator {
     U32                     magic;
     CV *                    body;
@@ -1496,6 +1519,7 @@ typedef struct perl_generator {
     AV *                    defav;
     SV *                    errsv;
     SV *                    errorobj;
+    PERL_GENERATOR_ENVIRONMENT environment;
     LOGOP                   invoke;
     PERL_PROCESS_STATE       process;
     AV *                    initial_args;
@@ -1505,6 +1529,7 @@ typedef struct perl_generator {
     SV *                    value;
     SV *                    error;
     struct perl_suspended_pad *pads;
+    struct perl_local_bindings *local_bindings;
     bool                    pads_switching;
     PERL_GENERATOR_STATE    state;
     bool                    captured;

@@ -2263,9 +2263,13 @@ S_padhv_rv2hv_common(pTHX_ HV *hv, U8 gimme, bool is_keys, bool has_targ)
                    || (  PL_op->op_private & OPpMAYBE_TRUEBOOL
                       && block_gimme() == G_VOID));
 
-    MAGIC *is_tied_mg = SvRMAGICAL(hv)
-                        ? mg_find(MUTABLE_SV(hv), PERL_MAGIC_tied)
-                        : NULL;
+    MAGIC *is_tied_mg = NULL;
+    if (SvMAGICAL(hv)) {
+        is_tied_mg = mg_find(MUTABLE_SV(hv), PERL_MAGIC_tied);
+        if (!is_tied_mg && PL_sig_bindings
+            && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig))
+            sig_bindings_sync(hv, NULL, NULL, 0);
+    }
 
     IV  i = 0;
     SV *sv = NULL;

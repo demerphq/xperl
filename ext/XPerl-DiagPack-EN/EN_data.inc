@@ -4,7 +4,7 @@
    Any changes made here will be lost!
  */
 
-/* Language-scoped rendered data SHA-256: 6258da814546b6564e45dc814891627ef216165f83ff2cebd69cb3bf16b9d772 */
+/* Language-scoped rendered data SHA-256: 82be4b6df9e1421ae2939ef49107b1a9bd4707f6f59ab10e36fc4d4265f3d3e1 */
 
 STATIC_ASSERT_DECL(OP_max + 2 == 449); /* compiled operation-map bound */
 
@@ -1441,6 +1441,7 @@ static const char perl_diag_template_text_eae13e05[] = "Cannot use a redacted RN
 static const char perl_diag_template_text_d07baad1[] = "Cannot use declared reference iterator variables in foreach loop past the 24th variable";
 static const char perl_diag_template_text_5b5fdda2[] = "Cannot use more than 256 iterator variables on a foreach loop if any are declared refs";
 static const char perl_diag_template_text_0cc63462[] = "Cannot yet reorder sv_vcatpvfn() arguments from va_list";
+static const char perl_diag_template_text_92115d42[] = "Cannot yield with an unsupported localization still in scope";
 static const char perl_diag_template_text_6766566d[] = "catch block requires a (VAR)";
 static const char perl_diag_template_text_c23a0a1c[] = "catch {} block";
 static const char perl_diag_template_text_9a99d37b[] = "Changing use VERSION while another use VERSION is in scope is not permitted";
@@ -2721,8 +2722,13 @@ static const char perl_diag_template_text_72226a17[] = "Type of arg %1$s to &COR
 static const char perl_diag_template_text_1986cc82[] = "Type of arg %1$s to &CORE::%2$s must be reference to one of [$@%%*]";
 static const char perl_diag_template_text_48067a17[] = "Type of arg %1$s to &CORE::%2$s must be scalar reference";
 static const char perl_diag_template_text_1716027c[] = "U0 mode on a byte string";
+static const char perl_diag_template_text_58290298[] = "Unable to block signals while switching localizations";
 static const char perl_diag_template_text_0af87319[] = "unable to find VMSPIPE.COM for i/o piping";
 static const char perl_diag_template_text_ec6fb92c[] = "Unable to flush stdout: %1$s\n";
+static const char perl_diag_template_text_beef449a[] = "Unable to read localized signal disposition";
+static const char perl_diag_template_text_3979aa26[] = "Unable to reinstall localized signal handler";
+static const char perl_diag_template_text_7e9b3685[] = "Unable to restore localized signal handler";
+static const char perl_diag_template_text_6d250834[] = "Unable to reverse signal localization switch";
 static const char perl_diag_template_text_01e9c7dd[] = "Unaligned \"next\" pointer in the free chain 0x%1$s at 0x%2$s\n";
 static const char perl_diag_template_text_1622973c[] = "Unaligned pointer in the free chain 0x%1$s\n";
 static const char perl_diag_template_text_d2e365d9[] = "Unbalanced context stack (POPs exceed PUSHes): %1$s\n";
@@ -5300,6 +5306,12 @@ enum {
     perl_diag_template_start_en_2795,
     perl_diag_template_start_en_2796,
     perl_diag_template_start_en_2797,
+    perl_diag_template_start_en_2798,
+    perl_diag_template_start_en_2799,
+    perl_diag_template_start_en_2800,
+    perl_diag_template_start_en_2801,
+    perl_diag_template_start_en_2802,
+    perl_diag_template_start_en_2803,
     perl_diag_template_end_en,
 };
 
@@ -7217,6 +7229,12 @@ static const perl_diag_template_case_t perl_diag_template_cases_en[] = {
     { perl_diag_error_rng_fast_descriptor_invalid_number,                                         UINT64_C(         0), perl_diag_template_text_713dcade,  0,   0 },
     { perl_diag_error_control_flow_dispatch_no_match_number,                                      UINT64_C(         0), perl_diag_template_text_0f892757,  0,   0 },
     { perl_diag_error_iterator_stop_required_number,                                              UINT64_C(         0), perl_diag_template_text_f0dfed78,  0,   0 },
+    { perl_diag_error_system_signal_localization_read_failed_number,                              UINT64_C(         0), perl_diag_template_text_beef449a,  0,   0 },
+    { perl_diag_error_system_signal_localization_restore_failed_number,                           UINT64_C(         0), perl_diag_template_text_7e9b3685,  0,   0 },
+    { perl_diag_error_system_signal_localization_block_failed_number,                             UINT64_C(         0), perl_diag_template_text_58290298,  0,   0 },
+    { perl_diag_error_system_signal_localization_rollback_failed_number,                          UINT64_C(         0), perl_diag_template_text_6d250834,  0,   0 },
+    { perl_diag_error_system_signal_localization_reinstall_failed_number,                         UINT64_C(         0), perl_diag_template_text_3979aa26,  0,   0 },
+    { perl_diag_error_iterator_generator_localization_unsupported_number,                         UINT64_C(         0), perl_diag_template_text_92115d42,  0,   0 },
     { 0,                                                                                          UINT64_C(         0), NULL,                              0,   0 }, /* terminates the last diagnostic's rows */
 };
 
@@ -8814,6 +8832,12 @@ static const perl_diag_template_t perl_diag_templates_en[] = {
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2795, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2796, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2797, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2798, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2799, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2800, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2801, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2802, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2803, NULL                        },
 };
 
 static const perl_diagpack_param_schema_t perl_diagpack_param_schema_table[] = {
@@ -17194,6 +17218,36 @@ static const perl_diagpack_schema_t perl_diagpack_schema_2797 = {
     perl_diagpack_param_schema_ids + 0, 0
 };
 
+static const perl_diagpack_schema_t perl_diagpack_schema_2798 = {
+    2798, "ERROR_SYSTEM_SIGNAL_LOCALIZATION_READ_FAILED",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
+static const perl_diagpack_schema_t perl_diagpack_schema_2799 = {
+    2799, "ERROR_SYSTEM_SIGNAL_LOCALIZATION_RESTORE_FAILED",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
+static const perl_diagpack_schema_t perl_diagpack_schema_2800 = {
+    2800, "ERROR_SYSTEM_SIGNAL_LOCALIZATION_BLOCK_FAILED",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
+static const perl_diagpack_schema_t perl_diagpack_schema_2801 = {
+    2801, "ERROR_SYSTEM_SIGNAL_LOCALIZATION_ROLLBACK_FAILED",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
+static const perl_diagpack_schema_t perl_diagpack_schema_2802 = {
+    2802, "ERROR_SYSTEM_SIGNAL_LOCALIZATION_REINSTALL_FAILED",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
+static const perl_diagpack_schema_t perl_diagpack_schema_2803 = {
+    2803, "ERROR_ITERATOR_GENERATOR_LOCALIZATION_UNSUPPORTED",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
 static const perl_diagpack_schema_t * const perl_diagpack_schemas_en[] = {
     /* local schema row zero is unused */
     NULL, &perl_diagpack_schema_1001, &perl_diagpack_schema_1002, &perl_diagpack_schema_1003,
@@ -17726,7 +17780,9 @@ static const perl_diagpack_schema_t * const perl_diagpack_schemas_en[] = {
     &perl_diagpack_schema_2788, &perl_diagpack_schema_2789, &perl_diagpack_schema_2790,
     &perl_diagpack_schema_2791, &perl_diagpack_schema_2792, &perl_diagpack_schema_2793,
     &perl_diagpack_schema_2794, &perl_diagpack_schema_2795, &perl_diagpack_schema_2796,
-    &perl_diagpack_schema_2797,
+    &perl_diagpack_schema_2797, &perl_diagpack_schema_2798, &perl_diagpack_schema_2799,
+    &perl_diagpack_schema_2800, &perl_diagpack_schema_2801, &perl_diagpack_schema_2802,
+    &perl_diagpack_schema_2803,
 };
 
 static const perl_diag_selector_domain_t perl_diag_selector_domains[] = {

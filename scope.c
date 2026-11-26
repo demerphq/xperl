@@ -586,8 +586,12 @@ Perl_save_hash(pTHX_ GV *gv)
 
     HV *ohv, *hv;
 
+    ohv = GvHVn(gv);
+    if (SvMAGICAL(ohv) && PL_sig_bindings
+        && mg_find(MUTABLE_SV(ohv), PERL_MAGIC_sig))
+        sig_bindings_sync(ohv, NULL, NULL, 0);
     save_pushptrptr(
-        SvREFCNT_inc_simple_NN(gv), (ohv = GvHVn(gv)), SAVEt_HV
+        SvREFCNT_inc_simple_NN(gv), ohv, SAVEt_HV
     );
 
     GvHV(gv) = NULL;
@@ -916,6 +920,14 @@ Perl_save_hdelete(pTHX_ HV *hv, SV *keysv)
     I32 klen;
     const char *key;
 
+    if (PL_sig_local_owner) {
+        AV * const record = sig_local_prepare(hv, keysv, TRUE);
+        if (record) {
+            save_pushptr(record, SAVEt_SIGLOCAL);
+            return;
+        }
+    }
+
     key  = SvPV_const(keysv, len);
     klen = SvUTF8(keysv) ? -(I32)len : (I32)len;
     SvREFCNT_inc_simple_void_NN(hv);
@@ -1134,6 +1146,21 @@ Perl_save_helem_flags(pTHX_ HV *hv, SV *key, SV **sptr, const U32 flags)
             he = hv_fetch_ent(hv, saved_key, 1, 0);
         sptr = he ? &HeVAL(he) : sptr;
     }
+    if (PL_sig_local_owner && !(flags & SAVEf_KEEPOLDELEM)) {
+        AV * const record = sig_local_prepare(hv, saved_key, FALSE);
+        if (record) {
+            SV * const old = *sptr;
+            STRLEN len;
+            const char * const name = SvPV_const(saved_key, len);
+            save_pushptr(record, SAVEt_SIGLOCAL);
+            sv = save_scalar_at(sptr, flags & ~SAVEf_SETMAGIC);
+            sig_bindings_record(hv, name, len, sv);
+            SvREFCNT_dec(old);
+            if (flags & SAVEf_SETMAGIC)
+                SvSETMAGIC(sv);
+            return;
+        }
+    }
     {
         dSS_ADD;
         SS_ADD_PTR(SvREFCNT_inc_simple(hv));
@@ -1143,6 +1170,12 @@ Perl_save_helem_flags(pTHX_ HV *hv, SV *key, SV **sptr, const U32 flags)
         SS_ADD_END(4);
     }
     sv = save_scalar_at(sptr, flags);
+    if (!(flags & SAVEf_KEEPOLDELEM) && SvMAGICAL(hv) && PL_sig_bindings
+        && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig)) {
+        STRLEN len;
+        const char * const name = SvPV_const(saved_key, len);
+        sig_bindings_record(hv, name, len, sv);
+    }
     if (flags & SAVEf_KEEPOLDELEM)
         return;
     /* If we're localizing a tied hash element, this new sv
@@ -1268,6 +1301,63 @@ Perl_leave_scope(pTHX_ I32 base)
             a2.any_svp = a0.any_svp;
             a0.any_sv = NULL; /* what to refcnt_dec */
             goto restore_sv;
+
+        case SAVEt_SIGLOCAL:
+            sig_local_finish(ap[0].any_av, cBOOL(uv & SAVE_REVSV_DISCARD));
+            break;
+
+        case SAVEt_REVSV:
+        {
+            GV *gv = ap[0].any_gv;
+            SV *saved = ap[1].any_sv;
+            SV *outgoing;
+            /* An explicit topic local has ordinary scalar restoration,
+             * including its magic. Replay can also leave an absent outside
+             * slot, which the null-safe path below already handles. */
+            if (!(uv & (SAVE_REVSV_DISCARD | SAVE_REVSV_AGGREGATE))
+                && gv == PL_defgv && saved) {
+                a0 = ap[0];
+                a1 = ap[1];
+                a2.any_svp = &GvSV(gv);
+                goto restore_sv;
+            }
+            SAVEFREESV(gv);
+            if (uv & SAVE_REVSV_DISCARD) {
+                SvREFCNT_dec(saved);
+                if (!(uv & SAVE_REVSV_AGGREGATE))
+                    SvREFCNT_dec(saved);
+                break;
+            }
+            if (uv & SAVE_REVSV_AGGREGATE) {
+                /* Ordinary aggregate unwind destroys the outgoing value
+                 * before restoring the outside binding. Keep that order
+                 * for destructors, and guard the saved reference in case
+                 * cleanup throws. */
+                if (saved)
+                    SAVEFREESV(saved);
+                if (uv & SAVE_REVSV_ARRAY) {
+                    SvREFCNT_dec(GvAV(gv));
+                    GvAV(gv) = MUTABLE_AV(SvREFCNT_inc(saved));
+                }
+                else {
+                    SvREFCNT_dec(GvHV(gv));
+                    GvHV(gv) = MUTABLE_HV(SvREFCNT_inc(saved));
+                }
+                if (saved && SvSMAGICAL(saved)) {
+                    PL_localizing = 2;
+                    mg_set(saved);
+                    PL_localizing = 0;
+                }
+                break;
+            }
+            outgoing = GvSV(gv);
+            GvSV(gv) = saved;
+            /* The caller binding was only displaced. Its magic has no
+             * external state to restore, and an absent slot stays absent. */
+            SvREFCNT_dec(saved);
+            SvREFCNT_dec(outgoing);
+            break;
+        }
 
         case SAVEt_SV:				/* scalar reference */
             a0 = ap[0]; a1 = ap[1];
@@ -1743,6 +1833,9 @@ Perl_leave_scope(pTHX_ I32 base)
                 const SV * const oval = HeVAL(he);
                 if (LIKELY(oval && oval != &PL_sv_undef)) {
                     SV **svp = &HeVAL(he);
+                    if (SvMAGICAL(a0.any_hv) && PL_sig_bindings
+                        && mg_find(MUTABLE_SV(a0.any_hv), PERL_MAGIC_sig))
+                        sig_bindings_record(a0.any_hv, HeKEY(he), HeKLEN(he), a2.any_sv);
                     if (UNLIKELY(SvTIED_mg((const SV *)a0.any_hv, PERL_MAGIC_tied)))
                         SvREFCNT_inc_void(*svp);
                     a1.any_sv  = a2.any_sv;
@@ -2167,6 +2260,993 @@ Perl_magic_freedestruct(pTHX_ SV* sv, MAGIC* mg)
     return 0;
 }
 
+
+/* Array and hash saves use the same record shape as scalar saves. Flags
+ * identify their slot after conversion, so decoding and cloning retain
+ * the existing save-stack layout. */
+static UV
+S_local_binding_kind(UV tag)
+{
+    switch (tag & SAVE_MASK) {
+    case SAVEt_AV:
+        return SAVE_REVSV_ARRAY;
+    case SAVEt_HV:
+        return SAVE_REVSV_HASH;
+    default:
+        return tag & SAVE_REVSV_AGGREGATE;
+    }
+}
+
+static SV **
+S_local_binding_slot(PERL_LOCAL_BINDINGS *bindings,
+                     PERL_LOCAL_BINDING *record, ANY *stack)
+{
+    GV *gv;
+    UV kind;
+    if (record->cx_index >= 0)
+        return CxITERVAR(&bindings->loop_stackinfo->si_cxstack[record->cx_index]);
+    if (record->cx_index == -2)
+        return NULL;
+    gv = stack[record->offset].any_gv;
+    kind = S_local_binding_kind(stack[record->offset + 2].any_uv);
+    if (kind == SAVE_REVSV_ARRAY)
+        return (SV **)&GvAV(gv);
+    if (kind == SAVE_REVSV_HASH)
+        return (SV **)&GvHV(gv);
+    return &GvSV(gv);
+}
+
+/* A scalar localization saves two references to its outside SV: the
+ * displaced glob-slot reference and an extra unwind guard. The installed
+ * SV has the one slot reference. Exchanging bindings must exchange those
+ * ownership weights too. Neither decrement below can free a saved SV. */
+static bool
+S_local_binding_exchange(pTHX_ PERL_LOCAL_BINDINGS *bindings,
+                        PERL_LOCAL_BINDING *record, ANY *stack)
+{
+    ANY *args;
+    if (record->cx_index >= 0) {
+        PERL_CONTEXT * const cx = &bindings->loop_stackinfo->si_cxstack[record->cx_index];
+        SV ** const slot = CxITERVAR(cx);
+        SV * const live = *slot;
+        *slot = cx->blk_loop.itersave;
+        cx->blk_loop.itersave = live;
+        return TRUE;
+    }
+    args = &stack[record->offset];
+    if (record->cx_index == -2)
+        return sig_local_exchange(args[0].any_av);
+    SV ** const slot = S_local_binding_slot(bindings, record, stack);
+    SV *live = *slot;
+    SV *saved = args[1].any_sv;
+    PERL_UNUSED_CONTEXT;
+    if (S_local_binding_kind(args[2].any_uv)) {
+        /* Each side owns one aggregate reference. Pointer exchange keeps
+         * both objects alive without invoking their magic or destructors. */
+        *slot = saved;
+        args[1].any_sv = live;
+        return TRUE;
+    }
+    SvREFCNT_inc_simple_void(live);
+    *slot = saved;
+    args[1].any_sv = live;
+    SvREFCNT_dec(saved);
+    return TRUE;
+}
+
+static GV *
+S_local_binding_gv(PERL_LOCAL_BINDINGS *bindings,
+                   PERL_LOCAL_BINDING *record, ANY *stack)
+{
+    return record->cx_index < 0 ? stack[record->offset].any_gv
+        : bindings->loop_stackinfo->si_cxstack[record->cx_index].blk_loop.itervar_u.gv;
+}
+
+static SV *
+S_local_binding_saved(PERL_LOCAL_BINDINGS *bindings,
+                     PERL_LOCAL_BINDING *record, ANY *stack)
+{
+    return record->cx_index < 0 ? stack[record->offset + 1].any_sv
+        : bindings->loop_stackinfo->si_cxstack[record->cx_index].blk_loop.itersave;
+}
+
+static bool
+S_local_binding_plain(SV *sv)
+{
+    return sv && SvTYPE(sv) <= SVt_PVMG && !SvMAGICAL(sv);
+}
+
+static bool
+S_local_binding_aggregate(pTHX_ SV *sv, UV kind)
+{
+    MAGIC *mg;
+    PERL_UNUSED_CONTEXT;
+    if (!sv)
+        return TRUE;
+    if (SvTYPE(sv) != (kind == SAVE_REVSV_ARRAY ? SVt_PVAV : SVt_PVHV))
+        return FALSE;
+    if (kind == SAVE_REVSV_HASH && (HvNAME_HEK(MUTABLE_HV(sv))
+                                  || HvHasENAME(MUTABLE_HV(sv))))
+        return FALSE;
+    if (!SvMAGICAL(sv))
+        return TRUE;
+    /* Array iteration, length references and weak references attach
+     * bookkeeping to the aggregate itself. Moving its binding preserves
+     * that state. Other magic may have external effects or call Perl. */
+    for (mg = SvMAGIC(sv); mg; mg = mg->mg_moremagic) {
+        if (MgIsV2(mg))
+            return FALSE;
+        if (mg->mg_type == PERL_MAGIC_backref
+            && mg->mg_virtual == &PL_vtbl_backref)
+            continue;
+        if (kind == SAVE_REVSV_ARRAY && mg->mg_type == PERL_MAGIC_arylen_p
+            && mg->mg_virtual == &PL_vtbl_arylen_p)
+            continue;
+        return FALSE;
+    }
+    return TRUE;
+}
+
+static bool
+S_local_binding_managed(pTHX_ GV *gv, UV kind)
+{
+    return (kind == SAVE_REVSV_ARRAY && gv == PL_defgv)
+        || (kind == SAVE_REVSV_HASH && gv == PL_hintgv);
+}
+
+static GV *
+S_local_binding_signal_root(pTHX)
+{
+    /* A raw stash entry may hold a coderef. Inspect it without turning it
+     * into a glob merely to check whether a local overlaps %SIG. */
+    GV * const gv = PL_sig_bindings_gv ? PL_sig_bindings_gv
+        : gv_fetchpvs("SIG", GV_NOADD_NOINIT, SVt_PVHV);
+    return gv && isGV_with_GP(gv) && GvGP(gv) ? gv : NULL;
+}
+
+static bool
+S_local_binding_aggregate_name(pTHX_ GV *gv, UV kind, GV **sig_root)
+{
+    GV * const effective = GvEGV(gv) ? GvEGV(gv) : gv;
+    GV *names[2];
+    U8 i;
+    names[0] = gv;
+    names[1] = effective;
+    for (i = 0; i < 2; ++i) {
+        const STRLEN len = GvNAMELEN(names[i]);
+        const char * const name = GvNAME(names[i]);
+        /* An absent slot has no magic to identify a special binding.
+         * Its effective name still identifies ISA and symbol tables. */
+        if (kind == SAVE_REVSV_ARRAY && memEQs(name, len, "ISA"))
+            return FALSE;
+        if (kind == SAVE_REVSV_HASH && len >= 2
+            && name[len - 1] == ':' && name[len - 2] == ':')
+            return FALSE;
+    }
+    if (kind == SAVE_REVSV_HASH) {
+        if (!*sig_root)
+            *sig_root = S_local_binding_signal_root(aTHX);
+        if ((PL_envgv && GvGP(gv) == GvGP(PL_envgv))
+            || (*sig_root && GvGP(gv) == GvGP(*sig_root)))
+            return FALSE;
+    }
+    /* The argument and hint roots have separate environment handling.
+     * Do not replay another name over their slots at the same boundary. */
+    return !(kind == SAVE_REVSV_ARRAY && GvGP(gv) == GvGP(PL_defgv))
+        && !(kind == SAVE_REVSV_HASH && GvGP(gv) == GvGP(PL_hintgv));
+}
+
+static bool
+S_local_binding_special(pTHX_ GV *gv)
+{
+    GP *gp = GvGP(gv);
+    const U8 first = GvNAMELEN(gv) ? (U8)*GvNAME(gv) : 0;
+    return !first || (!isWORDCHAR_L1(first)
+                     && !(GvNAMEUTF8(gv) && !UTF8_IS_INVARIANT(first)))
+        || gv == PL_defgv
+        || (PL_errgv && gp == GvGP(PL_errgv))
+        || (PL_errorobjgv && gp == GvGP(PL_errorobjgv));
+}
+
+/* These roots have backing state beyond their scalar bindings. Do not
+ * replay another name's local through an error or separator slot. The
+ * generator retains its separator GV even if the stash entry is replaced,
+ * so checking only the current symbol-table entry would miss that root.
+ * Checking that entry must not turn a stored coderef into a glob. */
+static bool
+S_local_binding_scalar_slot_allowed(pTHX_ GV *gv, GV *rsgv)
+{
+    GV * const current_rsgv = gv_fetchpvs("/", GV_NOADD_NOINIT, SVt_PV);
+    GP * const gp = GvGP(gv);
+    return (!PL_errgv || gp != GvGP(PL_errgv))
+        && (!PL_errorobjgv || gp != GvGP(PL_errorobjgv))
+        && gp != GvGP(rsgv)
+        && (!current_rsgv || !isGV_with_GP(current_rsgv)
+            || gp != GvGP(current_rsgv));
+}
+
+/* Decode records without executing them. ALLOC and REGCONTEXT carry an
+ * additional variable-size payload. Other tags use their high bits for
+ * flags or offsets, so those bits are not a length. */
+static bool
+S_local_binding_previous(ANY *stack, I32 *cursor, I32 *offset, U8 *type)
+{
+    const UV tag = stack[*cursor - 1].any_uv;
+    I32 start;
+    *type = tag & SAVE_MASK;
+    if (*type >= C_ARRAY_LENGTH(leave_scope_arg_counts))
+        return FALSE;
+    start = *cursor - 1 - leave_scope_arg_counts[*type];
+    if (start < 0)
+        return FALSE;
+    *offset = start;
+    if (*type == SAVEt_ALLOC || *type == SAVEt_REGCONTEXT) {
+        const UV extra = tag >> SAVE_TIGHT_SHIFT;
+        if (extra > (UV)start)
+            return FALSE;
+        start -= extra;
+    }
+    *cursor = start;
+    return TRUE;
+}
+
+/* SAVE_DEFSV saves the whole glob followed by the address of its scalar
+ * slot. A caller can redirect *_ while map or grep is suspended. Keep
+ * the topic and the glob alive, but take a fresh slot address and pin
+ * the current glob body when the map runs again. This also preserves
+ * normal scope exit if the map itself assigns to *_ after resuming. */
+static bool
+S_local_binding_topic(pTHX_ const ANY *args)
+{
+    return args[0].any_gv == PL_defgv
+        && args[1].any_ptr == GvGP(PL_defgv)
+        && (args[2].any_uv & SAVE_MASK) == SAVEt_GP
+        && args[3].any_svp == &GvSV(PL_defgv)
+        && (args[5].any_uv & SAVE_MASK) == SAVEt_GENERIC_SVREF;
+}
+
+static void
+S_local_binding_topics(pTHX_ ANY *stack, I32 top, bool parking)
+{
+    I32 cursor = top, offset;
+    U8 type;
+    while (cursor) {
+        ANY *args;
+        if (!S_local_binding_previous(stack, &cursor, &offset, &type))
+            NOT_REACHED; /* The park pass has already decoded this stack. */
+        if (parking) {
+            if (type != SAVEt_GENERIC_SVREF || offset < 3)
+                continue;
+            args = &stack[offset - 3];
+            if (!S_local_binding_topic(aTHX_ args))
+                continue;
+            GP * const gp = GvGP(PL_defgv);
+            assert(gp->gp_refcnt > 1);
+            --gp->gp_refcnt;
+            /* FREESV keeps the original GV reference. An empty ALLOC
+             * pads the record so existing save-stack offsets stay valid. */
+            args[1].any_uv = SAVEt_FREESV;
+            args[2].any_uv = SAVEt_ALLOC;
+            args[3].any_gv = PL_defgv;
+            args[5].any_uv = SAVEt_GVSV | SAVE_GVSV_PARKED_TOPIC;
+        }
+        else {
+            if (type != SAVEt_GVSV
+                || !(stack[offset + 2].any_uv & SAVE_GVSV_PARKED_TOPIC))
+                continue;
+            args = &stack[offset - 3];
+            GP * const gp = GvGP(PL_defgv);
+            ++gp->gp_refcnt;
+            args[1].any_ptr = gp;
+            args[2].any_uv = SAVEt_GP;
+            args[3].any_svp = &GvSV(PL_defgv);
+            args[5].any_uv = SAVEt_GENERIC_SVREF;
+        }
+        cursor = offset - 3;
+    }
+}
+
+/* Pointer saves are safe only when their target moves with the execution
+ * context. A save tag alone cannot tell us whether a pointer names private
+ * interpreter state or a shared variable. */
+static bool
+S_local_binding_private(pTHX_ const void *target)
+{
+#define PERLVAR(prefix,var,type)
+#define PERLVARA(prefix,var,n,type)
+#define PERLVARI(prefix,var,type,init)
+#define PERLVARIC(prefix,var,type,init)
+#define PERLVARCTX(prefix,var,type) if (target == &PL_##var) return TRUE;
+#define PERLVARCTXI(prefix,var,type,init) PERLVARCTX(prefix,var,type)
+#include "intrpvar.h"
+#undef PERLVAR
+#undef PERLVARA
+#undef PERLVARI
+#undef PERLVARIC
+#undef PERLVARCTX
+#undef PERLVARCTXI
+    return target == &PL_rs || target == &PL_defoutgv
+        || target == &PL_hints || target == &PL_prevailing_version
+        || target == &PL_compiling.cop_hints_hash
+        || target == &PL_compiling.cop_features
+        || target == &PL_sortcop || target == &PL_sortstash
+        || target == &PL_compcv || target == &PL_comppad_name
+        || target == &PL_comppad_name_fill || target == &PL_comppad_name_floor
+        || target == &PL_parser || target == &PL_runops;
+}
+
+/* Check before detaching anything. Unsupported locals may run normally,
+ * but their scopes must end before yield. Cleanup records stay on the save
+ * stack: suspending a scope must not run its destructors or defer blocks. */
+void
+Perl_local_bindings_check(pTHX_ I32 top, GV *rsgv)
+{
+    PERL_ARGS_ASSERT_LOCAL_BINDINGS_CHECK;
+    I32 cursor = top, offset, i;
+    U8 type;
+    for (i = 0; i <= cxstack_ix; ++i) {
+        const PERL_CONTEXT * const cx = &cxstack[i];
+        if (CxFOREACH(cx) && !CxPADLOOP(cx) && !(cx->cx_type & CXp_FOR_GV))
+            goto unsupported;
+    }
+    while (cursor) {
+        ANY *args;
+        const void *target = NULL;
+        if (!S_local_binding_previous(PL_savestack, &cursor, &offset, &type))
+            goto unsupported;
+        args = &PL_savestack[offset];
+        switch (type) {
+        case SAVEt_SV:
+        {
+            GV * const gv = args[0].any_gv;
+            if (!gv || !isGV_with_GP(gv) || !GvGP(gv))
+                goto unsupported;
+            if (S_local_binding_special(aTHX_ gv)
+                && gv != PL_defgv && gv != PL_errgv && gv != PL_errorobjgv
+                && gv != rsgv)
+                goto unsupported;
+            break;
+        }
+        case SAVEt_REVSV:
+        case SAVEt_AV:
+        case SAVEt_HV:
+        case SAVEt_SIGLOCAL:
+            /* The replay planner checks these bindings and their magic. */
+            break;
+        case SAVEt_GP:
+            /* SAVE_DEFSV uses this exact pair for map and grep. An
+             * explicit whole-glob local has no matching generic save. */
+            if (top - offset < 6 || !S_local_binding_topic(aTHX_ args))
+                goto unsupported;
+            break;
+        case SAVEt_GENERIC_SVREF:
+            if (offset >= 3 && S_local_binding_topic(aTHX_ args - 3))
+                break;
+            target = args[0].any_ptr;
+            goto private_target;
+        case SAVEt_BOOL:
+        case SAVEt_I8:
+        case SAVEt_I16:
+        case SAVEt_I32_SMALL:
+        case SAVEt_INT_SMALL:
+        case SAVEt_STRLEN_SMALL:
+            target = args[0].any_ptr;
+            goto private_target;
+        case SAVEt_I32:
+        case SAVEt_INT:
+        case SAVEt_IV:
+        case SAVEt_STRLEN:
+        case SAVEt_SPTR:
+        case SAVEt_APTR:
+        case SAVEt_HPTR:
+        case SAVEt_VPTR:
+        case SAVEt_PPTR:
+        case SAVEt_GENERIC_PVREF:
+            target = args[1].any_ptr;
+            goto private_target;
+        case SAVEt_SHARED_PVREF:
+        case SAVEt_RCPV:
+            target = args[0].any_ptr;
+          private_target:
+            if (!S_local_binding_private(aTHX_ target))
+                goto unsupported;
+            break;
+        case SAVEt_ALLOC:
+        case SAVEt_CLEARPADRANGE:
+        case SAVEt_CLEARSV:
+        case SAVEt_PADSV_NULL:
+        case SAVEt_TMPSFLOOR:
+        case SAVEt_COMPPAD:
+        case SAVEt_FREECOPHH:
+        case SAVEt_FREEOP:
+        case SAVEt_FREEPV:
+        case SAVEt_FREESV:
+        case SAVEt_MORTALIZESV:
+        case SAVEt_OP:
+        case SAVEt_STACK_POS:
+        case SAVEt_FREEPADNAME:
+        case SAVEt_FREERCPV:
+        case SAVEt_FREE_REXC_STATE:
+        case SAVEt_PADSV:
+        case SAVEt_PADSV_AND_MORTALIZE:
+        case SAVEt_HINTS:
+        case SAVEt_HINTS_HH:
+            break;
+        case SAVEt_DESTRUCTOR_X:
+            if (!(args[2].any_uv & SAVE_DESTRUCTOR_SUSPEND_SAFE))
+                goto unsupported;
+            break;
+        default:
+            /* In particular, element, glob-slot and saved-value records
+             * restore shared storage which we cannot yet deactivate. */
+            goto unsupported;
+        }
+    }
+    return;
+
+  unsupported:
+    PERL_THROW_ERROR_ITERATOR_GENERATOR_LOCALIZATION_UNSUPPORTED();
+}
+
+/* Rebuild the slot index from current globs. Parked records keep offsets,
+ * rather than slot addresses which a whole-glob assignment can invalidate. */
+static void
+S_local_binding_index_reset(pTHX_ PERL_LOCAL_BINDINGS *bindings)
+{
+    Size_t size = 8;
+    while (size < (Size_t)bindings->count * 2)
+        size *= 2;
+    if (size > bindings->slot_capacity) {
+        PERL_LOCAL_SLOT *slots;
+        Newxz(slots, size, PERL_LOCAL_SLOT);
+        Safefree(bindings->slots);
+        bindings->slots = slots;
+        bindings->slot_capacity = size;
+    }
+    else
+        Zero(bindings->slots, size, PERL_LOCAL_SLOT);
+    bindings->slot_mask = size - 1;
+}
+
+static PERL_LOCAL_SLOT *
+S_local_binding_index(PERL_LOCAL_BINDINGS *bindings, SV **slot)
+{
+    UV hash = PTR2UV(slot) >> 3;
+    Size_t index;
+    hash ^= hash >> 7;
+    hash *= (UV)0x9e3779b1;
+    hash ^= hash >> 16;
+    index = hash & bindings->slot_mask;
+    while (bindings->slots[index].slot
+           && bindings->slots[index].slot != slot)
+        index = (index + 1) & bindings->slot_mask;
+    return &bindings->slots[index];
+}
+
+/* Record each current slot once. Repeated locals update its oldest entry. */
+static bool
+S_local_binding_partition(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
+{
+    I32 i;
+    S_local_binding_index_reset(aTHX_ bindings);
+    for (i = 0; i < bindings->count; ++i) {
+        PERL_LOCAL_BINDING *record = &bindings->records[i];
+        GV *gv = S_local_binding_gv(bindings, record, stack);
+        SV **slot;
+        PERL_LOCAL_SLOT *entry;
+        I32 group;
+        if (record->cx_index == -2) {
+            if (!sig_local_valid(stack[record->offset].any_av))
+                return FALSE;
+            slot = sig_local_slot(stack[record->offset].any_av);
+        }
+        else {
+            if (!gv || !isGV_with_GP(gv) || !GvGP(gv))
+                return FALSE;
+            slot = S_local_binding_slot(bindings, record, stack);
+        }
+        entry = S_local_binding_index(bindings, slot);
+        if (!entry->slot) {
+            entry->slot = slot;
+            entry->group = i;
+            entry->visible = *slot;
+        }
+        group = entry->group;
+        record->group = group;
+        bindings->records[group].oldest = i;
+    }
+    return TRUE;
+}
+
+static bool
+S_local_binding_conflicts(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack,
+                         I32 top, const PERL_SI *stackinfo)
+{
+    I32 cursor = top, offset, i, planned = 0;
+    int topic_planned = -1;
+    U8 type;
+    while (cursor) {
+        ANY *args;
+        SV **slot = NULL;
+        GV *gv = NULL;
+        if (!S_local_binding_previous(stack, &cursor, &offset, &type))
+            return TRUE;
+        args = &stack[offset];
+        switch (type) {
+        case SAVEt_REVSV:
+            if (args[0].any_gv != PL_defgv
+                || S_local_binding_kind(args[2].any_uv))
+                continue;
+            /* FALLTHROUGH */
+        case SAVEt_SV:
+            gv = args[0].any_gv;
+            if (gv == PL_defgv) {
+                if (topic_planned < 0) {
+                    I32 j;
+                    topic_planned = FALSE;
+                    for (j = 0; j < bindings->count; ++j) {
+                        const PERL_LOCAL_BINDING * const record = &bindings->records[j];
+                        if (record->cx_index == -1
+                            && stack[record->offset].any_gv == PL_defgv
+                            && !S_local_binding_kind(stack[record->offset + 2].any_uv)) {
+                            topic_planned = TRUE;
+                            break;
+                        }
+                    }
+                }
+                if (topic_planned)
+                    continue;
+            }
+            /* Collection includes ordinary SV saves in the replay plan.
+             * Once parked, every planned save has become REVSV. Any SV
+             * left over is untracked, even if its glob has changed since. */
+            if (!bindings->parked && gv && isGV_with_GP(gv) && GvGP(gv)
+                && !S_local_binding_special(aTHX_ gv))
+                continue;
+            break;
+        case SAVEt_AV:
+        case SAVEt_HV:
+            gv = args[0].any_gv;
+            if (!gv || !isGV_with_GP(gv) || !GvGP(gv))
+                return TRUE;
+            /* An aggregate save left unconverted belongs to a managed
+             * root. It must not overlap a separately replayed binding. */
+            if (!bindings->parked && !S_local_binding_managed(aTHX_ gv,
+                    type == SAVEt_AV ? SAVE_REVSV_ARRAY : SAVE_REVSV_HASH))
+                continue;
+            slot = type == SAVEt_AV ? (SV **)&GvAV(gv) : (SV **)&GvHV(gv);
+            gv = NULL;
+            break;
+        case SAVEt_GENERIC_SVREF:
+        case SAVEt_SVREF:
+            slot = args[0].any_svp;
+            break;
+        case SAVEt_GVSLOT:
+            slot = args[1].any_svp;
+            gv = args[0].any_gv;
+            break;
+        case SAVEt_SPTR:
+        case SAVEt_APTR:
+        case SAVEt_HPTR:
+            slot = args[1].any_svp;
+            break;
+        case SAVEt_GP:
+            gv = args[0].any_gv;
+            if (!gv || !isGV_with_GP(gv) || !GvGP(gv))
+                return TRUE;
+            if (S_local_binding_index(bindings, (SV **)&GvAV(gv))->slot
+                || S_local_binding_index(bindings, (SV **)&GvHV(gv))->slot)
+                return TRUE;
+            break;
+        case SAVEt_GVSV:
+            gv = args[0].any_gv;
+            if ((args[2].any_uv & SAVE_GVSV_PARKED_TOPIC)
+                && (S_local_binding_index(bindings, (SV **)&GvAV(gv))->slot
+                    || S_local_binding_index(bindings, (SV **)&GvHV(gv))->slot))
+                return TRUE;
+            break;
+        default:
+            continue;
+        }
+        if (gv && (!isGV_with_GP(gv) || !GvGP(gv)))
+            return TRUE;
+        if ((slot && S_local_binding_index(bindings, slot)->slot)
+            || (gv && S_local_binding_index(bindings, &GvSV(gv))->slot))
+            return TRUE;
+    }
+    for (i = stackinfo->si_cxix; i >= 0; --i) {
+        PERL_CONTEXT *cx = &stackinfo->si_cxstack[i];
+        while (planned < bindings->count && bindings->records[planned].cx_index < 0)
+            ++planned;
+        if (planned < bindings->count && bindings->records[planned].cx_index == i) {
+            ++planned;
+            continue;
+        }
+        if ((CxTYPE(cx) == CXt_GIVEN
+             || (CxTYPE(cx) == CXt_DISPATCH
+                 && cx->blk_dispatch.localizes_defsv))
+            && S_local_binding_index(bindings, &GvSV(PL_defgv))->slot)
+            return TRUE;
+        if (!CxFOREACH(cx) || CxPADLOOP(cx))
+            continue;
+        if (!(cx->cx_type & CXp_FOR_GV))
+            return TRUE;
+        if (S_local_binding_index(bindings, CxITERVAR(cx))->slot)
+            return TRUE;
+    }
+    return FALSE;
+}
+
+bool
+Perl_local_bindings_park(pTHX_ PERL_LOCAL_BINDINGS **owner, GV *rsgv)
+{
+    PERL_ARGS_ASSERT_LOCAL_BINDINGS_PARK;
+    PERL_LOCAL_BINDINGS *bindings = *owner;
+    I32 cursor = PL_savestack_ix, offset, i;
+    I32 loop_ix = PL_curstackinfo->si_cxix;
+    I32 loop_count = 0, topic_top = 0;
+    bool implicit_topic = FALSE;
+    AV *mask = NULL;
+    GV *sig_root = NULL;
+    U8 type = SAVEt_SV;
+    for (i = 0; i <= PL_curstackinfo->si_cxix; ++i) {
+        PERL_CONTEXT * const cx = &PL_curstackinfo->si_cxstack[i];
+        if (CxTYPE(cx) == CXt_GIVEN
+            || (CxTYPE(cx) == CXt_DISPATCH && cx->blk_dispatch.localizes_defsv))
+            implicit_topic = TRUE;
+        if (CxFOREACH(cx) && !CxPADLOOP(cx) && (cx->cx_type & CXp_FOR_GV)) {
+            GV * const gv = cx->blk_loop.itervar_u.gv;
+            /* A named alias to an error variable is not covered by the
+             * default-binding swap. Leaving its loop untracked would let
+             * a later glob assignment redirect cleanup into the caller. */
+            if (gv != PL_defgv && S_local_binding_special(aTHX_ gv))
+                return FALSE;
+            if (gv == PL_defgv)
+                implicit_topic = TRUE;
+            ++loop_count;
+        }
+    }
+    if (bindings) {
+        assert(!bindings->parked);
+        bindings->count = 0;
+    }
+    while (cursor || loop_ix >= 0) {
+        GV *gv;
+        I32 next_cursor = cursor;
+        I32 record_loop = -1;
+        while (loop_ix >= 0) {
+            PERL_CONTEXT * const cx = &PL_curstackinfo->si_cxstack[loop_ix];
+            if (CxFOREACH(cx) && !CxPADLOOP(cx) && (cx->cx_type & CXp_FOR_GV)
+                && !S_local_binding_special(aTHX_ cx->blk_loop.itervar_u.gv))
+                break;
+            --loop_ix;
+        }
+        offset = -1;
+        if (cursor && !S_local_binding_previous(PL_savestack, &next_cursor, &offset, &type))
+            return FALSE;
+        if (loop_ix >= 0
+            && offset < PL_curstackinfo->si_cxstack[loop_ix].blk_oldsaveix) {
+            /* Real unwind leaves the loop body's scopes before restoring
+             * its iterator. Merge the two stacks in that same order. */
+            record_loop = loop_ix--;
+            gv = PL_curstackinfo->si_cxstack[record_loop].blk_loop.itervar_u.gv;
+            offset = PL_curstackinfo->si_cxstack[record_loop].blk_oldsaveix;
+        }
+        else {
+            if (!cursor)
+                break;
+            cursor = next_cursor;
+            if (type == SAVEt_GP
+                && PL_savestack_ix - offset >= 6
+                && S_local_binding_topic(aTHX_ &PL_savestack[offset])) {
+                implicit_topic = TRUE;
+                if (!topic_top)
+                    topic_top = offset + 6;
+            }
+            if (type == SAVEt_HV || type == SAVEt_GP) {
+                GV * const root = PL_savestack[offset].any_gv;
+                HV * const saved = type == SAVEt_HV
+                    ? PL_savestack[offset + 1].any_hv
+                    : ((GP *)PL_savestack[offset + 1].any_ptr)->gp_hv;
+                if (!sig_root)
+                    sig_root = S_local_binding_signal_root(aTHX);
+                if (root == sig_root
+                    || (saved && SvMAGICAL(saved)
+                        && mg_find(MUTABLE_SV(saved), PERL_MAGIC_sig)))
+                    return FALSE;
+            }
+            if (type == SAVEt_HELEM || type == SAVEt_DELETE) {
+                HV * const hv = type == SAVEt_HELEM
+                    ? PL_savestack[offset].any_hv
+                    : PL_savestack[offset + 2].any_hv;
+                /* A signal local which did not enter the journal may
+                 * belong to a tied hash or an unsupported native backend.
+                 * Its ordinary restoration is not safe across a yield. */
+                if (SvMAGICAL(hv) && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig))
+                    return FALSE;
+            }
+            if (type != SAVEt_SV && type != SAVEt_REVSV && type != SAVEt_SIGLOCAL
+                && type != SAVEt_AV && type != SAVEt_HV)
+                continue;
+            gv = type == SAVEt_SIGLOCAL ? NULL : PL_savestack[offset].any_gv;
+        }
+        if (record_loop < 0 && type == SAVEt_SIGLOCAL) {
+            record_loop = -2;
+        }
+        else if (!gv || !isGV_with_GP(gv) || !GvGP(gv))
+            return FALSE;
+        else {
+            const UV kind = record_loop < 0
+                ? S_local_binding_kind(PL_savestack[offset + 2].any_uv) : 0;
+            if (kind) {
+                if (S_local_binding_managed(aTHX_ gv, kind)) {
+                    if (type == SAVEt_REVSV)
+                        return FALSE;
+                    continue;
+                }
+                if (!S_local_binding_aggregate_name(aTHX_ gv, kind, &sig_root))
+                    return FALSE;
+            }
+            else if (gv == PL_defgv) {
+                /* A caller can alias a named scalar to the topic while
+                 * parked. Their explicit locals must share scope order. */
+                if (!S_local_binding_scalar_slot_allowed(aTHX_ gv, rsgv)) {
+                    if (type == SAVEt_REVSV)
+                        return FALSE;
+                    continue;
+                }
+            }
+            else if (S_local_binding_special(aTHX_ gv)) {
+                if (type == SAVEt_REVSV)
+                    return FALSE;
+                continue;
+            }
+            else if (!S_local_binding_scalar_slot_allowed(aTHX_ gv, rsgv))
+                return FALSE;
+        }
+        if (!bindings) {
+            Newxz(bindings, 1, PERL_LOCAL_BINDINGS);
+            *owner = bindings;
+            bindings->loop_stackinfo = PL_curstackinfo;
+        }
+        if (bindings->count == bindings->capacity) {
+            const I32 capacity = bindings->capacity ? 2 * bindings->capacity : 8;
+            Renew(bindings->records, capacity, PERL_LOCAL_BINDING);
+            bindings->capacity = capacity;
+        }
+        bindings->records[bindings->count].offset = offset;
+        bindings->records[bindings->count++].cx_index = record_loop;
+    }
+    /* Implicit topics have their own scope records. Keep their existing
+     * root handling until those records can join the ordered replay too. */
+    if (bindings && implicit_topic) {
+        I32 kept = 0;
+        for (i = 0; i < bindings->count; ++i) {
+            PERL_LOCAL_BINDING * const record = &bindings->records[i];
+            if (record->cx_index == -1
+                && PL_savestack[record->offset].any_gv == PL_defgv
+                && !S_local_binding_kind(PL_savestack[record->offset + 2].any_uv))
+                continue;
+            bindings->records[kept++] = *record;
+        }
+        bindings->count = kept;
+    }
+    if (!bindings && topic_top) {
+        Newxz(bindings, 1, PERL_LOCAL_BINDINGS);
+        *owner = bindings;
+        bindings->loop_stackinfo = PL_curstackinfo;
+    }
+    if (!bindings)
+        return TRUE;
+    if (!bindings->count)
+        goto parked;
+    /* Unsupported alias changes can require discarding parked loops during
+     * abandonment. Reserve their deferred releases while the owner still
+     * has a live exception guard, before any binding is detached. */
+    if ((UV)loop_count > ((UV)I32_MAX - (UV)PL_savestack_ix) / 4)
+        Perl_croak_memory_wrap();
+    SSGROW(loop_count * 4);
+    if (!S_local_binding_partition(aTHX_ bindings, PL_savestack)
+        || S_local_binding_conflicts(aTHX_ bindings, PL_savestack,
+                                    PL_savestack_ix, PL_curstackinfo))
+        return FALSE;
+
+    /* Only the oldest converted scalar save may hold an opaque caller
+     * binding. Aggregates require transferable objects on both sides.
+     * Validate the whole plan before changing a tag or exchanging a slot. */
+    for (i = 0; i < bindings->count; ++i) {
+        PERL_LOCAL_BINDING *record = &bindings->records[i];
+        if (record->cx_index == -2) {
+            sig_local_freeze(PL_savestack[record->offset].any_av);
+            mask = PL_savestack[record->offset].any_av;
+            continue;
+        }
+        SV * const saved = S_local_binding_saved(bindings, record, PL_savestack);
+        SV ** const binding = S_local_binding_slot(bindings, record, PL_savestack);
+        PERL_LOCAL_SLOT * const slot = S_local_binding_index(bindings, binding);
+        const UV kind = record->cx_index < 0
+            ? S_local_binding_kind(PL_savestack[record->offset + 2].any_uv) : 0;
+        const bool oldest = bindings->records[record->group].oldest == i;
+        if (record->cx_index < 0) {
+            ANY * const args = &PL_savestack[record->offset];
+            if (kind) {
+                if (!S_local_binding_aggregate(aTHX_ slot->visible, kind)
+                    || !S_local_binding_aggregate(aTHX_ saved, kind))
+                    return FALSE;
+            }
+            else if (S_local_binding_gv(bindings, record, PL_savestack) != PL_defgv) {
+                if (!S_local_binding_plain(slot->visible)
+                    || ((!oldest || (args[2].any_uv & SAVE_MASK) != SAVEt_REVSV)
+                        && !S_local_binding_plain(saved)))
+                    return FALSE;
+            }
+        }
+        slot->visible = saved;
+    }
+    if (mask)
+        sig_local_block(mask);
+    for (i = 0; i < bindings->count; ++i) {
+        PERL_LOCAL_BINDING * const record = &bindings->records[i];
+        if (record->cx_index == -1)
+            PL_savestack[record->offset + 2].any_uv = SAVEt_REVSV
+                | S_local_binding_kind(PL_savestack[record->offset + 2].any_uv);
+        if (!S_local_binding_exchange(aTHX_ bindings, record, PL_savestack)) {
+            while (i > 0) {
+                --i;
+                if (!S_local_binding_exchange(aTHX_ bindings,
+                                             &bindings->records[i], PL_savestack)) {
+                    if (mask)
+                        sig_local_unblock(mask);
+                    PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_ROLLBACK_FAILED();
+                }
+            }
+            if (mask)
+                sig_local_unblock(mask);
+            return FALSE;
+        }
+    }
+    if (mask)
+        sig_local_unblock(mask);
+  parked:
+    if (topic_top)
+        S_local_binding_topics(aTHX_ PL_savestack, topic_top, TRUE);
+    bindings->topic_top = topic_top;
+    bindings->parked = TRUE;
+    return TRUE;
+}
+
+bool
+Perl_local_bindings_validate(pTHX_ PERL_LOCAL_BINDINGS *bindings,
+                            const PERL_PROCESS_STATE *process, GV *rsgv)
+{
+    ANY *stack;
+    I32 i;
+    GV *sig_root = NULL;
+    PERL_ARGS_ASSERT_LOCAL_BINDINGS_VALIDATE;
+    if (!bindings || !bindings->parked || !bindings->count)
+        return TRUE;
+    if (process->context.Icurstackinfo != bindings->loop_stackinfo)
+        return FALSE;
+    stack = process->context.Isavestack;
+    for (i = 0; i < bindings->count; ++i) {
+        PERL_LOCAL_BINDING * const record = &bindings->records[i];
+        if (record->cx_index == -2) {
+            if (!sig_local_valid(stack[record->offset].any_av))
+                return FALSE;
+            sig_local_freeze(stack[record->offset].any_av);
+            continue;
+        }
+        GV *gv = S_local_binding_gv(bindings, record, stack);
+        if (!gv || !isGV_with_GP(gv) || !GvGP(gv))
+            return FALSE;
+        const UV kind = record->cx_index < 0
+            ? S_local_binding_kind(stack[record->offset + 2].any_uv) : 0;
+        if (kind) {
+            if (!S_local_binding_aggregate_name(aTHX_ gv, kind, &sig_root)
+                || !S_local_binding_aggregate(aTHX_ S_local_binding_saved(bindings, record, stack), kind)
+                || !S_local_binding_aggregate(aTHX_ *S_local_binding_slot(bindings, record, stack), kind))
+                return FALSE;
+        }
+        else if (!S_local_binding_scalar_slot_allowed(aTHX_ gv, rsgv)
+                 || (gv != PL_defgv && S_local_binding_special(aTHX_ gv)))
+            return FALSE;
+    }
+    /* Rebuild from the current globs. Merges and splits are ordinary Perl
+     * behavior, but can introduce overlap with saves we cannot replay. */
+    return process->context.Icurstackinfo
+        && process->context.Icurstackinfo == bindings->loop_stackinfo
+        && S_local_binding_partition(aTHX_ bindings, stack)
+        && !S_local_binding_conflicts(aTHX_ bindings, stack,
+                                     process->context.Isavestack_ix,
+                                     process->context.Icurstackinfo);
+}
+
+void
+Perl_local_bindings_resume(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
+{
+    I32 i;
+    AV *mask = NULL;
+    PERL_ARGS_ASSERT_LOCAL_BINDINGS_RESUME;
+    if (!bindings || !bindings->parked)
+        return;
+    if (bindings->topic_top) {
+        S_local_binding_topics(aTHX_ stack, bindings->topic_top, FALSE);
+        bindings->topic_top = 0;
+    }
+    for (i = 0; i < bindings->count; ++i)
+        if (bindings->records[i].cx_index == -2)
+            mask = stack[bindings->records[i].offset].any_av;
+    if (mask)
+        sig_local_block(mask);
+    for (i = bindings->count; i > 0; --i) {
+        if (!S_local_binding_exchange(aTHX_ bindings, &bindings->records[i - 1], stack)) {
+            I32 undo;
+            for (undo = i; undo < bindings->count; ++undo)
+                if (!S_local_binding_exchange(aTHX_ bindings,
+                                             &bindings->records[undo], stack)) {
+                    if (mask)
+                        sig_local_unblock(mask);
+                    PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_ROLLBACK_FAILED();
+                }
+            if (mask)
+                sig_local_unblock(mask);
+            PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_REINSTALL_FAILED();
+        }
+    }
+    if (mask)
+        sig_local_unblock(mask);
+    bindings->parked = FALSE;
+}
+
+void
+Perl_local_bindings_free(pTHX_ PERL_LOCAL_BINDINGS *bindings)
+{
+    PERL_ARGS_ASSERT_LOCAL_BINDINGS_FREE;
+    PERL_UNUSED_CONTEXT;
+    if (bindings) {
+        Safefree(bindings->records);
+        Safefree(bindings->slots);
+        Safefree(bindings);
+    }
+}
+
+/* These records overlap state the prototype cannot switch yet. Unwind owns
+ * their references, but must not write through the unsupported slots. */
+void
+Perl_local_bindings_discard(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
+{
+    I32 i;
+    PERL_ARGS_ASSERT_LOCAL_BINDINGS_DISCARD;
+    if (!bindings || !bindings->parked)
+        return;
+    if (bindings->topic_top) {
+        S_local_binding_topics(aTHX_ stack, bindings->topic_top, FALSE);
+        bindings->topic_top = 0;
+    }
+    for (i = 0; i < bindings->count; ++i) {
+        PERL_LOCAL_BINDING * const record = &bindings->records[i];
+        if (record->cx_index == -2) {
+            stack[record->offset + 1].any_uv |= SAVE_REVSV_DISCARD;
+        }
+        else if (record->cx_index < 0) {
+            stack[record->offset + 2].any_uv |= SAVE_REVSV_DISCARD;
+        }
+    }
+    /* A glob assignment can redirect an iterator into a caller slot.
+     * Abandonment must release the saved alias without writing that slot. */
+    for (i = bindings->loop_stackinfo->si_cxix; i >= 0; --i) {
+        PERL_CONTEXT * const cx = &bindings->loop_stackinfo->si_cxstack[i];
+        if (!CxFOREACH(cx) || CxPADLOOP(cx) || !(cx->cx_type & CXp_FOR_GV))
+            continue;
+        if (cx->blk_loop.itersave)
+            SAVEFREESV(cx->blk_loop.itersave);
+        SAVEFREESV(cx->blk_loop.itervar_u.gv);
+        cx->blk_loop.itersave = NULL;
+        cx->blk_loop.itervar_u.gv = NULL;
+        cx->cx_type &= ~CXp_FOR_GV;
+    }
+    bindings->parked = FALSE;
+}
 
 /*
  * ex: set ts=8 sts=4 sw=4 et:

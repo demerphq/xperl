@@ -1011,6 +1011,13 @@ perl_destruct(pTHXx)
     PL_valuemagic_annotations = NULL;
 
     /* unhook hooks which will soon be, or use, destroyed data */
+    {
+        HV * const hooks = PL_sig_bindings;
+        PL_sig_bindings = NULL;
+        SvREFCNT_dec(MUTABLE_SV(hooks));
+        SvREFCNT_dec(MUTABLE_SV(PL_sig_bindings_gv));
+        PL_sig_bindings_gv = NULL;
+    }
     SvREFCNT_dec(PL_warnhook);
     PL_warnhook = NULL;
     SvREFCNT_dec(PL_diehook);

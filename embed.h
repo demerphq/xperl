@@ -109,6 +109,14 @@
 #   undef proto_role_dup
 #   undef proto_role_free
 #   undef proto_role_new
+#   undef SAVE_DESTRUCTOR_SUSPEND_SAFE
+#   undef SAVE_GVSV_PARKED_TOPIC
+#   undef SAVE_REVSV_AGGREGATE
+#   undef SAVE_REVSV_ARRAY
+#   undef SAVE_REVSV_DISCARD
+#   undef SAVE_REVSV_HASH
+#   undef SAVEt_REVSV
+#   undef SAVEt_SIGLOCAL
 #   undef SHY_NATIVE
 #   undef sv_2num
 #   undef sv_has_valuemagic
@@ -409,6 +417,7 @@
 # define hv_new_he()                            Perl_hv_new_he(aTHX)
 # define hv_reserve_buckets(a,b)                Perl_hv_reserve_buckets(aTHX_ a,b)
 # define hv_scalar(a)                           Perl_hv_scalar(aTHX_ a)
+# define hv_sig_fetch(a,b,c)                    Perl_hv_sig_fetch(aTHX_ a,b,c)
 # define hv_strtab_capacity_for                 Perl_hv_strtab_capacity_for
 # define hv_strtab_find(a,b,c,d,e)              Perl_hv_strtab_find(aTHX_ a,b,c,d,e)
 # define hv_strtab_free(a,b,c)                  Perl_hv_strtab_free(aTHX_ a,b,c)
@@ -786,6 +795,16 @@
 # define share_hek(a,b,c)                       Perl_share_hek(aTHX_ a,b,c)
 # define shared_key_refcount(a)                 Perl_shared_key_refcount(aTHX_ a)
 # define shared_keys()                          Perl_shared_keys(aTHX)
+# define sig_bindings_record(a,b,c,d)           Perl_sig_bindings_record(aTHX_ a,b,c,d)
+# define sig_bindings_sync(a,b,c,d)             Perl_sig_bindings_sync(aTHX_ a,b,c,d)
+# define sig_local_block(a)                     Perl_sig_local_block(aTHX_ a)
+# define sig_local_exchange(a)                  Perl_sig_local_exchange(aTHX_ a)
+# define sig_local_finish(a,b)                  Perl_sig_local_finish(aTHX_ a,b)
+# define sig_local_freeze(a)                    Perl_sig_local_freeze(aTHX_ a)
+# define sig_local_prepare(a,b,c)               Perl_sig_local_prepare(aTHX_ a,b,c)
+# define sig_local_slot(a)                      Perl_sig_local_slot(aTHX_ a)
+# define sig_local_unblock(a)                   Perl_sig_local_unblock(aTHX_ a)
+# define sig_local_valid(a)                     Perl_sig_local_valid(aTHX_ a)
 # define single_1bit_pos32                      Perl_single_1bit_pos32
 # define sortsv(a,b,c)                          Perl_sortsv(aTHX_ a,b,c)
 # define sortsv_flags(a,b,c,d)                  Perl_sortsv_flags(aTHX_ a,b,c,d)
@@ -1225,6 +1244,12 @@
 #   define jmaybe(a)                            Perl_jmaybe(aTHX_ a)
 #   define keyword(a,b,c)                       Perl_keyword(aTHX_ a,b,c)
 #   define list(a)                              Perl_list(aTHX_ a)
+#   define local_bindings_check(a,b)            Perl_local_bindings_check(aTHX_ a,b)
+#   define local_bindings_discard(a,b)          Perl_local_bindings_discard(aTHX_ a,b)
+#   define local_bindings_free(a)               Perl_local_bindings_free(aTHX_ a)
+#   define local_bindings_park(a,b)             Perl_local_bindings_park(aTHX_ a,b)
+#   define local_bindings_resume(a,b)           Perl_local_bindings_resume(aTHX_ a,b)
+#   define local_bindings_validate(a,b,c)       Perl_local_bindings_validate(aTHX_ a,b,c)
 #   define localize(a,b)                        Perl_localize(aTHX_ a,b)
 #   define magic_clear_all_env(a,b)             Perl_magic_clear_all_env(aTHX_ a,b)
 #   define magic_cleararylen_p(a,b)             Perl_magic_cleararylen_p(aTHX_ a,b)

@@ -16,6 +16,42 @@
 #define SAVE_TIGHT_SHIFT	6
 #define SAVE_MASK		0x3F
 
+#define SAVE_REVSV_DISCARD ((UV)1 << SAVE_TIGHT_SHIFT)
+#define SAVE_REVSV_ARRAY   ((UV)1 << (SAVE_TIGHT_SHIFT + 1))
+#define SAVE_REVSV_HASH    ((UV)1 << (SAVE_TIGHT_SHIFT + 2))
+#define SAVE_REVSV_AGGREGATE (SAVE_REVSV_ARRAY | SAVE_REVSV_HASH)
+
+/* Defer and finally leave work for scope exit. Other destructor records
+ * may restore shared interpreter or operating-system state. */
+#define SAVE_DESTRUCTOR_SUSPEND_SAFE ((UV)1 << SAVE_TIGHT_SHIFT)
+
+#define SAVE_GVSV_PARKED_TOPIC ((UV)1 << SAVE_TIGHT_SHIFT)
+
+typedef struct perl_local_binding {
+    I32 offset;
+    I32 cx_index; /* -1 for a binding save, -2 for a signal save */
+    I32 group;
+    I32 oldest;
+} PERL_LOCAL_BINDING;
+
+typedef struct perl_local_slot {
+    SV **slot;
+    I32 group;
+    SV *visible;
+} PERL_LOCAL_SLOT;
+
+typedef struct perl_local_bindings {
+    PERL_LOCAL_BINDING *records;
+    PERL_LOCAL_SLOT *slots;
+    Size_t slot_capacity;
+    Size_t slot_mask;
+    I32 count;
+    I32 capacity;
+    I32 topic_top; /* end of the innermost parked SAVE_DEFSV pair */
+    PERL_SI *loop_stackinfo;
+    bool parked;
+} PERL_LOCAL_BINDINGS;
+
 #define save_aelem(av,idx,sptr)	save_aelem_flags(av,idx,sptr,SAVEf_SETMAGIC)
 #define save_helem(hv,key,sptr)	save_helem_flags(hv,key,sptr,SAVEf_SETMAGIC)
 

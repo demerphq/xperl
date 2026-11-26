@@ -523,6 +523,360 @@ S_save_magic_flags(pTHX_ SSize_t mgs_ix, SV *sv, U32 flags)
 
 #define save_magic(a,b) save_magic_flags(a,b,SVs_GMG|SVs_SMG|SVs_RMG)
 
+/* A cell exists only for a key that a suspendable owner has localized.
+ * The hash remains the public interface. Its entries cache the active
+ * cells, which lets a switch move bindings without allocating hash slots. */
+static bool
+S_sig_bindings_active(pTHX_ HV *hv)
+{
+    return PL_sig_bindings && PL_sig_bindings_gv
+        && GvHV(PL_sig_bindings_gv) == hv
+        && !SvTIED_mg(MUTABLE_SV(hv), PERL_MAGIC_tied);
+}
+
+static AV *
+S_sig_binding_cell(pTHX_ const char *key, STRLEN len)
+{
+    SV **slot = PL_sig_bindings
+        ? hv_fetch(PL_sig_bindings, key, len, 0) : NULL;
+    return slot ? MUTABLE_AV(*slot) : NULL;
+}
+
+void
+Perl_sig_bindings_record(pTHX_ HV *hv, const char *key, STRLEN len, SV *value)
+{
+    AV *cell;
+    SV *old;
+    PERL_ARGS_ASSERT_SIG_BINDINGS_RECORD;
+    if (!S_sig_bindings_active(aTHX_ hv)
+        || !(cell = S_sig_binding_cell(aTHX_ key, len)))
+        return;
+    old = AvARRAY(cell)[0];
+    if (old == value)
+        return;
+    AvARRAY(cell)[0] = SvREFCNT_inc(value);
+    /* Hash callers may hold an HE pointer. A handler's destructor must
+     * wait until their operation has finished using that pointer. */
+    if (old)
+        sv_2mortal(old);
+}
+
+static void
+S_sig_binding_sync_one(pTHX_ HV *hv, const char *key, STRLEN len, AV *cell)
+{
+    SV * const value = AvARRAY(cell)[0];
+    SV ** const slot = hv_sig_fetch(hv, key, len);
+    SSize_t mgs_ix;
+    if ((slot ? *slot : NULL) == value)
+        return;
+    mgs_ix = SSNEW(sizeof(MGS));
+    save_magic(mgs_ix, MUTABLE_SV(hv));
+    if (slot && *slot)
+        sv_2mortal(SvREFCNT_inc(*slot));
+    if (value)
+        (void)hv_store(hv, key, len, SvREFCNT_inc(value), 0);
+    else {
+        if (slot && *slot == &PL_sv_placeholder)
+            (void)hv_store(hv, key, len, newSV(0), 0);
+        (void)hv_delete(hv, key, len, G_DISCARD);
+    }
+    restore_magic(INT2PTR(void *, (IV)mgs_ix));
+}
+
+void
+Perl_sig_bindings_sync(pTHX_ HV *hv, SV *keysv, const char *key, STRLEN len)
+{
+    AV *cell;
+    PERL_ARGS_ASSERT_SIG_BINDINGS_SYNC;
+    if (!S_sig_bindings_active(aTHX_ hv))
+        return;
+    if (keysv && !key)
+        key = SvPV_const(keysv, len);
+    if (key) {
+        cell = S_sig_binding_cell(aTHX_ key, len);
+        if (cell)
+            S_sig_binding_sync_one(aTHX_ hv, key, len, cell);
+    }
+    else {
+        HE *entry;
+        hv_iterinit(PL_sig_bindings);
+        while ((entry = hv_iternext(PL_sig_bindings)))
+            S_sig_binding_sync_one(aTHX_ hv, HeKEY(entry), HeKLEN(entry),
+                                   MUTABLE_AV(HeVAL(entry)));
+    }
+}
+
+/* Pointer fields live in the AV, where normal SV ownership and interpreter
+ * cloning can see them. The byte buffer contains only native signal data. */
+enum {
+    SIGLOCAL_CELL, SIGLOCAL_OUTSIDE, SIGLOCAL_HANDLER, SIGLOCAL_NAME,
+    SIGLOCAL_NATIVE, SIGLOCAL_HASH, SIGLOCAL_KEY, SIGLOCAL_FIELDS
+};
+
+typedef struct {
+    Sigsave_t action;
+    I32 number;
+    bool native;
+    bool ignoring;
+    bool defaulting;
+#ifdef HAS_SIGPROCMASK
+    sigset_t mask;
+#endif
+} sig_local_native;
+
+static SV **
+S_sig_local_handler(pTHX_ I32 number)
+{
+    if (number == -1)
+        return &PL_diehook;
+    if (number == -2)
+        return &PL_warnhook;
+    if (number == -3)
+        return &PL_excepthook;
+    return NULL;
+}
+
+AV *
+Perl_sig_local_prepare(pTHX_ HV *hv, SV *keysv, bool absent)
+{
+    STRLEN len;
+    const char *key;
+    I32 number;
+    AV *cell, *record;
+    SV **slot;
+    sig_local_native native;
+    const I32 floor = PL_savestack_ix;
+    GV *gv;
+    PERL_ARGS_ASSERT_SIG_LOCAL_PREPARE;
+    if (!PL_sig_local_owner || !SvMAGICAL(hv)
+        || !mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig)
+        || SvTIED_mg(MUTABLE_SV(hv), PERL_MAGIC_tied))
+        return NULL;
+    gv = gv_fetchpvs("SIG", GV_ADD | GV_NOTQUAL, SVt_PVHV);
+    if (GvHV(gv) != hv)
+        return NULL;
+    key = SvPV_const(keysv, len);
+    if (memEQs(key, len, "__DIE__"))
+        number = -1;
+    else if (memEQs(key, len, "__WARN__"))
+        number = -2;
+    else if (memEQs(key, len, "__EXCEPT__"))
+        number = -3;
+    else if ((number = whichsig_pvn(key, len)) <= 0)
+        return NULL;
+    Zero(&native, 1, sig_local_native);
+    native.number = number;
+    if (number > 0) {
+#if defined(HAS_SIGACTION) && defined(HAS_SIGPROCMASK)
+#  ifdef USE_ITHREADS
+        if (PL_curinterp == aTHX)
+#  endif
+        {
+#ifdef SIGKILL
+            if (number != SIGKILL)
+#endif
+#ifdef SIGSTOP
+            if (number != SIGSTOP)
+#endif
+            {
+            if (sigaction(number, NULL, &native.action) == 0)
+                native.native = TRUE;
+            else
+                PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_READ_FAILED();
+            }
+        }
+#else
+        /* This prototype needs a nondestructive way to read the complete
+         * disposition and block delivery during the exchange. */
+        return NULL;
+#endif
+#ifdef FAKE_PERSISTENT_SIGNAL_HANDLERS
+        native.ignoring = PL_sig_ignoring[number];
+#endif
+#ifdef FAKE_DEFAULT_SIGNAL_HANDLERS
+        native.defaulting = PL_sig_defaulting[number];
+#endif
+    }
+    if (!PL_sig_bindings) {
+        PL_sig_bindings = newHV();
+        PL_sig_bindings_gv = (GV *)SvREFCNT_inc(gv);
+    }
+    cell = S_sig_binding_cell(aTHX_ key, len);
+    if (!cell) {
+        cell = newAV();
+        SAVEFREESV(cell);
+        av_extend(cell, 0);
+        AvFILLp(cell) = 0;
+        slot = hv_sig_fetch(hv, key, len);
+        AvARRAY(cell)[0] = slot ? SvREFCNT_inc(*slot) : NULL;
+        (void)hv_store(PL_sig_bindings, key, len, SvREFCNT_inc(cell), 0);
+    }
+    record = newAV();
+    SAVEFREESV(record);
+    av_extend(record, SIGLOCAL_FIELDS - 1);
+    AvFILLp(record) = SIGLOCAL_FIELDS - 1;
+    AvARRAY(record)[SIGLOCAL_CELL] = SvREFCNT_inc(cell);
+    AvARRAY(record)[SIGLOCAL_OUTSIDE] = absent
+        ? (SvREADONLY(hv) ? &PL_sv_placeholder : NULL)
+        : SvREFCNT_inc(AvARRAY(cell)[0]);
+    {
+        SV * const handler = number > 0 ? PL_psig_ptr[number]
+            : *S_sig_local_handler(aTHX_ number);
+        AvARRAY(record)[SIGLOCAL_HANDLER] = handler && handler != PERL_WARNHOOK_FATAL
+            ? newSVsv_nomg(handler) : handler;
+    }
+    if (number > 0)
+        AvARRAY(record)[SIGLOCAL_NAME] = SvREFCNT_inc(PL_psig_name[number]);
+    AvARRAY(record)[SIGLOCAL_NATIVE] = newSVpvn((const char *)&native, sizeof(native));
+    AvARRAY(record)[SIGLOCAL_HASH] = SvREFCNT_inc(hv);
+    AvARRAY(record)[SIGLOCAL_KEY] = newSVpvn(key, len);
+    SvREFCNT_inc_simple_void_NN(record);
+    LEAVE_SCOPE(floor);
+    return record;
+}
+
+SV **
+Perl_sig_local_slot(pTHX_ AV *record)
+{
+    PERL_ARGS_ASSERT_SIG_LOCAL_SLOT;
+    PERL_UNUSED_CONTEXT;
+    return &AvARRAY(MUTABLE_AV(AvARRAY(record)[SIGLOCAL_CELL]))[0];
+}
+
+bool
+Perl_sig_local_valid(pTHX_ AV *record)
+{
+    HV * const hv = MUTABLE_HV(AvARRAY(record)[SIGLOCAL_HASH]);
+    PERL_ARGS_ASSERT_SIG_LOCAL_VALID;
+    return S_sig_bindings_active(aTHX_ hv)
+        && SvMAGICAL(hv) && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig);
+}
+
+void
+Perl_sig_local_freeze(pTHX_ AV *record)
+{
+    SV ** const fields = AvARRAY(record);
+    sig_local_native * const native = (sig_local_native *)SvPVX(fields[SIGLOCAL_NATIVE]);
+    const I32 number = native->number;
+    SV ** const hook = S_sig_local_handler(aTHX_ number);
+    SV * const current = number > 0 ? PL_psig_ptr[number] : *hook;
+    PERL_ARGS_ASSERT_SIG_LOCAL_FREEZE;
+    /* Signal aliases can refresh another spelling's element in place.
+     * Keep the effective callback separate from those public wrappers,
+     * while preserving the binding SVs themselves in their cells. */
+    if (current && current != PERL_WARNHOOK_FATAL && SvMAGICAL(current)) {
+        SV * const frozen = newSVsv_nomg(current);
+        if (number > 0)
+            PL_psig_ptr[number] = frozen;
+        else
+            *hook = frozen;
+        sv_2mortal(current);
+    }
+}
+
+bool
+Perl_sig_local_exchange(pTHX_ AV *record)
+{
+    SV ** const fields = AvARRAY(record);
+    sig_local_native * const native = (sig_local_native *)SvPVX(fields[SIGLOCAL_NATIVE]);
+    SV ** const slot = sig_local_slot(record);
+    SV ** const handler = S_sig_local_handler(aTHX_ native->number);
+    SV *temp;
+    STRLEN len;
+    const char * const key = SvPV_const(fields[SIGLOCAL_KEY], len);
+    HV * const hv = MUTABLE_HV(fields[SIGLOCAL_HASH]);
+    SV ** const cached = hv_sig_fetch(hv, key, len);
+    PERL_ARGS_ASSERT_SIG_LOCAL_EXCHANGE;
+#ifdef HAS_SIGACTION
+    if (native->native) {
+        Sigsave_t current;
+        if (sigaction(native->number, &native->action, &current) < 0)
+            return FALSE;
+        native->action = current;
+    }
+#endif
+    /* The cell owns the outgoing value while its cache reference is
+     * dropped. No handler destructor can run in the middle of a switch. */
+    if (*slot && *slot != &PL_sv_placeholder && cached && *cached == *slot) {
+        temp = *cached;
+        assert(SvREFCNT(temp) > 1);
+        *cached = &PL_sv_undef;
+        SvREFCNT_dec(temp);
+    }
+#define SWAP_SIG(field, target) STMT_START { \
+    temp = (target);                       \
+    (target) = fields[field];              \
+    fields[field] = temp;                  \
+} STMT_END
+    SWAP_SIG(SIGLOCAL_OUTSIDE, *slot);
+    if (native->number > 0) {
+        SWAP_SIG(SIGLOCAL_HANDLER, PL_psig_ptr[native->number]);
+        SWAP_SIG(SIGLOCAL_NAME, PL_psig_name[native->number]);
+#ifdef FAKE_PERSISTENT_SIGNAL_HANDLERS
+        const bool ignoring = PL_sig_ignoring[native->number];
+        PL_sig_ignoring[native->number] = native->ignoring;
+        native->ignoring = ignoring;
+#endif
+#ifdef FAKE_DEFAULT_SIGNAL_HANDLERS
+        const bool defaulting = PL_sig_defaulting[native->number];
+        PL_sig_defaulting[native->number] = native->defaulting;
+        native->defaulting = defaulting;
+#endif
+    }
+    else {
+        SWAP_SIG(SIGLOCAL_HANDLER, *handler);
+    }
+#undef SWAP_SIG
+    return TRUE;
+}
+
+void
+Perl_sig_local_finish(pTHX_ AV *record, bool discard)
+{
+    PERL_ARGS_ASSERT_SIG_LOCAL_FINISH;
+    SAVEFREESV(record);
+    if (!discard) {
+        sig_local_block(record);
+        const bool restored = sig_local_exchange(record);
+        sig_local_unblock(record);
+        if (!restored)
+            PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_RESTORE_FAILED();
+        sig_bindings_sync(MUTABLE_HV(AvARRAY(record)[SIGLOCAL_HASH]),
+                          AvARRAY(record)[SIGLOCAL_KEY], NULL, 0);
+    }
+}
+
+void
+Perl_sig_local_block(pTHX_ AV *record)
+{
+    PERL_ARGS_ASSERT_SIG_LOCAL_BLOCK;
+#ifdef HAS_SIGPROCMASK
+    sig_local_native * const native = (sig_local_native *)
+        SvPVX(AvARRAY(record)[SIGLOCAL_NATIVE]);
+    sigset_t all;
+    sigfillset(&all);
+    if (sigprocmask(SIG_BLOCK, &all, &native->mask) < 0)
+        PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_BLOCK_FAILED();
+#else
+    PERL_UNUSED_CONTEXT;
+    PERL_UNUSED_ARG(record);
+#endif
+}
+
+void
+Perl_sig_local_unblock(pTHX_ AV *record)
+{
+    PERL_ARGS_ASSERT_SIG_LOCAL_UNBLOCK;
+#ifdef HAS_SIGPROCMASK
+    sig_local_native * const native = (sig_local_native *)
+        SvPVX(AvARRAY(record)[SIGLOCAL_NATIVE]);
+    (void)sigprocmask(SIG_SETMASK, &native->mask, NULL);
+#else
+    PERL_UNUSED_CONTEXT;
+    PERL_UNUSED_ARG(record);
+#endif
+}
+
 /*
 =for apidoc mg_magical
 
@@ -2275,6 +2629,15 @@ Perl_magic_clearsig(pTHX_ SV *sv, MAGIC *mg)
 {
     PERL_ARGS_ASSERT_MAGIC_CLEARSIG;
 
+    if (PL_sig_bindings_gv && PL_sig_bindings) {
+        HV * const sig = GvHV(PL_sig_bindings_gv);
+        STRLEN len;
+        const char * const key = MgPV_const(mg, len);
+        SV ** const slot = sig ? hv_sig_fetch(sig, key, len) : NULL;
+        if (slot && *slot == sv)
+            sig_bindings_record(sig, key, len,
+                             SvREADONLY(sig) ? &PL_sv_placeholder : NULL);
+    }
     magic_setsig(NULL, mg);
     return sv_unmagic(sv, mg->mg_type);
 }
@@ -2507,6 +2870,7 @@ Perl_magic_setsig(pTHX_ SV *sv, MAGIC *mg)
     PERL_ARGS_ASSERT_MAGIC_SETSIG;
 
     I32 i;
+    SV * const assigned = sv;
     SV** svp = NULL;
     /* Need to be careful with SvREFCNT_dec(), because that can have side
      * effects (due to closures). We must make sure that the new disposition
@@ -2665,6 +3029,16 @@ Perl_magic_setsig(pTHX_ SV *sv, MAGIC *mg)
         LEAVE;
 #endif
 
+    if (assigned && PL_sig_bindings && PL_sig_bindings_gv) {
+        STRLEN hooklen;
+        const char * const name = MgPV_const(mg, hooklen);
+        if (S_sig_binding_cell(aTHX_ name, hooklen)) {
+            HV * const sig = GvHV(PL_sig_bindings_gv);
+            SV ** const slot = sig ? hv_sig_fetch(sig, name, hooklen) : NULL;
+            if (slot && *slot == assigned)
+                sig_bindings_record(sig, name, hooklen, assigned);
+        }
+    }
     SvREFCNT_dec(to_dec);
     return 0;
 }
@@ -2676,6 +3050,15 @@ Perl_magic_setsigall(pTHX_ SV* sv, MAGIC* mg)
     PERL_ARGS_ASSERT_MAGIC_SETSIGALL;
     PERL_UNUSED_ARG(mg);
 
+    if (PL_sig_bindings && PL_localizing) {
+        HV * const hv = MUTABLE_HV(sv);
+        HE *entry;
+        hv_iterinit(PL_sig_bindings);
+        while ((entry = hv_iternext(PL_sig_bindings))) {
+            SV ** const slot = hv_sig_fetch(hv, HeKEY(entry), HeKLEN(entry));
+            sig_bindings_record(hv, HeKEY(entry), HeKLEN(entry), slot ? *slot : NULL);
+        }
+    }
     if (PL_localizing == 2) {
         HV* hv = (HV*)sv;
         HE* current;

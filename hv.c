@@ -52,6 +52,20 @@ static bool S_large_hash_heuristic(pTHX_ HV *hv, STRLEN size);
 
 #include "perl_hv_strtab.c"
 
+/* Hook projection needs the physical slot, including approved-but-absent
+ * keys. Do not invoke magic or enforce user access rules on this lookup. */
+SV **
+Perl_hv_sig_fetch(pTHX_ HV *hv, const char *key, STRLEN len)
+{
+    HE *entry;
+    U32 hash;
+    PERL_ARGS_ASSERT_HV_SIG_FETCH;
+    if (!HvARRAY(hv))
+        return NULL;
+    PERL_HASH(hash, key, len);
+    entry = S_hv_index_find(aTHX_ hv, hash, key, len, 0, NULL, NULL);
+    return entry ? &HeVAL(entry) : NULL;
+}
 
 
 static void
@@ -654,6 +668,8 @@ Perl_hv_common(pTHX_ HV *hv, SV *keysv, const char *key, STRLEN klen,
     }
 
     if (SvMAGICAL(hv)) {
+        if (PL_sig_bindings && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig))
+            sig_bindings_sync(hv, keysv, key, klen);
         if (SvRMAGICAL(hv) && !(action & (HV_FETCH_ISSTORE|HV_FETCH_ISEXISTS))) {
             if (mg_find((const SV *)hv, PERL_MAGIC_tied)
                 || SvGMAGICAL((const SV *)hv))
@@ -1023,6 +1039,10 @@ Perl_hv_common(pTHX_ HV *hv, SV *keysv, const char *key, STRLEN klen,
            anything */
         goto not_found;
     }
+    if (SvMAGICAL(hv) && PL_sig_bindings
+        && (action & (HV_FETCH_LVALUE | HV_FETCH_ISSTORE))
+        && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig))
+        sig_bindings_record(hv, HeKEY(entry), HeKLEN(entry), HeVAL(entry));
     if (flags & HVhek_FREEKEY)
         Safefree(key);
     if (return_svp) {
@@ -1116,6 +1136,9 @@ Perl_hv_common(pTHX_ HV *hv, SV *keysv, const char *key, STRLEN klen,
             HvAUX(hv)->xhv_aux_flags |= HvAUXf_ITER_INSERTED;
         if (val == &PL_sv_placeholder) HvPLACEHOLDERS(hv)++;
         if (flags & HVhek_ENABLEHVKFLAGS) HvHASKFLAGS_on(hv);
+        if (SvMAGICAL(hv) && PL_sig_bindings
+            && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig))
+            sig_bindings_record(hv, HeKEY(entry), HeKLEN(entry), HeVAL(entry));
         return return_svp ? (void *)&HeVAL(entry) : (void *)entry;
     }
     /* All value hashes use compact entry storage. */
@@ -1163,6 +1186,10 @@ SV *
 Perl_hv_scalar(pTHX_ HV *hv)
 {
     PERL_ARGS_ASSERT_HV_SCALAR;
+
+    if (SvMAGICAL(hv) && PL_sig_bindings
+        && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig))
+        sig_bindings_sync(hv, NULL, NULL, 0);
 
     SV *sv;
     UV u;
@@ -1438,6 +1465,13 @@ S_hv_delete_common(pTHX_ HV *hv, SV *keysv, const char *key, STRLEN klen,
     if (SvREADONLY(hv) && sv && SvREADONLY(sv)) {
         S_hv_notallowed(aTHX_ k_flags, key, klen, HV_NOTALLOWED_DELETE_READONLY);
     }
+
+    /* A restored delete-local value may no longer have element magic.
+     * Record successful removal independently of its clear callback. */
+    if (SvMAGICAL(hv) && PL_sig_bindings
+        && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig))
+        sig_bindings_record(hv, key, klen,
+                            SvREADONLY(hv) ? &PL_sv_placeholder : NULL);
 
     /*
      * If a restricted hash, rather than really deleting the entry, put
@@ -2058,6 +2092,9 @@ Perl_hv_clear(pTHX_ HV *hv)
 
     if (!hv)
         return;
+    if (SvMAGICAL(hv) && PL_sig_bindings
+        && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig))
+        sig_bindings_sync(hv, NULL, NULL, 0);
     DEBUG_A(Perl_hv_assert(aTHX_ hv));
 
     /* avoid hv being freed when calling destructors below */
@@ -2089,6 +2126,10 @@ Perl_hv_clear(pTHX_ HV *hv)
                     SV *oldval = HeVAL(entry);
                     HeVAL(entry) = &PL_sv_placeholder;
                     HvPLACEHOLDERS(hv)++;
+                    if (SvMAGICAL(hv) && PL_sig_bindings
+                        && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig))
+                        sig_bindings_record(hv, HeKEY(entry), HeKLEN(entry),
+                                         &PL_sv_placeholder);
                     if (oldval) SvREFCNT_dec_NN(oldval);
                 }
                 if (!HvIS_LINEAR(hv))
@@ -2115,6 +2156,10 @@ Perl_hv_clear(pTHX_ HV *hv)
                     }
                     HeVAL(entry) = &PL_sv_placeholder;
                     HvPLACEHOLDERS(hv)++;
+                    if (SvMAGICAL(hv) && PL_sig_bindings
+                        && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig))
+                        sig_bindings_record(hv, HeKEY(entry), HeKLEN(entry),
+                                         &PL_sv_placeholder);
                     if (oldval) SvREFCNT_dec_NN(oldval);
                     if (can_callback)
                         i = 0;
@@ -2385,6 +2430,9 @@ Perl_hfree_next_entry(pTHX_ HV *hv, STRLEN *indexp)
                     moved = TRUE;
             }
             S_linear_remove_at(aTHX_ hv, i, &hek, &klen, &kflags);
+            if (SvMAGICAL(hv) && PL_sig_bindings
+                && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig))
+                sig_bindings_record(hv, HEK_KEY(hek), klen, NULL);
             *indexp = i;
             if (moved)
                 mro_package_moved(NULL, GvHV(val), (GV *)val, 0);
@@ -2411,6 +2459,9 @@ Perl_hfree_next_entry(pTHX_ HV *hv, STRLEN *indexp)
             S_hv_index_delete(hv, pos);
             val = HeVAL(candidate);
             HeVAL(candidate) = NULL;
+            if (SvMAGICAL(hv) && PL_sig_bindings
+                && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig))
+                sig_bindings_record(hv, HeKEY(candidate), HeKLEN(candidate), NULL);
             {
                 bool moved = FALSE;
                 if (PL_phase != PERL_PHASE_DESTRUCT && HvHasENAME(hv) &&
@@ -2460,6 +2511,9 @@ Perl_hv_undef_flags(pTHX_ HV *hv, U32 flags)
 
     if (!hv)
         return;
+    if (SvMAGICAL(hv) && PL_sig_bindings
+        && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig))
+        sig_bindings_sync(hv, NULL, NULL, 0);
     save = cBOOL(SvREFCNT(hv));
     DEBUG_A(Perl_hv_assert(aTHX_ hv));
 
@@ -2692,6 +2746,9 @@ I32
 Perl_hv_iterinit(pTHX_ HV *hv)
 {
     PERL_ARGS_ASSERT_HV_ITERINIT;
+    if (SvMAGICAL(hv) && PL_sig_bindings
+        && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig))
+        sig_bindings_sync(hv, NULL, NULL, 0);
     if (HvHasAUX(hv)) {
         struct xpvhv_aux * iter = HvAUX(hv);
         HE * const entry = iter->xhv_eiter; /* HvEITER(hv) */
@@ -3136,6 +3193,10 @@ HE *
 Perl_hv_iternext_flags(pTHX_ HV *hv, I32 flags)
 {
     PERL_ARGS_ASSERT_HV_ITERNEXT_FLAGS;
+
+    if (SvMAGICAL(hv) && PL_sig_bindings
+        && mg_find(MUTABLE_SV(hv), PERL_MAGIC_sig))
+        sig_bindings_sync(hv, NULL, NULL, 0);
 
     HE *entry;
     HE *oldentry;

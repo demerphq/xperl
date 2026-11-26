@@ -14423,6 +14423,7 @@ PP(pp_pushdefer)
         SAVEDESTRUCTOR_X(invoke_finally_block, PL_op);
     else
         SAVEDESTRUCTOR_X(invoke_defer_block, PL_op);
+    PL_savestack[PL_savestack_ix - 1].any_uv |= SAVE_DESTRUCTOR_SUSPEND_SAFE;
 
     return NORMAL;
 }

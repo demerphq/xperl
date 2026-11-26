@@ -1360,6 +1360,29 @@ even when restoring a local variable throws.
 
 =item *
 
+Generators preserve input separators, selected output handles and compiler
+hints. Whole package array and hash locals, package C<foreach> iterators
+and localized C<%SIG> entries are restored to the caller on yield and
+reinstated on resume. Native signal
+locals require C<sigaction> and C<sigprocmask>. Ordinary signal assignments remain
+global, and C<%SIG> key order is not preserved across generator switches.
+Before suspending, C<yield> rejects unsupported active localizations such
+as ordinary array or hash elements and whole globs. The generator can
+catch this exception and yield after the offending scope ends. Completed
+helper calls and localizations belonging to the caller do not prevent
+suspension.
+
+Explicit C<local $_> and ordinary scalar locals replay in scope order
+when the caller aliases their names while a generator is paused. This
+also gives destructors the correct inner binding on abandonment.
+
+Generator boundary checks leave coderefs in the C<SIG> and C</> symbol-table
+entries unchanged. A retained C<local $/> remains valid after its entry is
+replaced. Ordinary scalar and package-loop aliases to the separator reject
+resume before replay, keeping C<$/> and C<readline> consistent.
+
+=item *
+
 C<exit> inside a generator unwinds its private execution before its
 callers, preserving process exit status and releasing resources before
 C<END>.  Copied-stack interpreter cloning rejects an active generator

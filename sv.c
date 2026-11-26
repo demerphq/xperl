@@ -17063,20 +17063,27 @@ Perl_ss_dup(pTHX_ PerlInterpreter *proto_perl, CLONE_PARAMS* param)
 
         TOPUV(nss,ix) = uv;
         switch (type) {
+        case SAVEt_SIGLOCAL:
+            av = (const AV *)POPPTR(ss,ix);
+            TOPPTR(nss,ix) = av_dup_inc(av, param);
+            break;
         case SAVEt_CLEARSV:
         case SAVEt_CLEARPADRANGE:
         case SAVEt_PADSV_NULL:
             break;
         case SAVEt_HELEM:		/* hash element */
         case SAVEt_SV:			/* scalar reference */
+        case SAVEt_REVSV:
             sv = (const SV *)POPPTR(ss,ix);
-            TOPPTR(nss,ix) = SvREFCNT_inc(sv_dup_inc(sv, param));
+            TOPPTR(nss,ix) = sv_dup_inc(sv, param);
+            if (type != SAVEt_REVSV || !(uv & SAVE_REVSV_AGGREGATE))
+                SvREFCNT_inc_void((SV *)TOPPTR(nss,ix));
             /* FALLTHROUGH */
         case SAVEt_ITEM:			/* normal string */
         case SAVEt_GVSV:			/* scalar slot in GV */
             sv = (const SV *)POPPTR(ss,ix);
             TOPPTR(nss,ix) = sv_dup_inc(sv, param);
-            if (type == SAVEt_SV)
+            if (type == SAVEt_SV || type == SAVEt_REVSV)
                 break;
             /* FALLTHROUGH */
         case SAVEt_FREESV:
@@ -17849,6 +17856,9 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
     PL_diehook		= sv_dup_inc(proto_perl->Idiehook, param);
     PL_warnhook		= sv_dup_inc(proto_perl->Iwarnhook, param);
     PL_excepthook	= sv_dup_inc(proto_perl->Iexcepthook, param);
+    PL_sig_bindings        = hv_dup_inc(proto_perl->Isig_bindings, param);
+    PL_sig_bindings_gv     = gv_dup_inc(proto_perl->Isig_bindings_gv, param);
+    PL_sig_local_owner  = FALSE;
 
     PL_hook__require__before = sv_dup_inc(proto_perl->Ihook__require__before, param);
     PL_hook__require__after  = sv_dup_inc(proto_perl->Ihook__require__after, param);

@@ -178,3 +178,11 @@ SAVEt_GVSLOT
 SAVEt_AELEM
 SAVEt_DELETE
 SAVEt_HINTS_HH
+
+/* two args */
+
+SAVEt_REVSV
+
+/* one arg */
+
+SAVEt_SIGLOCAL

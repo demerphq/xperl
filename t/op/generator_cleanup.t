@@ -110,83 +110,46 @@ abandon_with_arguments('caller argument');
         $self->{value} = $value;
     }
 }
+# Tied element restoration can run Perl code. It must finish before yield,
+# rather than leave an unsafe restore for a suspended owner's cleanup.
 {
     local $_ = 'cleanup caller';
-    our $tied;
-    tie $tied, 'GeneratorCleanupTie';
-    my ($continued, $cleaned) = (0, 0);
+    our @tied;
+    tie $tied[0], 'GeneratorCleanupTie';
+    my ($caught, $cleaned) = (0, 0);
     my $g = gen {
         $_ = 'cleanup owner';
         my $guard = bless sub { ++$cleaned }, 'GeneratorCleanupGuard';
-        eval {
-            local $tied = 'inside';
-            yield 'tied local';
-        };
-        ++$continued;
+        {
+            local $tied[0] = 'inside';
+            eval { yield 'blocked' };
+            $caught = $@;
+            is($tied[0], 'inside', 'caught rejection retains the tied local');
+        }
+        yield 'safe';
     };
-    is($g->(), 'tied local', 'generator suspends with a tied local');
-    eval { die "caller error\n" };
-    my $caller_error = $@;
-    my $caller_exception = ${^ERROR_OBJ};
-    my @warnings;
-    local $SIG{__WARN__} = sub { push @warnings, [$_, "$_[0]"] };
-    $GeneratorCleanupTie::fail = 1;
+    is($g->(), 'safe', 'generator yields after the tied local ends');
+    like($caught, qr/unsupported localization/, 'tied local rejects suspension');
+    is($tied[0], 'outside', 'scope exit restores the tied element');
+    is($cleaned, 0, 'rejection does not destroy the generator scope');
     abandon($g);
-    is($continued, 0, 'cleanup error does not enter the abandoned handler');
-    is($cleaned, 1, 'cleanup continues after a tied restoration error');
-    is($_, 'cleanup caller', 'throwing cleanup restores the caller topic');
-    is($@, $caller_error, 'throwing cleanup preserves the caller error');
-    is(${^ERROR_OBJ}, $caller_exception, 'throwing cleanup preserves the canonical caller exception');
-    is(scalar @warnings, 1, 'throwing cleanup reports a warning');
-    like($warnings[0][1] // '', qr/cleanup store failed/, 'warning explains the cleanup failure');
-    is($warnings[0][0], 'cleanup caller', 'warning runs after restoring the caller');
-    untie $tied;
+    is($cleaned, 1, 'abandonment destroys the surviving lexical guard once');
+    is($_, 'cleanup caller', 'abandonment preserves the caller topic');
+    untie $tied[0];
 }
 
 {
-    our ($first_tied, $second_tied);
-    tie $first_tied, 'GeneratorCleanupTie';
-    tie $second_tied, 'GeneratorCleanupTie';
-    eval { die "repeated cleanup failure\n" };
-    local $GeneratorCleanupTie::failure = ${^ERROR_OBJ};
+    our @fatal_tied;
+    tie $fatal_tied[0], 'GeneratorCleanupTie';
     my $g = gen {
-        eval {
-            local $first_tied = 'first';
-            eval {
-                local $second_tied = 'second';
-                yield 'two tied locals';
-            };
-        };
+        local $fatal_tied[0] = 'inside';
+        yield 'blocked';
     };
-    is($g->(), 'two tied locals', 'nested tied locals suspend');
-    my @warnings;
-    local $SIG{__WARN__} = sub { push @warnings, "$_[0]" };
-    $GeneratorCleanupTie::fail = 2;
-    abandon($g);
-    is(scalar @warnings, 2, 'each throwing restore reports its error');
-    like($warnings[0] // '', qr/repeated cleanup failure/, 'first restore failure is reported');
-    like($warnings[1] // '', qr/repeated cleanup failure/, 'rethrowing the same exception is safe');
-    my $original_messages = () = "$GeneratorCleanupTie::failure"
-        =~ /^repeated cleanup failure$/mg;
-    is($original_messages, 1, 'reporting does not duplicate the original diagnostic');
-    untie $first_tied;
-    untie $second_tied;
-}
-
-{
-    our $fatal_tied;
-    tie $fatal_tied, 'GeneratorCleanupTie';
-    my $g = gen {
-        local $fatal_tied = 'inside';
-        yield 'fatal warning';
-    };
-    is($g->(), 'fatal warning', 'fatal cleanup warning test suspends');
-    local $SIG{__WARN__} = sub { die "warning hook failed\n" };
-    $GeneratorCleanupTie::fail = 1;
-    my $ok = eval { undef $g; 1 };
-    ok(!$ok, 'a throwing warning hook reaches the caller');
-    like($@, qr/warning hook failed/, 'caller receives the warning hook exception');
-    untie $fatal_tied;
+    my $ok = eval { scalar $g->(); 1 };
+    ok(!$ok, 'uncaught rejection prevents parking a tied element');
+    like($@, qr/unsupported localization/, 'tied element rejection reaches the caller');
+    is($fatal_tied[0], 'outside', 'failed execution restores the tied element');
+    untie $fatal_tied[0];
 }
 
 done_testing;

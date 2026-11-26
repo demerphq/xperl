@@ -8089,12 +8089,22 @@ t/op/for-many.t				See if n-at-a-time for loops work
 t/op/fork.t				See if fork works
 t/op/fresh_perl_utf8.t			UTF8 tests for pads and gvs
 t/op/generator.t			See if generator blocks work
+t/op/generator_aggregate_local.t	Generator whole aggregate localization
 t/op/generator_bindings.t		Default binding identity across suspension
 t/op/generator_cleanup.t		Default variables during generator cleanup
 t/op/generator_context.t		Generator exception scopes across suspension
+t/op/generator_environment.t		Generator interpreter environment isolation
 t/op/generator_exit.t			Process exit across private execution roots
+t/op/generator_local.t			Reversible package scalar localization tests
+t/op/generator_local_guard.t		Generator suspension localization checks
+t/op/generator_local_random.t		Randomized dynamic binding ownership tests
+t/op/generator_loop_local.t		Generator package loop localization
 t/op/generator_pad.t			Suspended activation pad ownership tests
 t/op/generator_pad_random.t		Randomized activation ownership and cleanup tests
+t/op/generator_root_validation.t	Generator retained root validation
+t/op/generator_sig_local.t		Generator signal localization
+t/op/generator_topic_alias.t		Generator map and grep topic aliases
+t/op/generator_topic_local.t		Generator explicit topic localization
 t/op/getpid.t				See if $$ and getppid work with threads
 t/op/getppid.t				See if getppid works
 t/op/gh13170-die-destroy-recursion.t	Test die/DESTROY/recursion bug

@@ -30960,6 +30960,33 @@ $CONF = {
           },
           "class" => "XPerl::Diagnostic::Error::Iterator::Generator"
         },
+        "ERROR_ITERATOR_GENERATOR_LOCALIZATION_UNSUPPORTED" => {
+          "number" => 2803,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_ITERATOR_GENERATOR_LOCALIZATION_UNSUPPORTED",
+          "macro" => "PERL_THROW_ERROR_ITERATOR_GENERATOR_LOCALIZATION_UNSUPPORTED",
+          "source_files" => [
+            "run.c",
+            "scope.c"
+          ],
+          "tags" => [
+            "condition:invalid_syntax_value_state",
+            "subject:generators",
+            "subject:iteration"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "Cannot yield with an unsupported localization still in scope"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK_CONTEXT"
+          },
+          "class" => "XPerl::Diagnostic::Error::Iterator::Generator"
+        },
         "ERROR_ITERATOR_GENERATOR_NO_SUSPENDED_CONTINUATION" => {
           "number" => 1068,
           "severity" => "FATAL_ERROR",
@@ -56382,6 +56409,131 @@ $CONF = {
           "counts_as_error" => 1,
           "emit" => {
             "api" => "CROAK"
+          },
+          "class" => "XPerl::Diagnostic::Error::System::Signal"
+        },
+        "ERROR_SYSTEM_SIGNAL_LOCALIZATION_BLOCK_FAILED" => {
+          "number" => 2800,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_SYSTEM_SIGNAL_LOCALIZATION_BLOCK_FAILED",
+          "macro" => "PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_BLOCK_FAILED",
+          "source_files" => [
+            "mg.c"
+          ],
+          "tags" => [
+            "condition:operation_failed",
+            "subject:signals"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "Unable to block signals while switching localizations"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK_CONTEXT"
+          },
+          "class" => "XPerl::Diagnostic::Error::System::Signal"
+        },
+        "ERROR_SYSTEM_SIGNAL_LOCALIZATION_READ_FAILED" => {
+          "number" => 2798,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_SYSTEM_SIGNAL_LOCALIZATION_READ_FAILED",
+          "macro" => "PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_READ_FAILED",
+          "source_files" => [
+            "mg.c"
+          ],
+          "tags" => [
+            "condition:operation_failed",
+            "subject:signals"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "Unable to read localized signal disposition"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK_CONTEXT"
+          },
+          "class" => "XPerl::Diagnostic::Error::System::Signal"
+        },
+        "ERROR_SYSTEM_SIGNAL_LOCALIZATION_REINSTALL_FAILED" => {
+          "number" => 2802,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_SYSTEM_SIGNAL_LOCALIZATION_REINSTALL_FAILED",
+          "macro" => "PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_REINSTALL_FAILED",
+          "source_files" => [
+            "scope.c"
+          ],
+          "tags" => [
+            "condition:operation_failed",
+            "subject:signals"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "Unable to reinstall localized signal handler"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK_CONTEXT"
+          },
+          "class" => "XPerl::Diagnostic::Error::System::Signal"
+        },
+        "ERROR_SYSTEM_SIGNAL_LOCALIZATION_RESTORE_FAILED" => {
+          "number" => 2799,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_SYSTEM_SIGNAL_LOCALIZATION_RESTORE_FAILED",
+          "macro" => "PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_RESTORE_FAILED",
+          "source_files" => [
+            "mg.c"
+          ],
+          "tags" => [
+            "condition:operation_failed",
+            "subject:signals"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "Unable to restore localized signal handler"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK_CONTEXT"
+          },
+          "class" => "XPerl::Diagnostic::Error::System::Signal"
+        },
+        "ERROR_SYSTEM_SIGNAL_LOCALIZATION_ROLLBACK_FAILED" => {
+          "number" => 2801,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_SYSTEM_SIGNAL_LOCALIZATION_ROLLBACK_FAILED",
+          "macro" => "PERL_THROW_ERROR_SYSTEM_SIGNAL_LOCALIZATION_ROLLBACK_FAILED",
+          "source_files" => [
+            "scope.c"
+          ],
+          "tags" => [
+            "condition:operation_failed",
+            "subject:signals"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "Unable to reverse signal localization switch"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK_CONTEXT"
           },
           "class" => "XPerl::Diagnostic::Error::System::Signal"
         },

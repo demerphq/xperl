@@ -4156,6 +4156,17 @@ Perl_hv_scalar(pTHX_ HV *hv)
     } STMT_END
 
 PERL_CALLCONV SV **
+Perl_hv_sig_fetch(pTHX_ HV *hv, const char *key, STRLEN len)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2);
+#define PERL_ARGS_ASSERT_HV_SIG_FETCH           \
+    STMT_START { Perl_assert_aTHX; assert(hv);                 \
+                 assert(SvTYPE(hv) == SVt_PVHV); assert(key);  \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;          \
+    } STMT_END
+
+PERL_CALLCONV SV **
 Perl_hv_store(pTHX_ HV *hv, const char *key, I32 klen, SV *val, U32 hash)
         Perl_attribute_nonnull_aTHX;
 #define PERL_ARGS_ASSERT_HV_STORE               \
@@ -4866,6 +4877,62 @@ Perl_load_module(pTHX_ U32 flags, SV *name, SV *ver, ...)
 #define PERL_ARGS_ASSERT_LOAD_MODULE            \
     STMT_START { Perl_assert_aTHX; assert(name);       \
                  PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_local_bindings_check(pTHX_ I32 top, GV *rsgv)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_2)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_LOCAL_BINDINGS_CHECK   \
+    STMT_START { Perl_assert_aTHX; assert(rsgv);       \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_local_bindings_discard(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_LOCAL_BINDINGS_DISCARD \
+    STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_local_bindings_free(pTHX_ PERL_LOCAL_BINDINGS *bindings)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_LOCAL_BINDINGS_FREE    \
+    STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV bool
+Perl_local_bindings_park(pTHX_ PERL_LOCAL_BINDINGS **owner, GV *rsgv)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_LOCAL_BINDINGS_PARK    \
+    STMT_START { Perl_assert_aTHX; assert(owner); assert(rsgv);  \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;            \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_local_bindings_resume(pTHX_ PERL_LOCAL_BINDINGS *bindings, ANY *stack)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_LOCAL_BINDINGS_RESUME  \
+    STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV bool
+Perl_local_bindings_validate(pTHX_ PERL_LOCAL_BINDINGS *bindings, const PERL_PROCESS_STATE *process, GV *rsgv)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_2)
+        Perl_attribute_nonnull(pTHX_3)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_LOCAL_BINDINGS_VALIDATE \
+    STMT_START { Perl_assert_aTHX; assert(process); assert(rsgv);  \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;              \
     } STMT_END
 
 PERL_CALLCONV_NO_RET void
@@ -9269,6 +9336,108 @@ Perl_shared_keys(pTHX)
         __attribute__warn_unused_result__;
 #define PERL_ARGS_ASSERT_SHARED_KEYS            \
     STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_sig_bindings_record(pTHX_ HV *hv, const char *key, STRLEN len, SV *value)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2);
+#define PERL_ARGS_ASSERT_SIG_BINDINGS_RECORD    \
+    STMT_START { Perl_assert_aTHX; assert(hv);                 \
+                 assert(SvTYPE(hv) == SVt_PVHV); assert(key);  \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;          \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_sig_bindings_sync(pTHX_ HV *hv, SV *keysv, const char *key, STRLEN len)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_SIG_BINDINGS_SYNC      \
+    STMT_START { Perl_assert_aTHX; assert(hv);         \
+                 assert(SvTYPE(hv) == SVt_PVHV);       \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_sig_local_block(pTHX_ AV *record)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_SIG_LOCAL_BLOCK        \
+    STMT_START { Perl_assert_aTHX; assert(record);     \
+                 assert(SvTYPE(record) == SVt_PVAV);   \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV bool
+Perl_sig_local_exchange(pTHX_ AV *record)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_SIG_LOCAL_EXCHANGE     \
+    STMT_START { Perl_assert_aTHX; assert(record);     \
+                 assert(SvTYPE(record) == SVt_PVAV);   \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_sig_local_finish(pTHX_ AV *record, bool discard)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_SIG_LOCAL_FINISH       \
+    STMT_START { Perl_assert_aTHX; assert(record);     \
+                 assert(SvTYPE(record) == SVt_PVAV);   \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_sig_local_freeze(pTHX_ AV *record)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_SIG_LOCAL_FREEZE       \
+    STMT_START { Perl_assert_aTHX; assert(record);     \
+                 assert(SvTYPE(record) == SVt_PVAV);   \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV AV *
+Perl_sig_local_prepare(pTHX_ HV *hv, SV *keysv, bool absent)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2);
+#define PERL_ARGS_ASSERT_SIG_LOCAL_PREPARE      \
+    STMT_START { Perl_assert_aTHX; assert(hv);                   \
+                 assert(SvTYPE(hv) == SVt_PVHV); assert(keysv);  \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;            \
+    } STMT_END
+
+PERL_CALLCONV SV **
+Perl_sig_local_slot(pTHX_ AV *record)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_SIG_LOCAL_SLOT         \
+    STMT_START { Perl_assert_aTHX; assert(record);     \
+                 assert(SvTYPE(record) == SVt_PVAV);   \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_sig_local_unblock(pTHX_ AV *record)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_SIG_LOCAL_UNBLOCK      \
+    STMT_START { Perl_assert_aTHX; assert(record);     \
+                 assert(SvTYPE(record) == SVt_PVAV);   \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV bool
+Perl_sig_local_valid(pTHX_ AV *record)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_SIG_LOCAL_VALID        \
+    STMT_START { Perl_assert_aTHX; assert(record);     \
+                 assert(SvTYPE(record) == SVt_PVAV);   \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
     } STMT_END
 
 PERL_CALLCONV Signal_t

@@ -364,6 +364,14 @@ S_generator_park_pads(pTHX_ PERL_GENERATOR *generator)
         S_suspended_pad_unlink(aTHX_ pad);
         S_suspended_pad_link(aTHX_ pad);
     }
+    if (generator->yield_pending)
+        local_bindings_check(oldsave, generator->environment.rsgv);
+    if (!local_bindings_park(&generator->local_bindings,
+                             generator->environment.rsgv)) {
+        if (generator->yield_pending)
+            PERL_THROW_ERROR_ITERATOR_GENERATOR_LOCALIZATION_UNSUPPORTED();
+        PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE();
+    }
     S_generator_restore_pads(aTHX_ generator);
     LEAVE_SCOPE(oldsave);
 }
@@ -647,20 +655,66 @@ PERL_GENERATOR *
 Perl_generator_new(pTHX_ CV *body)
 {
     PERL_GENERATOR *generator;
+    AV *snapshot;
+    SSize_t next = 0;
+    const I32 floor = PL_savestack_ix;
 
     PERL_ARGS_ASSERT_GENERATOR_NEW;
+    /* Creator magic can call Perl, throw, or clone the interpreter. Keep
+     * every fallible snapshot under typed save-stack ownership before
+     * allocating an execution record which cannot be cloned. */
+    snapshot = newAV();
+    SAVEFREESV(snapshot);
+    av_extend(snapshot, 9);
+    av_push(snapshot, SvREFCNT_inc(MUTABLE_SV(body)));
+    av_push(snapshot, newSVsv(GvSV(PL_defgv)
+                              ? GvSV(PL_defgv) : &PL_sv_undef));
+    av_push(snapshot, MUTABLE_SV(newAV()));
+    av_push(snapshot, newSV(0));
+    av_push(snapshot, newSV(0));
+    {
+        GV * const rsgv = gv_fetchpvs("/", GV_ADD | GV_NOTQUAL, SVt_PV);
+        SV *irs;
+        av_push(snapshot, SvREFCNT_inc(MUTABLE_SV(rsgv)));
+        irs = newSVsv(GvSVn(rsgv));
+        av_push(snapshot, irs);
+        sv_magic(irs, MUTABLE_SV(rsgv), PERL_MAGIC_sv, "/", 0);
+    }
+    av_push(snapshot, newSVsv(PL_rs));
+    av_push(snapshot, MUTABLE_SV(hv_copy_hints_hv(GvHV(PL_hintgv))));
+    av_push(snapshot, SvREFCNT_inc(MUTABLE_SV(PL_defoutgv)));
+
     Newxz(generator, 1, PERL_GENERATOR);
     generator->magic = PERL_GENERATOR_MAGIC;
-    generator->body = (CV *)SvREFCNT_inc_simple((SV *)body);
-    generator->defsv = newSVsv(GvSV(PL_defgv)
-                               ? GvSV(PL_defgv) : &PL_sv_undef);
-    generator->defav = newAV();
-    generator->errsv = newSV(0);
-    generator->errorobj = newSV(0);
+#define TAKE_SNAPSHOT(field, type) STMT_START {                 \
+    generator->field = (type)AvARRAY(snapshot)[next];           \
+    AvARRAY(snapshot)[next++] = NULL;                          \
+} STMT_END
+    TAKE_SNAPSHOT(body, CV *);
+    TAKE_SNAPSHOT(defsv, SV *);
+    TAKE_SNAPSHOT(defav, AV *);
+    TAKE_SNAPSHOT(errsv, SV *);
+    TAKE_SNAPSHOT(errorobj, SV *);
+    TAKE_SNAPSHOT(environment.rsgv, GV *);
+    TAKE_SNAPSHOT(environment.irs, SV *);
+    TAKE_SNAPSHOT(environment.rs, SV *);
+    TAKE_SNAPSHOT(environment.hinthv, HV *);
+    TAKE_SNAPSHOT(environment.defoutgv, GV *);
+#undef TAKE_SNAPSHOT
+    {
+        PERL_GENERATOR_ENVIRONMENT * const environment = &generator->environment;
+        environment->hints = PL_hints;
+        environment->hints_hash = cophh_copy(CopHINTHASH_get(&PL_compiling));
+        environment->features = PL_compiling.cop_features;
+        environment->prevailing_version = PL_prevailing_version;
+        environment->runops = PL_runops;
+        environment->sig_local_owner = TRUE;
+    }
     generator->invoke.op_ppaddr = PL_ppaddr[OP_ENTERSUB];
     generator->invoke.op_type = OP_ENTERSUB;
     generator->invoke.op_flags = OPf_STACKED | OPf_WANT_SCALAR;
     generator->state = PERL_GENERATOR_NEW;
+    LEAVE_SCOPE(floor);
     return generator;
 }
 
@@ -978,22 +1032,57 @@ static void S_generator_detach_stackinfo(pTHX_ PERL_GENERATOR *generator);
 static void S_generator_attach_stackinfo(pTHX_ PERL_GENERATOR *generator);
 
 static void
-S_generator_swap_default_variables(pTHX_ PERL_GENERATOR *generator)
+S_generator_swap_environment(pTHX_ PERL_GENERATOR *generator, bool entering)
 {
-    SV * const defsv = GvSV(PL_defgv);
-    AV * const defav = GvAV(PL_defgv);
-    SV * const errsv = ERRSV;
-    SV * const errorobj = PERL_ERROR_OBJ;
-
-    /* Exchange bindings so references and argument aliases keep their SVs. */
-    GvSV(PL_defgv) = generator->defsv;
-    generator->defsv = defsv;
-    GvAV(PL_defgv) = generator->defav;
-    generator->defav = defav;
-    GvSV(PL_errgv) = generator->errsv;
-    generator->errsv = errsv;
-    GvSV(PL_errorobjgv) = generator->errorobj;
-    generator->errorobj = errorobj;
+    /* Exchange the bindings and their interpreter backing state together.
+     * For example, reading $/ uses its GV, while readline uses PL_rs.
+     * Neither half of that setting may remain in the caller's environment.
+     * These exchanges call no magic and run no Perl code. */
+#define SWAP_ENV(field, slot, type) STMT_START { \
+    type const saved = (slot);                 \
+    (slot) = generator->environment.field;      \
+    generator->environment.field = saved;       \
+} STMT_END
+    /* Two roots may share a glob slot. Reverse the exchanges on departure
+     * so that this remains an inverse even when, for example, $/ aliases $_. */
+    if (!entering)
+        SWAP_ENV(irs, GvSV(generator->environment.rsgv), SV *);
+#define SWAP_DEFAULT(field, slot, type) STMT_START { \
+    type const saved = (slot);                     \
+    (slot) = generator->field;                     \
+    generator->field = saved;                      \
+} STMT_END
+    if (entering) {
+        SWAP_DEFAULT(defsv, GvSV(PL_defgv), SV *);
+        SWAP_DEFAULT(defav, GvAV(PL_defgv), AV *);
+        SWAP_DEFAULT(errsv, GvSV(PL_errgv), SV *);
+        SWAP_DEFAULT(errorobj, GvSV(PL_errorobjgv), SV *);
+        SWAP_ENV(irs, GvSV(generator->environment.rsgv), SV *);
+    }
+    else {
+        SWAP_DEFAULT(errorobj, GvSV(PL_errorobjgv), SV *);
+        SWAP_DEFAULT(errsv, GvSV(PL_errgv), SV *);
+        SWAP_DEFAULT(defav, GvAV(PL_defgv), AV *);
+        SWAP_DEFAULT(defsv, GvSV(PL_defgv), SV *);
+    }
+#undef SWAP_DEFAULT
+    SWAP_ENV(rs, PL_rs, SV *);
+    SWAP_ENV(hinthv, GvHV(PL_hintgv), HV *);
+    SWAP_ENV(sig_local_owner, PL_sig_local_owner, bool);
+    SWAP_ENV(defoutgv, PL_defoutgv, GV *);
+    SWAP_ENV(sortcop, PL_sortcop, OP *);
+    SWAP_ENV(sortstash, PL_sortstash, HV *);
+    SWAP_ENV(compcv, PL_compcv, CV *);
+    SWAP_ENV(comppad_name, PL_comppad_name, PADNAMELIST *);
+    SWAP_ENV(comppad_name_fill, PL_comppad_name_fill, PADOFFSET);
+    SWAP_ENV(comppad_name_floor, PL_comppad_name_floor, PADOFFSET);
+    SWAP_ENV(hints, PL_hints, U32);
+    SWAP_ENV(hints_hash, PL_compiling.cop_hints_hash, COPHH *);
+    SWAP_ENV(features, PL_compiling.cop_features, struct cop_feature_t);
+    SWAP_ENV(prevailing_version, PL_prevailing_version, U16);
+    SWAP_ENV(parser, PL_parser, yy_parser *);
+    SWAP_ENV(runops, PL_runops, runops_proc_t);
+#undef SWAP_ENV
 }
 
 static void
@@ -1111,9 +1200,17 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
                 S_generator_attach_stackinfo(aTHX_ generator);
             S_generator_install_pads(aTHX_ generator);
             process_state_restore(&generator->process);
-            /* Scope cleanup can run Perl destructors. They belong to the
-             * abandoned execution, including its default variables. */
-            S_generator_swap_default_variables(aTHX_ generator);
+            const bool bindings_valid = local_bindings_validate(
+                generator->local_bindings, &generator->process,
+                generator->environment.rsgv);
+            /* Locals can use the same slots as the owner's defaults.
+             * Install the defaults first, then replay the inner bindings.
+             * Parking removes those bindings in the opposite order. */
+            S_generator_swap_environment(aTHX_ generator, TRUE);
+            if (bindings_valid)
+                local_bindings_resume(generator->local_bindings, PL_savestack);
+            else
+                local_bindings_discard(generator->local_bindings, PL_savestack);
             PL_runops_boundary_hook = NULL;
             PL_runops_boundary_data = NULL;
             JMPENV_PUSH(ret);
@@ -1123,7 +1220,7 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
                 process_state_save(&generator->process);
                 JMPENV_POP;
                 S_generator_restore_pads(aTHX_ generator);
-                S_generator_swap_default_variables(aTHX_ generator);
+                S_generator_swap_environment(aTHX_ generator, FALSE);
                 process_state_restore(&caller_state);
                 PL_runops_boundary_hook = old_hook;
                 PL_runops_boundary_data = old_data;
@@ -1140,7 +1237,7 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
             JMPENV_POP;
             S_generator_pop_stackinfo(aTHX_ generator);
             S_generator_restore_pads(aTHX_ generator);
-            S_generator_swap_default_variables(aTHX_ generator);
+            S_generator_swap_environment(aTHX_ generator, FALSE);
             process_state_restore(&caller_state);
             PL_runops_boundary_hook = old_hook;
             PL_runops_boundary_data = old_data;
@@ -1152,12 +1249,19 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
         S_generator_free_process_stacks(aTHX_ &generator->process);
     }
     S_generator_free_pads(aTHX_ generator);
+    local_bindings_free(generator->local_bindings);
     SvREFCNT_dec(generator->value);
     SvREFCNT_dec((SV *)generator->values);
     SvREFCNT_dec(generator->defsv);
     SvREFCNT_dec((SV *)generator->defav);
     SvREFCNT_dec(generator->errsv);
     SvREFCNT_dec(generator->errorobj);
+    SvREFCNT_dec(MUTABLE_SV(generator->environment.rsgv));
+    SvREFCNT_dec(generator->environment.irs);
+    SvREFCNT_dec(generator->environment.rs);
+    SvREFCNT_dec(MUTABLE_SV(generator->environment.hinthv));
+    SvREFCNT_dec(MUTABLE_SV(generator->environment.defoutgv));
+    cophh_free(generator->environment.hints_hash);
     SvREFCNT_dec(generator->error);
     SvREFCNT_dec((SV *)generator->initial_args);
     SvREFCNT_dec((SV *)generator->resume_args);
@@ -1515,17 +1619,23 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
     SAVEBOOL(generator->pads_switching);
     SAVEFREESV(args);
     generator->pads_switching = TRUE;
+    if (!local_bindings_validate(generator->local_bindings,
+                                &generator->process, generator->environment.rsgv))
+        PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE();
     if (new_generator) {
         if (generator->initial_args)
             PERL_THROW_ERROR_ITERATOR_GENERATOR_ALREADY_INVOKED();
         generator->initial_args = (AV *)SvREFCNT_inc(args);
     }
     else {
-        AV * const old_args = generator->resume_args;
-        /* Clear ownership before calling argument destructors, and reject
-         * reentry until replacement ends. */
+        AV *old_args = generator->resume_args;
         generator->resume_args = NULL;
         SvREFCNT_dec((SV *)old_args);
+        /* Releasing old arguments can call Perl and change the resumer's
+         * aliases. The new arguments stay guarded until validation succeeds. */
+        if (!local_bindings_validate(generator->local_bindings,
+                                    &generator->process, generator->environment.rsgv))
+            PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE();
         generator->resume_args = (AV *)SvREFCNT_inc(args);
     }
     LEAVE_SCOPE(caller_save);
@@ -1583,7 +1693,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
              * Do not save an unowned pointer to the initial caller's pad. */
             PL_comppad = NULL;
             PL_curpad = NULL;
-            S_generator_swap_default_variables(aTHX_ generator);
+            S_generator_swap_environment(aTHX_ generator, TRUE);
             default_variables_swapped = TRUE;
             PL_in_eval = 0;
             PL_restartop = NULL;
@@ -1605,10 +1715,9 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
                 if (CxTYPE(&cxstack[i]) == CXt_EVAL)
                     cxstack[i].blk_eval.cur_top_env = &cur_env;
             }
-            /* Argument magic may throw and unwind private scopes. Install
-             * the owner's defaults before running that code. */
-            S_generator_swap_default_variables(aTHX_ generator);
+            S_generator_swap_environment(aTHX_ generator, TRUE);
             default_variables_swapped = TRUE;
+            local_bindings_resume(generator->local_bindings, PL_savestack);
             S_generator_push_resume_result(aTHX_ generator);
         }
     run_execution:
@@ -1629,13 +1738,15 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         S_generator_restore_pads(aTHX_ generator);
         JMPENV_POP;
         if (default_variables_swapped)
-            S_generator_swap_default_variables(aTHX_ generator);
+            S_generator_swap_environment(aTHX_ generator, FALSE);
         process_state_restore(&caller_state);
         PL_runops_boundary_hook = old_hook;
         PL_runops_boundary_data = old_data;
         PL_restartjmpenv = caller_restartjmpenv;
         S_generator_free_process_stacks(aTHX_ &generator->process);
         S_generator_free_pads(aTHX_ generator);
+        local_bindings_free(generator->local_bindings);
+        generator->local_bindings = NULL;
         {
             const I32 floor = PL_savestack_ix;
             AV * const release = newAV();
@@ -1657,6 +1768,13 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             RELEASE_FIELD(defav);
             RELEASE_FIELD(errsv);
             RELEASE_FIELD(errorobj);
+            RELEASE_FIELD(environment.rsgv);
+            RELEASE_FIELD(environment.irs);
+            RELEASE_FIELD(environment.rs);
+            RELEASE_FIELD(environment.hinthv);
+            RELEASE_FIELD(environment.defoutgv);
+            cophh_free(generator->environment.hints_hash);
+            generator->environment.hints_hash = NULL;
             RELEASE_FIELD(error);
             RELEASE_FIELD(body);
 #undef RELEASE_FIELD
@@ -1677,6 +1795,19 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         if (generator->captured)
             break;
         if (ret == 3 && PL_restartjmpenv == PL_top_env && PL_restartop) {
+            /* A failed park is a caught exception, not a completed yield.
+             * Do not hand its packet to the caller at the next boundary. */
+            if (generator->yield_pending) {
+                SV * const value = generator->value;
+                AV * const values = generator->values;
+                generator->yield_pending = FALSE;
+                generator->value = NULL;
+                generator->values = NULL;
+                if (value)
+                    sv_2mortal(value);
+                if (values)
+                    sv_2mortal(MUTABLE_SV(values));
+            }
             PL_op = PL_restartop;
             PL_restartop = NULL;
             PL_restartjmpenv = NULL;
@@ -1700,7 +1831,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         PL_runops_boundary_hook = old_hook;
         PL_runops_boundary_data = old_data;
         if (default_variables_swapped)
-            S_generator_swap_default_variables(aTHX_ generator);
+            S_generator_swap_environment(aTHX_ generator, FALSE);
         process_state_restore(&caller_state);
         S_generator_free_pads(aTHX_ generator);
         PL_restartjmpenv = PL_top_env;
@@ -1729,7 +1860,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         generator->captured = FALSE;
     }
     if (default_variables_swapped)
-        S_generator_swap_default_variables(aTHX_ generator);
+        S_generator_swap_environment(aTHX_ generator, FALSE);
     process_state_restore(&caller_state);
     PL_restartjmpenv = caller_restartjmpenv;
     return generator->state == PERL_GENERATOR_YIELDED ? 1 : 0;

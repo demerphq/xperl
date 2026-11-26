@@ -70,30 +70,23 @@ fresh_perl_is( <<'----', <<'====', undef, 'clone deferred generator cleanup warn
 use warnings;
 use XS::APItest;
 use generator;
-{
-    package CleanupTie;
-    our $fail;
-    sub TIESCALAR { bless ['outside'], shift }
-    sub FETCH { $_[0][0] }
-    sub STORE {
-        if ($fail && $_[1] eq 'outside') {
-            $fail = 0;
-            die "cleanup failed\n";
-        }
-        $_[0][0] = $_[1];
-    }
-}
-our $value;
-tie $value, 'CleanupTie';
+my $length = 2;
 {
     my $g = gen {
-        local $value = 'inside';
+        $/ = \$length;
+        local $/ = "\n";
         yield 1;
+        return 2;
     };
-    $g->();
-    local $SIG{__WARN__} = sub { print "cleanup warning\n" };
-    $CleanupTie::fail = 1;
+    my $first = $g->();
+    die "generator did not suspend\n" unless $first == 1;
+    my $warnings = 0;
+    local $SIG{__WARN__} = sub { ++$warnings; print "cleanup warning\n" };
+    # Restoring the saved fixed-length separator fails after its referent
+    # becomes invalid. Reporting waits until the caller's scope ends.
+    $length = 0;
     undef $g;
+    die "cleanup warning was not deferred\n" if $warnings;
     clone_with_stack();
     print "cloned\n";
 }

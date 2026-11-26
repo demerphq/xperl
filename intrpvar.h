@@ -1146,6 +1146,11 @@ PERLVARI(I, hash_linear_max, U8, 8)
 /* Stack metadata collection must not recursively collect its own failures. */
 PERLVARI(I, in_diag_stack_capture, bool, FALSE)
 
+/* Only signal keys localized by suspendable owners need a binding cell. */
+PERLVAR(I, sig_bindings, HV *)
+PERLVAR(I, sig_bindings_gv, GV *)
+PERLVARI(I, sig_local_owner, bool, FALSE)
+
 /* If you are adding a U8 or U16, check to see if there are 'Space' comments
  * above on where there are gaps which currently will be structure padding.  */
 

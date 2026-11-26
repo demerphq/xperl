@@ -8453,7 +8453,7 @@ Perl_throw_warner_9_2620(pTHX_ UV diag_index,
 
 
 /* Generated from:
- * 4d707d82abe55447c786ecb25fa4ea9a683d01e4ff5ee4d84e95b1526f48894b diag_conf.pl
+ * c825756baabff6e2fa75cfb2cc241886c6223e7f433808258b4db05e9b389940 diag_conf.pl
  * 2d782aa7232094113b9b9205138381282d148545c1d4444211939e7659e39734 diag_op_conf.pl
  * b333aa9910dc95e9259def9af37a920ee035cdde0d414c3162bbf7e48536dde6 regen/opcodes
  * ex: set ro ft=c: */
