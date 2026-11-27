@@ -82,6 +82,8 @@ my %feature_kw = (
     any       => 'keyword_any',
     all       => 'keyword_all',
     yield               => 'generator',
+    async               => 'async',
+    await               => 'async',
     gen                 => 'generator',
     multi               => 'multisub',
     dispatch                => 'dispatch_on',
@@ -195,6 +197,8 @@ __END__
 -and
 -any
 -atan2
+-async
+-await
 -bind
 -binmode
 -bless

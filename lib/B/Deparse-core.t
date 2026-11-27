@@ -386,6 +386,8 @@ my %not_tested = map { $_ => 1} qw(
     NumEq
     NumStr
     gen
+    async
+    await
     ObjectVal
     RefVal
     ScalarVal

@@ -243,6 +243,49 @@ Perl_apply_builtin_cv_attributes(pTHX_ CV *cv, OP *attrlist)
                  PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;                       \
     } STMT_END
 
+PERL_CALLCONV OP *
+Perl_async_await(pTHX_ PERL_GENERATOR *owner)
+        Perl_attribute_nonnull_aTHX;
+#define PERL_ARGS_ASSERT_ASYNC_AWAIT            \
+    STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_async_check_name(pTHX_ OP *nameop)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_ASYNC_CHECK_NAME       \
+    STMT_START { Perl_assert_aTHX; assert(nameop);     \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_async_install(pTHX_ CV *body)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_ASYNC_INSTALL          \
+    STMT_START { Perl_assert_aTHX; assert(body);                                \
+                 assert(SvTYPE(body) == SVt_PVCV || SvTYPE(body) == SVt_PVFM);  \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;                           \
+    } STMT_END
+
+PERL_CALLCONV void
+Perl_async_load(pTHX)
+        Perl_attribute_nonnull_aTHX;
+#define PERL_ARGS_ASSERT_ASYNC_LOAD             \
+    STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV SV *
+Perl_async_wrap(pTHX_ CV *body)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1);
+#define PERL_ARGS_ASSERT_ASYNC_WRAP             \
+    STMT_START { Perl_assert_aTHX; assert(body);                                \
+                 assert(SvTYPE(body) == SVt_PVCV || SvTYPE(body) == SVt_PVFM);  \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;                           \
+    } STMT_END
+
 PERL_CALLCONV void
 Perl_atfork_child(void);
 #define PERL_ARGS_ASSERT_ATFORK_CHILD
@@ -2804,6 +2847,16 @@ Perl_eval_sv(pTHX_ SV *sv, I32 flags)
 #define PERL_ARGS_ASSERT_EVAL_SV                \
     STMT_START { Perl_assert_aTHX; assert(sv);         \
                  PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV AV *
+Perl_execution_match_roots(pTHX_ AV *roots)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_EXECUTION_MATCH_ROOTS  \
+    STMT_START { Perl_assert_aTHX;                             \
+                 assert(!roots || SvTYPE(roots) == SVt_PVAV);  \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;          \
     } STMT_END
 
 PERL_CALLCONV Size_t

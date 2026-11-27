@@ -31,6 +31,14 @@ enum { perl_diag_word_value_outside_domain = 0xffff };
 
 enum perl_diag_index {
     perl_diag_index_none = 0,
+    perl_diag_error_async_declaration_unsupported_idx,
+    perl_diag_error_async_exception_requires_suspension_idx,
+    perl_diag_error_async_fiber_required_idx,
+    perl_diag_error_async_fiber_running_idx,
+    perl_diag_error_async_generator_adapter_required_idx,
+    perl_diag_error_async_native_suspension_unsupported_idx,
+    perl_diag_error_async_relay_busy_idx,
+    perl_diag_error_async_task_required_idx,
     perl_diag_error_call_binding_arity_invalid_argument_count_idx,
     perl_diag_error_call_binding_arity_odd_slurpy_hash_argument_count_idx,
     perl_diag_error_call_binding_arity_signature_mismatch_idx,
@@ -484,6 +492,7 @@ enum perl_diag_index {
     perl_diag_error_iterator_generator_continuation_unavailable_idx,
     perl_diag_error_iterator_generator_invalid_wrapper_idx,
     perl_diag_error_iterator_generator_localization_unsupported_idx,
+    perl_diag_error_iterator_generator_match_unsupported_idx,
     perl_diag_error_iterator_generator_no_suspended_continuation_idx,
     perl_diag_error_iterator_generator_running_invalid_argument_idx,
     perl_diag_error_iterator_generator_state_mutation_forbidden_idx,
@@ -1636,6 +1645,14 @@ enum perl_diag_index {
 
 enum perl_diag_number {
     perl_diag_number_none                                                                      =    0,
+    perl_diag_error_async_declaration_unsupported_number                                       = 2804,
+    perl_diag_error_async_exception_requires_suspension_number                                 = 2805,
+    perl_diag_error_async_fiber_required_number                                                = 2806,
+    perl_diag_error_async_fiber_running_number                                                 = 2807,
+    perl_diag_error_async_generator_adapter_required_number                                    = 2808,
+    perl_diag_error_async_native_suspension_unsupported_number                                 = 2809,
+    perl_diag_error_async_relay_busy_number                                                    = 2811,
+    perl_diag_error_async_task_required_number                                                 = 2810,
     perl_diag_error_call_binding_arity_invalid_argument_count_number                           = 1500,
     perl_diag_error_call_binding_arity_odd_slurpy_hash_argument_count_number                   = 2432,
     perl_diag_error_call_binding_arity_signature_mismatch_number                               = 1314,
@@ -2089,6 +2106,7 @@ enum perl_diag_number {
     perl_diag_error_iterator_generator_continuation_unavailable_number                         = 1127,
     perl_diag_error_iterator_generator_invalid_wrapper_number                                  = 1129,
     perl_diag_error_iterator_generator_localization_unsupported_number                         = 2803,
+    perl_diag_error_iterator_generator_match_unsupported_number                                = 2812,
     perl_diag_error_iterator_generator_no_suspended_continuation_number                        = 1068,
     perl_diag_error_iterator_generator_running_invalid_argument_number                         = 1128,
     perl_diag_error_iterator_generator_state_mutation_forbidden_number                         = 1119,
@@ -5066,7 +5084,7 @@ enum perl_diag_selector_domain_id {
 
 
 #if defined(PERL_CORE) || defined(PERL_EXT_RE_BUILD)
-#define PERL_DIAG_METADATA_COUNT 1601
+#define PERL_DIAG_METADATA_COUNT 1610
 
 #endif
 
@@ -20489,6 +20507,69 @@ enum perl_diag_selector_domain_id {
         __LINE__ \
     )
 
+#define PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_async_declaration_unsupported_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
+#define PERL_THROW_ERROR_ASYNC_EXCEPTION_REQUIRES_SUSPENSION() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_async_exception_requires_suspension_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
+#define PERL_THROW_ERROR_ASYNC_FIBER_REQUIRED() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_async_fiber_required_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
+#define PERL_THROW_ERROR_ASYNC_FIBER_RUNNING() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_async_fiber_running_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
+#define PERL_THROW_ERROR_ASYNC_GENERATOR_ADAPTER_REQUIRED() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_async_generator_adapter_required_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
+#define PERL_THROW_ERROR_ASYNC_NATIVE_SUSPENSION_UNSUPPORTED() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_async_native_suspension_unsupported_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
+#define PERL_THROW_ERROR_ASYNC_TASK_REQUIRED() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_async_task_required_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
+#define PERL_THROW_ERROR_ASYNC_RELAY_BUSY() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_async_relay_busy_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
+#define PERL_THROW_ERROR_ITERATOR_GENERATOR_MATCH_UNSUPPORTED() \
+    Perl_throw_croak_0_1006( \
+        aTHX_ perl_diag_error_iterator_generator_match_unsupported_idx, \
+        __FILE__, \
+        __LINE__ \
+    )
+
 #define PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_INVALID_ABORT() \
     STMT_START { \
         PERL_ADD_COMPILE_ERR_ERROR_SYNTAX_INVALID(); \
@@ -21521,6 +21602,14 @@ enum perl_diag_selector_domain_id {
 /* PERL_THROW_ENDNETENT_NOT_IMPLEMENTED => ERROR_SYSTEM_PLATFORM_PLAN9_NETWORK_FUNCTION_UNAVAILABLE */
 /* PERL_THROW_ENDPROTOENT_NOT_IMPLEMENTED => ERROR_SYSTEM_PLATFORM_PLAN9_NETWORK_FUNCTION_UNAVAILABLE */
 /* PERL_THROW_ENDSERVENT_NOT_IMPLEMENTED => ERROR_SYSTEM_PLATFORM_PLAN9_NETWORK_FUNCTION_UNAVAILABLE */
+/* PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED => ERROR_ASYNC_DECLARATION_UNSUPPORTED */
+/* PERL_THROW_ERROR_ASYNC_EXCEPTION_REQUIRES_SUSPENSION => ERROR_ASYNC_EXCEPTION_REQUIRES_SUSPENSION */
+/* PERL_THROW_ERROR_ASYNC_FIBER_REQUIRED => ERROR_ASYNC_FIBER_REQUIRED */
+/* PERL_THROW_ERROR_ASYNC_FIBER_RUNNING => ERROR_ASYNC_FIBER_RUNNING */
+/* PERL_THROW_ERROR_ASYNC_GENERATOR_ADAPTER_REQUIRED => ERROR_ASYNC_GENERATOR_ADAPTER_REQUIRED */
+/* PERL_THROW_ERROR_ASYNC_NATIVE_SUSPENSION_UNSUPPORTED => ERROR_ASYNC_NATIVE_SUSPENSION_UNSUPPORTED */
+/* PERL_THROW_ERROR_ASYNC_RELAY_BUSY => ERROR_ASYNC_RELAY_BUSY */
+/* PERL_THROW_ERROR_ASYNC_TASK_REQUIRED => ERROR_ASYNC_TASK_REQUIRED */
 /* PERL_THROW_ERROR_CALL_BINDING_ARITY_INVALID_ARGUMENT_COUNT => ERROR_CALL_BINDING_ARITY_INVALID_ARGUMENT_COUNT */
 /* PERL_THROW_ERROR_CALL_BINDING_ARITY_ODD_SLURPY_HASH_ARGUMENT_COUNT => ERROR_CALL_BINDING_ARITY_ODD_SLURPY_HASH_ARGUMENT_COUNT */
 /* PERL_THROW_ERROR_CALL_BINDING_ARITY_SIGNATURE_MISMATCH => ERROR_CALL_BINDING_ARITY_SIGNATURE_MISMATCH */
@@ -21710,6 +21799,7 @@ enum perl_diag_selector_domain_id {
 /* PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE => ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE */
 /* PERL_THROW_ERROR_ITERATOR_GENERATOR_INVALID_WRAPPER => ERROR_ITERATOR_GENERATOR_INVALID_WRAPPER */
 /* PERL_THROW_ERROR_ITERATOR_GENERATOR_LOCALIZATION_UNSUPPORTED => ERROR_ITERATOR_GENERATOR_LOCALIZATION_UNSUPPORTED */
+/* PERL_THROW_ERROR_ITERATOR_GENERATOR_MATCH_UNSUPPORTED => ERROR_ITERATOR_GENERATOR_MATCH_UNSUPPORTED */
 /* PERL_THROW_ERROR_ITERATOR_GENERATOR_NO_SUSPENDED_CONTINUATION => ERROR_ITERATOR_GENERATOR_NO_SUSPENDED_CONTINUATION */
 /* PERL_THROW_ERROR_ITERATOR_GENERATOR_RUNNING_INVALID_ARGUMENT => ERROR_ITERATOR_GENERATOR_RUNNING_INVALID_ARGUMENT */
 /* PERL_THROW_ERROR_ITERATOR_GENERATOR_STATE_MUTATION_FORBIDDEN => ERROR_ITERATOR_GENERATOR_STATE_MUTATION_FORBIDDEN */
@@ -22773,7 +22863,7 @@ enum perl_diag_selector_domain_id {
 #endif /* PERL_DIAG_H */
 
 /* Generated from:
- * c825756baabff6e2fa75cfb2cc241886c6223e7f433808258b4db05e9b389940 diag_conf.pl
+ * c12bfa593acd7916a1a42aa8212dc44c77c708f49895c4bee45e556e6f99b38e diag_conf.pl
  * 2d782aa7232094113b9b9205138381282d148545c1d4444211939e7659e39734 diag_op_conf.pl
- * b333aa9910dc95e9259def9af37a920ee035cdde0d414c3162bbf7e48536dde6 regen/opcodes
+ * f98b39c7994745f4897fa53dbc75a329d5b629fcc3f83fc9cf8bb340b4d8445c regen/opcodes
  * ex: set ro ft=c: */

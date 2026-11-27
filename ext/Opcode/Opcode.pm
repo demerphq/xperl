@@ -1,4 +1,4 @@
-package Opcode 1.74;
+package Opcode 1.75;
 
 use strict;
 
@@ -602,7 +602,7 @@ about calling environment and args.
 This tag is simply a bucket for opcodes that are unlikely to be used via
 a tag name but need to be tagged for completeness and documentation.
 
-    syscall dump chroot yield
+    syscall dump chroot yield await
 
 =back
 

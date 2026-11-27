@@ -12351,7 +12351,7 @@ Perl_newMYSUB(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs, OP *block)
                    : newUNOP(OP_LEAVESUB, 0, voidnonfinal(block));
         start = LINKLIST(block);
         block->op_next = 0;
-        if (ps && !*ps && !attrs && !CvLVALUE(compcv))
+        if (ps && !*ps && !attrs && !CvLVALUE(compcv) && !CvASYNC(compcv))
             const_sv = S_op_const_sv(aTHX_ start, compcv, FALSE);
         else
             const_sv = NULL;
@@ -12914,7 +12914,7 @@ Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
                    : newUNOP(OP_LEAVESUB, 0, voidnonfinal(block));
         start = LINKLIST(block);
         block->op_next = 0;
-        if (ps && !*ps && !attrs && !CvLVALUE(PL_compcv))
+        if (ps && !*ps && !attrs && !CvLVALUE(PL_compcv) && !CvASYNC(PL_compcv))
             const_sv =
                 S_op_const_sv(aTHX_ start, PL_compcv,
                                         cBOOL(CvCLONE(PL_compcv)));

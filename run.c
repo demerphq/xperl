@@ -25,6 +25,7 @@
 #define PERL_IN_RUN_C
 #include "perl.h"
 #include "XSUB.h"
+#include "regcomp.h"
 
 /*
  * 'Away now, Shadowfax!  Run, greatheart, run as you have never run before!
@@ -49,8 +50,296 @@ static XS(XS_iterator_running);
 static int S_runops_with_boundary(pTHX);
 static int S_runops_with_hook(pTHX_ runops_boundary_proc_t hook, void *data);
 static XS(S_generator_xsub);
+static XS(S_async_factory);
+static XS(S_async_step);
+static XS(S_async_close);
+static XS(S_async_claim);
 
 static MGVTBL S_iter_adapter_magic = { 0, 0, 0, 0, 0, 0, 0, 0 };
+
+/* $1 and friends belong to a regexp, not just to PL_curpm. Two suspended
+ * calls can use the same match opcode and overwrite each other's results.
+ * We move each live result into its execution's saved state at a switch,
+ * then put it back before that execution runs again. The compiled pattern
+ * stays shared. Ordinary matches and subroutine calls need no new checks.
+ *
+ * Keep the actual regexp and its complete offsets. Replacing it with a
+ * frozen copy would change how repeated matches through the same opcode
+ * affect captures within one execution. Dynamic patterns need their opcode
+ * binding restored too. Several opcodes can share one regexp, so the result
+ * has one owner even when several saved bindings refer to it.
+ */
+typedef struct execution_match {
+    PMOP *pm;
+    REGEXP *rx;
+    regexp_paren_pair *offsets;
+    char *subject;
+#ifdef PERL_ANY_COW
+    SV *saved_copy;
+#endif
+    SSize_t length, byte_offset, char_offset;
+    U32 flags, lastparen, lastcloseparen;
+    bool owns_result;
+    struct execution_match *next;
+} EXECUTION_MATCH;
+
+typedef struct execution_matches {
+    EXECUTION_MATCH *head;
+    bool parked;
+    bool restore_on_free;
+} EXECUTION_MATCHES;
+
+#define EXECUTION_MATCH_FLAGS (RXf_COPY_DONE | RXf_MATCH_UTF8 | RXf_TAINTED_SEEN)
+
+static void S_execution_matches_restore(pTHX_ SV *holder);
+
+static int
+S_execution_matches_free(pTHX_ SV *sv, MAGIC *mg)
+{
+    EXECUTION_MATCHES * const matches = (EXECUTION_MATCHES *)mg->mg_ptr;
+    EXECUTION_MATCH *entry;
+    if (!matches)
+        return 0;
+    if (matches->restore_on_free && matches->parked)
+        S_execution_matches_restore(aTHX_ sv);
+    mg->mg_ptr = NULL;
+    entry = matches->head;
+    while (entry) {
+        EXECUTION_MATCH * const next = entry->next;
+        if (matches->parked && entry->owns_result) {
+            if (entry->flags & RXf_COPY_DONE)
+                Safefree(entry->subject);
+#ifdef PERL_ANY_COW
+            SvREFCNT_dec(entry->saved_copy);
+#endif
+        }
+        Safefree(entry->offsets);
+        SvREFCNT_dec(MUTABLE_SV(entry->rx));
+        Safefree(entry);
+        entry = next;
+    }
+    Safefree(matches);
+    return 0;
+}
+
+#ifdef USE_ITHREADS
+static int
+S_execution_matches_dup(pTHX_ MAGIC *mg, CLONE_PARAMS *param)
+{
+    PERL_UNUSED_CONTEXT;
+    PERL_UNUSED_ARG(param);
+    /* The child has its own regexps and cannot own this native guard. */
+    mg->mg_ptr = NULL;
+    return 0;
+}
+#endif
+
+static MGVTBL S_execution_matches_magic = {
+    0, 0, 0, 0, S_execution_matches_free, 0,
+#ifdef USE_ITHREADS
+    S_execution_matches_dup,
+#else
+    0,
+#endif
+    0
+};
+
+/* Preparation can fail without changing any match. Moving and restoring
+ * results happen only after every allocation and eligibility check. */
+static void
+S_execution_match_root(pTHX_ AV **roots, void *pointer)
+{
+    if (!pointer)
+        return;
+    if (!*roots)
+        *roots = (AV *)sv_2mortal(MUTABLE_SV(newAV()));
+    av_push(*roots, newSVuv(PTR2UV(pointer)));
+}
+
+static SV *
+S_execution_matches_prepare(pTHX_ bool caller)
+{
+    SV *holder;
+    AV *roots = NULL, *rx_roots = NULL;
+    HV *seen_pm, *seen_rx;
+    EXECUTION_MATCHES *matches;
+    MAGIC *mg;
+    SSize_t i;
+    PERL_SI *si;
+    if (!caller && PL_curpm && PL_curpm == PL_reg_curpm)
+        PERL_THROW_ERROR_ITERATOR_GENERATOR_MATCH_UNSUPPORTED();
+    S_execution_match_root(aTHX_ &roots, PL_curpm);
+    for (si = PL_curstackinfo; si; si = si->si_prev) {
+        for (i = 0; i <= si->si_cxix; ++i) {
+            PERL_CONTEXT * const cx = &si->si_cxstack[i];
+            if (CxTYPE(cx) == CXt_SUBST) {
+                if (!caller)
+                    PERL_THROW_ERROR_ITERATOR_GENERATOR_MATCH_UNSUPPORTED();
+                S_execution_match_root(aTHX_ &rx_roots, cx->sb_rx);
+                continue;
+            }
+            S_execution_match_root(aTHX_ &roots, cx->blk_oldpm);
+        }
+        if (si->si_type == PERLSI_GENERATOR)
+            break;
+    }
+    roots = execution_match_roots(roots);
+    /* curpm_under may be stale after (?{}) finishes. Read it only when the
+     * saved roots include the engine's active match. */
+    if (caller && roots) {
+        for (i = 0; i <= AvFILLp(roots); ++i) {
+            if (INT2PTR(PMOP *, SvUV(AvARRAY(roots)[i])) == PL_reg_curpm) {
+                S_execution_match_root(aTHX_ &roots, PL_curpm_under);
+                break;
+            }
+        }
+    }
+    if (!roots && !rx_roots)
+        return NULL;
+    holder = sv_newmortal();
+    seen_pm = (HV *)sv_2mortal(MUTABLE_SV(newHV()));
+    seen_rx = (HV *)sv_2mortal(MUTABLE_SV(newHV()));
+    Newxz(matches, 1, EXECUTION_MATCHES);
+    matches->restore_on_free = caller;
+    mg = sv_magicext(holder, NULL, PERL_MAGIC_ext, &S_execution_matches_magic,
+                     (char *)matches, 0);
+    mg->mg_flags |= MGf_DUP;
+    const SSize_t pm_count = roots ? AvFILLp(roots) + 1 : 0;
+    const SSize_t rx_count = rx_roots ? AvFILLp(rx_roots) + 1 : 0;
+    for (i = 0; i < pm_count + rx_count; ++i) {
+        PMOP * const pm = i < pm_count
+            ? INT2PTR(PMOP *, SvUV(AvARRAY(roots)[i])) : NULL;
+        REGEXP *rx;
+        EXECUTION_MATCH *entry;
+        if (i < pm_count) {
+            if (!pm || hv_exists(seen_pm, (char *)&pm, sizeof(pm)))
+                continue;
+            (void)hv_store(seen_pm, (char *)&pm, sizeof(pm), newSViv(1), 0);
+            rx = PM_GETRE(pm);
+        }
+        else
+            rx = INT2PTR(REGEXP *, SvUV(AvARRAY(rx_roots)[i - pm_count]));
+        if (!rx)
+            continue;
+        if (!caller && (pm == PL_reg_curpm
+            || RX_ENGINE(rx) != &PL_core_reg_engine
+            || sv_has_valuemagic(MUTABLE_SV(rx))
+            || (RX_SUBBEG(rx) && !RX_MATCH_COPIED(rx)
+#ifdef PERL_ANY_COW
+                && !RX_SAVED_COPY(rx)
+#endif
+                )))
+            PERL_THROW_ERROR_ITERATOR_GENERATOR_MATCH_UNSUPPORTED();
+        Newxz(entry, 1, EXECUTION_MATCH);
+        entry->pm = pm;
+        entry->rx = (REGEXP *)SvREFCNT_inc_simple_NN(rx);
+        entry->next = matches->head;
+        matches->head = entry;
+        /* Save a native caller's borrowed pointer without reading its bytes.
+         * The caller resumes before its native frame returns. Cleanup must
+         * not reject this caller. Custom engines retain ordinary callback
+         * semantics: we protect their binding, not private engine state. */
+        if (RX_ENGINE(rx) == &PL_core_reg_engine
+            && !hv_exists(seen_rx, (char *)&rx, sizeof(rx))) {
+            (void)hv_store(seen_rx, (char *)&rx, sizeof(rx), newSViv(1), 0);
+            entry->owns_result = TRUE;
+            if (RX_OFFSp(rx))
+                NewCopy(RX_OFFSp(rx), entry->offsets, RX_NPARENS(rx) + 1,
+                        regexp_paren_pair);
+        }
+    }
+    return holder;
+}
+
+static void
+S_execution_matches_park(pTHX_ SV *holder)
+{
+    if (!holder)
+        return;
+    EXECUTION_MATCHES * const matches = (EXECUTION_MATCHES *)
+        mg_findext(holder, PERL_MAGIC_ext, &S_execution_matches_magic)->mg_ptr;
+    EXECUTION_MATCH *entry;
+    PERL_UNUSED_CONTEXT;
+    assert(!matches->parked);
+    for (entry = matches->head; entry; entry = entry->next) {
+        REGEXP * const rx = entry->rx;
+        if (!entry->owns_result)
+            continue;
+        entry->subject = RX_SUBBEG(rx);
+#ifdef PERL_ANY_COW
+        entry->saved_copy = RX_SAVED_COPY(rx);
+        RX_SAVED_COPY(rx) = NULL;
+#endif
+        entry->length = RX_SUBLEN(rx);
+        entry->byte_offset = RX_SUBOFFSET(rx);
+        entry->char_offset = RX_SUBCOFFSET(rx);
+        entry->lastparen = RX_LASTPAREN(rx);
+        entry->lastcloseparen = RX_LASTCLOSEPAREN(rx);
+        entry->flags = RX_EXTFLAGS(rx) & EXECUTION_MATCH_FLAGS;
+        RX_EXTFLAGS(rx) &= ~EXECUTION_MATCH_FLAGS;
+        RX_SUBBEG(rx) = NULL;
+        RX_SUBLEN(rx) = RX_SUBOFFSET(rx) = RX_SUBCOFFSET(rx) = 0;
+        RX_LASTPAREN(rx) = RX_LASTCLOSEPAREN(rx) = 0;
+        if (RX_OFFSp(rx)) {
+            U32 i;
+            for (i = 0; i <= RX_NPARENS(rx); ++i)
+                RX_OFFSp(rx)[i].start = RX_OFFSp(rx)[i].end
+                    = RX_OFFSp(rx)[i].start_tmp = -1;
+        }
+    }
+    matches->parked = TRUE;
+}
+
+static void
+S_execution_matches_restore(pTHX_ SV *holder)
+{
+    if (!holder)
+        return;
+    EXECUTION_MATCHES * const matches = (EXECUTION_MATCHES *)
+        mg_findext(holder, PERL_MAGIC_ext, &S_execution_matches_magic)->mg_ptr;
+    EXECUTION_MATCH *entry;
+    SSize_t count = 0;
+    if (!matches || !matches->parked)
+        return;
+    for (entry = matches->head; entry; entry = entry->next)
+        ++count;
+    EXTEND_MORTAL(count);
+    /* Defer releasing displaced regexps. Their embedded code can have
+     * destructors, and those must see a fully restored execution. */
+    for (entry = matches->head; entry; entry = entry->next) {
+        if (!entry->pm)
+            continue;
+        REGEXP * const old = PM_GETRE(entry->pm);
+        if (old != entry->rx) {
+            PM_SETRE(entry->pm, (REGEXP *)SvREFCNT_inc_simple_NN(entry->rx));
+            if (old)
+                sv_2mortal(MUTABLE_SV(old));
+        }
+    }
+    for (entry = matches->head; entry; entry = entry->next) {
+        REGEXP * const rx = entry->rx;
+        if (!entry->owns_result)
+            continue;
+        RX_MATCH_COPY_FREE(rx);
+#ifdef PERL_ANY_COW
+        SvREFCNT_dec(RX_SAVED_COPY(rx));
+        RX_SAVED_COPY(rx) = entry->saved_copy;
+        entry->saved_copy = NULL;
+#endif
+        RX_SUBBEG(rx) = entry->subject;
+        entry->subject = NULL;
+        RX_SUBLEN(rx) = entry->length;
+        RX_SUBOFFSET(rx) = entry->byte_offset;
+        RX_SUBCOFFSET(rx) = entry->char_offset;
+        RX_LASTPAREN(rx) = entry->lastparen;
+        RX_LASTCLOSEPAREN(rx) = entry->lastcloseparen;
+        RX_EXTFLAGS(rx) = (RX_EXTFLAGS(rx) & ~EXECUTION_MATCH_FLAGS) | entry->flags;
+        if (entry->offsets)
+            Copy(entry->offsets, RX_OFFSp(rx), RX_NPARENS(rx) + 1,
+                 regexp_paren_pair);
+    }
+    matches->parked = FALSE;
+}
 
 /* A suspended Perl call keeps its live pad AVs, not copies of their values.
  * Otherwise returning from one generator can lower the shared CvDEPTH and
@@ -366,11 +655,19 @@ S_generator_park_pads(pTHX_ PERL_GENERATOR *generator)
     }
     if (generator->yield_pending)
         local_bindings_check(oldsave, generator->environment.rsgv);
+    SV * const match_state = generator->yield_pending
+        ? S_execution_matches_prepare(aTHX_ FALSE) : NULL;
     if (!local_bindings_park(&generator->local_bindings,
                              generator->environment.rsgv)) {
         if (generator->yield_pending)
             PERL_THROW_ERROR_ITERATOR_GENERATOR_LOCALIZATION_UNSUPPORTED();
         PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE();
+    }
+    if (generator->yield_pending) {
+        S_execution_matches_park(aTHX_ match_state);
+        if (generator->match_state)
+            sv_2mortal(generator->match_state);
+        generator->match_state = SvREFCNT_inc(match_state);
     }
     S_generator_restore_pads(aTHX_ generator);
     LEAVE_SCOPE(oldsave);
@@ -756,6 +1053,10 @@ S_generator_xsub(pTHX_ CV *cv)
 
     if (!generator || generator->magic != PERL_GENERATOR_MAGIC)
         PERL_THROW_ERROR_ITERATOR_GENERATOR_INVALID_WRAPPER();
+    if (generator->relay_token)
+        PERL_THROW_ERROR_ASYNC_RELAY_BUSY();
+    if (generator->awaiting)
+        PERL_THROW_ERROR_ASYNC_GENERATOR_ADAPTER_REQUIRED();
     /* Argument cleanup can drop the caller's last wrapper reference. */
     SAVEFREESV(SvREFCNT_inc_simple_NN(cv));
     if (generator->pads_switching)
@@ -820,6 +1121,250 @@ Perl_generator_wrap(pTHX_ CV *body)
     reference = sv_2mortal(newRV_noinc(MUTABLE_SV(wrapper)));
     sv_bless(reference, gv_stashpvs("generator", GV_ADD));
     return reference;
+}
+
+static int
+S_async_relay_free(pTHX_ SV *token, MAGIC *magic)
+{
+    CV * const wrapper = MUTABLE_CV(magic->mg_obj);
+    PERL_GENERATOR * const owner = (PERL_GENERATOR *)CvXSUBANY(wrapper).any_ptr;
+    PERL_UNUSED_CONTEXT;
+    if (owner && owner->relay_token == token)
+        owner->relay_token = NULL;
+    return 0;
+}
+
+static MGVTBL S_async_relay_magic = {
+    0, 0, 0, 0, S_async_relay_free, 0, 0, 0
+};
+
+static XS(S_async_claim)
+{
+    dXSARGS;
+    CV *wrapper;
+    PERL_GENERATOR *owner;
+    SV *token, *reference;
+    if (items != 1)
+        croak_xs_usage(cv, "generator");
+    if (!S_iterator_is_generator(aTHX_ ST(0)))
+        PERL_THROW_ERROR_ASYNC_FIBER_REQUIRED();
+    wrapper = MUTABLE_CV(SvRV(ST(0)));
+    owner = (PERL_GENERATOR *)CvXSUBANY(wrapper).any_ptr;
+    if (owner->relay_token)
+        PERL_THROW_ERROR_ASYNC_RELAY_BUSY();
+    if (owner->state == PERL_GENERATOR_RUNNING || owner->pads_switching)
+        PERL_THROW_ERROR_ASYNC_FIBER_RUNNING();
+    reference = sv_2mortal(newRV_noinc(newSV(0)));
+    token = SvRV(reference);
+    /* The token owns the wrapper. The execution borrows the token, so there
+     * is no ownership cycle. Scope unwind releases the claim on cancellation
+     * and exceptions as well as on a normal generator yield. */
+    sv_magicext(token, MUTABLE_SV(wrapper), PERL_MAGIC_ext,
+                &S_async_relay_magic, NULL, 0);
+    owner->relay_token = token;
+    sv_bless(reference, gv_stashpvs("XPerl::_Relay", GV_ADD));
+    ST(0) = reference;
+    XSRETURN(1);
+}
+
+SV *
+Perl_async_wrap(pTHX_ CV *body)
+{
+    CV *wrapper;
+    PERL_ARGS_ASSERT_ASYNC_WRAP;
+    wrapper = newXS_flags(NULL, S_async_factory, CvFILE(body), NULL, XS_DYNAMIC_FILENAME);
+    /* This existing CV ownership flag also makes interpreter cloning retain
+     * the cloned body, rather than a pointer into the parent interpreter. */
+    CvXSUBANY(wrapper).any_sv = SvREFCNT_inc(MUTABLE_SV(body));
+    CvREFCOUNTED_ANYSV_on(wrapper);
+    CvASYNC_on(wrapper);
+    if (SvPOK(body))
+        sv_setpvn(MUTABLE_SV(wrapper), SvPVX(body), SvCUR(body));
+    return sv_2mortal(newRV_noinc(MUTABLE_SV(wrapper)));
+}
+
+void
+Perl_async_check_name(pTHX_ OP *nameop)
+{
+    STRLEN length;
+    const char *name, *end, *part;
+    PERL_ARGS_ASSERT_ASYNC_CHECK_NAME;
+    if (nameop->op_type != OP_CONST)
+        PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
+    name = SvPV(cSVOPx(nameop)->op_sv, length);
+    end = name + length;
+    part = name;
+    while (name < end) {
+        if (*name == ':' || *name == '\'')
+            part = name + 1;
+        name++;
+    }
+    length = end - part;
+    /* Phase subs can execute or lose their last reference inside newATTRSUB.
+     * Reject them before handing the body to that routine. */
+    if (memEQs(part, length, "BEGIN") || memEQs(part, length, "UNITCHECK")
+        || memEQs(part, length, "CHECK") || memEQs(part, length, "INIT")
+        || memEQs(part, length, "END"))
+        PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
+}
+
+void
+Perl_async_install(pTHX_ CV *body)
+{
+    SV *reference;
+    CV *wrapper;
+    GV *gv;
+    PERL_ARGS_ASSERT_ASYNC_INSTALL;
+    if (!CvROOT(body) || CvLEXICAL(body) || CvLVALUE(body)
+        || !(gv = CvGV(body)) || GvCV(gv) != body)
+        PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
+    CvASYNC_on(body);
+    reference = async_wrap(body);
+    wrapper = MUTABLE_CV(SvRV(reference));
+    CvGV_set(wrapper, gv);
+    CvSTASH_set(wrapper, CvSTASH(body));
+    GvCV_set(gv, MUTABLE_CV(SvREFCNT_inc(MUTABLE_SV(wrapper))));
+    SvREFCNT_dec(MUTABLE_SV(body));
+    gv_method_changed(gv);
+}
+
+void
+Perl_async_load(pTHX)
+{
+    I32 floor;
+    PERL_ARGS_ASSERT_ASYNC_LOAD;
+    if (get_cv("XPerl::Task::_run", 0))
+        return;
+    floor = PL_savestack_ix;
+    /* Loading the driver is an implementation detail of task creation.
+     * A successful load must not clear the caller's existing exception. */
+    save_scalar(PL_errgv);
+    save_scalar(PL_errorobjgv);
+    load_module(PERL_LOADMOD_NOIMPORT, newSVpvs("XPerl::Task"), NULL, NULL);
+    LEAVE_SCOPE(floor);
+}
+
+static XS(S_async_factory)
+{
+    dXSARGS;
+    CV * const body = MUTABLE_CV(CvXSUBANY(cv).any_sv);
+    SV *fiber;
+    AV *args;
+    I32 i;
+    PUTBACK;
+    async_load();
+    fiber = generator_wrap(body);
+    sv_bless(fiber, gv_stashpvs("XPerl::_Fiber", GV_ADD));
+    args = newAV();
+    sv_2mortal(MUTABLE_SV(args));
+    for (i = 0; i < items; i++)
+        av_push(args, SvREFCNT_inc(ST(i)));
+    SPAGAIN;
+    SP -= items;
+    PUSHMARK(SP);
+    XPUSHs(fiber);
+    XPUSHs(sv_2mortal(newRV_inc(MUTABLE_SV(args))));
+    PUTBACK;
+    call_pv("XPerl::Task::_new", G_SCALAR);
+    SPAGAIN;
+    ST(0) = POPs;
+    XSRETURN(1);
+}
+
+static XS(S_async_step)
+{
+    dXSARGS;
+    PERL_GENERATOR *generator;
+    AV *args, *packet;
+    SSize_t i;
+    I32 floor;
+    if (items != 4)
+        croak_xs_usage(cv, "fiber, arguments, exception, relay");
+    if (!S_iterator_is_generator(aTHX_ ST(0)))
+        PERL_THROW_ERROR_ASYNC_FIBER_REQUIRED();
+    generator = (PERL_GENERATOR *)CvXSUBANY(MUTABLE_CV(SvRV(ST(0)))).any_ptr;
+    if (generator->relay_token
+        && (!SvROK(ST(3)) || SvRV(ST(3)) != generator->relay_token))
+        PERL_THROW_ERROR_ASYNC_RELAY_BUSY();
+    if (generator->state == PERL_GENERATOR_RUNNING || generator->pads_switching)
+        PERL_THROW_ERROR_ASYNC_FIBER_RUNNING();
+    if (SvOK(ST(1)) && (!SvROK(ST(1)) || SvTYPE(SvRV(ST(1))) != SVt_PVAV))
+        PERL_THROW_ERROR_ASYNC_FIBER_REQUIRED();
+    if (SvOK(ST(2)) && generator->state != PERL_GENERATOR_YIELDED)
+        PERL_THROW_ERROR_ASYNC_EXCEPTION_REQUIRES_SUSPENSION();
+    floor = PL_savestack_ix;
+    SAVEFREESV(SvREFCNT_inc(SvRV(ST(0))));
+    SAVEBOOL(generator->await_allowed);
+    SAVEBOOL(generator->pads_switching);
+    generator->pads_switching = TRUE;
+    generator->await_allowed = TRUE;
+    args = newAV();
+    SAVEFREESV(args);
+    if (SvOK(ST(1))) {
+        AV * const source = MUTABLE_AV(SvRV(ST(1)));
+        for (i = 0; i <= AvFILLp(source); i++) {
+            SV **svp = av_fetch(source, i, 0);
+            av_push(args, SvREFCNT_inc(svp ? *svp : &PL_sv_undef));
+        }
+    }
+    {
+        SV * const old = generator->resume_exception;
+        generator->resume_exception = NULL;
+        SvREFCNT_dec(old);
+    }
+    generator->resume_exception = SvOK(ST(2)) ? newSVsv(ST(2)) : NULL;
+    generator->pads_switching = FALSE;
+    if (generator->awaiting && !SvOK(ST(1)) && !SvOK(ST(2))) {
+        /* A replacement adapter first waits for the dependency saved by the
+         * old one. It must not resume that await with an invented undef. */
+    }
+    else if (generator->state == PERL_GENERATOR_EXHAUSTED
+             || generator->state == PERL_GENERATOR_FAILED) {
+        generator_resume(generator, NULL);
+    }
+    else {
+        if (generator->state != PERL_GENERATOR_NEW && !generator->captured)
+            PERL_THROW_ERROR_ASYNC_EXCEPTION_REQUIRES_SUSPENSION();
+        generator_resume(generator, MUTABLE_AV(SvREFCNT_inc(MUTABLE_SV(args))));
+    }
+    generator->pads_switching = TRUE;
+    packet = newAV();
+    sv_2mortal(MUTABLE_SV(packet));
+    av_push(packet, newSViv(generator->state == PERL_GENERATOR_EXHAUSTED ? 0
+                           : generator->awaiting ? 2 : 1));
+    {
+        SV **result = generator->result ? av_fetch(generator->result, 0, 0) : NULL;
+        SV * const value = generator->state == PERL_GENERATOR_EXHAUSTED
+            ? (result ? *result : &PL_sv_undef)
+            : (generator->value ? generator->value : &PL_sv_undef);
+        av_push(packet, newSVsv(value));
+    }
+    LEAVE_SCOPE(floor);
+    ST(0) = sv_2mortal(newRV_inc(MUTABLE_SV(packet)));
+    XSRETURN(1);
+}
+
+static XS(S_async_close)
+{
+    dXSARGS;
+    CV *wrapper;
+    PERL_GENERATOR *generator;
+    MAGIC *magic;
+    if (items != 1)
+        croak_xs_usage(cv, "fiber");
+    if (!S_iterator_is_generator(aTHX_ ST(0)))
+        PERL_THROW_ERROR_ASYNC_FIBER_REQUIRED();
+    wrapper = MUTABLE_CV(SvRV(ST(0)));
+    generator = (PERL_GENERATOR *)CvXSUBANY(wrapper).any_ptr;
+    if (generator->state == PERL_GENERATOR_RUNNING || generator->pads_switching)
+        PERL_THROW_ERROR_ASYNC_FIBER_RUNNING();
+    if (generator->relay_token)
+        PERL_THROW_ERROR_ASYNC_RELAY_BUSY();
+    magic = mg_findext(MUTABLE_SV(wrapper), PERL_MAGIC_ext, &S_generator_magic);
+    magic->mg_ptr = NULL;
+    CvXSUBANY(wrapper).any_ptr = NULL;
+    generator_free(generator);
+    XSRETURN_EMPTY;
 }
 
 static XS(XS_iterator_new)
@@ -1001,6 +1546,11 @@ void
 Perl_boot_core_generator(pTHX)
 {
     PERL_ARGS_ASSERT_BOOT_CORE_GENERATOR;
+    newXS_flags("XPerl::Task::_step", S_async_step, __FILE__, "$$$$", 0);
+    newXS_flags("XPerl::Task::_claim", S_async_claim, __FILE__, "$", 0);
+    newXS_flags("XPerl::Task::_close", S_async_close, __FILE__, "$", 0);
+    newXS_flags("XPerl::_Fiber::CLONE_SKIP", XS_generator_clone_skip, __FILE__, "$", 0);
+    newXS_flags("XPerl::_Relay::CLONE_SKIP", XS_generator_clone_skip, __FILE__, "$", 0);
     newXS_flags("iterator::new", &XS_iterator_new,
                 __FILE__, "$", 0);
     newXS_flags("iterator::state", &XS_iterator_state,
@@ -1170,6 +1720,7 @@ void
 Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
 {
     PERL_PROCESS_STATE caller_state;
+    SV *caller_matches = NULL;
     AV * volatile cleanup_errors = NULL;
     volatile bool exiting = FALSE;
 
@@ -1195,11 +1746,15 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
             int ret;
             dJMPENV;
 
+            caller_matches = S_execution_matches_prepare(aTHX_ TRUE);
+            S_execution_matches_park(aTHX_ caller_matches);
             process_state_save(&caller_state);
             if (generator->stack_detached)
                 S_generator_attach_stackinfo(aTHX_ generator);
             S_generator_install_pads(aTHX_ generator);
             process_state_restore(&generator->process);
+            if (generator->match_state)
+                S_execution_matches_restore(aTHX_ generator->match_state);
             const bool bindings_valid = local_bindings_validate(
                 generator->local_bindings, &generator->process,
                 generator->environment.rsgv);
@@ -1222,6 +1777,7 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
                 S_generator_restore_pads(aTHX_ generator);
                 S_generator_swap_environment(aTHX_ generator, FALSE);
                 process_state_restore(&caller_state);
+                S_execution_matches_restore(aTHX_ caller_matches);
                 PL_runops_boundary_hook = old_hook;
                 PL_runops_boundary_data = old_data;
                 PL_restartjmpenv = old_restartjmpenv;
@@ -1239,6 +1795,7 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
             S_generator_restore_pads(aTHX_ generator);
             S_generator_swap_environment(aTHX_ generator, FALSE);
             process_state_restore(&caller_state);
+            S_execution_matches_restore(aTHX_ caller_matches);
             PL_runops_boundary_hook = old_hook;
             PL_runops_boundary_data = old_data;
             PL_restartjmpenv = old_restartjmpenv;
@@ -1264,8 +1821,10 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
     cophh_free(generator->environment.hints_hash);
     SvREFCNT_dec(generator->error);
     SvREFCNT_dec((SV *)generator->initial_args);
+    SvREFCNT_dec(generator->resume_exception);
     SvREFCNT_dec((SV *)generator->resume_args);
     SvREFCNT_dec((SV *)generator->result);
+    SvREFCNT_dec(generator->match_state);
     SvREFCNT_dec((SV *)generator->body);
     Safefree(generator);
     if (cleanup_errors)
@@ -1353,6 +1912,23 @@ typedef struct generator_run {
 } GENERATOR_RUN;
 
 static int S_generator_boundary(pTHX_ OP *nextop, void *data);
+
+/* This dispatcher is used only while explicitly driving a suspendable task
+ * or a generator adapter. Ordinary opcode dispatch and ordinary generator
+ * execution do not test for await. Nested native callbacks enter a different
+ * dispatcher, so they cannot inherit this permission. */
+static void
+S_async_runops(pTHX_ GENERATOR_RUN *run)
+{
+    OP *op = PL_op;
+    PERL_DTRACE_PROBE_OP(op);
+    while ((PL_op = op = op->op_type == OP_AWAIT
+            ? async_await(run->generator) : op->op_ppaddr(aTHX))) {
+        PERL_DTRACE_PROBE_OP(op);
+        S_generator_boundary(aTHX_ op, run);
+    }
+    S_generator_boundary(aTHX_ NULL, run);
+}
 
 void
 Perl_generator_mark_return(pTHX)
@@ -1568,6 +2144,44 @@ Perl_generator_capture(pTHX_ PERL_GENERATOR *generator, SV *value)
     generator->state = PERL_GENERATOR_YIELDED;
 }
 
+OP *
+Perl_async_await(pTHX_ PERL_GENERATOR *owner)
+{
+    SV *task = sv_mortalcopy(*PL_stack_sp);
+    HV *fields;
+    SV **state, **value;
+    PERL_ARGS_ASSERT_ASYNC_AWAIT;
+    if (!SvROK(task) || SvTYPE(SvRV(task)) != SVt_PVHV
+        || !sv_derived_from(task, "XPerl::Task") || SvMAGICAL(SvRV(task)))
+        PERL_THROW_ERROR_ASYNC_TASK_REQUIRED();
+    fields = MUTABLE_HV(SvRV(task));
+    state = hv_fetchs(fields, "state", 0);
+    if (!state)
+        PERL_THROW_ERROR_ASYNC_TASK_REQUIRED();
+    if (SvIV(*state) == 2) {
+        value = hv_fetchs(fields, "value", 0);
+        rpp_replace_1_1_NN(sv_mortalcopy(value ? *value : &PL_sv_undef));
+        return PL_op->op_next;
+    }
+    if (SvIV(*state) == 3) {
+        value = hv_fetchs(fields, "error", 0);
+        if (!value)
+            PERL_THROW_ERROR_ASYNC_TASK_REQUIRED();
+        die_unwind(sv_mortalcopy(*value));
+    }
+    /* Only the owning dispatcher calls this entry with an owner. A nested
+     * runloop entered by XS, sort or regex code uses pp_await instead. It
+     * cannot leave its native caller suspended, even on the same Perl stack. */
+    if (!owner)
+        PERL_THROW_ERROR_ASYNC_NATIVE_SUSPENSION_UNSUPPORTED();
+    if (!owner->await_allowed)
+        PERL_THROW_ERROR_ASYNC_GENERATOR_ADAPTER_REQUIRED();
+    generator_yield_values(&task, 1);
+    owner->awaiting = TRUE;
+    rpp_popfree_1();
+    return PL_op->op_next;
+}
+
 static void
 S_generator_push_resume_result(pTHX_ PERL_GENERATOR *generator)
 {
@@ -1589,6 +2203,7 @@ int
 Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
 {
     PERL_PROCESS_STATE caller_state;
+    SV *caller_matches;
     runops_boundary_proc_t old_hook = PL_runops_boundary_hook;
     void * const old_data = PL_runops_boundary_data;
     JMPENV * const caller_restartjmpenv = PL_restartjmpenv;
@@ -1625,7 +2240,6 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
     if (new_generator) {
         if (generator->initial_args)
             PERL_THROW_ERROR_ITERATOR_GENERATOR_ALREADY_INVOKED();
-        generator->initial_args = (AV *)SvREFCNT_inc(args);
     }
     else {
         AV *old_args = generator->resume_args;
@@ -1636,10 +2250,15 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         if (!local_bindings_validate(generator->local_bindings,
                                     &generator->process, generator->environment.rsgv))
             PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE();
-        generator->resume_args = (AV *)SvREFCNT_inc(args);
     }
+    caller_matches = S_execution_matches_prepare(aTHX_ TRUE);
+    if (new_generator)
+        generator->initial_args = (AV *)SvREFCNT_inc(args);
+    else
+        generator->resume_args = (AV *)SvREFCNT_inc(args);
     LEAVE_SCOPE(caller_save);
 
+    S_execution_matches_park(aTHX_ caller_matches);
     process_state_save(&caller_state);
     generator->invoke.op_flags = OPf_STACKED
         | (GIMME_V == G_LIST ? OPf_WANT_LIST
@@ -1647,12 +2266,15 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
     generator->captured = FALSE;
     generator->yield_pending = FALSE;
     generator->explicit_return = FALSE;
+    generator->awaiting = FALSE;
     generator->state = PERL_GENERATOR_RUNNING;
     if (generator->stack_pushed) {
         if (generator->stack_detached)
             S_generator_attach_stackinfo(aTHX_ generator);
         S_generator_install_pads(aTHX_ generator);
         process_state_restore(&generator->process);
+        if (generator->match_state)
+            S_execution_matches_restore(aTHX_ generator->match_state);
     }
     /* Native callbacks can run another loop on this same Perl stack. Their
      * return is not completion of the generator. Only its owning loop gets
@@ -1693,6 +2315,11 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
              * Do not save an unowned pointer to the initial caller's pad. */
             PL_comppad = NULL;
             PL_curpad = NULL;
+            /* A new execution has no previous match. Inheriting a caller's
+             * opcode would leave a dangling pointer if that caller returns
+             * while this execution is suspended. */
+            PL_curpm = NULL;
+            PL_curpm_under = NULL;
             S_generator_swap_environment(aTHX_ generator, TRUE);
             default_variables_swapped = TRUE;
             PL_in_eval = 0;
@@ -1718,11 +2345,19 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             S_generator_swap_environment(aTHX_ generator, TRUE);
             default_variables_swapped = TRUE;
             local_bindings_resume(generator->local_bindings, PL_savestack);
+            if (generator->resume_exception) {
+                SV * const error = generator->resume_exception;
+                generator->resume_exception = NULL;
+                die_unwind(sv_2mortal(error));
+            }
             S_generator_push_resume_result(aTHX_ generator);
         }
     run_execution:
         run.stackinfo = PL_curstackinfo;
-        S_runops_with_hook(aTHX_ S_generator_boundary, &run);
+        if (generator->await_allowed)
+            S_async_runops(aTHX_ &run);
+        else
+            S_runops_with_hook(aTHX_ S_generator_boundary, &run);
         break;
     case 2:
         exiting = TRUE;
@@ -1740,6 +2375,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         if (default_variables_swapped)
             S_generator_swap_environment(aTHX_ generator, FALSE);
         process_state_restore(&caller_state);
+        S_execution_matches_restore(aTHX_ caller_matches);
         PL_runops_boundary_hook = old_hook;
         PL_runops_boundary_data = old_data;
         PL_restartjmpenv = caller_restartjmpenv;
@@ -1776,6 +2412,8 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             cophh_free(generator->environment.hints_hash);
             generator->environment.hints_hash = NULL;
             RELEASE_FIELD(error);
+            RELEASE_FIELD(resume_exception);
+            RELEASE_FIELD(match_state);
             RELEASE_FIELD(body);
 #undef RELEASE_FIELD
             LEAVE_SCOPE(floor);
@@ -1802,6 +2440,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
                 AV * const values = generator->values;
                 generator->yield_pending = FALSE;
                 generator->value = NULL;
+                generator->awaiting = FALSE;
                 generator->values = NULL;
                 if (value)
                     sv_2mortal(value);
@@ -1833,6 +2472,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
         if (default_variables_swapped)
             S_generator_swap_environment(aTHX_ generator, FALSE);
         process_state_restore(&caller_state);
+        S_execution_matches_restore(aTHX_ caller_matches);
         S_generator_free_pads(aTHX_ generator);
         PL_restartjmpenv = PL_top_env;
         {
@@ -1862,6 +2502,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
     if (default_variables_swapped)
         S_generator_swap_environment(aTHX_ generator, FALSE);
     process_state_restore(&caller_state);
+    S_execution_matches_restore(aTHX_ caller_matches);
     PL_restartjmpenv = caller_restartjmpenv;
     return generator->state == PERL_GENERATOR_YIELDED ? 1 : 0;
 }

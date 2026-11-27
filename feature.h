@@ -14,37 +14,39 @@
 
 /* Index 0 */
 #define FEATURE_APOS_AS_NAME_SEP_BIT                0x00000001
-#define FEATURE_BAREWORD_FILEHANDLES_BIT            0x00000002
-#define FEATURE_BITWISE_BIT                         0x00000004
-#define FEATURE_CLASS_BIT                           0x00000008
-#define FEATURE___SUB___BIT                         0x00000010
-#define FEATURE_MYREF_BIT                           0x00000020
-#define FEATURE_DEFER_BIT                           0x00000040
-#define FEATURE_DISPATCH_ON_BIT                     0x00000080
-#define FEATURE_ENHANCED_XX_BIT                     0x00000100
-#define FEATURE_EVALBYTES_BIT                       0x00000200
-#define FEATURE_MORE_DELIMS_BIT                     0x00000400
-#define FEATURE_FC_BIT                              0x00000800
-#define FEATURE_GENERATOR_BIT                       0x00001000
-#define FEATURE_INDIRECT_BIT                        0x00002000
-#define FEATURE_ISA_BIT                             0x00004000
-#define FEATURE_KEYWORD_ALL_BIT                     0x00008000
-#define FEATURE_KEYWORD_ANY_BIT                     0x00010000
-#define FEATURE_MODULE_TRUE_BIT                     0x00020000
-#define FEATURE_MULTIDIMENSIONAL_BIT                0x00040000
-#define FEATURE_MULTISUB_BIT                        0x00080000
-#define FEATURE_POSTDEREF_QQ_BIT                    0x00100000
-#define FEATURE_REFALIASING_BIT                     0x00200000
-#define FEATURE_SAY_BIT                             0x00400000
-#define FEATURE_SIGNATURES_BIT                      0x00800000
-#define FEATURE_SMARTMATCH_BIT                      0x01000000
-#define FEATURE_STATE_BIT                           0x02000000
-#define FEATURE_SWITCH_BIT                          0x04000000
-#define FEATURE_TRY_BIT                             0x08000000
-#define FEATURE_UNIEVAL_BIT                         0x10000000
-#define FEATURE_UNICODE_BIT                         0x20000000
+#define FEATURE_ASYNC_BIT                           0x00000002
+#define FEATURE_BAREWORD_FILEHANDLES_BIT            0x00000004
+#define FEATURE_BITWISE_BIT                         0x00000008
+#define FEATURE_CLASS_BIT                           0x00000010
+#define FEATURE___SUB___BIT                         0x00000020
+#define FEATURE_MYREF_BIT                           0x00000040
+#define FEATURE_DEFER_BIT                           0x00000080
+#define FEATURE_DISPATCH_ON_BIT                     0x00000100
+#define FEATURE_ENHANCED_XX_BIT                     0x00000200
+#define FEATURE_EVALBYTES_BIT                       0x00000400
+#define FEATURE_MORE_DELIMS_BIT                     0x00000800
+#define FEATURE_FC_BIT                              0x00001000
+#define FEATURE_GENERATOR_BIT                       0x00002000
+#define FEATURE_INDIRECT_BIT                        0x00004000
+#define FEATURE_ISA_BIT                             0x00008000
+#define FEATURE_KEYWORD_ALL_BIT                     0x00010000
+#define FEATURE_KEYWORD_ANY_BIT                     0x00020000
+#define FEATURE_MODULE_TRUE_BIT                     0x00040000
+#define FEATURE_MULTIDIMENSIONAL_BIT                0x00080000
+#define FEATURE_MULTISUB_BIT                        0x00100000
+#define FEATURE_POSTDEREF_QQ_BIT                    0x00200000
+#define FEATURE_REFALIASING_BIT                     0x00400000
+#define FEATURE_SAY_BIT                             0x00800000
+#define FEATURE_SIGNATURES_BIT                      0x01000000
+#define FEATURE_SMARTMATCH_BIT                      0x02000000
+#define FEATURE_STATE_BIT                           0x04000000
+#define FEATURE_SWITCH_BIT                          0x08000000
+#define FEATURE_TRY_BIT                             0x10000000
+#define FEATURE_UNIEVAL_BIT                         0x20000000
+#define FEATURE_UNICODE_BIT                         0x40000000
 
 #define FEATURE_APOS_AS_NAME_SEP_INDEX                0
+#define FEATURE_ASYNC_INDEX                           0
 #define FEATURE_BAREWORD_FILEHANDLES_INDEX            0
 #define FEATURE_BITWISE_INDEX                         0
 #define FEATURE_CLASS_INDEX                           0
@@ -141,6 +143,12 @@
 	 CURRENT_FEATURE_BUNDLE <= FEATURE_BUNDLE_541) \
      || (CURRENT_FEATURE_BUNDLE == FEATURE_BUNDLE_CUSTOM && \
 	 FEATURE_IS_ENABLED_MASK(FEATURE_TRY_INDEX, FEATURE_TRY_BIT)) \
+    )
+
+#define FEATURE_ASYNC_IS_ENABLED \
+    ( \
+	CURRENT_FEATURE_BUNDLE == FEATURE_BUNDLE_CUSTOM && \
+	 FEATURE_IS_ENABLED_MASK(FEATURE_ASYNC_INDEX, FEATURE_ASYNC_BIT) \
     )
 
 #define FEATURE_CLASS_IS_ENABLED \
@@ -411,6 +419,12 @@ S_magic_sethint_feature(pTHX_ SV *keysv, const char *keypv, STRLEN keylen,
                 index = FEATURE_APOS_AS_NAME_SEP_INDEX;
                 break;
             }
+            else if (keylen == sizeof("feature_async")-1
+                 && memcmp(subf+1, "sync", keylen - sizeof("feature_")) == 0) {
+                mask = FEATURE_ASYNC_BIT;
+                index = FEATURE_ASYNC_INDEX;
+                break;
+            }
             return;
 
         case 'b':
@@ -652,6 +666,13 @@ PL_feature_bits[] = {
         STRLENs("feature_apos_as_name_sep"),
         FEATURE_APOS_AS_NAME_SEP_BIT,
         FEATURE_APOS_AS_NAME_SEP_INDEX
+    },
+    {
+        /* feature async */
+        "feature_async",
+        STRLENs("feature_async"),
+        FEATURE_ASYNC_BIT,
+        FEATURE_ASYNC_INDEX
     },
     {
         /* feature bareword_filehandles */

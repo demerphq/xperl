@@ -607,6 +607,19 @@ release manager will have to investigate the situation carefully.)
 
 =item *
 
+L<async> enables experimental C<async sub> and C<await> syntax and imports
+the built-in C<run> driver. Async calls return L<XPerl::Task> objects.
+Their executions can wait inside ordinary nested Perl helpers while
+preserving the Perl call stack and supported localizations. The initial
+driver supports task dependencies and timers. Native C callbacks cannot
+suspend, and generators which await require an explicit adapter. See
+L<XPerl::Task> for cancellation, ownership and prototype limitations.
+Tasks and generators start without a previous regex match. Subsequent
+core-engine captures survive suspension independently of other executions.
+See L<perlgenerator> for unsupported match states.
+
+=item *
+
 L<xperl> enables the current XPerl language with C<use xperl;>. It turns on
 strictness and warnings, enables modern and experimental features, imports
 builtins and standard pattern predicates lexically, and loads generator

@@ -7,7 +7,7 @@
 # This is based on the module of the same name by Malcolm Beattie,
 # but essentially none of his code remains.
 
-package B::Deparse 1.93;
+package B::Deparse 1.94;
 use strict;
 use builtin qw( true false );
 use Carp;
@@ -34,7 +34,7 @@ use B qw(class main_root main_start main_cv svref_2object opnumber perlstring
          OPpCALLER_HINTS OPpCALLER_BITS OPpCALLER_HINTH         
 	 SVf_IOK SVf_NOK SVf_ROK SVf_POK SVf_FAKE SVs_RMG SVs_SMG
 	 SVs_PADTMP
-         CVf_NOWARN_AMBIGUOUS CVf_LVALUE CVf_IsMETHOD PERL_CVf_MULTISUB
+         CVf_NOWARN_AMBIGUOUS CVf_LVALUE CVf_IsMETHOD PERL_CVf_MULTISUB PERL_CVf_ASYNC
          DISPATCH_PATTERN_CRITERION_PIN DISPATCH_PATTERN_CRITERION_OBJECT
 	 PMf_KEEP PMf_GLOBAL PMf_CONTINUE PMf_EVAL PMf_ONCE
 	 PMf_MULTILINE PMf_SINGLELINE PMf_FOLD PMf_EXTENDED PMf_EXTENDED_MORE
@@ -422,11 +422,22 @@ sub null {
 }
 
 
-# Add a CV to the list of subs that still need deparsing.
+# A factory has no Perl optree. Inspect its retained body to reconstruct
+# the source and lexical scopes.
+sub async_body {
+    my ($cv) = @_;
+    if ($cv->CvFLAGS & PERL_CVf_ASYNC) {
+        my $body = $cv->ASYNC_BODY;
+        return $body if class($body) eq 'CV';
+    }
+    return $cv;
+}
 
+# Add a CV to the list of subs that still need deparsing.
 sub todo {
     my $self = shift;
     my($cv, $is_form, $name) = @_;
+    $cv = async_body($cv);
     my $cvfile = $cv->FILE//'';
     return unless ($cvfile eq $0 || exists $self->{files}{$cvfile});
     my $seq;
@@ -1542,6 +1553,7 @@ sub deparse_argops {
 sub kw_sub_or_method {
     my $self = shift;
     my $cv = shift;
+    return 'async sub' if $cv->CvFLAGS & PERL_CVf_ASYNC;
     return ($cv->CvFLAGS & CVf_IsMETHOD) ? "method" : "sub";
 }
 
@@ -1552,6 +1564,7 @@ sub kw_sub_or_method {
 sub deparse_sub {
     my $self = shift;
     my $cv = shift;
+    $cv = async_body($cv);
     my @attrs;
     my $proto;
     my $sig;
@@ -2760,6 +2773,8 @@ my %feature_keywords = (
    gen      => 'generator',
    multi    => 'multisub',
    yield    => 'generator',
+   async    => 'async',
+   await    => 'async',
 );
 
 # keywords that are strong and also have a prototype
@@ -3000,6 +3015,7 @@ sub pp_srand { unop(@_, "srand") }
 sub pp_exp { maybe_targmy(@_, \&unop, "exp") }
 sub pp_log { maybe_targmy(@_, \&unop, "log") }
 sub pp_sqrt { maybe_targmy(@_, \&unop, "sqrt") }
+sub pp_await { unop(@_, "await") }
 sub pp_int { maybe_targmy(@_, \&unop, "int") }
 sub pp_hex { maybe_targmy(@_, \&unop, "hex") }
 sub pp_oct { maybe_targmy(@_, \&unop, "oct") }

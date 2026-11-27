@@ -2187,6 +2187,15 @@ CvMULTISUB_SCOPES(cv)
         }
         XPUSHs(make_sv_object(aTHX_ scopes));
 
+void
+CvASYNC_BODY(cv)
+        B::CV cv
+    PPCODE:
+        SV *body = (CvFLAGS(cv) & PERL_CVf_ASYNC)
+            && CvISXSUB(cv) && CvREFCOUNTED_ANYSV(cv)
+            ? CvXSUBANY(cv).any_sv : NULL;
+        XPUSHs(make_sv_object(aTHX_ body));
+
 SV *
 CvHSCXT(cv)
 	B::CV	cv

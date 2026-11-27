@@ -33,6 +33,8 @@
 #   undef CC_MAGICAL_
 #   undef CC_UNDERSCORE_
 #   undef compose_origins
+#   undef CvASYNC
+#   undef CvASYNC_on
 #   undef CvFORWARD_DECL
 #   undef CvFORWARD_DECL_on
 #   undef CvGENERATOR
@@ -71,6 +73,8 @@
 #   undef HvSTASH_IS_ROLE
 #   undef isFOO_or_UNDERSCORE_
 #   undef isIDCONT_lazy_if_safe
+#   undef KEY_async
+#   undef KEY_await
 #   undef KEY_DefinedVal
 #   undef KEY_dispatch
 #   undef KEY_equ
@@ -197,6 +201,11 @@
 # define api_version_assert                     Perl_api_version_assert
 # define apply_attrs_string(a,b,c,d)            Perl_apply_attrs_string(aTHX_ a,b,c,d)
 # define apply_builtin_cv_attributes(a,b)       Perl_apply_builtin_cv_attributes(aTHX_ a,b)
+# define async_await(a)                         Perl_async_await(aTHX_ a)
+# define async_check_name(a)                    Perl_async_check_name(aTHX_ a)
+# define async_install(a)                       Perl_async_install(aTHX_ a)
+# define async_load()                           Perl_async_load(aTHX)
+# define async_wrap(a)                          Perl_async_wrap(aTHX_ a)
 # define atfork_child                           Perl_atfork_child
 # define atfork_lock                            Perl_atfork_lock
 # define atfork_unlock                          Perl_atfork_unlock
@@ -1215,6 +1224,7 @@
 #   define dump_all_perl(a)                     Perl_dump_all_perl(aTHX_ a)
 #   define dump_packsubs_perl(a,b)              Perl_dump_packsubs_perl(aTHX_ a,b)
 #   define dump_sub_perl(a,b)                   Perl_dump_sub_perl(aTHX_ a,b)
+#   define execution_match_roots(a)             Perl_execution_match_roots(aTHX_ a)
 #   define find_lexical_cv(a)                   Perl_find_lexical_cv(aTHX_ a)
 #   define find_runcv_where(a,b,c)              Perl_find_runcv_where(aTHX_ a,b,c)
 #   define find_script(a,b,c,d)                 Perl_find_script(aTHX_ a,b,c,d)

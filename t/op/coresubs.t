@@ -27,7 +27,7 @@ my %unsupported = map +($_=>1), qw (
   field finally for foreach format ge given goto grep gt if isa last le local
   lt m map method my multi ne neu next no or our package print printf q qq qr qw qx
   redo require return s say sort state sub tr try unless until use
- when while x xor y role gen yield
+ when while x xor y role gen yield async await
 );
 $unsupported{dispatch} = $unsupported{on} = 1;
 my %args_for = (
@@ -61,7 +61,7 @@ while(<$kh>) {
     next if $word =~ /^(?:dispatch|on|ObjectVal|RefVal|ScalarVal|
                          DefinedVal|Int|Float|TRUE|FALSE|
                          implements|equ|neu|
-                         gen|yield)$/x;
+                         gen|yield|async|await)$/x;
     if($unsupported{$word}) {
       $tests ++;
       ok !defined &{"CORE::$word"}, "no CORE::$word";

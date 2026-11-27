@@ -6960,6 +6960,7 @@ hints/vos.sh				Hints for named architecture
 lib/_charnames.pm			Character names
 lib/AnyDBM_File.pm			Perl module to emulate dbmopen
 lib/AnyDBM_File.t			See if AnyDBM_File works
+lib/async.pm				Enable experimental async task syntax and driver
 lib/B/Deparse.pm			Compiler Deparse backend
 lib/B/Deparse.t				See if B::Deparse works
 lib/B/Deparse-core.t			See if B::Deparse knows when to use CORE::
@@ -7260,6 +7261,7 @@ lib/XPerl/REPL/Config.pm		repl command line, paths and colour detection
 lib/XPerl/REPL/Evaluator.pm		repl compile/execute/persistence
 lib/XPerl/REPL/Input.pm			repl list and handle input sources
 lib/XPerl/REPL/Render.pm		repl result, diagnostic and colour rendering
+lib/XPerl/Task.pm			Experimental cooperative task driver
 os2/Changes				Changelog for OS/2 port
 os2/diff.configure			Patches to Configure
 os2/dl_os2.c				Addon for dl_open
@@ -8022,6 +8024,8 @@ t/op/args.t				See if operations on @_ work
 t/op/arith2.t				See if arithmetic works
 t/op/array.t				See if array operations work
 t/op/assignwarn.t			See if OP= operators warn correctly for undef targets
+t/op/async.t				Experimental async task execution
+t/op/async_threads.t			Async interpreter isolation
 t/op/attrhand.t				See if attribute handlers work
 t/op/attrproto.t			See if the prototype attribute works
 t/op/attrs.t				See if attributes on declarations work

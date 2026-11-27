@@ -4,6 +4,7 @@ BEGIN {
     chdir 't' if -d 't';
     require './test.pl';
     set_up_inc('../lib');
+    skip_all_without_dynamic_extension('B');
 }
 
 use strict;
@@ -37,8 +38,10 @@ say is_class_object($object) ? 'class' : 'wrong';
 sub named(:$value) { $value }
 say named(value => 9);
 say is_bool(true) && !false ? 'builtins' : 'wrong';
+async sub increment($value) { return $value + 1 }
+say run(increment(4));
 PROG
-fresh_perl_is($program, "55\nvalue\n7\ncompleted\n4\nclass\n9\nbuiltins\n", {},
+fresh_perl_is($program, "55\nvalue\n7\ncompleted\n4\nclass\n9\nbuiltins\n5\n", {},
               'one pragma enables XPerl syntax and supporting functions');
 
 $program = <<'PROG';

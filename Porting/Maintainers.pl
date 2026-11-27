@@ -141,6 +141,12 @@ our %Modules = (
         'UPSTREAM'   => 'xperl/main',
     },
 
+    'XPerl async' => {
+        'FILES'      => q[lib/async.pm lib/XPerl/Task.pm],
+        'MAINTAINER' => 'XPERL',
+        'UPSTREAM'   => 'xperl/main',
+    },
+
     'Archive::Tar' => {
         'DISTRIBUTION' => 'BINGOS/Archive-Tar-3.14.tar.gz',
         'SYNCINFO'     => 'jkeenan on Fri Oct  2 09:13:09 2026',
@@ -1553,6 +1559,7 @@ our %Modules = (
     #    perl Porting/Maintainers --checkmani
 
     '_PERLLIB' => {
+        'EXCLUDED' => [ 'lib/XPerl/Task.pm' ],
         'FILES'    => q[
                 ext/Amiga-ARexx/
                 ext/Amiga-Exec/

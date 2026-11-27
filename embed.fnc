@@ -932,6 +932,12 @@ Apx	|void	|apply_attrs_string					\
 Adp	|OP *	|apply_builtin_cv_attributes				\
 				|NN CV *cv				\
 				|NULLOK OP *attrlist
+Chp	|OP *	|async_await	|NULLOK PERL_GENERATOR *owner
+Chp	|void	|async_check_name					\
+				|NN OP *nameop
+Chp	|void	|async_install	|NN CV *body
+Chp	|void	|async_load
+Chp	|SV *	|async_wrap	|NN CV *body
 CTp	|void	|atfork_child
 CTp	|void	|atfork_lock
 CTp	|void	|atfork_unlock
@@ -1785,6 +1791,8 @@ AOdp	|SV *	|eval_pv	|NN const char *p			\
 				|I32 croak_on_error
 AOdp	|SSize_t|eval_sv	|NN SV *sv				\
 				|I32 flags
+p	|AV *	|execution_match_roots					\
+				|NULLOK AV *roots
 CTmpx	|Size_t |expected_size	|UV size
 Adp	|PADOFFSET|export_lexical					\
 				|NN SV *name				\

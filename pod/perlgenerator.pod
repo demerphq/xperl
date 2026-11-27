@@ -341,6 +341,23 @@ bindings.  Suspending restores the current caller's bindings.  References
 to the generator's scalars and argument aliases retain their identity
 while it is suspended.
 
+Each execution starts without a previous regex match. Its captures are
+initially undefined, and an empty pattern cannot reuse the caller's last
+pattern. Once the execution has matched, its captures, named captures and
+last-pattern binding survive suspension independently of other executions.
+Returning to a caller restores that caller's match.
+
+Suspension currently supports completed matches made by the core regex
+engine with a preserved subject buffer. A match using an extension engine,
+borrowed subject bytes or value-magic annotations prevents suspension while
+it remains in scope. The execution can catch the exception and leave that
+scope before retrying. Native regex callbacks cannot suspend their C stack.
+Cleanup invoked from such a callback can unwind an abandoned generator.
+Extension engines retain their usual nested-callback behavior during cleanup.
+Regex value-magic annotations are not isolated by this prototype.
+The iteration cursor of C<each %+> or C<each %-> is shared. Collect
+C<keys %+> or C<keys %-> before suspending if iteration must span a yield.
+
 Generators also preserve their input record separator C<$/>, selected
 output handle and compiler hints. These start with the creator's settings
 and become independent.

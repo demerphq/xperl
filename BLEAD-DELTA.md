@@ -73,6 +73,11 @@ are put aside on yield and reinstated on resume. The caller sees its own
 bindings while the generator is suspended. Generators preserve selected
 interpreter settings too, including the input record separator.
 
+Generators and tasks start with undefined regex captures. Later captures
+survive suspension independently of other executions, and the caller gets
+its own match back when they return. Some regex states cannot be suspended;
+see the generator reference for the prototype's limits.
+
 A generator cannot yield with unsupported localizations still in scope,
 such as ordinary array or hash elements, whole globs, or tied variables.
 These may be used in scopes which end before yielding. Suspension checks
@@ -80,6 +85,21 @@ report an exception before putting any bindings aside.
 
 See [perlgenerator](pod/perlgenerator.pod) for calling rules, cleanup,
 and suspension limits.
+
+### Async tasks
+
+The experimental `async sub` syntax creates functions which return
+`XPerl::Task` objects. `await` reads a task's eventual result or exception,
+pausing the current execution if necessary. Ordinary nested Perl helpers
+can await without an async declaration.
+
+The built-in `run` drives cooperative tasks and timers. There are no
+background threads or scheduling checks in ordinary opcode dispatch.
+Suspension cannot cross an active native C callback. A generator which
+awaits uses an explicit adapter in this prototype.
+
+See [XPerl::Task](lib/XPerl/Task.pm) for scheduling, cleanup and current
+limits. The `async` pragma enables the syntax and imports `run`.
 
 ### Iterators
 

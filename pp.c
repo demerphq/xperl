@@ -458,6 +458,10 @@ PP(pp_anoncode)
         sv = generator_wrap(cv);
         generator = TRUE;
     }
+    else if (CvASYNC(cv)) {
+        sv = async_wrap(cv);
+        generator = TRUE;
+    }
     else {
         sv = MUTABLE_SV(cv);
     }

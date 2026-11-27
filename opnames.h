@@ -461,6 +461,7 @@ typedef enum opcode {
 	OP_YIELD	 = 444,
 	OP_MULTISUBFAIL	 = 445,
 	OP_DISPATCHFAIL	 = 446,
+	OP_AWAIT	 = 447,
 	OP_max		
 } opcode;
 
@@ -471,7 +472,7 @@ An enum of all the legal Perl opcodes, defined in F<opnames.h>
 =cut
 */
 
-#define MAXO 447
+#define MAXO 448
 #define OP_FREED MAXO
 
 /* the OP_IS_* macros are optimized to a simple range check because

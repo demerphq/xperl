@@ -586,6 +586,7 @@ $META = {
     "anonlist",
     "anystart",
     "atan2",
+    "await",
     "bind",
     "binmode",
     "bless",
@@ -751,6 +752,7 @@ $META = {
     "av2arylen",
     "avalues",
     "avhvswitch",
+    "await",
     "backtick",
     "bind",
     "binmode",
@@ -1201,6 +1203,7 @@ $META = {
     "av2arylen",
     "avalues",
     "avhvswitch",
+    "await",
     "backtick",
     "bind",
     "binmode",
@@ -1818,6 +1821,9 @@ $CONF = {
     },
     "XPerl::Diagnostic::Error" => {
       "parent" => "XPerl::Diagnostic"
+    },
+    "XPerl::Diagnostic::Error::Async" => {
+      "parent" => "XPerl::Diagnostic::Error"
     },
     "XPerl::Diagnostic::Error::Call" => {
       "parent" => "XPerl::Diagnostic::Error"
@@ -19899,6 +19905,175 @@ $CONF = {
         }
       },
       "CORE_RUNTIME" => {
+        "ERROR_ASYNC_DECLARATION_UNSUPPORTED" => {
+          "number" => 2804,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_ASYNC_DECLARATION_UNSUPPORTED",
+          "macro" => "PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED",
+          "source_files" => [
+            "perly.y",
+            "run.c"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "An async declaration requires a named body or an anonymous signatured subroutine"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK_CONTEXT"
+          },
+          "class" => "XPerl::Diagnostic::Error::Async"
+        },
+        "ERROR_ASYNC_EXCEPTION_REQUIRES_SUSPENSION" => {
+          "number" => 2805,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_ASYNC_EXCEPTION_REQUIRES_SUSPENSION",
+          "macro" => "PERL_THROW_ERROR_ASYNC_EXCEPTION_REQUIRES_SUSPENSION",
+          "source_files" => [
+            "run.c"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "Exceptional resumption requires a suspended execution context"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK_CONTEXT"
+          },
+          "class" => "XPerl::Diagnostic::Error::Async"
+        },
+        "ERROR_ASYNC_FIBER_REQUIRED" => {
+          "number" => 2806,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_ASYNC_FIBER_REQUIRED",
+          "macro" => "PERL_THROW_ERROR_ASYNC_FIBER_REQUIRED",
+          "source_files" => [
+            "run.c"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "Invalid async execution context"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK_CONTEXT"
+          },
+          "class" => "XPerl::Diagnostic::Error::Async"
+        },
+        "ERROR_ASYNC_FIBER_RUNNING" => {
+          "number" => 2807,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_ASYNC_FIBER_RUNNING",
+          "macro" => "PERL_THROW_ERROR_ASYNC_FIBER_RUNNING",
+          "source_files" => [
+            "run.c"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "Cannot resume or close a running async execution context"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK_CONTEXT"
+          },
+          "class" => "XPerl::Diagnostic::Error::Async"
+        },
+        "ERROR_ASYNC_GENERATOR_ADAPTER_REQUIRED" => {
+          "number" => 2808,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_ASYNC_GENERATOR_ADAPTER_REQUIRED",
+          "macro" => "PERL_THROW_ERROR_ASYNC_GENERATOR_ADAPTER_REQUIRED",
+          "source_files" => [
+            "run.c"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "A generator which awaits must be driven by XPerl::Task::next_value"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK_CONTEXT"
+          },
+          "class" => "XPerl::Diagnostic::Error::Async"
+        },
+        "ERROR_ASYNC_NATIVE_SUSPENSION_UNSUPPORTED" => {
+          "number" => 2809,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_ASYNC_NATIVE_SUSPENSION_UNSUPPORTED",
+          "macro" => "PERL_THROW_ERROR_ASYNC_NATIVE_SUSPENSION_UNSUPPORTED",
+          "source_files" => [
+            "run.c"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "Cannot suspend await outside its owning Perl execution loop"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK_CONTEXT"
+          },
+          "class" => "XPerl::Diagnostic::Error::Async"
+        },
+        "ERROR_ASYNC_RELAY_BUSY" => {
+          "number" => 2811,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_ASYNC_RELAY_BUSY",
+          "macro" => "PERL_THROW_ERROR_ASYNC_RELAY_BUSY",
+          "source_files" => [
+            "run.c"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "A generator already has an active async adapter"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK_CONTEXT"
+          },
+          "class" => "XPerl::Diagnostic::Error::Async"
+        },
+        "ERROR_ASYNC_TASK_REQUIRED" => {
+          "number" => 2810,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_ASYNC_TASK_REQUIRED",
+          "macro" => "PERL_THROW_ERROR_ASYNC_TASK_REQUIRED",
+          "source_files" => [
+            "run.c"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "await requires an XPerl::Task object"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK_CONTEXT"
+          },
+          "class" => "XPerl::Diagnostic::Error::Async"
+        },
         "ERROR_CALL_BINDING_ARITY_INVALID_ARGUMENT_COUNT" => {
           "number" => 1500,
           "severity" => "FATAL_ERROR",
@@ -30875,6 +31050,7 @@ $CONF = {
           "macro" => "PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE",
           "source_files" => [
             "run.c",
+            "scope.c",
             "sv.c"
           ],
           "tags" => [
@@ -30978,6 +31154,31 @@ $CONF = {
           "message" => {
             "templates" => {
               "en" => "Cannot yield with an unsupported localization still in scope"
+            },
+            "args" => []
+          },
+          "counts_as_error" => 1,
+          "emit" => {
+            "api" => "CROAK_CONTEXT"
+          },
+          "class" => "XPerl::Diagnostic::Error::Iterator::Generator"
+        },
+        "ERROR_ITERATOR_GENERATOR_MATCH_UNSUPPORTED" => {
+          "number" => 2812,
+          "severity" => "FATAL_ERROR",
+          "kind" => "CORE_RUNTIME",
+          "code" => "ERROR_ITERATOR_GENERATOR_MATCH_UNSUPPORTED",
+          "macro" => "PERL_THROW_ERROR_ITERATOR_GENERATOR_MATCH_UNSUPPORTED",
+          "source_files" => [
+            "run.c"
+          ],
+          "tags" => [
+            "condition:invalid_syntax_value_state",
+            "subject:generators"
+          ],
+          "message" => {
+            "templates" => {
+              "en" => "Cannot suspend with an unsupported regex match still in scope"
             },
             "args" => []
           },

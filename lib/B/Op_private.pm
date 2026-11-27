@@ -328,6 +328,7 @@ $bits{argcheck}{0} = $bf[0];
 $bits{av2arylen}{0} = $bf[0];
 $bits{avalues}{0} = $bf[0];
 @{$bits{avhvswitch}}{1,0} = ($bf[3], $bf[3]);
+$bits{await}{0} = $bf[0];
 $bits{backtick}{0} = $bf[0];
 @{$bits{bind}}{3,2,1,0} = ($bf[5], $bf[5], $bf[5], $bf[5]);
 @{$bits{binmode}}{3,2,1,0} = ($bf[5], $bf[5], $bf[5], $bf[5]);

@@ -14438,6 +14438,11 @@ PP(pp_yield)
     return PL_op->op_next;
 }
 
+PP(pp_await)
+{
+    return async_await(NULL);
+}
+
 static MAGIC *
 S_doparseform(pTHX_ SV *sv)
 {

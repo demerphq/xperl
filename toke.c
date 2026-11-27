@@ -8829,6 +8829,12 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
     case KEY_gen:
         PREBLOCK(KW_GEN);
 
+    case KEY_async:
+        TOKEN(KW_ASYNC);
+
+    case KEY_await:
+        UNI(OP_AWAIT);
+
     case KEY_yield:
         PL_expect = XTERM;
         PL_bufptr = s;

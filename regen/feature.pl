@@ -50,6 +50,7 @@ my %feature = (
         try
         defer
         generator
+        async
         dispatch_on
         multisub
         module_true
@@ -937,6 +938,14 @@ conjunction with the "refaliasing" feature.  See L<perlref/Declaring a
 Reference to a Variable> for examples.
 
 This feature is available from Perl 5.26 onwards.
+
+=head2 The 'async' feature
+
+Enables the experimental XPerl C<async sub> and C<await> syntax. Async calls
+produce task objects whose executions can suspend through ordinary Perl
+helper calls. The C<async> pragma enables this feature, signatures and the
+built-in C<run> driver. See L<XPerl::Task> for the prototype's scheduling
+rules and suspension limits.
 
 =head2 The 'defer' feature
 

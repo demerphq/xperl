@@ -632,6 +632,8 @@ S_maybe_add_coresub(pTHX_ HV * const stash, GV *gv,
     case KEY_finally:
     case KEY_gen:
     case KEY_yield:
+    case KEY_async:
+    case KEY_await:
     case KEY_for     : case KEY_foreach: case KEY_format: case KEY_ge     :
     case KEY_given   : case KEY_goto   : case KEY_grep  : case KEY_gt     :
     case KEY_if      : case KEY_implements: case KEY_isa    :

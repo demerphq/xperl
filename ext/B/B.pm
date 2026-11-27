@@ -20,7 +20,7 @@ sub import {
 # walkoptree comes from B.xs
 
 BEGIN {
-    $B::VERSION = '1.94';
+    $B::VERSION = '1.95';
     @B::EXPORT_OK = ();
 
     # Our BOOT code needs $VERSION set, and will append to @EXPORT_OK.
@@ -1018,6 +1018,10 @@ Returns the C<B::AV> holding the experimental multi declaration's clause
 scope metadata, or a null object for another kind of CV. The object borrows
 its storage from the CV. Its internal layout is not a stable interface.
 
+=item ASYNC_BODY
+
+Returns the C<B::CV> retained by an experimental async factory, or a null
+object for another kind of CV. The object borrows its storage from the CV.
 =item OUTSIDE
 
 =item OUTSIDE_SEQ

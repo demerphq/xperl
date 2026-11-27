@@ -1,4 +1,4 @@
-package builtin 0.022;
+package builtin 0.023;
 
 use v5.40;
 
@@ -497,6 +497,15 @@ argument.
 Available starting with Perl 5.36. Since Perl 5.40, it is no longer
 experimental and it is included in the 5.40 and higher builtin version
 bundles.
+
+=head2 run
+
+    my $value = run($task);
+
+Drives an experimental C<XPerl::Task> and returns its eventual scalar value,
+or raises its exception. The default driver handles task dependencies and
+timers. It rejects nested invocations. See L<XPerl::Task> for ownership,
+cancellation and suspension rules.
 
 =head2 iter
 

@@ -28,6 +28,7 @@ PERL_CALLCONV PP(pp_aslice) __attribute__visibility__("hidden");
 PERL_CALLCONV PP(pp_atan2) __attribute__visibility__("hidden");
 PERL_CALLCONV PP(pp_av2arylen) __attribute__visibility__("hidden");
 PERL_CALLCONV PP(pp_avhvswitch) __attribute__visibility__("hidden");
+PERL_CALLCONV PP(pp_await) __attribute__visibility__("hidden");
 PERL_CALLCONV PP(pp_backtick) __attribute__visibility__("hidden");
 PERL_CALLCONV PP(pp_bind) __attribute__visibility__("hidden");
 PERL_CALLCONV PP(pp_binmode) __attribute__visibility__("hidden");

@@ -11,6 +11,7 @@ our %feature = (
     isa                             => 'feature_isa',
     say                             => 'feature_say',
     try                             => 'feature_try',
+    async                           => 'feature_async',
     class                           => 'feature_class',
     defer                           => 'feature_defer',
     state                           => 'feature_state',
@@ -49,7 +50,7 @@ our %feature_bundle = (
     "5.37"    => [qw(apostrophe_as_package_separator bitwise current_sub evalbytes fc isa module_true postderef_qq say signatures smartmatch state unicode_eval unicode_strings)],
     "5.39"    => [qw(apostrophe_as_package_separator bitwise current_sub evalbytes fc isa module_true postderef_qq say signatures smartmatch state try unicode_eval unicode_strings)],
     "5.41"    => [qw(bitwise current_sub evalbytes fc isa module_true postderef_qq say signatures state try unicode_eval unicode_strings)],
-    "all"     => [qw(apostrophe_as_package_separator bareword_filehandles bitwise class current_sub declared_refs defer dispatch_on enhanced_xx evalbytes extra_paired_delimiters fc generator indirect isa keyword_all keyword_any module_true multidimensional multisub postderef_qq refaliasing say signatures smartmatch state switch try unicode_eval unicode_strings)],
+    "all"     => [qw(apostrophe_as_package_separator async bareword_filehandles bitwise class current_sub declared_refs defer dispatch_on enhanced_xx evalbytes extra_paired_delimiters fc generator indirect isa keyword_all keyword_any module_true multidimensional multisub postderef_qq refaliasing say signatures smartmatch state switch try unicode_eval unicode_strings)],
     "default" => [qw(apostrophe_as_package_separator bareword_filehandles indirect multidimensional smartmatch)],
 );
 
@@ -406,6 +407,14 @@ conjunction with the "refaliasing" feature.  See L<perlref/Declaring a
 Reference to a Variable> for examples.
 
 This feature is available from Perl 5.26 onwards.
+
+=head2 The 'async' feature
+
+Enables the experimental XPerl C<async sub> and C<await> syntax. Async calls
+produce task objects whose executions can suspend through ordinary Perl
+helper calls. The C<async> pragma enables this feature, signatures and the
+built-in C<run> driver. See L<XPerl::Task> for the prototype's scheduling
+rules and suspension limits.
 
 =head2 The 'defer' feature
 

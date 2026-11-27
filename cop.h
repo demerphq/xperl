@@ -1528,6 +1528,11 @@ typedef struct perl_generator {
     AV *                    values;
     SV *                    value;
     SV *                    error;
+    SV *                    match_state;
+    SV *                    resume_exception;
+    SV *                    relay_token; /* borrowed until token magic clears it */
+    bool                    await_allowed;
+    bool                    awaiting;
     struct perl_suspended_pad *pads;
     struct perl_local_bindings *local_bindings;
     bool                    pads_switching;

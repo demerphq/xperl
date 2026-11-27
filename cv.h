@@ -186,6 +186,9 @@ A synonym for c<L</CvHasNAME>>
 #define CVf_EVAL_COMPILED 0x400000 /* an eval CV is fully compiled */
 #define PERL_CVf_MULTISUB    0x1000000 /* clauses share one dispatching CV */
 #define PERL_CVf_FORWARD_DECL 0x2000000 /* explicit bodyless sub declaration */
+#define PERL_CVf_ASYNC 0x4000000 /* async body or its task factory */
+#define CvASYNC(cv)             (CvFLAGS(cv) & PERL_CVf_ASYNC)
+#define CvASYNC_on(cv)          (CvFLAGS(cv) |= PERL_CVf_ASYNC)
 
 #define CvMULTISUB(cv)       (CvFLAGS(cv) & PERL_CVf_MULTISUB)
 #define CvMULTISUB_on(cv)    (CvFLAGS(cv) |= PERL_CVf_MULTISUB)

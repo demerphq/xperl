@@ -591,6 +591,7 @@ EXTCONST char* const PL_op_name[] INIT({
 	"yield",
 	"multisubfail",
 	"dispatchfail",
+	"await",
         "freed",
 });
 
@@ -1042,6 +1043,7 @@ EXTCONST char* const PL_op_desc[] INIT({
 	"yield values from a generator",
 	"multisub",
 	"dispatch without a matching clause",
+	"await",
     "freed op",
 });
 
@@ -1498,6 +1500,7 @@ INIT({
 	Perl_pp_yield,
 	Perl_pp_multisubfail,
 	Perl_pp_dispatchfail,
+	Perl_pp_await,
 });
 
 EXT Perl_check_t PL_check[] /* or perlvars.h */
@@ -1949,6 +1952,7 @@ INIT({
 	Perl_ck_null,		/* yield */
 	Perl_ck_null,		/* multisubfail */
 	Perl_ck_null,		/* dispatchfail */
+	Perl_ck_fun,		/* await */
 
 /* The final entries are function pointers not attached to an opcode.
  * These are to be used to compare with function pointers in the earlier
@@ -1965,9 +1969,9 @@ INIT({
 
 /* Indexes into PL_check for the comparison function pointers */
 #ifdef PERL_IN_PEEP_C
-  #define PERL_CK_NULL  447
-  #define PERL_CK_EXISTS  448
-  #define PERL_CK_DELETE  449
+  #define PERL_CK_NULL  448
+  #define PERL_CK_EXISTS  449
+  #define PERL_CK_DELETE  450
 #endif
 
 EXTCONST U32 PL_opargs[] INIT({
@@ -2418,6 +2422,7 @@ EXTCONST U32 PL_opargs[] INIT({
 	0x00002401,	/* yield */
 	0x00000604,	/* multisubfail */
 	0x00000000,	/* dispatchfail */
+	0x00001104,	/* await */
 });
 
 END_EXTERN_C
@@ -3224,6 +3229,7 @@ EXTCONST I16  PL_op_private_bitdef_ix[]  INIT( {
       -1, /* yield */
       -1, /* multisubfail */
       -1, /* dispatchfail */
+       0, /* await */
 
 });
 
@@ -3242,7 +3248,7 @@ EXTCONST I16  PL_op_private_bitdef_ix[]  INIT( {
  */
 
 EXTCONST U16  PL_op_private_bitdefs[] INIT( {
-    0x0003, /* scalar, prototype, refgen, srefgen, readline, regcmaybe, regcreset, regcomp, substcont, chop, schop, defined, study, preinc, i_preinc, predec, i_predec, postinc, i_postinc, postdec, i_postdec, not, ucfirst, lcfirst, uc, lc, quotemeta, aeach, avalues, each, pop, shift, grepstart, anywhile, mapstart, mapwhile, range, dor, andassign, orassign, dorassign, argcheck, entergiven, leavegiven, enterdispatch, leavedispatch, enterdispatchon, leavedispatchon, enterwhen, leavewhen, dispatch_on, dispatch, untie, tied, dbmclose, getsockname, getpeername, lstat, stat, readlink, readdir, telldir, rewinddir, closedir, localtime, alarm, require, dofile, entertry, ghbyname, gnbyname, gpbyname, shostent, snetent, sprotoent, sservent, gpwnam, gpwuid, ggrnam, ggrgid, lock, once, fc, anonconst, cmpchain_and, cmpchain_dup, entertrycatch, is_bool, is_weak, weaken, unweaken, is_tainted, multiparam, paramstore */
+    0x0003, /* scalar, prototype, refgen, srefgen, readline, regcmaybe, regcreset, regcomp, substcont, chop, schop, defined, study, preinc, i_preinc, predec, i_predec, postinc, i_postinc, postdec, i_postdec, not, ucfirst, lcfirst, uc, lc, quotemeta, aeach, avalues, each, pop, shift, grepstart, anywhile, mapstart, mapwhile, range, dor, andassign, orassign, dorassign, argcheck, entergiven, leavegiven, enterdispatch, leavedispatch, enterdispatchon, leavedispatchon, enterwhen, leavewhen, dispatch_on, dispatch, untie, tied, dbmclose, getsockname, getpeername, lstat, stat, readlink, readdir, telldir, rewinddir, closedir, localtime, alarm, require, dofile, entertry, ghbyname, gnbyname, gpbyname, shostent, snetent, sprotoent, sservent, gpwnam, gpwuid, ggrnam, ggrgid, lock, once, fc, anonconst, cmpchain_and, cmpchain_dup, entertrycatch, is_bool, is_weak, weaken, unweaken, is_tainted, multiparam, paramstore, await */
     0x473c, 0x68d9, /* pushmark */
     0x00bd, /* wantarray, runcv */
     0x0bfe, 0x0694, 0x1df0, 0x6a2c, 0x63e8, 0x4cc5, /* const */
@@ -3785,6 +3791,7 @@ EXTCONST U8 PL_op_private_valid[] INIT( {
     /* YIELD      */ (0),
     /* MULTISUBFAIL */ (0),
     /* DISPATCHFAIL */ (0),
+    /* AWAIT      */ (OPpARG1_MASK),
 
 });
 

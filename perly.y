@@ -74,7 +74,7 @@
 %token <ival> KW_RefVal KW_ScalarVal KW_ObjectVal KW_DefinedVal
 %token <ival> KW_Int KW_Float KW_IntStr KW_FloatStr KW_Num KW_NumStr KW_Strict KW_NumEq
 %token <ival> KW_TRUE KW_FALSE
-%token <ival> KW_TRY KW_CATCH KW_FINALLY KW_DEFER KW_GEN KW_YIELD
+%token <ival> KW_TRY KW_CATCH KW_FINALLY KW_DEFER KW_GEN KW_YIELD KW_ASYNC
 %token <ival> KW_REQUIRE KW_DO
 
 /* The 'use' and 'no' keywords both emit this */
@@ -140,11 +140,11 @@
 %type <opval> subscript_keys
 %type <opval> subscriptable_reference
 
-%type <ival>  startsub startanonsub startgen startanonmethod startformsub
+%type <ival>  startsub startanonsub startgen startasync startanonmethod startformsub
 
 %type <ival> mintro
 
-%type <ival>  sigsub_or_method_named
+%type <ival>  sigsub_or_method_named sub_or_async_named
 %type <opval> stmtseq fullstmt labfullstmt barestmt block mblock else finally
 %type <opval> expr term subscripted scalar ary hsh arylen star amper sideff
 %type <opval> condition
@@ -954,6 +954,10 @@ bare_statement_sub_signature
 				croak_kw_unless_class("method");
 				class_prepare_method_parse(PL_compcv);
 			}
+			if ($sigsub_or_method_named == KW_ASYNC) {
+			    async_check_name($subname);
+			    CvASYNC_on(PL_compcv);
+			}
 			parser->in_my = 0;
 			parser->in_my_stash = NULL;
 		}
@@ -961,12 +965,16 @@ bare_statement_sub_signature
 		optsigsubbody
 		{
 			OP *body = $optsigsubbody;
+			if ($sigsub_or_method_named == KW_ASYNC && !body)
+			    PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
 
 			SvREFCNT_inc_simple_void(PL_compcv);
-			$subname->op_type == OP_CONST
+			CV *cv = $subname->op_type == OP_CONST
 				? newATTRSUB($startsub, $subname, NULL, $subattrlist, body)
 				: newMYSUB(  $startsub, $subname, NULL, $subattrlist, body)
 				;
+			if ($sigsub_or_method_named == KW_ASYNC && cv && !PERL_DIAG_ERROR_COUNT)
+			    async_install(cv);
 			intro_my();
 			parser->parsed_sub = 1;
 			$$ = NULL;
@@ -975,10 +983,14 @@ bare_statement_sub_signature
 
 bare_statement_sub_traditional
 	/* sub declaration or definition not within scope of 'use feature "signatures"'*/
-	:	KW_SUB_named
+	:	sub_or_async_named
 		subname
 		startsub
 		{
+			if ($sub_or_async_named == KW_ASYNC) {
+			    async_check_name($subname);
+			    CvASYNC_on(PL_compcv);
+			}
 			init_named_cv(PL_compcv, $subname);
 			parser->in_my = 0;
 			parser->in_my_stash = NULL;
@@ -987,11 +999,15 @@ bare_statement_sub_traditional
 		subattrlist
 		optsubbody
 		{
+			if ($sub_or_async_named == KW_ASYNC && !$optsubbody)
+			    PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
 			SvREFCNT_inc_simple_void(PL_compcv);
-			$subname->op_type == OP_CONST
+			CV *cv = $subname->op_type == OP_CONST
 				? newATTRSUB($startsub, $subname, $proto, $subattrlist, $optsubbody)
 				: newMYSUB($startsub, $subname, $proto, $subattrlist, $optsubbody)
 				;
+			if ($sub_or_async_named == KW_ASYNC && cv && !PERL_DIAG_ERROR_COUNT)
+			    async_install(cv);
 			intro_my();
 			parser->parsed_sub = 1;
 			$$ = NULL;
@@ -1144,8 +1160,15 @@ subscriptable_reference
 sigsub_or_method_named
 	:	KW_SUB_named_sig
 			{ $$ = KW_SUB_named_sig; }
+	|	KW_ASYNC KW_SUB_named_sig
+			{ $$ = KW_ASYNC; }
 	|	KW_METHOD_named
 			{ $$ = KW_METHOD_named; }
+	;
+
+sub_or_async_named
+	:	KW_SUB_named { $$ = KW_SUB_named; }
+	|	KW_ASYNC KW_SUB_named { $$ = KW_ASYNC; }
 	;
 
 /* An ordinary block */
@@ -1422,6 +1445,10 @@ startanonsub:	%empty	/* start an anonymous subroutine scope */
 
 startgen:	KW_GEN startanonsub
 			{ CvGENERATOR_on(PL_compcv); $$ = $startanonsub; }
+	;
+
+startasync: KW_ASYNC KW_SUB_anon_sig startanonsub
+			{ CvASYNC_on(PL_compcv); $$ = $startanonsub; }
 	;
 
 startanonmethod:	%empty	/* start an anonymous method scope */
@@ -1981,6 +2008,10 @@ anonymous
 	|	startgen subattrlist sigsubbody %prec PERLY_PAREN_OPEN
 			{ SvREFCNT_inc_simple_void(PL_compcv);
 			  $$ = newANONATTRSUB($startgen, NULL,
+			                      $subattrlist, $sigsubbody); }
+	|	startasync subattrlist sigsubbody %prec PERLY_PAREN_OPEN
+			{ SvREFCNT_inc_simple_void(PL_compcv);
+			  $$ = newANONATTRSUB($startasync, NULL,
 			                      $subattrlist, $sigsubbody); }
 	|	KW_SUB_anon     startanonsub proto subattrlist subbody    %prec PERLY_PAREN_OPEN
 			{ SvREFCNT_inc_simple_void(PL_compcv);

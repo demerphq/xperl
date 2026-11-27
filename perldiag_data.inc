@@ -4,7 +4,7 @@
    Any changes made here will be lost!
  */
 
-STATIC_ASSERT_DECL(OP_max + 2 == 449); /* compiled operation-map bound */
+STATIC_ASSERT_DECL(OP_max + 2 == 450); /* compiled operation-map bound */
 
 enum {
     perl_diag_lang_none = 0,
@@ -98,6 +98,7 @@ static const struct {
     { "XPerl::DiagGroup",                                                          NULL,                                                            FALSE, 0                                                 },
     { "XPerl::Diagnostic",                                                         "XPerl::DiagGroup",                                              FALSE, 0                                                 },
     { "XPerl::Diagnostic::Error",                                                  "XPerl::Diagnostic",                                             FALSE, 0                                                 },
+    { "XPerl::Diagnostic::Error::Async",                                           "XPerl::Diagnostic::Error",                                      FALSE, 0                                                 },
     { "XPerl::Diagnostic::Error::Call",                                            "XPerl::Diagnostic::Error",                                      FALSE, 0                                                 },
     { "XPerl::Diagnostic::Error::Call::Binding",                                   "XPerl::Diagnostic::Error::Call",                                FALSE, 0                                                 },
     { "XPerl::Diagnostic::Error::Call::Binding::Arity",                            "XPerl::Diagnostic::Error::Call::Binding",                       FALSE, 0                                                 },
@@ -2308,6 +2309,14 @@ static const perl_diag_param_input_range_t perl_diag_param_input_ranges[] = {
 static const perl_diag_metadata_t perl_diag_metadata[] = {
     /* index 0 means no catalog entry */
     { NULL,                                                                           0,  NULL,           NULL,             FALSE,   0,   0,    0,  FALSE, FALSE, NULL,                                                                        NULL,                                                                        NULL,                                                   NULL,                 NULL,                                                               NULL,                                    FALSE, FALSE },
+    { "ERROR_ASYNC_DECLARATION_UNSUPPORTED",                                       2804,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Async",                                           "XPerl::Diagnostic::Error::Async",                                           "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
+    { "ERROR_ASYNC_EXCEPTION_REQUIRES_SUSPENSION",                                 2805,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Async",                                           "XPerl::Diagnostic::Error::Async",                                           "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
+    { "ERROR_ASYNC_FIBER_REQUIRED",                                                2806,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Async",                                           "XPerl::Diagnostic::Error::Async",                                           "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
+    { "ERROR_ASYNC_FIBER_RUNNING",                                                 2807,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Async",                                           "XPerl::Diagnostic::Error::Async",                                           "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
+    { "ERROR_ASYNC_GENERATOR_ADAPTER_REQUIRED",                                    2808,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Async",                                           "XPerl::Diagnostic::Error::Async",                                           "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
+    { "ERROR_ASYNC_NATIVE_SUSPENSION_UNSUPPORTED",                                 2809,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Async",                                           "XPerl::Diagnostic::Error::Async",                                           "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
+    { "ERROR_ASYNC_RELAY_BUSY",                                                    2811,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Async",                                           "XPerl::Diagnostic::Error::Async",                                           "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
+    { "ERROR_ASYNC_TASK_REQUIRED",                                                 2810,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Async",                                           "XPerl::Diagnostic::Error::Async",                                           "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
     { "ERROR_CALL_BINDING_ARITY_INVALID_ARGUMENT_COUNT",                           1500,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,  570,   2,  601,  FALSE, FALSE, "XPerl::Diagnostic::Error::Call::Binding::Arity",                            "XPerl::Diagnostic::Error::Call::Binding::Arity",                            "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
     { "ERROR_CALL_BINDING_ARITY_ODD_SLURPY_HASH_ARGUMENT_COUNT",                   2432,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,   38,   1,   38,  FALSE, FALSE, "XPerl::Diagnostic::Error::Call::Binding::Arity",                            "XPerl::Diagnostic::Error::Call::Binding::Arity",                            "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
     { "ERROR_CALL_BINDING_ARITY_SIGNATURE_MISMATCH",                               1314,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,  699,   1,  741,  FALSE, FALSE, "XPerl::Diagnostic::Error::Call::Binding::Arity",                            "XPerl::Diagnostic::Error::Call::Binding::Arity",                            "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
@@ -2761,6 +2770,7 @@ static const perl_diag_metadata_t perl_diag_metadata[] = {
     { "ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE",                         1127,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Iterator::Generator",                             "XPerl::Diagnostic::Error::Iterator::Generator",                             "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
     { "ERROR_ITERATOR_GENERATOR_INVALID_WRAPPER",                                  1129,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Iterator::Generator",                             "XPerl::Diagnostic::Error::Iterator::Generator",                             "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
     { "ERROR_ITERATOR_GENERATOR_LOCALIZATION_UNSUPPORTED",                         2803,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Iterator::Generator",                             "XPerl::Diagnostic::Error::Iterator::Generator",                             "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
+    { "ERROR_ITERATOR_GENERATOR_MATCH_UNSUPPORTED",                                2812,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Iterator::Generator",                             "XPerl::Diagnostic::Error::Iterator::Generator",                             "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
     { "ERROR_ITERATOR_GENERATOR_NO_SUSPENDED_CONTINUATION",                        1068,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Iterator::Generator",                             "XPerl::Diagnostic::Error::Iterator::Generator",                             "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
     { "ERROR_ITERATOR_GENERATOR_RUNNING_INVALID_ARGUMENT",                         1128,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Iterator::Generator",                             "XPerl::Diagnostic::Error::Iterator::Generator",                             "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
     { "ERROR_ITERATOR_GENERATOR_STATE_MUTATION_FORBIDDEN",                         1119,  "CORE_RUNTIME", "FATAL_ERROR",    TRUE,    0,   0,    0,  FALSE, FALSE, "XPerl::Diagnostic::Error::Iterator::Generator",                             "XPerl::Diagnostic::Error::Iterator::Generator",                             "not applicable",                                       "diagnostic",         "ordinary diagnostic; container-capable",                           "explicit catalog class",                FALSE, FALSE },
@@ -3968,7 +3978,7 @@ static const char * const perl_diagpack_operation_names[] = {
     "leavetrycatch", "poptry", "catch", "pushdefer", "is_bool", "is_weak", "weaken", "unweaken",
     "blessed", "refaddr", "reftype", "ceil", "floor", "is_tainted", "helemexistsor", "methstart",
     "initfield", "classname", "multiparam", "paramtest", "paramstore", "yield", "multisubfail",
-    "dispatchfail", "do_block",
+    "dispatchfail", "await", "do_block",
 };
 
 static const perl_diagpack_param_schema_t perl_diagpack_param_schema_table[] = {
@@ -12401,6 +12411,51 @@ static const perl_diagpack_schema_t perl_diagpack_schema_2803 = {
     perl_diagpack_param_schema_ids + 0, 0
 };
 
+static const perl_diagpack_schema_t perl_diagpack_schema_2804 = {
+    2804, "ERROR_ASYNC_DECLARATION_UNSUPPORTED",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
+static const perl_diagpack_schema_t perl_diagpack_schema_2805 = {
+    2805, "ERROR_ASYNC_EXCEPTION_REQUIRES_SUSPENSION",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
+static const perl_diagpack_schema_t perl_diagpack_schema_2806 = {
+    2806, "ERROR_ASYNC_FIBER_REQUIRED",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
+static const perl_diagpack_schema_t perl_diagpack_schema_2807 = {
+    2807, "ERROR_ASYNC_FIBER_RUNNING",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
+static const perl_diagpack_schema_t perl_diagpack_schema_2808 = {
+    2808, "ERROR_ASYNC_GENERATOR_ADAPTER_REQUIRED",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
+static const perl_diagpack_schema_t perl_diagpack_schema_2809 = {
+    2809, "ERROR_ASYNC_NATIVE_SUSPENSION_UNSUPPORTED",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
+static const perl_diagpack_schema_t perl_diagpack_schema_2810 = {
+    2810, "ERROR_ASYNC_TASK_REQUIRED",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
+static const perl_diagpack_schema_t perl_diagpack_schema_2811 = {
+    2811, "ERROR_ASYNC_RELAY_BUSY",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
+static const perl_diagpack_schema_t perl_diagpack_schema_2812 = {
+    2812, "ERROR_ITERATOR_GENERATOR_MATCH_UNSUPPORTED",
+    perl_diagpack_param_schema_ids + 0, 0
+};
+
 static const char perl_diag_template_text_02bf4c82[] = "\t%1$s = \"%2$s\"%3$s\n";
 static const char perl_diag_template_text_a852440d[] = "\t%1$s = (unset)%2$s\n";
 static const char perl_diag_template_text_3f70ea97[] = "\t(Are you trying to call %1$s() on dirhandle %2$s?)\n";
@@ -12582,6 +12637,8 @@ static const char perl_diag_template_text_7d893ee4[] = "a constant array element
 static const char perl_diag_template_text_8122bfbe[] = "a constant lexical array element";
 static const char perl_diag_template_text_1a61255b[] = "a fallback locale (\"%1$s\")\n";
 static const char perl_diag_template_text_a2deb5f9[] = "a flip-flop range";
+static const char perl_diag_template_text_5866b30f[] = "A generator already has an active async adapter";
+static const char perl_diag_template_text_a49f21a5[] = "A generator which awaits must be driven by XPerl::Task::next_value";
 static const char perl_diag_template_text_bb65edb2[] = "a glob value";
 static const char perl_diag_template_text_971dc1cd[] = "a hash element";
 static const char perl_diag_template_text_a0c0ebf4[] = "a hash slice";
@@ -12620,6 +12677,7 @@ static const char perl_diag_template_text_4df21b7d[] = "an array element";
 static const char perl_diag_template_text_a18bd261[] = "an array length";
 static const char perl_diag_template_text_e43bc909[] = "an array slice";
 static const char perl_diag_template_text_0016bc3e[] = "an array variable";
+static const char perl_diag_template_text_ff7b6c2b[] = "An async declaration requires a named body or an anonymous signatured subroutine";
 static const char perl_diag_template_text_b6756fa0[] = "an index/value array slice";
 static const char perl_diag_template_text_8bf6c171[] = "An operator may be missing before \"%1$s\".";
 static const char perl_diag_template_text_d4d1db65[] = "Ancestor field %1$s is private and cannot be inherited";
@@ -12696,6 +12754,7 @@ static const char perl_diag_template_text_566f8211[] = "Attempt to use reference
 static const char perl_diag_template_text_e44f3ebd[] = "Attribute on BEGIN block ignored";
 static const char perl_diag_template_text_5b0d28cd[] = "Attribute prototype(%1$s) discards earlier prototype attribute in same sub";
 static const char perl_diag_template_text_87c7d983[] = "av_reify called on tied array";
+static const char perl_diag_template_text_037354ec[] = "await requires an XPerl::Task object";
 static const char perl_diag_template_text_f4cdf14d[] = "Backslash found where operator expected";
 static const char perl_diag_template_text_d82b41c9[] = "Backticks found where operator expected";
 static const char perl_diag_template_text_ee4fb3db[] = "Bad alignment of $^M!\n";
@@ -12943,9 +13002,12 @@ static const char perl_diag_template_text_085ded33[] = "Cannot printf %1$s with 
 static const char perl_diag_template_text_22b400e6[] = "Cannot reopen existing class %1$s";
 static const char perl_diag_template_text_af0f2d67[] = "Cannot reopen existing role %1$s";
 static const char perl_diag_template_text_515ca03e[] = "Cannot resume a failed generator";
+static const char perl_diag_template_text_e917ede2[] = "Cannot resume or close a running async execution context";
 static const char perl_diag_template_text_23761a58[] = "cannot set the state of a generator";
 static const char perl_diag_template_text_c8a00d32[] = "Cannot set tied @DB::args";
 static const char perl_diag_template_text_7c500210[] = "Cannot supply parameters to an already constructed object";
+static const char perl_diag_template_text_1fb0a590[] = "Cannot suspend await outside its owning Perl execution loop";
+static const char perl_diag_template_text_a0cae168[] = "Cannot suspend with an unsupported regex match still in scope";
 static const char perl_diag_template_text_fec97a50[] = "Cannot tie unreifiable array";
 static const char perl_diag_template_text_b0891f1f[] = "Cannot use __CLASS__ outside of a method or field initializer expression";
 static const char perl_diag_template_text_eae13e05[] = "Cannot use a redacted RNG seed";
@@ -13119,6 +13181,7 @@ static const char perl_diag_template_text_8b357ece[] = "Eval-group not allowed a
 static const char perl_diag_template_text_a7763287[] = "Exception message must be a diagnostic\n";
 static const char perl_diag_template_text_ece1505d[] = "Exception throw event cannot set message_index\n";
 static const char perl_diag_template_text_827e35ce[] = "Exception throw event must be a hash reference\n";
+static const char perl_diag_template_text_c9034678[] = "Exceptional resumption requires a suspended execution context";
 static const char perl_diag_template_text_ca832588[] = "ExceptionHandler misplaced: %1$s != %2$s\n";
 static const char perl_diag_template_text_f93aad22[] = "Excessively long <> operator";
 static const char perl_diag_template_text_313a42bf[] = "exec? I'm not *that* kind of operating system";
@@ -13313,6 +13376,7 @@ static const char perl_diag_template_text_3e60dd21[] = "Invalid [] range \"%1$s\
 static const char perl_diag_template_text_2c8e11e6[] = "Invalid \\0 character in %1$s for %2$s: %3$s\\0%4$s";
 static const char perl_diag_template_text_4bc72c1b[] = "invalid argument in dispatch predicate";
 static const char perl_diag_template_text_14749c2e[] = "Invalid argument to sv_cat_decode";
+static const char perl_diag_template_text_b2f20361[] = "Invalid async execution context";
 static const char perl_diag_template_text_5e97f0f9[] = "Invalid attribute list separator: %1$s";
 static const char perl_diag_template_text_92876a7e[] = "Invalid character in \\N{...}; marked by <-- HERE in %1$s";
 static const char perl_diag_template_text_ead12549[] = "Invalid conversion in %1$s: \"%2$s\"";
@@ -15550,271 +15614,140 @@ static const U16 perl_diag_word_map_en[] = {
        1,    1,    1,    1,    1,    1,    1,   37,   23,    1,    1,   30,   30,   30,  140,  112,
      112,  112,  111,   13,   89,   85,   31,   32,    1,  104,  145,   28,  153,   87,   88,  200,
      199,    1,    1,    1,    1,    1,    1,   63,  120,   86,   29,  123,  144,  143,  202,    1,
-       1,    1,    1, 65535, 65535,    1, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,  157,  158,    1,
-    65535, 65535, 65535, 65535,  160,  162, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535,  197,    1,  146, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1, 65535, 65535, 65535,    1, 65535, 65535,
-    65535,    1,    1,    1,    1,    1,    1,    1,    1,    1, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535,    1,    1,    1, 65535, 65535, 65535,   15, 65535,   46,    1,    1, 65535,
-    65535,    1, 65535,    1,    1, 65535,    1,    1, 65535,    1, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535,    1,    1,  164, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,    1, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1, 65535, 65535, 65535,
-      1,    1, 65535, 65535, 65535, 65535,    1,    1,    1,    1, 65535, 65535, 65535, 65535,
-    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-     1,    1,    1,    1,    1,    1, 65535, 65535,    1, 65535, 65535,    1, 65535,    1,    1,
-    1,    1, 65535, 65535,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1, 65535,    1, 65535, 65535, 65535, 65535, 65535,    1,    1, 65535,    1,    1,
-    65535,    1,    1, 65535,    1,    1, 65535,    1,    1,    1,    1, 65535, 65535, 65535,
-    65535,    1,    1, 65535, 65535, 65535,    1,    1, 65535, 65535, 65535, 65535,    1, 65535,
-    65535, 65535, 65535, 65535, 65535,    1, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535,    1,    1,    1,    1,    1,    1,   36,    1,    1,
-      57,    1,    1,  138,  139,    1,  168,    1,    1,    1,   12,  152,  159,  189,  157,  158,
-       1,   24,    1,    1,    1,    1,    1,    1,  114,  154,  192,    1,  196,  196,    1,    1,
-       1,  176,    1,  175,   39,  197,    1,    1,  151,   83,  150,   82,  148,   81,  147,   80,
-     149,  124,   75,   43,   67,  121,   74,  163,    3,   66,  195,   84,   34,    1,  191,  107,
-     165,  110,   73,   59,   71,   94,   72,   56,   70,   52,   68,  130,   77,   53,   69,  132,
-      79,  128,   76,  185,  183,  184,  182,  180,  187,  181,  188,  177,   25,   27,   26,  125,
-     127,  126,  172,  174,  173,  131,   78,    1,   33,  129,  178,  186,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,  166,    1,    1,    1,    1,    1,   92,    4,
-      22,    9,    1,    1,    1,    1,    1,  169,    1,    1,   93,    1,    1,    1,    1,   91,
-       1,  109,   15,   14,   46,    1,    1,    1,    1,    1,    1,    1,    1,   58,    1,    1,
-      16,    1,  113,    1,    1,   55,   10,  135,  201,   44,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,  164,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,  190,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,  112,    1,    1,    1,   13,   89,   85,   31,    1,    1,    1,
-       1,    1,    1,   87,   88,  200,  199,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      29,    1,    1,    1,  202,    1,    1,  203,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,  192,    1,  196,    1,  171,
-       2,    1,    1,    1,    1,    1,  197,    1,  146,  151,    1,  150,    1,  148,    1,  147,
-       1,  149,  124,    1,   43,    1,  121,    1,  163,    3,    1,  195,    1,   34,    1,    1,
-     107,  165,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,   25,   27,   26,
-     125,  127,  126,  172,  174,  173,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,   15,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,  201,    1,    1,   11,  136,   45,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,   50,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,  134,    1,    1,    1,    1,   36,
-      61,   60,   57,  141,  142,  138,  139,  137,  168,  170,   21,  167,   12,  152,  159,  189,
-     157,  158,    1,   24,    1,    1,  156,  160,  162,  161,  114,  154,  192,  193,  196,  196,
-     171,    2,    1,  176,    1,  175,   39,  197,    1,  146,  151,   83,  150,   82,  148,   81,
-     147,   80,  149,  124,   75,   43,   67,  121,   74,  163,    3,   66,  195,   84,   34,   34,
-     191,  107,  165,  110,   73,   59,   71,   94,   72,   56,   70,   52,   68,  130,   77,   53,
-      69,  132,   79,  128,   76,  185,  183,  184,  182,  180,  187,  181,  188,  177,   25,   27,
-      26,  125,  127,  126,  172,  174,  173,  131,   78,    1,   33,  129,  178,  186,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,  194,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,  166,    6,    7,    8,    5,   20,
-      92,    4,   22,    9,    1,    1,    1,    1,    1,  169,   62,   65,   93,  122,    1,    1,
-       1,   91,    1,  109,   15,   14,   46,    1,    1,    1,    1,    1,    1,    1,    1,   58,
-       1,    1,   16,    1,  113,  155,   54,   55,   10,  135,  201,   44,   35,   11,  136,   45,
-      51,  101,  102,   17,   19,   18,    1,    1,    1,  164,  108,  133,   38,  198,   47,   95,
-     179,   49,   90,   50,  100,    1,    1,    1,    1,    1,    1,    1,  115,  116,  119,  117,
-     118,    1,   99,    1,   96,   48,   97,    1,  105,   41,   42,   40,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,  190,    1,    1,    1,    1,  106,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,   64,    1,   98,    1,  103,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,   37,
-      23,    1,    1,   30,   30,   30,  140,  112,  112,  112,  111,   13,   89,   85,   31,   32,
-       1,  104,  145,   28,  153,   87,   88,  200,  199,    1,    1,    1,    1,    1,    1,   63,
-     120,   86,   29,  123,  144,  143,  202,    1,    1,  203,    1, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,  171,    2, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535,   50, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535,    1,    1,    1,    1,    1,    1,    1,  224,  223,    1,  224,    1,  248,  249,
-    247,    1,    1,  211,    1,  207,  250,  253,  268,  252,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,  216,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,  149,  124,   75,   43,   67,
-    121,   74,  254,    3,   66,  195,   84,  215,    1,  269,  239,  255,  241,  232,  222,  230,
-    238,  231,  221,  229,  217,  227,  245,  233,  218,  228,  246,  234,  128,   76,  265,  263,
-    264,  262,  260,  266,  261,  267,  177,  212,  214,  213,  242,  244,  243,  256,  258,  257,
-    131,   78,    1,   33,  129,  259,  186,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,  205,  206,    1,  204,  210,  236,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,  225,  226,  237,    1,    1,    1,    1,  235,    1,  240,  209,  208,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,  251,  219,
-    220,    1,    1,  201,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,   31,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-      1,    1,    1,    1, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,  114, 65535,  192, 65535,  196,
-    196, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,  110,   73,   59,   71,   94,
-    72,   56,   70,   52,   68,  130,   77,   53,   69,  132,   79, 65535, 65535,  185,  183,  184,
-     182,  180,  187,  181,  188, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,   89,   85, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535,    1, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,  110,   73,   59,   71,
-    94,   72,   56,   70, 65535, 65535, 65535, 65535,   53,   69,  132,   79, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535,    1, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+       1,    1,    1,    1, 65535, 65535,    1, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,  157,  158,
+       1, 65535, 65535, 65535, 65535,  160,  162, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535,  197,    1,  146, 65535, 65535, 65535, 65535,
     65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
     65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
     65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
     65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
     65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1, 65535, 65535, 65535,    1, 65535,
+    65535, 65535,    1,    1,    1,    1,    1,    1,    1,    1,    1, 65535, 65535, 65535, 65535,
     65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,   51, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535,    1,    1,    1, 65535, 65535, 65535,   15, 65535,   46,    1,    1,
+    65535, 65535,    1, 65535,    1,    1, 65535,    1,    1, 65535,    1, 65535, 65535, 65535,
     65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,    1, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535,    1,    1,  164, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,    1, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1, 65535, 65535,
+    65535,    1,    1, 65535, 65535, 65535, 65535,    1,    1,    1,    1, 65535, 65535, 65535,
+    65535,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+    1,    1, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1, 65535, 65535,    1, 65535, 65535,    1, 65535,    1,
+     1,    1,    1, 65535, 65535,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1, 65535,    1, 65535, 65535, 65535, 65535, 65535,    1,    1, 65535,
+    1,    1, 65535,    1,    1, 65535,    1,    1, 65535,    1,    1,    1,    1, 65535, 65535,
+    65535, 65535,    1,    1, 65535, 65535, 65535,    1,    1, 65535, 65535, 65535, 65535,    1,
+    65535, 65535, 65535, 65535, 65535, 65535,    1, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535,    1, 65535,    1,    1,    1,    1,    1,    1,
+    36,    1,    1,   57,    1,    1,  138,  139,    1,  168,    1,    1,    1,   12,  152,  159,
+    189,  157,  158,    1,   24,    1,    1,    1,    1,    1,    1,  114,  154,  192,    1,  196,
+    196,    1,    1,    1,  176,    1,  175,   39,  197,    1,    1,  151,   83,  150,   82,  148,
+     81,  147,   80,  149,  124,   75,   43,   67,  121,   74,  163,    3,   66,  195,   84,   34,
+      1,  191,  107,  165,  110,   73,   59,   71,   94,   72,   56,   70,   52,   68,  130,   77,
+     53,   69,  132,   79,  128,   76,  185,  183,  184,  182,  180,  187,  181,  188,  177,   25,
+     27,   26,  125,  127,  126,  172,  174,  173,  131,   78,    1,   33,  129,  178,  186,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,  166,    1,    1,    1,    1,
+      1,   92,    4,   22,    9,    1,    1,    1,    1,    1,  169,    1,    1,   93,    1,    1,
+      1,    1,   91,    1,  109,   15,   14,   46,    1,    1,    1,    1,    1,    1,    1,    1,
+     58,    1,    1,   16,    1,  113,    1,    1,   55,   10,  135,  201,   44,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,  164,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,  190,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,  112,    1,    1,    1,   13,   89,   85,   31,
+      1,    1,    1,    1,    1,    1,   87,   88,  200,  199,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,   29,    1,    1,    1,  202,    1,    1,    1,  203,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,  192,
+      1,  196,    1,  171,    2,    1,    1,    1,    1,    1,  197,    1,  146,  151,    1,  150,
+      1,  148,    1,  147,    1,  149,  124,    1,   43,    1,  121,    1,  163,    3,    1,  195,
+      1,   34,    1,    1,  107,  165,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,   25,   27,   26,  125,  127,  126,  172,  174,  173,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,   15,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,  201,    1,    1,
+     11,  136,   45,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,   50,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,  134,
+      1,    1,    1,    1,   36,   61,   60,   57,  141,  142,  138,  139,  137,  168,  170,   21,
+    167,   12,  152,  159,  189,  157,  158,    1,   24,    1,    1,  156,  160,  162,  161,  114,
+    154,  192,  193,  196,  196,  171,    2,    1,  176,    1,  175,   39,  197,    1,  146,  151,
+     83,  150,   82,  148,   81,  147,   80,  149,  124,   75,   43,   67,  121,   74,  163,    3,
+     66,  195,   84,   34,   34,  191,  107,  165,  110,   73,   59,   71,   94,   72,   56,   70,
+     52,   68,  130,   77,   53,   69,  132,   79,  128,   76,  185,  183,  184,  182,  180,  187,
+    181,  188,  177,   25,   27,   26,  125,  127,  126,  172,  174,  173,  131,   78,    1,   33,
+    129,  178,  186,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,  194,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,  166,
+      6,    7,    8,    5,   20,   92,    4,   22,    9,    1,    1,    1,    1,    1,  169,   62,
+     65,   93,  122,    1,    1,    1,   91,    1,  109,   15,   14,   46,    1,    1,    1,    1,
+      1,    1,    1,    1,   58,    1,    1,   16,    1,  113,  155,   54,   55,   10,  135,  201,
+     44,   35,   11,  136,   45,   51,  101,  102,   17,   19,   18,    1,    1,    1,  164,  108,
+    133,   38,  198,   47,   95,  179,   49,   90,   50,  100,    1,    1,    1,    1,    1,    1,
+      1,  115,  116,  119,  117,  118,    1,   99,    1,   96,   48,   97,    1,  105,   41,   42,
+     40,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,  190,    1,
+      1,    1,    1,  106,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,   64,    1,   98,    1,
+    103,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+      1,    1,    1,    1,   37,   23,    1,    1,   30,   30,   30,  140,  112,  112,  112,  111,
+     13,   89,   85,   31,   32,    1,  104,  145,   28,  153,   87,   88,  200,  199,    1,    1,
+      1,    1,    1,    1,   63,  120,   86,   29,  123,  144,  143,  202,    1,    1,    1,  203,
+      1, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,  171,    2,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,   50, 65535, 65535, 65535, 65535,
     65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
     65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
     65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
@@ -15831,78 +15764,210 @@ static const U16 perl_diag_word_map_en[] = {
     65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
     65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
     65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535,    1,    1,    1,    1,    1,    1,    1,  224,  223,
+       1,  224,    1,  248,  249,  247,    1,    1,  211,    1,  207,  250,  253,  268,  252,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,  216,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+     149,  124,   75,   43,   67,  121,   74,  254,    3,   66,  195,   84,  215,    1,  269,  239,
+     255,  241,  232,  222,  230,  238,  231,  221,  229,  217,  227,  245,  233,  218,  228,  246,
+     234,  128,   76,  265,  263,  264,  262,  260,  266,  261,  267,  177,  212,  214,  213,  242,
+     244,  243,  256,  258,  257,  131,   78,    1,   33,  129,  259,  186,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,  205,  206,    1,  204,  210,  236,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,  225,  226,  237,    1,    1,    1,    1,  235,
+       1,  240,  209,  208,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,  251,  219,  220,    1,    1,  201,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,   31,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+       1,    1,    1,    1,    1,    1,    1,    1,    1,    1, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535,  114, 65535,  192, 65535,  196,  196, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535,  110,   73,   59,   71,   94,   72,   56,   70,   52,   68,  130,   77,   53,
+    69,  132,   79, 65535, 65535,  185,  183,  184,  182,  180,  187,  181,  188, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535,   89,   85, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,    1, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535,  110,   73,   59,   71,   94,   72,   56,   70, 65535,
+    65535, 65535, 65535,   53,   69,  132,   79, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535,    1, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,    1,    1, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535,   51, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535,    1, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
+    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_1404[] = {
-    { 0,  1,  1,  0,  449,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 0,  1,  1,  0,  450,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_1417[] = {
-    { 2,  1,  1,  0,  449,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
-    { 4,  6,  1,  0,  449,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 2,  1,  1,  0,  450,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 4,  6,  1,  0,  450,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_1540[] = {
-    { 0,  2,  1,  0,  449,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 0,  2,  1,  0,  450,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_1195[] = {
-    { 1,  0,  1,  0,  449,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 1,  0,  1,  0,  450,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_1425[] = {
-    { 2,  1,  1,  0,  449,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 2,  1,  1,  0,  450,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_1419[] = {
-    { 1,  0,  1,  0,  449,  perl_diag_word_map_en + 899,  perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
-    { 2,  3,  1,  0,  449,  perl_diag_word_map_en + 1348, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 1,  0,  1,  0,  450,  perl_diag_word_map_en + 901,  perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 2,  3,  1,  0,  450,  perl_diag_word_map_en + 1351, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_1423[] = {
-    { 3,  0,  1,  0,  449,  perl_diag_word_map_en + 1797, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
-    { 2,  1,  1,  1,  449,  perl_diag_word_map_en + 2246, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 3,  0,  1,  0,  450,  perl_diag_word_map_en + 1801, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 2,  1,  1,  1,  450,  perl_diag_word_map_en + 2251, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_1406[] = {
-    { 0,  1,  1,  1,  449,  perl_diag_word_map_en + 450, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 0,  1,  1,  1,  450,  perl_diag_word_map_en + 451, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_1420[] = {
-    { 1,  0,  1,  0,  449,  perl_diag_word_map_en + 1797, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 1,  0,  1,  0,  450,  perl_diag_word_map_en + 1801, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_2165[] = {
-    { 0,  1,  1,  1,  449,  perl_diag_word_map_en + 4042, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 0,  1,  1,  1,  450,  perl_diag_word_map_en + 4051, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_2146[] = {
-    { 0,  1,  1,  1,  449,  perl_diag_word_map_en + 3593, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 0,  1,  1,  1,  450,  perl_diag_word_map_en + 3601, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_2127[] = {
-    { 0,  1,  1,  1,  449,  perl_diag_word_map_en + 3144, perl_diag_word_values_en, UINT64_C(0x00000000000000ff) },
+    { 0,  1,  1,  1,  450,  perl_diag_word_map_en + 3151, perl_diag_word_values_en, UINT64_C(0x00000000000000ff) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_2250[] = {
-    { 0,  3,  1,  0,  449,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 0,  3,  1,  0,  450,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_2619[] = {
-    { 0,  4,  1,  0,  449,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 0,  4,  1,  0,  450,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_2622[] = {
-    { 0,  5,  1,  0,  449,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 0,  5,  1,  0,  450,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_2620[] = {
-    { 0,  8,  1,  0,  449,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 0,  8,  1,  0,  450,  perl_diag_word_map_en + 1, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_binding_t perl_diag_word_bindings_en_2072[] = {
-    { 1,  2,  1,  0,  449,  perl_diag_word_map_en + 2695, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
+    { 1,  2,  1,  0,  450,  perl_diag_word_map_en + 2701, perl_diag_word_values_en, UINT64_C(0x0000000000000000) },
 };
 
 static const perl_diag_word_group_t perl_diag_word_groups_en[] = {
@@ -17565,6 +17630,15 @@ enum {
     perl_diag_template_start_en_2801,
     perl_diag_template_start_en_2802,
     perl_diag_template_start_en_2803,
+    perl_diag_template_start_en_2804,
+    perl_diag_template_start_en_2805,
+    perl_diag_template_start_en_2806,
+    perl_diag_template_start_en_2807,
+    perl_diag_template_start_en_2808,
+    perl_diag_template_start_en_2809,
+    perl_diag_template_start_en_2810,
+    perl_diag_template_start_en_2811,
+    perl_diag_template_start_en_2812,
     perl_diag_template_end_en,
 };
 
@@ -19488,6 +19562,15 @@ static const perl_diag_template_case_t perl_diag_template_cases_en[] = {
     { perl_diag_error_system_signal_localization_rollback_failed_number,                          UINT64_C(         0), perl_diag_template_text_6d250834,  0,   0 },
     { perl_diag_error_system_signal_localization_reinstall_failed_number,                         UINT64_C(         0), perl_diag_template_text_3979aa26,  0,   0 },
     { perl_diag_error_iterator_generator_localization_unsupported_number,                         UINT64_C(         0), perl_diag_template_text_92115d42,  0,   0 },
+    { perl_diag_error_async_declaration_unsupported_number,                                       UINT64_C(         0), perl_diag_template_text_ff7b6c2b,  0,   0 },
+    { perl_diag_error_async_exception_requires_suspension_number,                                 UINT64_C(         0), perl_diag_template_text_c9034678,  0,   0 },
+    { perl_diag_error_async_fiber_required_number,                                                UINT64_C(         0), perl_diag_template_text_b2f20361,  0,   0 },
+    { perl_diag_error_async_fiber_running_number,                                                 UINT64_C(         0), perl_diag_template_text_e917ede2,  0,   0 },
+    { perl_diag_error_async_generator_adapter_required_number,                                    UINT64_C(         0), perl_diag_template_text_a49f21a5,  0,   0 },
+    { perl_diag_error_async_native_suspension_unsupported_number,                                 UINT64_C(         0), perl_diag_template_text_1fb0a590,  0,   0 },
+    { perl_diag_error_async_task_required_number,                                                 UINT64_C(         0), perl_diag_template_text_037354ec,  0,   0 },
+    { perl_diag_error_async_relay_busy_number,                                                    UINT64_C(         0), perl_diag_template_text_5866b30f,  0,   0 },
+    { perl_diag_error_iterator_generator_match_unsupported_number,                                UINT64_C(         0), perl_diag_template_text_a0cae168,  0,   0 },
     { 0,                                                                                          UINT64_C(         0), NULL,                              0,   0 }, /* terminates the last diagnostic's rows */
 };
 
@@ -21091,6 +21174,15 @@ static const perl_diag_template_t perl_diag_templates_en[] = {
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2801, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2802, NULL                        },
     { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2803, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2804, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2805, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2806, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2807, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2808, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2809, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2810, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2811, NULL                        },
+    { 0,   0,  perl_diag_word_group_none, perl_diag_template_start_en_2812, NULL                        },
 };
 
 static const perl_diagpack_schema_t * const perl_diagpack_schemas_en[] = {
@@ -21627,7 +21719,10 @@ static const perl_diagpack_schema_t * const perl_diagpack_schemas_en[] = {
     &perl_diagpack_schema_2794, &perl_diagpack_schema_2795, &perl_diagpack_schema_2796,
     &perl_diagpack_schema_2797, &perl_diagpack_schema_2798, &perl_diagpack_schema_2799,
     &perl_diagpack_schema_2800, &perl_diagpack_schema_2801, &perl_diagpack_schema_2802,
-    &perl_diagpack_schema_2803,
+    &perl_diagpack_schema_2803, &perl_diagpack_schema_2804, &perl_diagpack_schema_2805,
+    &perl_diagpack_schema_2806, &perl_diagpack_schema_2807, &perl_diagpack_schema_2808,
+    &perl_diagpack_schema_2809, &perl_diagpack_schema_2810, &perl_diagpack_schema_2811,
+    &perl_diagpack_schema_2812,
 };
 
 static const perl_diagpack_catalog perl_diagpack_builtin_catalog_en = {
@@ -21756,7 +21851,7 @@ static const perl_diagpack_engine * const perl_diagpack_builtin_engines[] = {
 
 
 /* Generated from:
- * c825756baabff6e2fa75cfb2cc241886c6223e7f433808258b4db05e9b389940 diag_conf.pl
+ * c12bfa593acd7916a1a42aa8212dc44c77c708f49895c4bee45e556e6f99b38e diag_conf.pl
  * 2d782aa7232094113b9b9205138381282d148545c1d4444211939e7659e39734 diag_op_conf.pl
- * b333aa9910dc95e9259def9af37a920ee035cdde0d414c3162bbf7e48536dde6 regen/opcodes
+ * f98b39c7994745f4897fa53dbc75a329d5b629fcc3f83fc9cf8bb340b4d8445c regen/opcodes
  * ex: set ro ft=c: */

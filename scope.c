@@ -2490,6 +2490,27 @@ S_local_binding_previous(ANY *stack, I32 *cursor, I32 *offset, U8 *type)
     return TRUE;
 }
 
+AV *
+Perl_execution_match_roots(pTHX_ AV *roots)
+{
+    I32 cursor = PL_savestack_ix, offset;
+    U8 type;
+    PERL_ARGS_ASSERT_EXECUTION_MATCH_ROOTS;
+    while (cursor) {
+        ANY *args;
+        if (!S_local_binding_previous(PL_savestack, &cursor, &offset, &type))
+            PERL_THROW_ERROR_ITERATOR_GENERATOR_CONTINUATION_UNAVAILABLE();
+        args = &PL_savestack[offset];
+        if (type == SAVEt_VPTR && args[1].any_ptr == &PL_curpm
+            && args[0].any_ptr) {
+            if (!roots)
+                roots = (AV *)sv_2mortal(MUTABLE_SV(newAV()));
+            av_push(roots, newSVuv(PTR2UV(args[0].any_ptr)));
+        }
+    }
+    return roots;
+}
+
 /* SAVE_DEFSV saves the whole glob followed by the address of its scalar
  * slot. A caller can redirect *_ while map or grep is suspended. Keep
  * the topic and the glob alive, but take a fresh slot address and pin

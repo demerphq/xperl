@@ -979,7 +979,28 @@ static OP *ck_builtin_iter(pTHX_ OP *entersubop, GV *namegv, SV *ckobj)
     return ck_entersub_args_proto(entersubop, namegv, prototype);
 }
 
+static XS(XS_builtin_run)
+{
+    dXSARGS;
+    SV *task;
+    if (items != 1)
+        croak_xs_usage(cv, "task");
+    task = sv_mortalcopy(ST(0));
+    PUTBACK;
+    async_load();
+    SPAGAIN;
+    SP -= items;
+    PUSHMARK(SP);
+    XPUSHs(task);
+    PUTBACK;
+    call_pv("XPerl::Task::_run", G_SCALAR);
+    SPAGAIN;
+    ST(0) = POPs;
+    XSRETURN(1);
+}
+
 static const struct BuiltinFuncDescriptor builtins[] = {
+    { "run", NO_BUNDLE, true, &XS_builtin_run, &ck_builtin_func1, 0 },
     { "iter", NO_BUNDLE, true, &XS_builtin_iter, &ck_builtin_iter, 0 },
     /* constants */
     { "true",  SHORTVER(5,39), false, &XS_builtin_true,   &ck_builtin_const, BUILTIN_CONST_TRUE  },
