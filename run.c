@@ -1218,14 +1218,19 @@ Perl_async_install(pTHX_ CV *body)
     if (!CvROOT(body) || CvLEXICAL(body) || CvLVALUE(body)
         || !(gv = CvGV(body)) || GvCV(gv) != body)
         PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
+    const I32 floor = PL_savestack_ix;
+    SAVEFREESV(SvREFCNT_inc(MUTABLE_SV(gv)));
     CvASYNC_on(body);
     reference = async_wrap(body);
     wrapper = MUTABLE_CV(SvRV(reference));
-    CvGV_set(wrapper, gv);
+    CvGV_set(wrapper, NULL);
     CvSTASH_set(wrapper, CvSTASH(body));
     GvCV_set(gv, MUTABLE_CV(SvREFCNT_inc(MUTABLE_SV(wrapper))));
+    CvANON_off(wrapper);
+    CvGV_set(wrapper, gv);
     SvREFCNT_dec(MUTABLE_SV(body));
     gv_method_changed(gv);
+    LEAVE_SCOPE(floor);
 }
 
 void

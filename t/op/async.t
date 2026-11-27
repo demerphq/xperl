@@ -653,4 +653,17 @@ for my $keyword (qw(async await)) {
     is(join(',', @destroyed), 'private,private', 'regex-code abandonment unwinds exactly once');
 }
 
+fresh_perl_is(<<'PERL', 'released,released', {}, 'async factory has no cycle through its naming glob');
+use xperl;
+my @results;
+for my $name (qw(alive __ANON__)) {
+    my $code = eval "package AsyncWeak; async sub $name() { 42 } \\&$name";
+    die $@ unless $code;
+    weaken($code);
+    delete $AsyncWeak::{$name};
+    push @results, defined($code) ? 'retained' : 'released';
+}
+print join ',', @results;
+PERL
+
 done_testing();
