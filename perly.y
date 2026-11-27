@@ -976,8 +976,7 @@ bare_statement_sub_signature
 				? newATTRSUB($startsub, $subname, NULL, $subattrlist, body)
 				: newMYSUB(  $startsub, $subname, NULL, $subattrlist, body)
 				;
-			if (($sigsub_or_method_named & PERL_CVf_ASYNC) && cv && !CvLEXICAL(cv) && !PERL_DIAG_ERROR_COUNT)
-			    async_install(cv);
+			PERL_UNUSED_VAR(cv);
 			intro_my();
 			parser->parsed_sub = 1;
 			$$ = NULL;
@@ -1009,8 +1008,7 @@ bare_statement_sub_traditional
 				? newATTRSUB($startsub, $subname, $proto, $subattrlist, $optsubbody)
 				: newMYSUB($startsub, $subname, $proto, $subattrlist, $optsubbody)
 				;
-			if ($sub_or_async_named == KW_ASYNC && cv && !CvLEXICAL(cv) && !PERL_DIAG_ERROR_COUNT)
-			    async_install(cv);
+			PERL_UNUSED_VAR(cv);
 			intro_my();
 			parser->parsed_sub = 1;
 			$$ = NULL;

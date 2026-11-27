@@ -935,7 +935,9 @@ Adp	|OP *	|apply_builtin_cv_attributes				\
 Chp	|OP *	|async_await	|NULLOK PERL_GENERATOR *owner
 Chp	|void	|async_check_name					\
 				|NN OP *nameop
-Chp	|void	|async_install	|NN CV *body
+Chp	|void	|async_install	|NN CV *target				\
+				|NN CV *body				\
+				|NN GV *gv
 p	|void	|async_install_multi					\
 				|NN CV *body				\
 				|NN SV *name

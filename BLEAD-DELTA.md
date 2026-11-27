@@ -100,6 +100,9 @@ the usual closure and state behavior. Each call returns a task.
 role composition, inheritance and private lexical methods. A pending
 call keeps its receiver alive. Automatic destruction hooks stay synchronous.
 
+Early code references and forward declarations identify the completed task
+factory for named async functions and methods.
+
 `async multi sub` combines pattern dispatch with tasks. Every clause in a
 group must be async. Dispatch runs when the task starts, and clause guards
 and bodies can await. No-match errors report the original call location.

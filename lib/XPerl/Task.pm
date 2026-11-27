@@ -344,9 +344,11 @@ Automatic C<DESTROY> and C<TEARDOWN> hooks require synchronous cleanup and
 cannot be async. Their callers discard return values and cannot await a
 task. A private lexical helper with either name does not register a hook.
 
-In this prototype, take references to named async functions and methods
-after their definitions have completed. A reference saved earlier can
-still call the underlying Perl body directly.
+References to an undefined name or an ordinary forward declaration
+identify the task factory once its async definition is installed.
+Redefining an existing function keeps the usual Perl behavior: old
+references retain the previous definition. Callbacks while installing a
+package definition receive its callable factory too.
 
 =head1 DEFAULT DRIVER
 

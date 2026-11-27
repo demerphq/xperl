@@ -203,7 +203,7 @@
 # define apply_builtin_cv_attributes(a,b)       Perl_apply_builtin_cv_attributes(aTHX_ a,b)
 # define async_await(a)                         Perl_async_await(aTHX_ a)
 # define async_check_name(a)                    Perl_async_check_name(aTHX_ a)
-# define async_install(a)                       Perl_async_install(aTHX_ a)
+# define async_install(a,b,c)                   Perl_async_install(aTHX_ a,b,c)
 # define async_load()                           Perl_async_load(aTHX)
 # define async_wrap(a)                          Perl_async_wrap(aTHX_ a)
 # define atfork_child                           Perl_atfork_child

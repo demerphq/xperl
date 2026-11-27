@@ -1252,33 +1252,47 @@ Perl_async_lexical_factory(pTHX_ CV *target, CV *body)
         sv_setpvn(MUTABLE_SV(target), SvPVX(body), SvCUR(body));
         if (SvUTF8(body))
             SvUTF8_on(target);
+        else
+            SvUTF8_off(target);
     }
     return target;
 }
 
 void
-Perl_async_install(pTHX_ CV *body)
+Perl_async_install(pTHX_ CV *target, CV *body, GV *gv)
 {
-    SV *reference;
-    CV *wrapper;
-    GV *gv;
     PERL_ARGS_ASSERT_ASYNC_INSTALL;
-    if (!CvROOT(body) || CvLEXICAL(body) || CvLVALUE(body)
-        || !(gv = CvGV(body)) || GvCV(gv) != body)
-        PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
-    const I32 floor = PL_savestack_ix;
-    SAVEFREESV(SvREFCNT_inc(MUTABLE_SV(gv)));
-    CvASYNC_on(body);
-    reference = async_wrap(body);
-    wrapper = MUTABLE_CV(SvRV(reference));
-    CvGV_set(wrapper, NULL);
-    CvSTASH_set(wrapper, CvSTASH(body));
-    GvCV_set(gv, MUTABLE_CV(SvREFCNT_inc(MUTABLE_SV(wrapper))));
-    CvANON_off(wrapper);
-    CvGV_set(wrapper, gv);
-    SvREFCNT_dec(MUTABLE_SV(body));
-    gv_method_changed(gv);
-    LEAVE_SCOPE(floor);
+    /* The compiler has parked an undefined stub's pad and outside links.
+     * Preserve its identity and magic, including an installed call checker. */
+    assert(!CvISXSUB(target) && !CvROOT(target) && !CvPADLIST(target));
+    assert(!CvSTART(target) && !CvOUTSIDE(target) && !CvFILE(target));
+    CvFLAGS(target) &= CVf_CVGV_RC | CVf_HasNAME_HEK;
+    CvFLAGS(target) |= CvFLAGS(body)
+        & (CVf_IsMETHOD | CVf_NOWARN_AMBIGUOUS | CVf_NODEBUG | PERL_CVf_ASYNC);
+    CvISXSUB_on(target);
+    CvXSUB(target) = S_async_factory;
+    CvXSUBANY(target).any_sv = SvREFCNT_inc(MUTABLE_SV(body));
+    CvREFCOUNTED_ANYSV_on(target);
+#ifndef MULTIPLICITY
+    CvHSCXT(target) = &PL_stack_sp;
+#else
+    PoisonPADLIST(target);
+#endif
+    CvGV_set(target, gv);
+    CvSTASH_set(target, CvSTASH(body));
+    CvFILE(target) = savepv(CvFILE(body));
+    CvDYNFILE_on(target);
+    if (SvPOK(body)) {
+        sv_setpvn(MUTABLE_SV(target), SvPVX(body), SvCUR(body));
+        if (SvUTF8(body))
+            SvUTF8_on(target);
+        else
+            SvUTF8_off(target);
+    }
+    else {
+        SvPOK_off(target);
+        SvUTF8_off(target);
+    }
 }
 
 void

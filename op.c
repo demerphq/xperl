@@ -12793,6 +12793,190 @@ L<perlintern/C<newATTRSUB_x>>.
 =cut
 */
 
+/* A named async declaration has two CVs: a public task factory and its
+ * original compiler body. Callbacks can call or retain the factory while
+ * compilation is still in progress. Keep publication reversible until they
+ * finish, without replacing a forward reference or copying lexical storage.
+ *
+ * An undefined stub may own a pad and an op slab. Park those actual objects
+ * in a backup CV so rejection restores the stub, and interpreter cloning
+ * uses the ordinary CV ownership rules for its rollback state. */
+enum async_named_slot {
+    AN_GV, AN_SLOT, AN_OLD, AN_FACTORY, AN_BODY, AN_BACKUP, AN_FLAGS,
+    AN_CHECKER, AN_CHECKOBJ, AN_CHECKFLAGS, AN_NAME, AN_PUBLISHED, AN_COMMITTED, AN_LAST
+};
+
+static void
+S_async_named_rollback(pTHX_ void *data)
+{
+    AV * const state = MUTABLE_AV(PL_savestack[PTR2IV(data)].any_sv);
+    SV ** const saved = AvARRAY(state);
+    if (SvTRUE(saved[AN_COMMITTED]))
+        return;
+    GV * const gv = MUTABLE_GV(saved[AN_GV]);
+    GV * const slot = MUTABLE_GV(saved[AN_SLOT]);
+    CV * const factory = MUTABLE_CV(saved[AN_FACTORY]);
+    CV * const old = SvTYPE(saved[AN_OLD]) == SVt_PVCV ? MUTABLE_CV(saved[AN_OLD]) : NULL;
+    CV * const body = MUTABLE_CV(saved[AN_BODY]);
+    CV * const backup = SvTYPE(saved[AN_BACKUP]) == SVt_PVCV ? MUTABLE_CV(saved[AN_BACKUP]) : NULL;
+
+    const bool owns_body = CvISXSUB(factory) && CvASYNC(factory)
+        && CvREFCOUNTED_ANYSV(factory) && CvXSUBANY(factory).any_sv == MUTABLE_SV(body);
+    if (!owns_body && (SvTRUE(saved[AN_PUBLISHED])
+        || CvISXSUB(factory) || CvROOT(factory)))
+        return;
+
+    if (GvCV(slot) == factory && old != factory) {
+        GvCV_set(slot, (CV *)SvREFCNT_inc(old));
+        GvCVGEN(slot) = 0;
+        if (GvSTASH(slot) && HvENAME_HEK(GvSTASH(slot)))
+            gv_method_changed(slot);
+        SvREFCNT_dec_NN(factory);
+    }
+    if (backup && owns_body) {
+        /* A callback may have replaced this name or completed a nested
+         * declaration. Restore only the factory owned by this transaction. */
+        SV * const payload = CvXSUBANY(factory).any_sv;
+        CvXSUBANY(factory).any_sv = NULL;
+        CvXSUB(factory) = NULL;
+        if (CvDYNFILE(factory))
+            Safefree(CvFILE(factory));
+        CvFILE(factory) = CvFILE(backup);
+        CvFILE(backup) = NULL;
+        /* A cloned backup owns different resources. Restore ownership from
+         * that CV, not from the parent's saved declaration flags. */
+        CvFLAGS(factory) = (CvFLAGS(factory) & (CVf_CVGV_RC | CVf_HasNAME_HEK))
+            | (SvUV(saved[AN_FLAGS]) & ~(CVf_CVGV_RC | CVf_HasNAME_HEK
+                | CVf_SLABBED | CVf_WEAKOUTSIDE | CVf_DYNFILE))
+            | (CvFLAGS(backup) & (CVf_SLABBED | CVf_WEAKOUTSIDE | CVf_DYNFILE));
+        CvPADLIST_set(factory, CvPADLIST(backup));
+        CvPADLIST_set(backup, NULL);
+        CvSTART(factory) = CvSTART(backup);
+        CvSTART(backup) = NULL;
+        CvOUTSIDE(factory) = CvOUTSIDE(backup);
+        CvOUTSIDE(backup) = NULL;
+        CvOUTSIDE_SEQ(factory) = CvOUTSIDE_SEQ(backup);
+        CvFLAGS(backup) &= ~CVf_SLABBED;
+        CvSTASH_set(factory, CvSTASH(backup));
+        CvGV_set(factory, CvGV(backup) ? CvGV(backup) : gv);
+        if (SvPOK(backup)) {
+            sv_setpvn(MUTABLE_SV(factory), SvPVX(backup), SvCUR(backup));
+            if (SvUTF8(backup))
+                SvUTF8_on(factory);
+            else
+                SvUTF8_off(factory);
+        }
+        else {
+            SvPOK_off(factory);
+            SvUTF8_off(factory);
+        }
+        cv_set_call_checker_flags(factory,
+            DPTR2FPTR(Perl_call_checker, INT2PTR(void *, SvUV(saved[AN_CHECKER]))),
+            saved[AN_CHECKOBJ], SvUV(saved[AN_CHECKFLAGS]));
+        if (GvSTASH(slot) && HvENAME_HEK(GvSTASH(slot)))
+            gv_method_changed(slot);
+        SvREFCNT_dec_NN(payload);
+    }
+}
+
+static AV *
+S_async_named_begin(pTHX_ GV *gv, CV *body)
+{
+    AV * const state = newAV();
+    const I32 index = PL_savestack_ix;
+    SAVEFREESV(state);
+    for (I32 i = 0; i < AN_LAST; i++)
+        av_push(state, newSV(0));
+    av_store(state, AN_GV, SvREFCNT_inc_simple_NN(gv));
+    av_store(state, AN_BODY, SvREFCNT_inc_simple_NN(body));
+    SV * const name = newSV(0);
+    gv_fullname3(name, gv, NULL);
+    av_store(state, AN_NAME, name);
+
+    /* Retain the actual slot even if a callback reassigns the whole glob.
+     * Keeping the guard in a typed save entry makes interpreter cloning own
+     * its copy, rather than copying pointers into another interpreter. */
+    GV * const slot = MUTABLE_GV(newSV(0));
+    av_store(state, AN_SLOT, MUTABLE_SV(slot));
+    gv_init_pvn(slot, GvSTASH(gv), GvNAME(gv), GvNAMELEN(gv),
+                GvNAMEUTF8(gv) ? SVf_UTF8 : 0);
+    gp_free(slot);
+    GvGP_set(slot, gp_ref(GvGP(gv)));
+
+    CV * const old = GvCV(gv);
+    if (old)
+        av_store(state, AN_OLD, SvREFCNT_inc_simple_NN(old));
+    CV *target;
+    if (old && !CvISXSUB(old) && !CvROOT(old) && !GvIMPORTED_CV(gv)
+        && CvGV(old) && GvGP(CvGV(old)) == GvGP(gv))
+        target = (CV *)SvREFCNT_inc_simple_NN(old);
+    else
+        target = MUTABLE_CV(newSV_type(SVt_PVCV));
+    av_store(state, AN_FACTORY, MUTABLE_SV(target));
+    SAVEDESTRUCTOR_X(S_async_named_rollback, INT2PTR(void *, (IV)index));
+    if (!old) {
+        GvCV_set(gv, (CV *)SvREFCNT_inc_simple_NN(target));
+        GvCVGEN(gv) = 0;
+        CvGV_set(target, gv);
+    }
+    return state;
+}
+
+static void
+S_async_named_publish(pTHX_ AV *state)
+{
+    SV ** const saved = AvARRAY(state);
+    GV * const gv = MUTABLE_GV(saved[AN_GV]);
+    GV * const slot = MUTABLE_GV(saved[AN_SLOT]);
+    CV * const factory = MUTABLE_CV(saved[AN_FACTORY]);
+    CV * const body = MUTABLE_CV(saved[AN_BODY]);
+    if (GvGP(gv) != GvGP(slot) || GvCV(slot) !=
+        (SvTYPE(saved[AN_OLD]) == SVt_PVCV ? MUTABLE_CV(saved[AN_OLD]) : factory)
+        || CvISXSUB(factory) || CvROOT(factory))
+        PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
+
+    if (SvTYPE(saved[AN_OLD]) == SVt_PVCV && MUTABLE_CV(saved[AN_OLD]) == factory) {
+        CV * const backup = MUTABLE_CV(newSV_type(SVt_PVCV));
+        av_store(state, AN_BACKUP, MUTABLE_SV(backup));
+        av_store(state, AN_FLAGS, newSVuv(CvFLAGS(factory)));
+        CvFLAGS(backup) = CvFLAGS(factory) & (CVf_SLABBED | CVf_WEAKOUTSIDE | CVf_DYNFILE);
+        CvSTASH_set(backup, CvSTASH(factory));
+        CvGV_set(backup, CvGV(factory));
+        if (SvPOK(factory)) {
+            sv_setpvn(MUTABLE_SV(backup), SvPVX(factory), SvCUR(factory));
+            if (SvUTF8(factory))
+                SvUTF8_on(backup);
+        }
+        Perl_call_checker checker;
+        SV *object;
+        U32 flags;
+        cv_get_call_checker_flags(factory, 0, &checker, &object, &flags);
+        av_store(state, AN_CHECKER, newSVuv(PTR2UV(FPTR2DPTR(void *, checker))));
+        av_store(state, AN_CHECKOBJ, SvREFCNT_inc_simple_NN(object));
+        av_store(state, AN_CHECKFLAGS, newSVuv(flags));
+        CvPADLIST_set(backup, CvPADLIST(factory));
+        CvPADLIST_set(factory, NULL);
+        CvSTART(backup) = CvSTART(factory);
+        CvSTART(factory) = NULL;
+        CvOUTSIDE(backup) = CvOUTSIDE(factory);
+        CvOUTSIDE(factory) = NULL;
+        CvOUTSIDE_SEQ(backup) = CvOUTSIDE_SEQ(factory);
+        CvFILE(backup) = CvFILE(factory);
+        CvFILE(factory) = NULL;
+        CvFLAGS(factory) &= ~(CVf_SLABBED | CVf_WEAKOUTSIDE | CVf_DYNFILE);
+    }
+    CV * const displaced = GvCV(slot);
+    if (displaced != factory) {
+        GvCV_set(slot, (CV *)SvREFCNT_inc_simple_NN(factory));
+        SvREFCNT_dec(displaced);
+    }
+    async_install(factory, body, gv);
+    sv_setiv(saved[AN_PUBLISHED], 1);
+    GvCVGEN(slot) = 0;
+    if (GvSTASH(slot) && HvENAME_HEK(GvSTASH(slot)))
+        gv_method_changed(slot);
+}
+
 /* _x = extended */
 CV *
 Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
@@ -12823,6 +13007,8 @@ Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
     bool name_is_utf8 = o && !o_is_gv && SvUTF8(cSVOPo->op_sv);
     bool evanescent = FALSE;
     bool isBEGIN = FALSE;
+    AV *async_state = NULL;
+    CV *async_body = NULL;
 
     /* If this is an anonymous sub, it might have been declared in the
      * middle of a statement. To avoid messing up the line numbering of
@@ -12852,7 +13038,7 @@ Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
         const I32 flags =
            ec ? GV_NOADD_NOINIT
               :   (IN_PERL_RUNTIME && PL_curstash != CopSTASH(PL_curcop))
-               || PL_curstash != PL_defstash
+               || PL_curstash != PL_defstash || CvASYNC(PL_compcv)
                || memchr(name, ':', namlen) || memchr(name, '\'', namlen)
                     ? gv_fetch_flags
                     : GV_ADDMULTI | GV_NOINIT | GV_NOTQUAL;
@@ -12981,6 +13167,12 @@ Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
                 ? (CV *)SvRV(gv)
                 : NULL;
 
+    if (name && block && CvASYNC(PL_compcv)) {
+        assert(isGV(gv));
+        async_state = S_async_named_begin(aTHX_ gv, PL_compcv);
+        cv = GvCV(gv);
+    }
+
     if (cv && !!CvMULTISUB(cv) != !!CvMULTISUB(PL_compcv))
         PERL_THROW_ERROR_SYNTAX_MULTISUB_MIXED_DECLARATION(o_is_gv ? (SV *)gv : cSVOPo->op_sv);
 
@@ -13000,9 +13192,18 @@ Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
             block = newSTATEOP(0, NULL, 0);
             PL_parser->copline = l;
         }
-        block = CvLVALUE(PL_compcv)
+        const bool is_lvalue = CvLVALUE(PL_compcv)
              || (cv && CvLVALUE(cv) && !CvROOT(cv) && !CvXSUB(cv)
-                    && (!isGV(gv) || !GvASSUMECV(gv)))
+                    && (async_state
+                        ? cv == MUTABLE_CV(AvARRAY(async_state)[AN_FACTORY])
+                        : !isGV(gv) || !GvASSUMECV(gv)));
+        if (async_state && is_lvalue) {
+            op_free(block);
+            SvREFCNT_dec(PL_compcv);
+            PL_compcv = NULL;
+            PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
+        }
+        block = is_lvalue
                    ? newUNOP(OP_LEAVESUBLV, 0,
                              op_lvalue(voidnonfinal(block), OP_LEAVESUBLV))
                    : newUNOP(OP_LEAVESUB, 0, voidnonfinal(block));
@@ -13063,8 +13264,9 @@ Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
         /* already defined (or promised)? */
         /* Reattaching a reserved multi CV sets GvASSUMECV without giving
          * that rootless reservation a definition. Complete it in place. */
-        if (exists || (isGV(gv) && GvASSUMECV(gv) && !CvMULTISUB(cv))) {
-            S_already_defined(aTHX_ cv, block, o, NULL, &const_sv, TRUE);
+        if (exists || (isGV(gv) && GvASSUMECV(gv) && !CvMULTISUB(cv)
+            && (!async_state || cv != MUTABLE_CV(AvARRAY(async_state)[AN_FACTORY])))) {
+            S_already_defined(aTHX_ cv, block, o, NULL, &const_sv, !async_state);
             if (block)
                 cv = NULL;
             else {
@@ -13122,6 +13324,13 @@ Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
     /* don't copy new BEGIN CV to old BEGIN CV - RT #129099 */
     if (name && cv && *name == 'B' && strEQ(name, "BEGIN"))
         cv = NULL;
+
+    if (async_state) {
+        CV * const target = MUTABLE_CV(AvARRAY(async_state)[AN_FACTORY]);
+        CvFLAGS(PL_compcv) |= CvFLAGS(target) & CVf_BUILTIN_ATTRS;
+        SAVEFREESV(PL_compcv);
+        cv = NULL;
+    }
 
     if (cv) {				/* must reuse cv if autoloaded */
         /* transfer PL_compcv to cv */
@@ -13187,7 +13396,20 @@ Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
         if(name && CvHasNAME_HEK(cv))
             CvNAME_HEK_clear(cv);
 
-        if (name && isGV(gv)) {
+        if (async_state) {
+            /* The public reservation stays the task factory. Keep the
+             * original compiler CV and its lexical storage as the body.
+             * A private naming glob prevents introspection from making an
+             * ownership cycle through the public factory. */
+            GV * const naming = MUTABLE_GV(newSV(0));
+            SAVEFREESV(naming);
+            gv_init_pvn(naming, GvSTASH(gv), GvNAME(gv), GvNAMELEN(gv),
+                        GvNAMEUTF8(gv) ? SVf_UTF8 : 0);
+            CvGV_set(cv, naming);
+            CvSTASH_set(cv, PL_curstash);
+            CvFILE_set_from_cop(cv, PL_curcop);
+        }
+        else if (name && isGV(gv)) {
             GvCV_set(gv, cv);
             GvCVGEN(gv) = 0;
             if (HvENAME_HEK(GvSTASH(gv)))
@@ -13250,6 +13472,13 @@ Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
     }
 
   attrs:
+    if (async_state) {
+        if (CvLVALUE(cv))
+            PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
+        async_body = cv;
+        S_async_named_publish(aTHX_ async_state);
+        cv = MUTABLE_CV(AvARRAY(async_state)[AN_FACTORY]);
+    }
     if (attrs) {
         /* Need to do a C<use attributes $stash_of_cv,\&cv,@attrs>. */
         HV *stash = name && !CvHasNAME_HEK(cv) && GvSTASH(CvGV(cv))
@@ -13261,6 +13490,9 @@ Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
         if (!name)
             SvREFCNT_inc_simple_void_NN(cv);
     }
+
+    if (async_state && (CvLVALUE(cv) || CvLVALUE(async_body)))
+        PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
 
     assert(cv);
 
@@ -13303,6 +13535,25 @@ Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
     }
 
   done:
+    if (async_state) {
+        SV ** const saved = AvARRAY(async_state);
+        if (gv_fetchsv(saved[AN_NAME], GV_NOADD_NOINIT, SVt_PVCV)
+                != MUTABLE_GV(saved[AN_GV])
+            || GvGP(MUTABLE_GV(saved[AN_GV])) != GvGP(MUTABLE_GV(saved[AN_SLOT]))
+            || GvCV(MUTABLE_GV(saved[AN_SLOT])) != cv
+            || !CvISXSUB(cv) || !CvASYNC(cv) || !CvREFCOUNTED_ANYSV(cv)
+            || CvXSUBANY(cv).any_sv != MUTABLE_SV(async_body)
+            || CvLVALUE(cv) || CvLVALUE(async_body))
+            PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
+        sv_setiv(saved[AN_COMMITTED], 1);
+        /* Scope cleanup can run Perl after committing the name. Keep the
+         * factory alive through the return and the body through recording
+         * its enclosing pad's weak link, even if cleanup removes the name.
+         * Use temporary references so a thread clone sees ordinary CVs,
+         * without the creator's temporary-lifetime flags. */
+        sv_2mortal(newRV_inc(MUTABLE_SV(cv)));
+        sv_2mortal(newRV_inc(MUTABLE_SV(async_body)));
+    }
     assert(!cv || evanescent || SvREFCNT((SV*)cv) != 0);
     /* A code reference can create an undefined stub without declaring an
      * ordinary sub. Only an explicit declaration fixes that name's kind. */
@@ -13318,8 +13569,10 @@ Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
     if (slab)
         Slab_to_ro(slab);
 #endif
-    if (cv && name && block && CvOUTSIDE(cv) && !CvEVAL(CvOUTSIDE(cv)))
-        pad_add_weakref(cv);
+    CV * const registered = async_body ? async_body : cv;
+    if (registered && name && block && CvOUTSIDE(registered)
+        && !CvEVAL(CvOUTSIDE(registered)))
+        pad_add_weakref(registered);
     }
     return cv;
 }

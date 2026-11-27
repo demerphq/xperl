@@ -196,10 +196,12 @@ Perl body to its consumer before publishing its task factory. Each call
 captures one receiver for both `$self` and field access and keeps that
 object alive. Automatic `DESTROY` and `TEARDOWN` hooks remain synchronous.
 
-Named async functions and methods have an existing early-reference
-limitation: references taken before their definition completes can retain
-the raw Perl body. Take those references after the definition. Preserving
-the public CV throughout named compilation needs a separate follow-up.
+The named-declaration follow-up completes forward reservations in place.
+References to those reservations and callback references therefore call
+the task factory. The Perl body keeps its original lexical storage.
+Publication is reversible while callbacks run. Interpreter cloning owns
+an independent copy of that rollback state. Explicit callback changes to
+the binding are preserved when a declaration fails.
 
 The library avoids cycles in its own waiter and relay machinery. It does
 not collect arbitrary cycles created by application closures and task

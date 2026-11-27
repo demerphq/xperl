@@ -260,13 +260,17 @@ Perl_async_check_name(pTHX_ OP *nameop)
     } STMT_END
 
 PERL_CALLCONV void
-Perl_async_install(pTHX_ CV *body)
+Perl_async_install(pTHX_ CV *target, CV *body, GV *gv)
         Perl_attribute_nonnull_aTHX
-        Perl_attribute_nonnull(pTHX_1);
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2)
+        Perl_attribute_nonnull(pTHX_3);
 #define PERL_ARGS_ASSERT_ASYNC_INSTALL          \
-    STMT_START { Perl_assert_aTHX; assert(body);                                \
-                 assert(SvTYPE(body) == SVt_PVCV || SvTYPE(body) == SVt_PVFM);  \
-                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;                           \
+    STMT_START { Perl_assert_aTHX; assert(target);                                  \
+                 assert(SvTYPE(target) == SVt_PVCV || SvTYPE(target) == SVt_PVFM);  \
+                 assert(body);                                                      \
+                 assert(SvTYPE(body) == SVt_PVCV || SvTYPE(body) == SVt_PVFM);      \
+                 assert(gv); PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;                   \
     } STMT_END
 
 PERL_CALLCONV void
