@@ -399,12 +399,12 @@ S_class_field_owner(pTHX_ SV *self, SV *instance, CV *cv)
         bool found = S_class_role_offset(aTHX_ consumer, role, &offset);
         assert(found);
         PERL_UNUSED_VAR(found);
-        save_item(owner);
-        SV *token = S_class_owner_token(aTHX_ consumer);
-        sv_setsv(owner, token);
-        SvREFCNT_dec_NN(token);
-        save_item(PAD_SVl(PADIX_ROLE_OFFSET));
-        sv_setuv(PAD_SVl(PADIX_ROLE_OFFSET), offset);
+        /* These bindings belong to this activation. Save pad slots rather
+         * than mutating their SVs so a suspended call owns private bindings. */
+        save_padsv(PADIX_FIELD_OWNER);
+        PAD_SVl(PADIX_FIELD_OWNER) = S_class_owner_token(aTHX_ consumer);
+        save_padsv(PADIX_ROLE_OFFSET);
+        PAD_SVl(PADIX_ROLE_OFFSET) = newSVuv(offset);
     }
     return consumer;
 }
