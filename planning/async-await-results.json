@@ -1,0 +1,262 @@
+{
+   "after" : {
+      "config" : {
+         "ccflags" : "-D_REENTRANT -D_GNU_SOURCE -fwrapv -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64",
+         "optimize" : "-O3",
+         "use64bitint" : "define",
+         "useithreads" : "define",
+         "usemultiplicity" : "define"
+      },
+      "interpreter" : "v5.45.5",
+      "mode" : "after",
+      "results" : {
+         "generator_create_destroy" : {
+            "iterations" : 250000,
+            "median_ns" : 799.999999999997,
+            "samples_seconds" : [
+               0.199999999999999,
+               0.210000000000001,
+               0.199999999999999,
+               0.210000000000001,
+               0.199999999999999,
+               0.210000000000001,
+               0.199999999999999
+            ]
+         },
+         "generator_two_yields_destroy" : {
+            "iterations" : 100000,
+            "median_ns" : 2199.99999999999,
+            "samples_seconds" : [
+               0.219999999999999,
+               0.210000000000001,
+               0.220000000000001,
+               0.219999999999999,
+               0.220000000000001,
+               0.219999999999999,
+               0.220000000000001
+            ]
+         },
+         "generator_two_yields_with_capture" : {
+            "iterations" : 100000,
+            "median_ns" : 3600.00000000001,
+            "samples_seconds" : [
+               0.360000000000001,
+               0.359999999999999,
+               0.359999999999999,
+               0.360000000000001,
+               0.369999999999999,
+               0.359999999999999,
+               0.370000000000001
+            ]
+         },
+         "ordinary_calls" : {
+            "iterations" : 5000000,
+            "median_ns" : 66,
+            "samples_seconds" : [
+               0.33,
+               0.34,
+               0.33,
+               0.33,
+               0.33,
+               0.33,
+               0.329999999999999
+            ]
+         },
+         "ordinary_closure_create_destroy" : {
+            "iterations" : 1000000,
+            "median_ns" : 300.000000000001,
+            "samples_seconds" : [
+               0.3,
+               0.31,
+               0.31,
+               0.3,
+               0.3,
+               0.31,
+               0.300000000000001
+            ]
+         },
+         "ordinary_opcodes" : {
+            "iterations" : 10000000,
+            "median_ns" : 45,
+            "samples_seconds" : [
+               0.45,
+               0.45,
+               0.45,
+               0.45,
+               0.44,
+               0.46,
+               0.45
+            ]
+         },
+         "task_create_destroy" : {
+            "iterations" : 100000,
+            "median_ns" : 1600,
+            "samples_seconds" : [
+               0.16,
+               0.16,
+               0.159999999999998,
+               0.16,
+               0.16,
+               0.150000000000002,
+               0.160000000000002
+            ]
+         },
+         "task_pending_await" : {
+            "iterations" : 20000,
+            "median_ns" : 8499.99999999999,
+            "samples_seconds" : [
+               0.17,
+               0.170000000000003,
+               0.17,
+               0.170000000000003,
+               0.17,
+               0.170000000000003,
+               0.17
+            ]
+         },
+         "task_pending_await_depth_32" : {
+            "iterations" : 20000,
+            "median_ns" : 14000,
+            "samples_seconds" : [
+               0.270000000000001,
+               0.279999999999999,
+               0.270000000000005,
+               0.279999999999999,
+               0.280000000000003,
+               0.280000000000003,
+               0.279999999999999
+            ]
+         },
+         "task_pending_await_depth_8" : {
+            "iterations" : 20000,
+            "median_ns" : 10000.0000000002,
+            "samples_seconds" : [
+               0.210000000000002,
+               0.200000000000001,
+               0.200000000000004,
+               0.209999999999999,
+               0.200000000000004,
+               0.200000000000001,
+               0.200000000000001
+            ]
+         },
+         "task_run_immediate" : {
+            "iterations" : 20000,
+            "median_ns" : 7000.00000000011,
+            "samples_seconds" : [
+               0.140000000000002,
+               0.130000000000001,
+               0.140000000000002,
+               0.140000000000002,
+               0.130000000000001,
+               0.140000000000002,
+               0.130000000000001
+            ]
+         }
+      },
+      "time_source" : "process CPU from times"
+   },
+   "baseline_commit" : "689a901f4689e796bbd401df6e381f4b5a0ea7c5",
+   "baseline_feature_module" : "feature.pm from the baseline revision",
+   "before" : {
+      "config" : {
+         "ccflags" : "-D_REENTRANT -D_GNU_SOURCE -fwrapv -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64",
+         "optimize" : "-O3",
+         "use64bitint" : "define",
+         "useithreads" : "define",
+         "usemultiplicity" : "define"
+      },
+      "interpreter" : "v5.45.5",
+      "mode" : "before",
+      "results" : {
+         "generator_create_destroy" : {
+            "iterations" : 250000,
+            "median_ns" : 759.999999999997,
+            "samples_seconds" : [
+               0.190000000000001,
+               0.179999999999999,
+               0.189999999999999,
+               0.189999999999999,
+               0.190000000000001,
+               0.189999999999999,
+               0.189999999999999
+            ]
+         },
+         "generator_two_yields_destroy" : {
+            "iterations" : 100000,
+            "median_ns" : 1999.99999999999,
+            "samples_seconds" : [
+               0.199999999999999,
+               0.199999999999999,
+               0.190000000000001,
+               0.209999999999999,
+               0.189999999999999,
+               0.200000000000001,
+               0.199999999999999
+            ]
+         },
+         "generator_two_yields_with_capture" : {
+            "iterations" : 100000,
+            "median_ns" : 2600.00000000001,
+            "samples_seconds" : [
+               0.260000000000001,
+               0.26,
+               0.269999999999999,
+               0.26,
+               0.269999999999999,
+               0.26,
+               0.270000000000001
+            ]
+         },
+         "ordinary_calls" : {
+            "iterations" : 5000000,
+            "median_ns" : 68,
+            "samples_seconds" : [
+               0.339999999999999,
+               0.340000000000001,
+               0.34,
+               0.33,
+               0.34,
+               0.34,
+               0.33
+            ]
+         },
+         "ordinary_closure_create_destroy" : {
+            "iterations" : 1000000,
+            "median_ns" : 300,
+            "samples_seconds" : [
+               0.3,
+               0.300000000000001,
+               0.3,
+               0.3,
+               0.29,
+               0.299999999999999,
+               0.3
+            ]
+         },
+         "ordinary_opcodes" : {
+            "iterations" : 10000000,
+            "median_ns" : 45,
+            "samples_seconds" : [
+               0.45,
+               0.44,
+               0.45,
+               0.45,
+               0.45,
+               0.44,
+               0.45
+            ]
+         }
+      },
+      "time_source" : "process CPU from times"
+   },
+   "cpu_affinity" : 0,
+   "date" : "2026-11-27",
+   "environment" : {
+      "PERL_HASH_SEED" : 0,
+      "PERL_JSON_PP_USE_B" : 0,
+      "PERL_PERTURB_KEYS" : 0
+   },
+   "platform" : "x86-64 Linux, GCC 13.3.0, threads, ordinary stack, -O3",
+   "prototype_commit" : "c63b0c2f5bb9d8764a8bf12769980305b528a527"
+}
