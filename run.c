@@ -26,6 +26,7 @@
 #include "perl.h"
 #include "XSUB.h"
 #include "regcomp.h"
+#include "diagpack.h"
 
 /*
  * 'Away now, Shadowfax!  Run, greatheart, run as you have never run before!
@@ -1234,6 +1235,31 @@ Perl_async_install(pTHX_ CV *body)
 }
 
 void
+Perl_async_install_multi(pTHX_ CV *body, SV *name)
+{
+    STRLEN length;
+    const char * const fullname = SvPV(name, length);
+    GV * const gv = gv_fetchsv(name, GV_NOADD_NOINIT, SVt_PVCV);
+    CV * const reserved = GvCV(gv);
+    CV *wrapper;
+    PERL_ARGS_ASSERT_ASYNC_INSTALL_MULTI;
+    /* newXS reuses the group's empty reservation. Replacing the glob's CV
+     * would leave early code references calling the raw dispatch body. */
+    assert(CvMULTISUB(reserved) && !CvROOT(reserved) && !CvISXSUB(reserved));
+    GvASSUMECV_off(gv);
+    wrapper = newXS_len_flags(fullname, length, S_async_factory, CvFILE(body),
+        NULL, NULL, XS_DYNAMIC_FILENAME | (SvUTF8(name) ? SVf_UTF8 : 0));
+    assert(wrapper == reserved);
+    PERL_UNUSED_VAR(reserved);
+    CvXSUBANY(wrapper).any_sv = SvREFCNT_inc(MUTABLE_SV(body));
+    CvREFCOUNTED_ANYSV_on(wrapper);
+    CvASYNC_on(wrapper);
+    CvMULTISUB_on(wrapper);
+    CvSTASH_set(wrapper, CvSTASH(body));
+    gv_method_changed(gv);
+}
+
+void
 Perl_async_load(pTHX)
 {
     I32 floor;
@@ -1249,6 +1275,29 @@ Perl_async_load(pTHX)
     LEAVE_SCOPE(floor);
 }
 
+static AV *
+S_async_callsite(pTHX)
+{
+    const COP *source;
+    AV *site;
+    SV *hint;
+    if (!PL_curcop)
+        return NULL;
+    source = PL_op
+        ? closest_cop(PL_curcop, OpSIBLING(PL_curcop), PL_op, FALSE) : PL_curcop;
+    if (!source)
+        source = PL_curcop;
+    /* Keep diagnostic metadata, not the caller's optree or package. Either
+     * can disappear before dispatch starts. An absent language hint must
+     * keep using the mutable render default rather than the driver's hint. */
+    site = MUTABLE_AV(sv_2mortal(MUTABLE_SV(newAV())));
+    av_push(site, newSVpv(OutCopFILE(source), 0));
+    av_push(site, newSVuv(CopLINE(source)));
+    hint = cop_hints_fetch_pvs(source, PERL_DIAGPACK_HINT_KEY, 0);
+    av_push(site, newSVuv(hint && SvIOK(hint) ? SvUV(hint) : 0));
+    return site;
+}
+
 static XS(S_async_factory)
 {
     dXSARGS;
@@ -1256,9 +1305,12 @@ static XS(S_async_factory)
     SV *fiber;
     AV *args;
     I32 i;
+    AV * const callsite = CvMULTISUB(body) ? S_async_callsite(aTHX) : NULL;
     PUTBACK;
     async_load();
     fiber = generator_wrap(body);
+    ((PERL_GENERATOR *)CvXSUBANY(MUTABLE_CV(SvRV(fiber))).any_ptr)->callsite
+        = MUTABLE_AV(SvREFCNT_inc(MUTABLE_SV(callsite)));
     sv_bless(fiber, gv_stashpvs("XPerl::_Fiber", GV_ADD));
     args = newAV();
     sv_2mortal(MUTABLE_SV(args));
@@ -1830,6 +1882,7 @@ Perl_generator_free(pTHX_ PERL_GENERATOR *generator)
     SvREFCNT_dec((SV *)generator->resume_args);
     SvREFCNT_dec((SV *)generator->result);
     SvREFCNT_dec(generator->match_state);
+    SvREFCNT_dec(MUTABLE_SV(generator->callsite));
     SvREFCNT_dec((SV *)generator->body);
     Safefree(generator);
     if (cleanup_errors)
@@ -1915,6 +1968,31 @@ typedef struct generator_run {
     JMPENV *env;
     PERL_SI *stackinfo;
 } GENERATOR_RUN;
+
+AV *
+Perl_async_multisub_callsite(pTHX_ const PERL_CONTEXT *cx)
+{
+    GENERATOR_RUN * const run = (GENERATOR_RUN *)PL_runops_boundary_data;
+    PERL_GENERATOR *generator;
+    I32 i;
+    PERL_ARGS_ASSERT_ASYNC_MULTISUB_CALLSITE;
+    if (PL_runops_boundary_hook || !cx || CxTYPE(cx) != CXt_SUB
+        || !cx->blk_sub.cv || !CvASYNC(cx->blk_sub.cv) || !CvMULTISUB(cx->blk_sub.cv))
+        return NULL;
+    if (!run || !(generator = run->generator)
+        || generator->magic != PERL_GENERATOR_MAGIC || !generator->callsite
+        || cx->blk_sub.cv != generator->body
+        || !run->stackinfo)
+        return NULL;
+    /* A synchronous call inside the selected clause keeps its own caller
+     * location, including a direct recursive call to the raw body. */
+    for (i = 0; i <= run->stackinfo->si_cxix; ++i) {
+        PERL_CONTEXT * const frame = &run->stackinfo->si_cxstack[i];
+        if (CxTYPE(frame) == CXt_SUB)
+            return frame == cx ? generator->callsite : NULL;
+    }
+    return NULL;
+}
 
 static int S_generator_boundary(pTHX_ OP *nextop, void *data);
 
@@ -2419,6 +2497,7 @@ Perl_generator_resume(pTHX_ PERL_GENERATOR *generator, AV *args)
             RELEASE_FIELD(error);
             RELEASE_FIELD(resume_exception);
             RELEASE_FIELD(match_state);
+            RELEASE_FIELD(callsite);
             RELEASE_FIELD(body);
 #undef RELEASE_FIELD
             LEAVE_SCOPE(floor);

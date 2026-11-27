@@ -1529,6 +1529,7 @@ typedef struct perl_generator {
     SV *                    value;
     SV *                    error;
     SV *                    match_state;
+    AV *                    callsite;
     SV *                    resume_exception;
     SV *                    relay_token; /* borrowed until token magic clears it */
     bool                    await_allowed;

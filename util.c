@@ -2359,6 +2359,17 @@ Perl_diag_croak_caller_sv(UV diag_index, AV *params, SV *message)
     dTHX;
     {
         const PERL_CONTEXT *cx = caller_cx(0, NULL);
+        if (diag_index == perl_diag_error_runtime_multisub_no_match_idx) {
+            AV * const site = async_multisub_callsite(cx);
+            if (site) {
+                SV * const reference = newRV_inc(MUTABLE_SV(site));
+                if (!params)
+                    params = MUTABLE_AV(sv_2mortal(MUTABLE_SV(newAV())));
+                (void)sv_magicext(MUTABLE_SV(params), reference, PERL_MAGIC_ext,
+                    NULL, "xperl_perl_source", sizeof("xperl_perl_source") - 1);
+                SvREFCNT_dec_NN(reference);
+            }
+        }
         if (cx)
             PL_curcop = (COP *)Perl_caller_cop(aTHX_ cx);
     }

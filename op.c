@@ -4870,7 +4870,7 @@ S_multisub_free(pTHX_ void *pointer)
 }
 
 I32
-Perl_multisub_begin(pTHX_ OP *nameop, bool is_method)
+Perl_multisub_begin(pTHX_ OP *nameop, bool is_method, bool is_async)
 {
     PERL_ARGS_ASSERT_MULTISUB_BEGIN;
     yy_parser *parser = PL_parser;
@@ -4940,6 +4940,8 @@ Perl_multisub_begin(pTHX_ OP *nameop, bool is_method)
 
         I32 floor = start_subparse(FALSE, 0);
         CvMULTISUB_on(PL_compcv);
+        if (is_async)
+            CvASYNC_on(PL_compcv);
         init_named_cv(PL_compcv, nameop);
         if (is_method) {
             class_prepare_method_parse(PL_compcv);
@@ -4965,7 +4967,8 @@ Perl_multisub_begin(pTHX_ OP *nameop, bool is_method)
             CvIsMETHOD_off(group->stub);
     }
 
-    if (!!CvIsMETHOD(group->state.compcv) != !!is_method)
+    if (!!CvIsMETHOD(group->state.compcv) != !!is_method
+        || !!CvASYNC(group->state.compcv) != !!is_async)
         PERL_THROW_ERROR_SYNTAX_MULTISUB_MIXED_DECLARATION(name);
 
     S_multisub_restore_stub(aTHX_ group);
@@ -5054,8 +5057,34 @@ S_multisub_finish_scope(pTHX_ I32 scope)
         /* Establish the statement stack base before dispatch saves it. */
         OP *body = newSTATEOP(0, NULL, dispatch);
         SvREFCNT_inc_simple_void(PL_compcv);
-        CV *cv = Perl_newATTRSUB_x(aTHX_ floor, (OP *)group->gv,
-            NULL, NULL, body, TRUE);
+        CV *cv;
+        if (CvASYNC(PL_compcv)) {
+            /* Keep the reserved public CV as the task factory. Compile the
+             * dispatch body separately so references taken before assembly
+             * still call that same factory when the group is complete. */
+            cv = newATTRSUB(floor, NULL, NULL, NULL, body);
+            if (cv) {
+                sv_2mortal(MUTABLE_SV(cv));
+                if (!PERL_DIAG_ERROR_COUNT) {
+                    S_multisub_restore_stub(aTHX_ group);
+                    /* The public glob owns the factory, not this body.
+                     * Give the body a private naming glob so introspection
+                     * cannot create a body-to-factory ownership cycle. */
+                    GV * const naming = MUTABLE_GV(sv_2mortal(newSV(0)));
+                    gv_init_pvn(naming, GvSTASH(group->gv), GvNAME(group->gv),
+                        GvNAMELEN(group->gv), GvNAMEUTF8(group->gv) ? SVf_UTF8 : 0);
+                    CvGV_set(cv, naming);
+                    CvSTASH_set(cv, group->stash);
+                    CvFILE_set_from_cop(cv, PL_curcop);
+                    if (CvOUTSIDE(cv) && !CvEVAL(CvOUTSIDE(cv)))
+                        pad_add_weakref(cv);
+                    async_install_multi(cv, group->name);
+                }
+            }
+        }
+        else
+            cv = Perl_newATTRSUB_x(aTHX_ floor, (OP *)group->gv,
+                NULL, NULL, body, TRUE);
         if (cv && CvIsMETHOD(cv)) {
             /* Assembly moves the body into the reserved public CV. Queue
              * that CV too: a qualified name can live outside this class. */

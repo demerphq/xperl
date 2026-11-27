@@ -2174,7 +2174,7 @@ CvMULTISUB_SCOPES(cv)
         B::CV cv
     PPCODE:
         SV *scopes = NULL;
-        if ((CvFLAGS(cv) & PERL_CVf_MULTISUB) && CvPADLIST(cv)) {
+        if ((CvFLAGS(cv) & PERL_CVf_MULTISUB) && !CvISXSUB(cv) && CvPADLIST(cv)) {
             PADNAMELIST *names = PadlistNAMES(CvPADLIST(cv));
             for (PADOFFSET ix = 1; ix <= PadnamelistMAX(names); ix++) {
                 PADNAME *name = PadnamelistARRAY(names)[ix];

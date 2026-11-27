@@ -7,7 +7,7 @@
 # This is based on the module of the same name by Malcolm Beattie,
 # but essentially none of his code remains.
 
-package B::Deparse 1.94;
+package B::Deparse 1.95;
 use strict;
 use builtin qw( true false );
 use Carp;
@@ -1748,6 +1748,8 @@ sub deparse_multisub {
             $head .= " if $guard_text" if defined $guard_text;
             my $kind = $cv->CvFLAGS & CVf_IsMETHOD ? 'method' : 'sub';
             $head = $self->keyword('multi') . " $kind $name($head)";
+            $head = $self->keyword('async') . " $head"
+                if $cv->CvFLAGS & PERL_CVf_ASYNC;
         }
         else {
             $head .= " if $guard_text" if defined $guard_text;

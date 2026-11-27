@@ -936,7 +936,12 @@ Chp	|OP *	|async_await	|NULLOK PERL_GENERATOR *owner
 Chp	|void	|async_check_name					\
 				|NN OP *nameop
 Chp	|void	|async_install	|NN CV *body
+p	|void	|async_install_multi					\
+				|NN CV *body				\
+				|NN SV *name
 Chp	|void	|async_load
+p	|AV *	|async_multisub_callsite				\
+				|NULLOK const PERL_CONTEXT *cx
 Chp	|SV *	|async_wrap	|NN CV *body
 CTp	|void	|atfork_child
 CTp	|void	|atfork_lock
@@ -2836,7 +2841,8 @@ p	|void	|multisub_add_clause					\
 				|NN OP *clause
 
 p	|I32	|multisub_begin |NN OP *nameop				\
-				|bool is_method
+				|bool is_method 			\
+				|bool is_async
 opr	|void	|multisub_fail	|NN SV *name				\
 				|bool is_method
 Adp	|NV	|my_atof	|NN const char *s

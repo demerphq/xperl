@@ -614,6 +614,9 @@ preserving the Perl call stack and supported localizations. The initial
 driver supports task dependencies and timers. Native C callbacks cannot
 suspend, and generators which await require an explicit adapter. See
 L<XPerl::Task> for cancellation, ownership and prototype limitations.
+C<async multi sub> combines task creation with multisub dispatch. Guards
+and bodies may await, and all clauses in a group must agree on being async.
+No-match failures report the original asynchronous call location.
 Tasks and generators start without a previous regex match. Subsequent
 core-engine captures survive suspension independently of other executions.
 See L<perlgenerator> for unsupported match states.

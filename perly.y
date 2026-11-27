@@ -463,12 +463,14 @@ bare_statement_multisub
 
 startmultisub
     : %empty
-        { $$ = multisub_begin($<opval>0, $<ival>-1 == KW_MULTI_METHOD); }
+        { $$ = multisub_begin($<opval>0, $<ival>-1 == KW_MULTI_METHOD,
+                             $<ival>-1 == KW_ASYNC); }
 ;
 
 multi_kind
     : KW_MULTI_SUB { $$ = KW_MULTI_SUB; }
     | KW_MULTI_METHOD { $$ = KW_MULTI_METHOD; }
+    | KW_ASYNC KW_MULTI_SUB { $$ = KW_ASYNC; }
 ;
 
 multisub_header

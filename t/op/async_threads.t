@@ -14,6 +14,8 @@ use strict;
 use warnings;
 use threads ();
 use async;
+use feature 'multisub';
+no warnings 'experimental::multisub';
 no warnings 'experimental::builtin';
 
 async sub answer ($value) {
@@ -30,5 +32,14 @@ async sub create_thread () {
 
 is(run(create_thread()), 22, 'child interpreter starts with an independent driver');
 is(run(answer(41)), 42, 'parent interpreter remains usable after cloning');
+
+async multi sub classify('double', $value) {
+    await XPerl::Task->delay(0);
+    return $value * 2;
+}
+async multi sub classify('other') { return 42 }
+my $child = threads->create(sub { run(classify('double', 21)) });
+is($child->join, 42, 'child interpreter retains async multi bodies');
+is(run(classify('other')), 42, 'parent async multi remains usable after cloning');
 
 done_testing();

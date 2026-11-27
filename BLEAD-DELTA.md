@@ -93,6 +93,10 @@ The experimental `async sub` syntax creates functions which return
 pausing the current execution if necessary. Ordinary nested Perl helpers
 can await without an async declaration.
 
+`async multi sub` combines pattern dispatch with tasks. Every clause in a
+group must be async. Dispatch runs when the task starts, and clause guards
+and bodies can await. No-match errors report the original call location.
+
 The built-in `run` drives cooperative tasks and timers. There are no
 background threads or scheduling checks in ordinary opcode dispatch.
 Suspension cannot cross an active native C callback. A generator which

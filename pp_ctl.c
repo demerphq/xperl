@@ -4838,6 +4838,22 @@ Perl_diag_append(pTHX_ SV **exception_slot, SV *err, UV diag_index,
     const perl_diag_metadata_t *meta;
     const COP *location_cop;
     MAGIC *source_magic;
+    AV *callsite = NULL;
+
+    /* Deferred dispatch can retain its call location without retaining the
+     * caller's code or installing a synthetic COP in the interpreter. */
+    for (MAGIC *mg = diagnostic_params ? SvMAGIC(MUTABLE_SV(diagnostic_params)) : NULL;
+         mg; mg = mg->mg_moremagic) {
+        if (mg->mg_type == PERL_MAGIC_ext
+            && mg->mg_len == sizeof("xperl_perl_source") - 1 && mg->mg_ptr
+            && memEQ(mg->mg_ptr, "xperl_perl_source", sizeof("xperl_perl_source") - 1)
+            && mg->mg_obj && SvROK(mg->mg_obj)
+            && SvTYPE(SvRV(mg->mg_obj)) == SVt_PVAV
+            && av_top_index(MUTABLE_AV(SvRV(mg->mg_obj))) == 2) {
+            callsite = MUTABLE_AV(SvRV(mg->mg_obj));
+            break;
+        }
+    }
 
     assert(diag_index && diag_index <= PERL_DIAG_METADATA_COUNT);
     meta = &perl_diag_metadata[diag_index];
@@ -4896,7 +4912,9 @@ Perl_diag_append(pTHX_ SV **exception_slot, SV *err, UV diag_index,
     PERL_SAFE_HV_FETCHS(diagnostic_hv, "severity");
     sv_setpv(*slot, meta->severity);
     {
-        const perl_diagpack_engine *engine = Perl_diagpack_current_hint(aTHX);
+        const perl_diagpack_engine *engine = callsite
+            ? INT2PTR(const perl_diagpack_engine *, SvUV(AvARRAY(callsite)[2]))
+            : Perl_diagpack_current_hint(aTHX);
         if (engine) {
             PERL_SAFE_HV_FETCHS(diagnostic_hv, "_diagpack_engine");
             sv_setuv(*slot, PTR2UV(engine));
@@ -4965,9 +4983,13 @@ Perl_diag_append(pTHX_ SV **exception_slot, SV *err, UV diag_index,
     PERL_SAFE_HV_FETCHS(diagnostic_hv, "location");
     sv_setrv_noinc(*slot, MUTABLE_SV(location_hv = newHV()));
     PERL_SAFE_HV_FETCHS(location_hv, "file");
-    sv_setpv(*slot, location_cop ? OutCopFILE(location_cop) : "");
+    if (callsite)
+        sv_setsv(*slot, AvARRAY(callsite)[0]);
+    else
+        sv_setpv(*slot, location_cop ? OutCopFILE(location_cop) : "");
     PERL_SAFE_HV_FETCHS(location_hv, "line");
-    sv_setiv(*slot, location_cop ? CopLINE(location_cop) : 0);
+    sv_setiv(*slot, callsite ? SvIV(AvARRAY(callsite)[1])
+                           : location_cop ? CopLINE(location_cop) : 0);
     if (category) {
         AV *warning_categories;
         U8 values[4];

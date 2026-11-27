@@ -8025,6 +8025,7 @@ t/op/arith2.t				See if arithmetic works
 t/op/array.t				See if array operations work
 t/op/assignwarn.t			See if OP= operators warn correctly for undef targets
 t/op/async.t				Experimental async task execution
+t/op/async_multi.t			Async multisub dispatch and suspension
 t/op/async_threads.t			Async interpreter isolation
 t/op/attrhand.t				See if attribute handlers work
 t/op/attrproto.t			See if the prototype attribute works

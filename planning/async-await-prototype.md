@@ -172,6 +172,12 @@ code must use its declared name. Traditional named prototypes and
 signatured anonymous async subs are supported. Async methods, lexical async
 declarations and transparent generator iteration are not implemented.
 
+The multisub follow-up adds `async multi sub`. Calls create tasks, and
+dispatch runs inside those tasks. Every clause must be async. Guards can
+await before selecting a clause, and a no-match failure reports the original
+call file, line and lexical diagnostic language. The saved call metadata
+does not retain the creator's code or package.
+
 The library avoids cycles in its own waiter and relay machinery. It does
 not collect arbitrary cycles created by application closures and task
 references. Explicit cancellation can break execution ownership.

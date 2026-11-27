@@ -270,9 +270,29 @@ Perl_async_install(pTHX_ CV *body)
     } STMT_END
 
 PERL_CALLCONV void
+Perl_async_install_multi(pTHX_ CV *body, SV *name)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_ASYNC_INSTALL_MULTI    \
+    STMT_START { Perl_assert_aTHX; assert(body);                                \
+                 assert(SvTYPE(body) == SVt_PVCV || SvTYPE(body) == SVt_PVFM);  \
+                 assert(name); PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;             \
+    } STMT_END
+
+PERL_CALLCONV void
 Perl_async_load(pTHX)
         Perl_attribute_nonnull_aTHX;
 #define PERL_ARGS_ASSERT_ASYNC_LOAD             \
+    STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
+    } STMT_END
+
+PERL_CALLCONV AV *
+Perl_async_multisub_callsite(pTHX_ const PERL_CONTEXT *cx)
+        Perl_attribute_nonnull_aTHX
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_ASYNC_MULTISUB_CALLSITE \
     STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
     } STMT_END
 
@@ -6110,7 +6130,7 @@ Perl_multisub_add_clause(pTHX_ I32 floor, OP *clause)
     } STMT_END
 
 PERL_CALLCONV I32
-Perl_multisub_begin(pTHX_ OP *nameop, bool is_method)
+Perl_multisub_begin(pTHX_ OP *nameop, bool is_method, bool is_async)
         Perl_attribute_nonnull_aTHX
         Perl_attribute_nonnull(pTHX_1)
         __attribute__visibility__("hidden");

@@ -894,6 +894,13 @@ empty pattern C<multi sub response() { ... }>. Nested array and hash patterns,
 captures, pins, and the other supported C<dispatch>/C<on> pattern forms have
 the meanings described in L<perldispatchon>.
 
+With the C<async> feature enabled, C<async multi sub> defines a group whose
+calls return L<XPerl::Task> objects. All clauses in the group must be async.
+Dispatch runs inside the task, and guards and clause bodies may await.
+If no clause matches, the task fails with the usual no-match exception at
+the original call location. See L<XPerl::Task>. Async methods, including
+C<async multi method>, are not supported by the prototype.
+
 These lists contain patterns, not signature parameters. For example,
 C<multi sub answer($value = 42) { ... }> requires an argument matching C<42>
 and binds it to C<$value>. It does not supply a default for a missing

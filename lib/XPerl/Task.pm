@@ -294,6 +294,12 @@ Named recursive calls create tasks normally. C<__SUB__> currently refers to
 the underlying Perl body, so invoking it bypasses task creation. Recursive
 async code must use its declared name in this prototype.
 
+C<async multi sub> defines an asynchronous multisub. Every clause in the
+group must use that spelling. Calling the multisub returns a task, and
+argument dispatch happens when the task starts. Clause guards and bodies
+can await. A no-match failure belongs to the task and reports the original
+call location when propagated by C<run> or C<await>.
+
 =head1 DEFAULT DRIVER
 
 The built-in C<run($task)> drives its root and tasks scheduled within that

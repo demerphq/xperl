@@ -45341,7 +45341,8 @@ $CONF = {
           "code" => "ERROR_RUNTIME_MULTISUB_NO_MATCH",
           "macro" => "PERL_THROW_ERROR_RUNTIME_MULTISUB_NO_MATCH",
           "source_files" => [
-            "pp.c"
+            "pp.c",
+            "util.c"
           ],
           "message" => {
             "templates" => {
