@@ -169,8 +169,8 @@ Other unsupported active localizations have the existing generator limits.
 
 `__SUB__` refers to the raw body and bypasses task creation. Recursive async
 code must use its declared name. Traditional named prototypes and
-signatured anonymous async subs are supported. Async methods and transparent
-generator iteration are not implemented.
+signatured anonymous async subs are supported. Transparent generator
+iteration is not implemented.
 
 The lexical follow-up adds `my async sub` and `state async sub`. These use
 the normal lexical-sub closure machinery and return tasks when called.
@@ -189,6 +189,17 @@ dispatch runs inside those tasks. Every clause must be async. Guards can
 await before selecting a clause, and a no-match failure reports the original
 call file, line and lexical diagnostic language. The saved call metadata
 does not retain the creator's code or package.
+
+The method follow-up adds named, anonymous and private lexical async
+methods, including async multi methods. Role composition binds the retained
+Perl body to its consumer before publishing its task factory. Each call
+captures one receiver for both `$self` and field access and keeps that
+object alive. Automatic `DESTROY` and `TEARDOWN` hooks remain synchronous.
+
+Named async functions and methods have an existing early-reference
+limitation: references taken before their definition completes can retain
+the raw Perl body. Take those references after the definition. Preserving
+the public CV throughout named compilation needs a separate follow-up.
 
 The library avoids cycles in its own waiter and relay machinery. It does
 not collect arbitrary cycles created by application closures and task
@@ -224,6 +235,17 @@ The sanitizer run used `PERL_DESTRUCT_LEVEL=2` and
 It reported no address or leak errors. The compiler logs contained no
 warnings. Astra independently checked hidden caller captures, native regex
 cleanup and interpreter threads.
+
+The method follow-up passed the full normal suite and the RC/debug class,
+role, generator and async checks. Its async-method and role-suspension
+regressions passed ASan and leak checking too. The builds had no compiler
+warnings.
+
+Expanded ASan coverage found an existing 136-byte leak after a role
+composition conflict in `t/role/role_conflict_resolution.t`. A control
+using the original compiler and class sources from `eb29697055` reported
+the same allocations. This is a separate role cleanup issue, not a failure
+of async-method execution.
 
 The benchmark compares the preserved interpreter from `689a901f46` with
 `c63b0c2f5b`, on the same x86-64 Linux host with GCC 13.3.0, threads and

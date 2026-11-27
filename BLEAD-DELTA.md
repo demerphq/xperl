@@ -96,6 +96,10 @@ can await without an async declaration.
 `my async sub` and `state async sub` provide lexical async functions with
 the usual closure and state behavior. Each call returns a task.
 
+`async method` and `async multi method` extend this to methods, including
+role composition, inheritance and private lexical methods. A pending
+call keeps its receiver alive. Automatic destruction hooks stay synchronous.
+
 `async multi sub` combines pattern dispatch with tasks. Every clause in a
 group must be async. Dispatch runs when the task starts, and clause guards
 and bodies can await. No-match errors report the original call location.

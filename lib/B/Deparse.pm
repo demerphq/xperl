@@ -7,7 +7,7 @@
 # This is based on the module of the same name by Malcolm Beattie,
 # but essentially none of his code remains.
 
-package B::Deparse 1.95;
+package B::Deparse 1.96;
 use strict;
 use builtin qw( true false );
 use Carp;
@@ -1553,8 +1553,8 @@ sub deparse_argops {
 sub kw_sub_or_method {
     my $self = shift;
     my $cv = shift;
-    return 'async sub' if $cv->CvFLAGS & PERL_CVf_ASYNC;
-    return ($cv->CvFLAGS & CVf_IsMETHOD) ? "method" : "sub";
+    my $kind = ($cv->CvFLAGS & CVf_IsMETHOD) ? 'method' : 'sub';
+    return $cv->CvFLAGS & PERL_CVf_ASYNC ? "async $kind" : $kind;
 }
 
 # Deparse a sub. Returns everything except the 'sub foo',

@@ -1179,6 +1179,8 @@ Perl_async_wrap(pTHX_ CV *body)
     CvXSUBANY(wrapper).any_sv = SvREFCNT_inc(MUTABLE_SV(body));
     CvREFCOUNTED_ANYSV_on(wrapper);
     CvASYNC_on(wrapper);
+    CvFLAGS(wrapper) |= CvFLAGS(body) & (CVf_IsMETHOD | PERL_CVf_MULTISUB);
+    CvSTASH_set(wrapper, CvSTASH(body));
     if (SvPOK(body))
         sv_setpvn(MUTABLE_SV(wrapper), SvPVX(body), SvCUR(body));
     return sv_2mortal(newRV_noinc(MUTABLE_SV(wrapper)));
@@ -1201,11 +1203,13 @@ Perl_async_check_name(pTHX_ OP *nameop)
         name++;
     }
     length = end - part;
-    /* Phase subs can execute or lose their last reference inside newATTRSUB.
-     * Reject them before handing the body to that routine. */
+    /* Phase subs can run during compilation. Automatic destruction ignores
+     * returned tasks and needs synchronous cleanup. Reject both kinds before
+     * newATTRSUB can register their hooks. */
     if (memEQs(part, length, "BEGIN") || memEQs(part, length, "UNITCHECK")
         || memEQs(part, length, "CHECK") || memEQs(part, length, "INIT")
-        || memEQs(part, length, "END"))
+        || memEQs(part, length, "END") || memEQs(part, length, "DESTROY")
+        || memEQs(part, length, "TEARDOWN"))
         PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
 }
 
@@ -1233,6 +1237,7 @@ Perl_async_lexical_factory(pTHX_ CV *target, CV *body)
     CvASYNC_on(target);
     CvLEXICAL_on(target);
     CvFLAGS(target) |= CvFLAGS(body) & (CVf_CLONE | CVf_CLONED);
+    CvFLAGS(target) |= CvFLAGS(body) & CVf_IsMETHOD;
     CvNAME_HEK_set(target, share_hek_hek(CvNAME_HEK(body)));
     CvFILE(target) = savepv(CvFILE(body));
     CvDYNFILE_on(target);
@@ -1297,6 +1302,7 @@ Perl_async_install_multi(pTHX_ CV *body, SV *name)
     CvREFCOUNTED_ANYSV_on(wrapper);
     CvASYNC_on(wrapper);
     CvMULTISUB_on(wrapper);
+    CvFLAGS(wrapper) |= CvFLAGS(body) & CVf_IsMETHOD;
     CvSTASH_set(wrapper, CvSTASH(body));
     gv_method_changed(gv);
 }
@@ -1349,6 +1355,10 @@ static XS(S_async_factory)
     I32 i;
     AV * const callsite = CvMULTISUB(body) ? S_async_callsite(aTHX) : NULL;
     PUTBACK;
+    /* Snapshotting the creator's environment can run magic. Keep the
+     * selected receiver before that code can reassign the caller's scalar. */
+    SV * const invocant = items && CvIsMETHOD(body)
+        ? sv_2mortal(newSVsv(ST(0))) : NULL;
     async_load();
     fiber = generator_wrap(body);
     ((PERL_GENERATOR *)CvXSUBANY(MUTABLE_CV(SvRV(fiber))).any_ptr)->callsite
@@ -1356,8 +1366,11 @@ static XS(S_async_factory)
     sv_bless(fiber, gv_stashpvs("XPerl::_Fiber", GV_ADD));
     args = newAV();
     sv_2mortal(MUTABLE_SV(args));
-    for (i = 0; i < items; i++)
-        av_push(args, SvREFCNT_inc(ST(i)));
+    for (i = 0; i < items; i++) {
+        /* Dispatch has selected a method for this object. Reassigning the
+         * caller's scalar must not change that pending call's invocant. */
+        av_push(args, SvREFCNT_inc(i == 0 && invocant ? invocant : ST(i)));
+    }
     SPAGAIN;
     SP -= items;
     PUSHMARK(SP);

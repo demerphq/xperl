@@ -463,14 +463,15 @@ bare_statement_multisub
 
 startmultisub
     : %empty
-        { $$ = multisub_begin($<opval>0, $<ival>-1 == KW_MULTI_METHOD,
-                             $<ival>-1 == KW_ASYNC); }
+        { $$ = multisub_begin($<opval>0, $<ival>-1 & CVf_IsMETHOD,
+                             $<ival>-1 & PERL_CVf_ASYNC); }
 ;
 
 multi_kind
-    : KW_MULTI_SUB { $$ = KW_MULTI_SUB; }
-    | KW_MULTI_METHOD { $$ = KW_MULTI_METHOD; }
-    | KW_ASYNC KW_MULTI_SUB { $$ = KW_ASYNC; }
+    : KW_MULTI_SUB { $$ = 0; }
+    | KW_MULTI_METHOD { $$ = CVf_IsMETHOD; }
+    | KW_ASYNC KW_MULTI_SUB { $$ = PERL_CVf_ASYNC; }
+    | KW_ASYNC KW_MULTI_METHOD { $$ = PERL_CVf_ASYNC | CVf_IsMETHOD; }
 ;
 
 multisub_header
@@ -952,11 +953,11 @@ bare_statement_sub_signature
 		startsub
 		{
 			init_named_cv(PL_compcv, $subname);
-			if($sigsub_or_method_named == KW_METHOD_named) {
+			if ($sigsub_or_method_named & CVf_IsMETHOD) {
 				croak_kw_unless_class("method");
 				class_prepare_method_parse(PL_compcv);
 			}
-			if ($sigsub_or_method_named == KW_ASYNC) {
+			if ($sigsub_or_method_named & PERL_CVf_ASYNC) {
 			    async_check_name($subname);
 			    CvASYNC_on(PL_compcv);
 			}
@@ -967,7 +968,7 @@ bare_statement_sub_signature
 		optsigsubbody
 		{
 			OP *body = $optsigsubbody;
-			if ($sigsub_or_method_named == KW_ASYNC && !body)
+			if (($sigsub_or_method_named & PERL_CVf_ASYNC) && !body)
 			    PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
 
 			SvREFCNT_inc_simple_void(PL_compcv);
@@ -975,7 +976,7 @@ bare_statement_sub_signature
 				? newATTRSUB($startsub, $subname, NULL, $subattrlist, body)
 				: newMYSUB(  $startsub, $subname, NULL, $subattrlist, body)
 				;
-			if ($sigsub_or_method_named == KW_ASYNC && cv && !CvLEXICAL(cv) && !PERL_DIAG_ERROR_COUNT)
+			if (($sigsub_or_method_named & PERL_CVf_ASYNC) && cv && !CvLEXICAL(cv) && !PERL_DIAG_ERROR_COUNT)
 			    async_install(cv);
 			intro_my();
 			parser->parsed_sub = 1;
@@ -1161,11 +1162,13 @@ subscriptable_reference
 /* Either a signatured 'sub' or 'method' keyword */
 sigsub_or_method_named
 	:	KW_SUB_named_sig
-			{ $$ = KW_SUB_named_sig; }
+			{ $$ = 0; }
 	|	KW_ASYNC KW_SUB_named_sig
-			{ $$ = KW_ASYNC; }
+			{ $$ = PERL_CVf_ASYNC; }
 	|	KW_METHOD_named
-			{ $$ = KW_METHOD_named; }
+			{ $$ = CVf_IsMETHOD; }
+	|	KW_ASYNC KW_METHOD_named
+			{ $$ = PERL_CVf_ASYNC | CVf_IsMETHOD; }
 	;
 
 sub_or_async_named
@@ -1451,6 +1454,8 @@ startgen:	KW_GEN startanonsub
 
 startasync: KW_ASYNC KW_SUB_anon_sig startanonsub
 			{ CvASYNC_on(PL_compcv); $$ = $startanonsub; }
+	|	KW_ASYNC KW_METHOD_anon startanonmethod
+			{ CvASYNC_on(PL_compcv); $$ = $startanonmethod; }
 	;
 
 startanonmethod:	%empty	/* start an anonymous method scope */

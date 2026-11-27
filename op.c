@@ -4883,6 +4883,8 @@ Perl_multisub_begin(pTHX_ OP *nameop, bool is_method, bool is_async)
         croak_kw_unless_class("method");
 
     const char *short_name = GvNAME(gv);
+    if (is_async && (strEQ(short_name, "DESTROY") || strEQ(short_name, "TEARDOWN")))
+        PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
     if (strEQ(short_name, "BEGIN") || strEQ(short_name, "UNITCHECK")
             || strEQ(short_name, "CHECK") || strEQ(short_name, "INIT")
             || strEQ(short_name, "END"))
@@ -14053,6 +14055,12 @@ Perl_newANONATTRSUB(pTHX_ I32 floor, OP *proto, OP *attrs, OP *block)
     PERL_ARGS_ASSERT_NEWANONATTRSUB;
 
     SV * const cv = MUTABLE_SV(newATTRSUB(floor, 0, proto, attrs, block));
+
+    /* An async call returns a task, so it cannot expose an lvalue result. */
+    if (CvASYNC(cv) && CvLVALUE(cv)) {
+        SvREFCNT_dec_NN(cv);
+        PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
+    }
 
     bool is_const = CvANONCONST(cv);
 

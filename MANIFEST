@@ -7723,6 +7723,7 @@ t/bigmem/sv_gets.t			Test reading a lot with sv_gets()
 t/bigmem/vec.t				Check vec() handles large offsets
 t/charset_tools.pl			To aid in portable testing across platforms with different character sets
 t/class/accessor.t			See if accessor methods work
+t/class/async_method.t			Async methods and role composition
 t/class/blessed_references.t		Ordinary blessed references for modern classes
 t/class/class.t				See if class declarations work
 t/class/construct.t			See if class constructors work

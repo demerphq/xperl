@@ -84,6 +84,34 @@ S_class_owner_stash(SV *token)
     return (HV *)SvRV(SvRV(token));
 }
 
+/* Async methods publish an XS task factory. Field bindings and closure
+ * storage belong to its Perl body, which class composition must inspect. */
+static CV *
+S_class_method_body(CV *cv)
+{
+    if (CvISXSUB(cv) && CvASYNC(cv) && CvREFCOUNTED_ANYSV(cv))
+        return MUTABLE_CV(CvXSUBANY(cv).any_sv);
+    return cv;
+}
+#define method_body(cv) S_class_method_body(cv)
+
+static CV *
+S_class_finish_method_clone(pTHX_ CV *source, CV *body)
+{
+    if (method_body(source) == source)
+        return body;
+    if (CvLEXICAL(source)) {
+        CV * const factory = MUTABLE_CV(newSV_type(SVt_PVCV));
+        async_lexical_factory(factory, body);
+        SvREFCNT_dec_NN(body);
+        return factory;
+    }
+    SV * const reference = async_wrap(body);
+    CV * const factory = MUTABLE_CV(SvREFCNT_inc_simple_NN(SvRV(reference)));
+    SvREFCNT_dec_NN(body);
+    return factory;
+}
+
 /* Clone a role CV and store a fieldix offset in its pad for composition.
  * The clone gets its own padlist (via cv_clone) and shares the optree
  * (via OpREFCNT). The offset is stored in pad slot PADIX_ROLE_OFFSET,
@@ -91,7 +119,7 @@ S_class_owner_stash(SV *token)
 static CV *
 S_cv_clone_with_field_offset(pTHX_ CV *proto, PADOFFSET offset, HV *owner)
 {
-    CV *cv = cv_clone(proto);
+    CV *cv = cv_clone(method_body(proto));
     PAD *pad1 = PadlistARRAY(CvPADLIST(cv))[1];
     sv_setuv(PadARRAY(pad1)[PADIX_ROLE_OFFSET], offset);
     SV *token = S_class_owner_token(aTHX_ owner);
@@ -101,7 +129,7 @@ S_cv_clone_with_field_offset(pTHX_ CV *proto, PADOFFSET offset, HV *owner)
     sv_magicext((SV *)cv, token, PERL_MAGIC_ext,
         &S_class_cv_context_vtbl, NULL, 0);
     SvREFCNT_dec_NN(token);
-    return cv;
+    return S_class_finish_method_clone(aTHX_ proto, cv);
 }
 #define cv_clone_with_field_offset(proto, offset, owner) \
     S_cv_clone_with_field_offset(aTHX_ proto, offset, owner)
@@ -109,6 +137,7 @@ S_cv_clone_with_field_offset(pTHX_ CV *proto, PADOFFSET offset, HV *owner)
 static PADOFFSET
 S_cv_field_offset(pTHX_ CV *cv)
 {
+    cv = method_body(cv);
     PAD *pad1 = PadlistARRAY(CvPADLIST(cv))[1];
     SV *offset = PadARRAY(pad1)[PADIX_ROLE_OFFSET];
     return SvOK(offset) ? SvUV(offset) : 0;
@@ -305,6 +334,8 @@ CV *
 Perl_class_bind_context(pTHX_ CV *cv, bool force_clone)
 {
     PERL_ARGS_ASSERT_CLASS_BIND_CONTEXT;
+    CV * const source = cv;
+    cv = method_body(cv);
     /* A captured lexical context wins over an unrelated caller. The shared
      * token preserves identity without owning the consumer stash. */
     SV *owner = S_class_captured_owner(aTHX_ cv, NULL);
@@ -331,7 +362,7 @@ Perl_class_bind_context(pTHX_ CV *cv, bool force_clone)
         }
     }
     if(!force_clone && (!owner || captured))
-        return cv;
+        return source;
     CV *bound = cv_clone(cv);
     if(owner) {
         if(CvIsMETHOD(bound)) {
@@ -348,7 +379,7 @@ Perl_class_bind_context(pTHX_ CV *cv, bool force_clone)
             &S_class_cv_context_vtbl, NULL, 0);
         SvREFCNT_dec_NN(token);
     }
-    return bound;
+    return S_class_finish_method_clone(aTHX_ source, bound);
 }
 
 static HV *
@@ -1860,6 +1891,7 @@ S_class_cleanup_definition(pTHX_ HV *stash)
 static void
 S_class_seal_method_fieldmap(pTHX_ CV *cv)
 {
+    cv = method_body(cv);
     assert(CvROOT(cv));
 
     OP *methstartop = find_op_methstart(CvROOT(cv));
@@ -2063,7 +2095,7 @@ S_proto_role_finalize(pTHX_ HV *stash)
                 continue;
 
             /* Required method stub (no body) or explicit method */
-            if (!CvROOT(cv)) {
+            if (!CvROOT(method_body(cv))) {
                 /* Required: origins = 0, cv = NULL */
                 proto_role_add_method(pr, methname, ORIGIN_SET_EMPTY,
                                      NULL, NULL);
@@ -2368,7 +2400,7 @@ S_class_inherits_method(pTHX_ HV *stash, SV *name)
                 cv = GvCV((GV *)entry);
             else if (SvROK(entry) && SvTYPE(SvRV(entry)) == SVt_PVCV)
                 cv = (CV *)SvRV(entry);
-            if (cv && CvROOT(cv))
+            if (cv && CvROOT(method_body(cv)))
                 return TRUE;
         }
         if (!HvSTASH_IS_CLASS(super))
@@ -2688,7 +2720,7 @@ S_proto_role_compose_and_install(pTHX_ HV *stash)
                     continue;
 
                 /* Required method stub — propagate to role consumers */
-                if (!CvROOT(rolecv)) {
+                if (!CvROOT(method_body(rolecv))) {
                     SV *methname = HeSVKEY_force(he);
                     HE *existing = hv_fetch_ent(stash, methname, 0, 0);
 
@@ -2699,7 +2731,7 @@ S_proto_role_compose_and_install(pTHX_ HV *stash)
                             existcv = GvCV((GV *)existentry);
                         else if (SvROK(existentry) && SvTYPE(SvRV(existentry)) == SVt_PVCV)
                             existcv = (CV *)SvRV(existentry);
-                        if (existcv && CvROOT(existcv))
+                        if (existcv && CvROOT(method_body(existcv)))
                             continue; /* satisfied */
                     }
 
@@ -2728,7 +2760,7 @@ S_proto_role_compose_and_install(pTHX_ HV *stash)
                         continue;
 
                     /* Consumer stub satisfied by role method */
-                    if (existcv && !CvROOT(existcv))
+                    if (existcv && !CvROOT(method_body(existcv)))
                         goto new_install_method;
 
                     /* Consumer's explicit method takes precedence (conflict
@@ -2753,7 +2785,7 @@ S_proto_role_compose_and_install(pTHX_ HV *stash)
 
                 new_install_method: {
                     CV *composed_cv = rolecv;
-                    OP *methstart = find_op_methstart(CvROOT(rolecv));
+                    OP *methstart = find_op_methstart(CvROOT(method_body(rolecv)));
                     if (methstart) {
                         U32 fieldcount = cUNOP_AUXx(methstart)->op_aux
                             ? cUNOP_AUXx(methstart)->op_aux[0].uv : 0;
@@ -2770,7 +2802,7 @@ S_proto_role_compose_and_install(pTHX_ HV *stash)
                                 CV *proto = stash_method_cv(
                                                 provider,
                                                 HeSVKEY_force(he));
-                                assert(proto && CvROOT(proto) == CvROOT(rolecv));
+                                assert(proto && CvROOT(method_body(proto)) == CvROOT(method_body(rolecv)));
                                 composed_cv = cv_clone_with_field_offset(
                                                   proto, fieldix_offset, stash);
                             }
@@ -3019,7 +3051,7 @@ Perl_class_seal_stash(pTHX_ HV *stash)
 
             for(SSize_t i = 0; i <= AvFILL(pending); i++) {
                 CV *methcv = (CV *)AvARRAY(pending)[i];
-                if(CvROOT(methcv))
+                if(CvROOT(method_body(methcv)))
                     class_seal_method_fieldmap(methcv);
             }
 
@@ -3040,7 +3072,7 @@ Perl_class_seal_stash(pTHX_ HV *stash)
                 else if(SvROK(entry) && SvTYPE(SvRV(entry)) == SVt_PVCV)
                     cv = (CV *)SvRV(entry);
 
-                if(cv && CvIsMETHOD(cv) && CvROOT(cv))
+                if(cv && CvIsMETHOD(cv) && CvROOT(method_body(cv)))
                     class_seal_method_fieldmap(cv);
             }
         }
@@ -3359,7 +3391,7 @@ Perl_role_seal_stash(pTHX_ HV *stash)
             AV *pending = aux->xhv_class_pending_method_cvs;
             for(SSize_t i = 0; i <= AvFILL(pending); i++) {
                 CV *cv = (CV *)AvARRAY(pending)[i];
-                if(CvROOT(cv))
+                if(CvROOT(method_body(cv)))
                     class_seal_method_fieldmap(cv);
             }
         }
@@ -3377,7 +3409,7 @@ Perl_role_seal_stash(pTHX_ HV *stash)
                 else if(SvROK(entry) && SvTYPE(SvRV(entry)) == SVt_PVCV)
                     cv = (CV *)SvRV(entry);
 
-                if(!cv || !CvIsMETHOD(cv) || !CvROOT(cv))
+                if(!cv || !CvIsMETHOD(cv) || !CvROOT(method_body(cv)))
                     continue;
 
                 class_seal_method_fieldmap(cv);

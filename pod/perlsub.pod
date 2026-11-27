@@ -898,8 +898,9 @@ With the C<async> feature enabled, C<async multi sub> defines a group whose
 calls return L<XPerl::Task> objects. All clauses in the group must be async.
 Dispatch runs inside the task, and guards and clause bodies may await.
 If no clause matches, the task fails with the usual no-match exception at
-the original call location. See L<XPerl::Task>. Async methods, including
-C<async multi method>, are not supported by the prototype.
+the original call location. C<async multi method> provides the same
+dispatch for methods, matching arguments after the implicit C<$self>.
+See L<XPerl::Task>.
 
 These lists contain patterns, not signature parameters. For example,
 C<multi sub answer($value = 42) { ... }> requires an argument matching C<42>

@@ -308,13 +308,45 @@ C<state> declaration keeps its function and its state between calls.
 
 For named lexical recursion, forward-declare with C<my sub name;> before
 the C<async sub name (...) { ... }> definition. Async declarations require
-a body. Async methods are not supported by this prototype.
+a body and cannot expose an lvalue result through their returned task.
 
 C<async multi sub> defines an asynchronous multisub. Every clause in the
 group must use that spelling. Calling the multisub returns a task, and
 argument dispatch happens when the task starts. Clause guards and bodies
 can await. A no-match failure belongs to the task and reports the original
 call location when propagated by C<run> or C<await>.
+
+=head1 METHODS
+
+C<async method> defines a method whose calls return tasks. The body has
+normal C<$self>, field access, signatures and C<SUPER> lookup. Roles may
+provide async methods, and C<my async method> and C<state async method>
+define private lexical methods. Anonymous C<async method> expressions
+create method references.
+
+    class Counter {
+        field $value = 0;
+        async method add($amount) {
+            await XPerl::Task->delay(0.01);
+            return $value += $amount;
+        }
+    }
+
+Each call keeps its receiver alive and captures the receiver's value
+before saving the creator's environment. Reassigning the caller's scalar
+does not change a pending call. C<$self> and field access use that same
+captured object. Other arguments retain the usual async alias semantics.
+
+C<async multi method> dispatches over the arguments after C<$self>. Every
+clause must be async, and both guards and bodies may await.
+
+Automatic C<DESTROY> and C<TEARDOWN> hooks require synchronous cleanup and
+cannot be async. Their callers discard return values and cannot await a
+task. A private lexical helper with either name does not register a hook.
+
+In this prototype, take references to named async functions and methods
+after their definitions have completed. A reference saved earlier can
+still call the underlying Perl body directly.
 
 =head1 DEFAULT DRIVER
 

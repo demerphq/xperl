@@ -253,6 +253,21 @@ invokes a lexical subroutine as if it was a method.
 
     # The `abc` method is not visible from here
 
+=head2 async method
+X<async method>
+
+With C<use async>, C<async method> declares a method whose calls return
+L<XPerl::Task> objects. Its body may C<await> and has the usual C<$self>,
+field access and method signature rules. Async methods work with
+inheritance and role composition. C<my async method> and C<state async
+method> declare private lexical methods, called with C<< ->& >>.
+
+C<async multi method> provides asynchronous pattern dispatch over the
+arguments after C<$self>. Guards and clause bodies may await. Automatic
+C<DESTROY> and C<TEARDOWN> hooks must remain synchronous.
+
+See L<XPerl::Task/METHODS> for receiver lifetime and prototype limitations.
+
 =head2 multi method
 X<multi method>
 

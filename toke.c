@@ -7936,6 +7936,12 @@ yyl_my(pTHX_ char *s, I32 my)
                 force_next(token);
                 return REPORT(KW_ASYNC);
             }
+            if (PL_bufend - after >= 6 && memEQ(after, "method", 6)
+                && !isWORDCHAR_lazy_if_safe(after + 6, PL_bufend, UTF)) {
+                const int token = yyl_sub(aTHX_ after + 6, KEY_method, FALSE);
+                force_next(token);
+                return REPORT(KW_ASYNC);
+            }
         }
         if (memEQs(PL_tokenbuf, len, "sub"))
             /* my sub ... */
