@@ -1191,7 +1191,7 @@ Perl_async_check_name(pTHX_ OP *nameop)
     const char *name, *end, *part;
     PERL_ARGS_ASSERT_ASYNC_CHECK_NAME;
     if (nameop->op_type != OP_CONST)
-        PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
+        return;
     name = SvPV(cSVOPx(nameop)->op_sv, length);
     end = name + length;
     part = name;
@@ -1207,6 +1207,48 @@ Perl_async_check_name(pTHX_ OP *nameop)
         || memEQs(part, length, "CHECK") || memEQs(part, length, "INIT")
         || memEQs(part, length, "END"))
         PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
+}
+
+CV *
+Perl_async_lexical_factory(pTHX_ CV *target, CV *body)
+{
+    PERL_ARGS_ASSERT_ASYNC_LEXICAL_FACTORY;
+    /* Keep the lexical name in its original pad slot. The factory owns a
+     * separate Perl body, so normal closure cloning can bind its captures
+     * without adding a Perl wrapper frame or recreating state variables. */
+    cv_undef(target);
+    if (CvOUTSIDE(target) && !CvWEAKOUTSIDE(target))
+        SvREFCNT_dec(CvOUTSIDE(target));
+    CvOUTSIDE(target) = NULL;
+    CvWEAKOUTSIDE_off(target);
+    CvISXSUB_on(target);
+    CvXSUB(target) = S_async_factory;
+    CvXSUBANY(target).any_sv = SvREFCNT_inc(MUTABLE_SV(body));
+    CvREFCOUNTED_ANYSV_on(target);
+#ifndef MULTIPLICITY
+    CvHSCXT(target) = &PL_stack_sp;
+#else
+    PoisonPADLIST(target);
+#endif
+    CvASYNC_on(target);
+    CvLEXICAL_on(target);
+    CvFLAGS(target) |= CvFLAGS(body) & (CVf_CLONE | CVf_CLONED);
+    CvNAME_HEK_set(target, share_hek_hek(CvNAME_HEK(body)));
+    CvFILE(target) = savepv(CvFILE(body));
+    CvDYNFILE_on(target);
+    CvSTASH_set(target, CvSTASH(body));
+    CvOUTSIDE(target) = CvOUTSIDE(body);
+    CvOUTSIDE_SEQ(target) = CvOUTSIDE_SEQ(body);
+    if (CvWEAKOUTSIDE(body))
+        CvWEAKOUTSIDE_on(target);
+    else
+        SvREFCNT_inc(CvOUTSIDE(target));
+    if (SvPOK(body)) {
+        sv_setpvn(MUTABLE_SV(target), SvPVX(body), SvCUR(body));
+        if (SvUTF8(body))
+            SvUTF8_on(target);
+    }
+    return target;
 }
 
 void

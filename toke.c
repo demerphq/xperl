@@ -7926,6 +7926,17 @@ yyl_my(pTHX_ char *s, I32 my)
     if (isIDFIRST_lazy_if_safe(s, PL_bufend, UTF)) {
         STRLEN len;
         s = scan_word(s, PL_tokenbuf, C_ARRAY_LENGTH(PL_tokenbuf), TRUE, &len);
+        if (memEQs(PL_tokenbuf, len, "async") && FEATURE_ASYNC_IS_ENABLED) {
+            const SSize_t offset = s - SvPVX(PL_linestr);
+            char *after = skipspace(s);
+            s = SvPVX(PL_linestr) + offset;
+            if (PL_bufend - after >= 3 && memEQ(after, "sub", 3)
+                && !isWORDCHAR_lazy_if_safe(after + 3, PL_bufend, UTF)) {
+                const int token = yyl_sub(aTHX_ after + 3, my, FALSE);
+                force_next(token);
+                return REPORT(KW_ASYNC);
+            }
+        }
         if (memEQs(PL_tokenbuf, len, "sub"))
             /* my sub ... */
             return yyl_sub(aTHX_ s, my, FALSE);

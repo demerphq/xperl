@@ -840,7 +840,7 @@ case 2: /* @1: %empty  */
 				? newATTRSUB((ps[-3].val.ival), (ps[-4].val.opval), NULL, (ps[-1].val.opval), body)
 				: newMYSUB(  (ps[-3].val.ival), (ps[-4].val.opval), NULL, (ps[-1].val.opval), body)
 				;
-			if ((ps[-5].val.ival) == KW_ASYNC && cv && !PERL_DIAG_ERROR_COUNT)
+			if ((ps[-5].val.ival) == KW_ASYNC && cv && !CvLEXICAL(cv) && !PERL_DIAG_ERROR_COUNT)
 			    async_install(cv);
 			intro_my();
 			parser->parsed_sub = 1;
@@ -873,7 +873,7 @@ case 2: /* @1: %empty  */
 				? newATTRSUB((ps[-4].val.ival), (ps[-5].val.opval), (ps[-2].val.opval), (ps[-1].val.opval), (ps[0].val.opval))
 				: newMYSUB((ps[-4].val.ival), (ps[-5].val.opval), (ps[-2].val.opval), (ps[-1].val.opval), (ps[0].val.opval))
 				;
-			if ((ps[-6].val.ival) == KW_ASYNC && cv && !PERL_DIAG_ERROR_COUNT)
+			if ((ps[-6].val.ival) == KW_ASYNC && cv && !CvLEXICAL(cv) && !PERL_DIAG_ERROR_COUNT)
 			    async_install(cv);
 			intro_my();
 			parser->parsed_sub = 1;
@@ -2865,6 +2865,6 @@ case 2: /* @1: %empty  */
     
 
 /* Generated from:
- * 39616875e2d01f4472e26dd7e67110bb37b530c0a25a2a9f40cbf918256aedcd perly.y
+ * 9396daf4c5ddf4d24a0488f3118bbae8dc1cb7061fb28918dcf9cee7d4a0fc8b perly.y
  * ba173fe7f0e9b6b5465fb5d0705af3290ac7d8b511f0eead585307eb6c68918d regen_perly.pl
  * ex: set ro ft=c: */

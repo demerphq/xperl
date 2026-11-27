@@ -93,6 +93,9 @@ The experimental `async sub` syntax creates functions which return
 pausing the current execution if necessary. Ordinary nested Perl helpers
 can await without an async declaration.
 
+`my async sub` and `state async sub` provide lexical async functions with
+the usual closure and state behavior. Each call returns a task.
+
 `async multi sub` combines pattern dispatch with tasks. Every clause in a
 group must be async. Dispatch runs when the task starts, and clause guards
 and bodies can await. No-match errors report the original call location.

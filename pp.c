@@ -77,7 +77,7 @@ PP(pp_clonecv)
     );
     assert(SvTYPE(TARG) == SVt_PVCV);
     assert(protocv);
-    if (CvISXSUB(protocv)) { /* constant */
+    if (CvISXSUB(protocv) && !CvASYNC(protocv)) { /* constant */
         /* XXX Should we clone it here? */
         /* If this changes to use SAVECLEARSV, we can move the SAVECLEARSV
            to introcv and remove the SvPADSTALE_off. */

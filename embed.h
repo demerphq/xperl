@@ -1152,6 +1152,7 @@
 #   define amagic_is_enabled(a)                 Perl_amagic_is_enabled(aTHX_ a)
 #   define apply(a,b,c)                         Perl_apply(aTHX_ a,b,c)
 #   define async_install_multi(a,b)             Perl_async_install_multi(aTHX_ a,b)
+#   define async_lexical_factory(a,b)           Perl_async_lexical_factory(aTHX_ a,b)
 #   define async_multisub_callsite(a)           Perl_async_multisub_callsite(aTHX_ a)
 #   define av_extend_guts(a,b,c,d,e)            Perl_av_extend_guts(aTHX_ a,b,c,d,e)
 #   define av_nonelem(a,b)                      Perl_av_nonelem(aTHX_ a,b)

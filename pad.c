@@ -303,6 +303,26 @@ Perl_cv_undef(pTHX_ CV *cv)
     cv_undef_flags(cv, 0);
 }
 
+static void
+S_async_body_reparent(pTHX_ CV *factory, CV *parent, CV *outer, U32 seq)
+{
+    /* The parent's pad names the factory, not its body. Follow that extra
+     * link when the parent goes away, since a task can retain the body. */
+    if (factory && SvTYPE(factory) == SVt_PVCV && CvISXSUB(factory)
+        && CvASYNC(factory) && CvLEXICAL(factory)) {
+        CV * const body = MUTABLE_CV(CvXSUBANY(factory).any_sv);
+        if (body && CvWEAKOUTSIDE(body) && CvOUTSIDE(body) == parent) {
+            if (outer && SvREFCNT(outer)) {
+                CvWEAKOUTSIDE_off(body);
+                CvOUTSIDE(body) = (CV *)SvREFCNT_inc_simple_NN(outer);
+                CvOUTSIDE_SEQ(body) = seq;
+            }
+            else
+                CvOUTSIDE(body) = NULL;
+        }
+    }
+}
+
 void
 Perl_cv_undef_flags(pTHX_ CV *cv, U32 flags)
 {
@@ -411,6 +431,9 @@ Perl_cv_undef_flags(pTHX_ CV *cv, U32 flags)
             for (ix = PadnamelistMAX(comppad_name); ix > 0; ix--) {
                 PADNAME * const name = namepad[ix];
                 if (name && PadnamePV(name) && *PadnamePV(name) == '&') {
+                    if (!PadnameOUTER(name) && !PadnameIsSTATE(name)
+                        && PadnameLEN(name) > 1)
+                        S_async_body_reparent(aTHX_ PadnamePROTOCV(name), cv, outercv, seq);
                     CV * const innercv = MUTABLE_CV(curpad[ix]);
                     if (PadnameIsOUR(name) && CvCLONED(&cvbody)) {
                         assert(!innercv);
@@ -421,6 +444,7 @@ Perl_cv_undef_flags(pTHX_ CV *cv, U32 flags)
                         assert(SvTYPE(innercv) != SVt_PVFM);
                         inner_rc = SvREFCNT(innercv);
                         assert(inner_rc);
+                        S_async_body_reparent(aTHX_ innercv, cv, outercv, seq);
 
                         if (SvREFCNT(comppad) < 2) { /* allow for /(?{ sub{} })/  */
                             curpad[ix] = NULL;
@@ -471,8 +495,25 @@ Perl_cv_undef_flags(pTHX_ CV *cv, U32 flags)
         CvPADLIST_set(&cvbody, NULL);
     }
     else if (CvISXSUB(&cvbody)) {
-        if (CvREFCOUNTED_ANYSV(&cvbody))
-            SvREFCNT_dec(CvXSUBANY(&cvbody).any_sv);
+        if (CvREFCOUNTED_ANYSV(&cvbody)) {
+            SV * const payload = CvXSUBANY(&cvbody).any_sv;
+            if (CvASYNC(&cvbody) && CvLEXICAL(&cvbody) && payload) {
+                /* A task or an explicit body reference can outlive the
+                 * factory. Break the factory's link before strengthening
+                 * the escaped body's enclosing scope. */
+                CvXSUBANY(&cvbody).any_sv = NULL;
+                if (PL_phase != PERL_PHASE_DESTRUCT) {
+                    CV * const body = MUTABLE_CV(payload);
+                    CV * const outside = CvOUTSIDE(body);
+                    if (SvREFCNT(body) > 1 && CvWEAKOUTSIDE(body)
+                        && outside && SvREFCNT(outside)) {
+                        CvWEAKOUTSIDE_off(body);
+                        SvREFCNT_inc_simple_void_NN(outside);
+                    }
+                }
+            }
+            SvREFCNT_dec(payload);
+        }
         CvHSCXT(&cvbody) = NULL;
     }
     /* else is (!CvISXSUB(&cvbody) && !CvPADLIST(&cvbody)) {do nothing;} */
@@ -2295,13 +2336,26 @@ S_cv_clone_pad(pTHX_ CV *proto, CV *cv, CV *outside, HV *cloned,
                             : (CV **)hv_fetch(cloned, (char *)&protokey,
                                               sizeof(CV *), 0);
                         if (cvp && *cvp) {
+                            CV *parent = *cvp;
+                            if (CvISXSUB(parent) && CvASYNC(parent) && CvLEXICAL(parent))
+                                parent = MUTABLE_CV(CvXSUBANY(parent).any_sv);
                             S_cv_clone(aTHX_ (CV *)ppad[ix],
                                              (CV *)PL_curpad[ix],
-                                             *cvp, cloned);
+                                             parent, cloned);
                             (void)hv_store(cloned, (char *)&ppad[ix],
                                      sizeof(CV *),
                                      SvREFCNT_inc_simple_NN(PL_curpad[ix]),
                                      0);
+                            CV * const old = MUTABLE_CV(ppad[ix]);
+                            CV * const copy = MUTABLE_CV(PL_curpad[ix]);
+                            if (CvISXSUB(old) && CvASYNC(old) && CvLEXICAL(old)) {
+                                /* Nested state subs refer to the enclosing
+                                 * Perl body, so map that identity as well as
+                                 * the factory's lexical pad entry. */
+                                CV * const body = MUTABLE_CV(CvXSUBANY(old).any_sv);
+                                (void)hv_store(cloned, (char *)&body, sizeof(CV *),
+                                    SvREFCNT_inc_simple_NN(CvXSUBANY(copy).any_sv), 0);
+                            }
                             subclones--;
                             cloned_in_this_pass = TRUE;
                         }
@@ -2411,6 +2465,24 @@ S_cv_clone(pTHX_ CV *proto, CV *cv, CV *outside, HV *cloned)
 
     assert(!CvUNIQUE(proto));
 
+    if (CvISXSUB(proto) && CvASYNC(proto) && CvLEXICAL(proto)) {
+        /* Clone captured storage through the ordinary Perl body. The XS
+         * factory has no padlist of its own. */
+        ENTER;
+        if (!cv) {
+            cv = MUTABLE_CV(newSV_type(SVt_PVCV));
+            SAVEFREESV(cv);
+        }
+        CV * const body = S_cv_clone(aTHX_
+            MUTABLE_CV(CvXSUBANY(proto).any_sv), NULL, outside, cloned);
+        SAVEFREESV(body);
+        async_lexical_factory(cv, body);
+        if (newcv)
+            SvREFCNT_inc_simple_void_NN(cv);
+        LEAVE;
+        return cv;
+    }
+
     if (!cv) cv = MUTABLE_CV(newSV_type_generic(SvTYPE(proto)));
     CvFLAGS(cv) = CvFLAGS(proto) & ~(CVf_CLONE|CVf_WEAKOUTSIDE|CVf_CVGV_RC
                                     |CVf_SLABBED);
@@ -2467,7 +2539,9 @@ Perl_cv_clone(pTHX_ CV *proto)
 {
     PERL_ARGS_ASSERT_CV_CLONE;
 
-    if (!CvPADLIST(proto)) PERL_PANIC_ERROR_INTERNAL_PAD_CLONE_PADLIST_MISSING();
+    if (!(CvISXSUB(proto) && CvASYNC(proto) && CvLEXICAL(proto))
+        && !CvPADLIST(proto))
+        PERL_PANIC_ERROR_INTERNAL_PAD_CLONE_PADLIST_MISSING();
     return S_cv_clone(aTHX_ proto, NULL, NULL, NULL);
 }
 
@@ -2476,7 +2550,8 @@ CV *
 Perl_cv_clone_into(pTHX_ CV *proto, CV *target)
 {
     PERL_ARGS_ASSERT_CV_CLONE_INTO;
-    cv_undef(target);
+    if (!(CvISXSUB(proto) && CvASYNC(proto) && CvLEXICAL(proto)))
+        cv_undef(target);
     return S_cv_clone(aTHX_ proto, target, NULL, NULL);
 }
 
@@ -2543,6 +2618,23 @@ moved to a pre-existing CV struct.
 =cut
 */
 
+static void
+S_pad_fixup_async_body(pTHX_ CV *factory, CV *old_cv, CV *new_cv)
+{
+    /* Moving a compiled parent must update the private body's enclosing
+     * scope as well as the factory visible in the parent's pad. */
+    if (factory && CvISXSUB(factory) && CvASYNC(factory) && CvLEXICAL(factory)) {
+        CV * const body = MUTABLE_CV(CvXSUBANY(factory).any_sv);
+        if (body && CvOUTSIDE(body) == old_cv) {
+            if (!CvWEAKOUTSIDE(body)) {
+                SvREFCNT_dec(old_cv);
+                SvREFCNT_inc_simple_void_NN(new_cv);
+            }
+            CvOUTSIDE(body) = new_cv;
+        }
+    }
+}
+
 void
 Perl_pad_fixup_inner_anons(pTHX_ PADLIST *padlist, CV *old_cv, CV *new_cv)
 {
@@ -2573,6 +2665,7 @@ Perl_pad_fixup_inner_anons(pTHX_ PADLIST *padlist, CV *old_cv, CV *new_cv)
                 }
                 CvOUTSIDE(proto) = new_cv;
             }
+            S_pad_fixup_async_body(aTHX_ proto, old_cv, new_cv);
           }
 
           CV *innercv = MUTABLE_CV(curpad[ix]);
@@ -2597,6 +2690,7 @@ Perl_pad_fixup_inner_anons(pTHX_ PADLIST *padlist, CV *old_cv, CV *new_cv)
                 }
                 CvOUTSIDE(innercv) = new_cv;
             }
+            S_pad_fixup_async_body(aTHX_ innercv, old_cv, new_cv);
           }
           else { /* format reference */
             SV * const rv = curpad[ix];

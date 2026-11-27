@@ -12162,7 +12162,8 @@ S_op_const_sv(pTHX_ const OP *o, CV *cv, bool allow_lex)
 
 static void
 S_already_defined(pTHX_ CV *const cv, OP * const block, OP * const o,
-                        PADNAME * const name, SV ** const const_svp)
+                        PADNAME * const name, SV ** const const_svp,
+                        bool release_old)
 {
     assert (cv);
     assert (o || name);
@@ -12204,7 +12205,8 @@ S_already_defined(pTHX_ CV *const cv, OP * const block, OP * const o,
         SvREFCNT_inc_simple_void_NN(PL_compcv);
         CopLINE_set(PL_curcop, oldline);
     }
-    SAVEFREESV(cv);
+    if (release_old)
+        SAVEFREESV(cv);
     return;
 }
 
@@ -12283,6 +12285,9 @@ Perl_newMYSUB(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs, OP *block)
     CV *clonee = NULL;
     HEK *hek = NULL;
     bool reusable = FALSE;
+    CV *async_target = NULL;
+    bool async_defer_release = FALSE;
+    bool async_lvalue = FALSE;
     OP *start = NULL;
 #ifdef PERL_DEBUG_READONLY_OPS
     OPSLAB *slab = NULL;
@@ -12373,8 +12378,17 @@ Perl_newMYSUB(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs, OP *block)
             block = newSTATEOP(0, NULL, 0);
             PL_parser->copline = l;
         }
-        block = CvLVALUE(compcv)
-             || (cv && CvLVALUE(cv) && !CvROOT(cv) && !CvXSUB(cv))
+        async_lvalue = CvLVALUE(compcv)
+             || (cv && CvLVALUE(cv) && !CvROOT(cv) && !CvXSUB(cv));
+        if (CvASYNC(compcv) && async_lvalue) {
+            /* Reject before redefinition transfers the old pad CV's
+             * ownership. A failed definition must leave that CV intact. */
+            op_free(block);
+            SvREFCNT_dec(compcv);
+            PL_compcv = NULL;
+            PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
+        }
+        block = async_lvalue
                    ? newUNOP(OP_LEAVESUBLV, 0,
                              op_lvalue(voidnonfinal(block), OP_LEAVESUBLV))
                    : newUNOP(OP_LEAVESUB, 0, voidnonfinal(block));
@@ -12400,7 +12414,9 @@ Perl_newMYSUB(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs, OP *block)
                                  ps_utf8);
         /* already defined? */
         if (exists) {
-            S_already_defined(aTHX_ cv, block, NULL, name, &const_sv);
+            async_defer_release = block && CvASYNC(compcv);
+            S_already_defined(aTHX_ cv, block, NULL, name, &const_sv,
+                              !async_defer_release);
             if (block)
                 cv = NULL;
             else {
@@ -12456,6 +12472,17 @@ Perl_newMYSUB(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs, OP *block)
     }
     /* XXX else do we have a circular reference? */
 
+    if (block && CvASYNC(compcv)) {
+        /* Compile the body separately and leave the public lexical slot
+         * available for its task factory. Existing references to a forward
+         * declaration must continue to name that same factory. */
+        async_target = cv ? (CV *)SvREFCNT_inc_simple_NN(cv)
+                          : MUTABLE_CV(newSV_type(SVt_PVCV));
+        SAVEFREESV(async_target);
+        cv = NULL;
+        SAVEFREESV(compcv);
+    }
+
     if (cv) {	/* must reuse cv in case stub is referenced elsewhere */
         /* transfer PL_compcv to cv */
         if (block) {
@@ -12501,7 +12528,8 @@ Perl_newMYSUB(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs, OP *block)
     }
     else {
         cv = compcv;
-        *spot = cv;
+        if (!async_target)
+            *spot = cv;
     }
 
   setname:
@@ -12592,14 +12620,49 @@ Perl_newMYSUB(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs, OP *block)
     }
 
   clone:
+    if (async_target) {
+        if (CvLVALUE(cv))
+            PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED();
+        if (SvMAGIC(compcv))
+            run_codemagics_post_newcv((SV *)cv, (SV *)compcv);
+        cv = async_lexical_factory(async_target, cv);
+        if (spot == &clonee)
+            clonee = cv;
+        else {
+            /* Attribute hooks can run Perl and change the pad. Publish the
+             * completed factory only now, leaving the old entry intact if
+             * compilation fails. */
+            spot = PadnameIsSTATE(name) || CvDEPTH(outcv)
+                ? (CV **)&PadARRAY(PadlistARRAY(CvPADLIST(outcv))
+                                  [CvDEPTH(outcv) ? CvDEPTH(outcv) : 1])[pax]
+                : &PadnamePROTOCV(name);
+            CV * const old = *spot;
+            *spot = (CV *)SvREFCNT_inc_simple_NN(cv);
+            SvREFCNT_dec(old);
+        }
+    }
     if (clonee) {
         assert(CvDEPTH(outcv));
         spot = (CV **)
             &PadARRAY(PadlistARRAY(CvPADLIST(outcv))[CvDEPTH(outcv)])[pax];
         if (reusable)
             cv_clone_into(clonee, *spot);
-        else *spot = cv_clone(clonee);
-        SvREFCNT_dec_NN(clonee);
+        else {
+            CV * const replacement = cv_clone(clonee);
+            if (async_defer_release) {
+                /* Release the old pad reference only after cloning succeeds.
+                 * Attribute hooks may have changed the slot in the meantime. */
+                spot = (CV **)
+                    &PadARRAY(PadlistARRAY(CvPADLIST(outcv))[CvDEPTH(outcv)])[pax];
+                CV * const old = *spot;
+                *spot = replacement;
+                SvREFCNT_dec(old);
+            }
+            else
+                *spot = replacement;
+        }
+        if (!async_target)
+            SvREFCNT_dec_NN(clonee);
         cv = *spot;
     }
 
@@ -12614,7 +12677,7 @@ Perl_newMYSUB(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs, OP *block)
         }
     }
 
-    if (PL_compcv && SvMAGIC((SV *)PL_compcv))
+    if (!async_target && PL_compcv && SvMAGIC((SV *)PL_compcv))
         run_codemagics_post_newcv((SV *)cv, (SV *)PL_compcv);
 
   done:
@@ -12999,7 +13062,7 @@ Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
         /* Reattaching a reserved multi CV sets GvASSUMECV without giving
          * that rootless reservation a definition. Complete it in place. */
         if (exists || (isGV(gv) && GvASSUMECV(gv) && !CvMULTISUB(cv))) {
-            S_already_defined(aTHX_ cv, block, o, NULL, &const_sv);
+            S_already_defined(aTHX_ cv, block, o, NULL, &const_sv, TRUE);
             if (block)
                 cv = NULL;
             else {

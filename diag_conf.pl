@@ -19912,6 +19912,7 @@ $CONF = {
           "code" => "ERROR_ASYNC_DECLARATION_UNSUPPORTED",
           "macro" => "PERL_THROW_ERROR_ASYNC_DECLARATION_UNSUPPORTED",
           "source_files" => [
+            "op.c",
             "perly.y",
             "run.c"
           ],

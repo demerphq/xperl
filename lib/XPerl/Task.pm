@@ -294,6 +294,22 @@ Named recursive calls create tasks normally. C<__SUB__> currently refers to
 the underlying Perl body, so invoking it bypasses task creation. Recursive
 async code must use its declared name in this prototype.
 
+C<my async sub> and C<state async sub> follow the usual lexical-sub scope
+and closure rules. Calling either returns a task. A C<my> declaration
+creates a new lexical function each time execution reaches it, while a
+C<state> declaration keeps its function and its state between calls.
+
+    sub make_adder ($offset) {
+        my async sub add ($value) {
+            return $offset + $value;
+        }
+        return \&add;
+    }
+
+For named lexical recursion, forward-declare with C<my sub name;> before
+the C<async sub name (...) { ... }> definition. Async declarations require
+a body. Async methods are not supported by this prototype.
+
 C<async multi sub> defines an asynchronous multisub. Every clause in the
 group must use that spelling. Calling the multisub returns a task, and
 argument dispatch happens when the task starts. Clause guards and bodies

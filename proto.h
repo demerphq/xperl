@@ -281,6 +281,20 @@ Perl_async_install_multi(pTHX_ CV *body, SV *name)
                  assert(name); PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;             \
     } STMT_END
 
+PERL_CALLCONV CV *
+Perl_async_lexical_factory(pTHX_ CV *target, CV *body)
+        Perl_attribute_nonnull_aTHX
+        Perl_attribute_nonnull(pTHX_1)
+        Perl_attribute_nonnull(pTHX_2)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_ASYNC_LEXICAL_FACTORY  \
+    STMT_START { Perl_assert_aTHX; assert(target);                                  \
+                 assert(SvTYPE(target) == SVt_PVCV || SvTYPE(target) == SVt_PVFM);  \
+                 assert(body);                                                      \
+                 assert(SvTYPE(body) == SVt_PVCV || SvTYPE(body) == SVt_PVFM);      \
+                 PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;                               \
+    } STMT_END
+
 PERL_CALLCONV void
 Perl_async_load(pTHX)
         Perl_attribute_nonnull_aTHX;

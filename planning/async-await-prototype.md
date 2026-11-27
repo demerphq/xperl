@@ -169,8 +169,20 @@ Other unsupported active localizations have the existing generator limits.
 
 `__SUB__` refers to the raw body and bypasses task creation. Recursive async
 code must use its declared name. Traditional named prototypes and
-signatured anonymous async subs are supported. Async methods, lexical async
-declarations and transparent generator iteration are not implemented.
+signatured anonymous async subs are supported. Async methods and transparent
+generator iteration are not implemented.
+
+The lexical follow-up adds `my async sub` and `state async sub`. These use
+the normal lexical-sub closure machinery and return tasks when called.
+An escaped function retains its captured variables, and state belongs to
+that function instance. Named lexical recursion uses an ordinary
+`my sub name;` forward declaration before the async definition. Async
+forward declarations without a body are not supported.
+
+The deparser supports basic lexical async declarations. Its existing
+limitations with ordinary lexical subs also apply: some enclosing
+signatures and declaration ordering around captured variables do not
+round-trip correctly.
 
 The multisub follow-up adds `async multi sub`. Calls create tasks, and
 dispatch runs inside those tasks. Every clause must be async. Guards can

@@ -939,6 +939,9 @@ Chp	|void	|async_install	|NN CV *body
 p	|void	|async_install_multi					\
 				|NN CV *body				\
 				|NN SV *name
+p	|CV *	|async_lexical_factory					\
+				|NN CV *target				\
+				|NN CV *body
 Chp	|void	|async_load
 p	|AV *	|async_multisub_callsite				\
 				|NULLOK const PERL_CONTEXT *cx

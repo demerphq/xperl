@@ -1377,6 +1377,12 @@ Beginning with Perl 5.18, you can declare a private subroutine with C<my>
 or C<state>.  As with state variables, the C<state> keyword is only
 available under C<use feature 'state'> or C<use v5.10> or higher.
 
+With C<use async>, C<my async sub> and C<state async sub> declare lexical
+functions whose calls return L<XPerl::Task> objects. They follow the same
+scope, closure and state rules as ordinary lexical subs. An async
+declaration needs a body. For lexical recursion, use an ordinary
+C<my sub name;> forward declaration before the async definition.
+
 Prior to Perl 5.26, lexical subroutines were deemed experimental and were
 available only under the C<use feature 'lexical_subs'> pragma.  They also
 produced a warning unless the "experimental::lexical_subs" warnings

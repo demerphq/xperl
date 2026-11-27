@@ -42,4 +42,16 @@ my $child = threads->create(sub { run(classify('double', 21)) });
 is($child->join, 42, 'child interpreter retains async multi bodies');
 is(run(classify('other')), 42, 'parent async multi remains usable after cloning');
 
+sub lexical_factory ($offset) {
+    my async sub add ($value) {
+        await XPerl::Task->delay(0);
+        return $offset + $value;
+    }
+    return \&add;
+}
+my $add = lexical_factory(20);
+$child = threads->create(sub { run($add->(22)) });
+is($child->join, 42, 'child interpreter clones an escaped lexical async body');
+is(run($add->(1)), 21, 'parent lexical async body remains usable after cloning');
+
 done_testing();
